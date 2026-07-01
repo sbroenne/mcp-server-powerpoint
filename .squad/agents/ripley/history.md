@@ -11,3 +11,6 @@
 
 
 📌 Team update (2026-07-01T11:07:03+02:00): Crash recovery completed; roadmap restored and Dallas test strategy assigns Ripley Phase 1 MCP validation: tools list/schema/error envelopes without COM where possible, session lifecycle with real PowerPoint only for wiring, serialized tests, and no duplicate Core behavior retests — decided by Squad-Coordinator/Dallas.
+
+
+📌 Team update (2026-07-01T13:00:00+02:00): Phase 1 MVP landed green — In-memory MCP transport harness built (6/6 tests passed). Architecture: pipe pair → Program.ConfigureTestTransport → McpClient over StreamClientTransport, serialized via xunit.runner.json + [Collection("ProgramTransport")]. Two test classes: McpProtocolTests (5 tools validated, DI registry isolation confirmed, ServerInfo/Instructions green) + McpRoundTripTests (live-COM create_presentation disk write + full session lifecycle). Observation: POWERPNT.exe post-Quit takes ~90–100s to exit process list (documented Office COM cleanup, benign, self-resolves). Brett delivered McpServer MVP (5 tools, registry), Parker delivered Export (5/5 tests). Harness ready for reuse by future domain tool tests. — decided by Ripley

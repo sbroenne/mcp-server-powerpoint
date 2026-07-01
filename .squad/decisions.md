@@ -117,3 +117,57 @@ CONVENTIONS: Rule 1/1b (Success/ErrorMessage invariant, no try-catch suppression
 **What:** Ship a GitHub Pages docs site (deliverable #10). Port mcp-server-excel/gh-pages/ (Jekyll, Ruby 3.3, build.sh production) + deploy-gh-pages.yml (deploys on push to main touching gh-pages/**, FEATURES.md, CHANGELOG.md; env github-pages; pages:write + id-token:write). IndexNow SEO (Bing/Yandex) with new key file. Content: landing page, feature matrix, 6-path install matrix, quickstart, tool/command reference, changelog.
 **Custom domain:** CONFIRMED = **powerpointmcpserver.dev** (sbroenne, 2026-07-01). Needs DNS (A/ALIAS to GitHub Pages IPs or CNAME to sbroenne.github.io) + CNAME file in gh-pages/ + Enforce HTTPS. Landing page: https://powerpointmcpserver.dev
 **Why:** User: "we also need github pages" + "the domain will be powerpointmcpserver.dev". Details: session plan.md Phase 4 + §5a row 10.
+
+### 2026-07-01T12:00:00+02:00: McpServer Phase 1 MVP — implementation decisions & follow-ups (consolidated)
+
+**By:** Brett (MCP/Service Dev), Parker (COM/Core Dev), Ripley (Tester)
+
+**What:** Phase 1 MVP completed successfully with three work streams:
+
+**BRETT's McpServer MVP:**
+- Built the empty `src/PowerPointMcp.McpServer` into a working MCP stdio host per Dallas's architecture pass.
+- Implemented: `PowerPointMcp.McpServer.csproj` (net10.0-windows Exe, refs Core+ComInterop, ModelContextProtocol 1.3.0/Hosting/Logging, InternalsVisibleTo McpServer.Tests)
+- `Program.cs` (stdio host + in-memory test transport hooks)
+- `Session/PresentationSessionRegistry.cs` (in-process ConcurrentDictionary<sessionId, IPresentationBatch> singleton)
+- `Tools/PowerPointToolsBase.cs` (JSON opts + ExecuteToolAction + error serialization)
+- `Tools/PresentationTools.cs` (5 hand-written tools: create_presentation, open_presentation, save_presentation, close_presentation, list_sessions)
+- Bumped ModelContextProtocol 0.5.0-preview.2 → 1.3.0 in Directory.Packages.props.
+- Added project to slnx.
+- Full solution builds green (0 warn/0 err); stdio smoke test confirms all 5 tools discovered with correct schemas and clean JSON-RPC on stdout.
+
+Key implementation decisions:
+- **DI injection into static tool methods:** Tool methods take `PresentationSessionRegistry registry` as a plain parameter; MCP SDK 1.3.0 correctly EXCLUDES it from tool JSON schema (verified via tools/list).
+- **Shutdown disposal two-layered:** `PresentationSessionShutdownService : IHostedService` disposes batches on host StopAsync, AND `Main`'s finally calls `registry.DisposeAll()` as backstop (idempotent).
+- **create_presentation does NOT open a session:** calls Core `PresentationCommands.Create` (create+save+close on disk), returns success+path. Callers must `open_presentation` afterward to edit (2-call flow). [FOLLOW-UP for Dallas/sbroenne: decide if future `create_and_open` or change `create_presentation` return is desired]
+- **No office.dll assembly resolver ported:** PowerPoint's Directory.Build.targets force-embeds interop types (NoPIA), no runtime dependency to resolve.
+
+**PARKER's Export Domain:**
+- Implemented Export domain in `src/PowerPointMcp.Core/Export/` with two commands:
+  - `ExportSlideToImage` — single-slide → image file
+  - `ExportAllSlidesToImages` — all slides → image files in a directory
+- Key decisions:
+  - `ExportAllSlidesToImages` calls `Presentation.Export` in single COM call (more efficient than per-slide loop); PowerPoint handles file naming natively (`Slide1.PNG`, `Slide2.PNG`, etc.)
+  - Slide index convention: 1-based (matches PowerPoint native + other Core domains)
+  - Format parameter: string `"PNG"` default, passed directly to `FilterName` (valid: PNG, JPG, GIF, BMP, TIF, WMF, EMF; no pre-validation per Rule 1b)
+  - Output directory creation: pre-created by ExportCommands (graceful `Success=false` vs COM exception if malformed)
+  - COM object access: typed `PowerPoint.Slide`/`Presentation` (no `dynamic` needed, no MsoTriState params)
+- **Test Results:** All 5 real-COM integration tests passed:
+  - ExportSlideToImage_ExportsSingleSlide_FileExistsAndNonEmpty ✅
+  - ExportSlideToImage_WithCustomDimensions_ProducesFile ✅
+  - ExportSlideToImage_WithInvalidIndex_ReturnsFailure_NotException ✅
+  - ExportAllSlidesToImages_ExportsAllSlides_FilesExistAndNonEmpty ✅
+  - ExportAllSlidesToImages_CreatesOutputDirectory_WhenMissing ✅
+
+**RIPLEY's MCP Transport Harness:**
+- Created `tests/PowerPointMcp.McpServer.Tests` (added to Sbroenne.PowerPointMcp.slnx) — in-memory MCP transport test harness ported from mcp-server-excel pattern.
+- Architecture: Pipe pair → `Program.ConfigureTestTransport` → `Program.Main([])` on background task → `McpClient.CreateAsync` over `StreamClientTransport` → teardown via `RequestTestTransportShutdown` → pipe completion → await server task → `ResetTestTransport`.
+- Serialized via `xunit.runner.json` (maxParallelThreads: 1) + `[Collection("ProgramTransport")]`.
+- Two test classes:
+  - `McpProtocolTests` (no COM, protocol assertions): tools/list returns 5 expected tools, DI registry never leaks into JSON schema, all tools have name+description, ServerInfo/Instructions validated
+  - `McpRoundTripTests` (live COM): create_presentation via MCP writes real .pptx; full lifecycle test: create → open → list_sessions (shows it) → save → close → list_sessions (gone)
+- **Result:** `dotnet test tests/PowerPointMcp.McpServer.Tests` — 6/6 passed (all green).
+- **Observation (benign, not a bug):** After round-trip test's `close_presentation` disposed sessions, POWERPNT.exe took ~90–100 seconds to exit OS process list (post-Quit Office COM cleanup/telemetry). This is documented Office behavior, self-resolved with no manual kill, did not block back-to-back test runs. Do NOT add force-kill on happy path; reserved for `_operationTimedOut` safety net only.
+
+**Why recorded:** Phase 1 MVP establishes proven vertical slice (session → registry → Core command → serialized MCP result) so remaining domains can be added mechanically. Validates 1.3.0 SDK fluent API against real repo state before investing in generators. Harness pre-empts false "orphaned process" bug reports for benign Office shutdown latency.
+
+**Deferred (not in this task):** out-of-process Service + ServiceBridge, source generators, telemetry/AppInsights, MCPB/skill-prompt packaging, `.mcp/server.json` manifest + README, remaining 8 domain tools (Slide/Shape/TextFrame/Table/Notes/Layout/Image/Chart), Domain-specific tooling beyond the 5 Presentation tools. No Core or ComInterop changes except Export domain.

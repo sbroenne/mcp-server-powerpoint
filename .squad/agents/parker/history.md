@@ -11,3 +11,6 @@
 
 
 📌 Team update (2026-07-01T11:07:03+02:00): Crash recovery completed; roadmap restored and Dallas recommended MCP MVP starts with Excel-style stdio host, in-process session registry, and hand-written tools before generators. Parker Phase 1 owns Core/ComInterop follow-up: add Presentation Open/Close/session-list and Export domain after Brett's server vertical slice needs are clear — decided by Squad-Coordinator/Dallas.
+
+
+📌 Team update (2026-07-01T13:00:00+02:00): Phase 1 MVP landed green — Export domain implemented with ExportSlideToImage + ExportAllSlidesToImages (5/5 real-COM integration tests passed). Key decisions: Presentation.Export for all-slides (single COM call, efficient), 1-based slide indices (matches PowerPoint native + other Core domains), format string passed directly to FilterName (PNG/JPG/GIF/BMP/TIF/WMF/EMF, no pre-validation per Rule 1b), output directory pre-created gracefully. Brett delivered McpServer (5 tools, registry, shutdown), Ripley built transport harness (6/6 tests). Export ready for MCP tool integration in Phase 2. — decided by Parker
