@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- Test-only relaxations: xUnit convention is underscored, descriptive method names,
+         and test methods don't need XML doc comments. -->
+    <NoWarn>$(NoWarn);CA1707;CS1591</NoWarn>
+
+    <!-- Assembly and Namespace Configuration -->
+    <AssemblyName>Sbroenne.PowerPointMcp.McpServer.Tests</AssemblyName>
+    <RootNamespace>Sbroenne.PowerPointMcp.McpServer.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="coverlet.collector" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\PowerPointMcp.McpServer\PowerPointMcp.McpServer.csproj" />
+    <ProjectReference Include="..\..\src\PowerPointMcp.ComInterop\PowerPointMcp.ComInterop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Disables cross-class test parallelization: transport tests share Program's static test
+         hooks, and round-trip tests launch a real PowerPoint COM instance — concurrent
+         Activator.CreateInstance calls against PowerPoint.Application can transiently fail with
+         "RPC server is unavailable" (0x800706BA) under load. -->
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -3,8 +3,10 @@
     <Project Path="src/PowerPointMcp.CLI/PowerPointMcp.CLI.csproj" />
     <Project Path="src/PowerPointMcp.ComInterop/PowerPointMcp.ComInterop.csproj" />
     <Project Path="src/PowerPointMcp.Core/PowerPointMcp.Core.csproj" />
+    <Project Path="src/PowerPointMcp.McpServer/PowerPointMcp.McpServer.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PowerPointMcp.Core.Tests/PowerPointMcp.Core.Tests.csproj" />
+    <Project Path="tests/PowerPointMcp.McpServer.Tests/PowerPointMcp.McpServer.Tests.csproj" />
   </Folder>
 </Solution>
