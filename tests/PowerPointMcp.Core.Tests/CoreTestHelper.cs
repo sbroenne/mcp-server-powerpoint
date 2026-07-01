@@ -17,4 +17,21 @@ public static class CoreTestHelper
         Directory.CreateDirectory(dir);
         return Path.Combine(dir, $"{prefix}-{Guid.NewGuid():N}.pptx");
     }
+
+    /// <summary>
+    /// Writes a minimal valid 1x1-pixel PNG to a unique temp file and returns its path.
+    /// Used by image-domain tests that need a real, readable image file on disk.
+    /// </summary>
+    public static string CreateUniqueTestImageFile()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "PowerPointMcpTests");
+        Directory.CreateDirectory(dir);
+        string path = Path.Combine(dir, $"pptmcp-test-image-{Guid.NewGuid():N}.png");
+
+        // Minimal valid 1x1 transparent PNG.
+        const string base64Png =
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+        File.WriteAllBytes(path, Convert.FromBase64String(base64Png));
+        return path;
+    }
 }
