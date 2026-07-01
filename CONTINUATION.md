@@ -3,6 +3,27 @@
 This file tracks exactly what was scaffolded in the first working session vs. what remains,
 so a follow-up session (or a human) can pick this up without re-deriving context.
 
+## Update: real PowerPoint COM validation (Session 1, same session)
+
+This machine actually has PowerPoint installed, so the vertical slice was validated for
+real, not just build-checked:
+
+```powershell
+dotnet run --project src\PowerPointMcp.CLI -- create C:\temp\demo.pptx
+# => Created: C:\temp\demo.pptx (34,237 bytes, verified on disk)
+```
+
+Confirmed: no lingering `POWERPNT.exe` process after the batch disposed — the STA
+thread + `PresentationShutdownService.CloseAndQuit` cleanup path works correctly on a
+real PowerPoint installation. This meaningfully de-risks the port: the
+`Presentations.Add`/`SaveAs`/`Close`/`Quit` COM calls and the late-bound `MsoTriState`
+workarounds are confirmed correct against real PowerPoint, not just compiled.
+
+Still not covered by this manual check: `Open()` (only `Create` was exercised), error
+paths (locked file, bad path, timeout), and everything beyond presentation lifecycle. The
+"write a real integration test" step below is still the right next move — this was a
+smoke check, not a test suite.
+
 ## What exists and builds today
 
 - Solution skeleton: `Sbroenne.PowerPointMcp.slnx`, `Directory.Build.props`/`.targets`,
