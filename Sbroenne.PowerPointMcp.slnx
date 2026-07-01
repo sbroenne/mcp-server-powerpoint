@@ -4,4 +4,7 @@
     <Project Path="src/PowerPointMcp.ComInterop/PowerPointMcp.ComInterop.csproj" />
     <Project Path="src/PowerPointMcp.Core/PowerPointMcp.Core.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PowerPointMcp.Core.Tests/PowerPointMcp.Core.Tests.csproj" />
+  </Folder>
 </Solution>

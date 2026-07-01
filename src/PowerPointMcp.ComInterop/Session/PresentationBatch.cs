@@ -177,6 +177,16 @@ internal sealed class PresentationBatch : IPresentationBatch
                 }
 
                 presentation = (PowerPoint.Presentation)dynApp.Presentations.Add(msoFalse);
+
+                // NOTE (discovered via real integration test, not assumed): Presentations.Add()
+                // creates a presentation with ZERO slides — unlike opening PowerPoint
+                // interactively (which starts you on a default slide), the COM-created blank
+                // presentation is genuinely empty until a slide is explicitly added. Add one
+                // blank slide so "create a new presentation" produces something immediately
+                // useful/consistent with user expectations, matching what most callers mean by
+                // "new presentation".
+                presentation.Slides.Add(1, PowerPoint.PpSlideLayout.ppLayoutBlank);
+
                 int formatCode = string.Equals(Path.GetExtension(fullPath), ".pptm", StringComparison.OrdinalIgnoreCase)
                     ? ComInteropConstants.PpSaveAsOpenXmlPresentationMacroEnabled
                     : ComInteropConstants.PpSaveAsOpenXmlPresentation;
@@ -195,8 +205,13 @@ internal sealed class PresentationBatch : IPresentationBatch
 
                 presentation = (PowerPoint.Presentation)dynApp.Presentations.Open(
                     fullPath,
-                    msoFalse,
-                    msoTrue,
+                    msoFalse, // ReadOnly = false — we need to be able to Save()
+                    msoFalse, // Untitled = false — CRITICAL: msoTrue here opens the file as an
+                              // unbound "untitled copy" (per PowerPoint COM docs), which has no
+                              // filename to save back to. Presentation.Save() then fails with a
+                              // generic "An error occurred while PowerPoint was saving the file"
+                              // COMException — discovered via a real integration test, not
+                              // assumed. Must be msoFalse so Save() persists to the original path.
                     _showPowerPoint ? msoTrue : msoFalse);
             }
 
