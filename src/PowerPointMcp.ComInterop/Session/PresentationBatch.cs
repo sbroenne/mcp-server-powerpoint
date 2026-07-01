@@ -33,6 +33,30 @@ internal sealed class PresentationBatch : IPresentationBatch
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
+    [DllImport("user32.dll")]
+    private static extern bool PeekMessage(out MSG msg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax, uint wRemoveMsg);
+
+    [DllImport("user32.dll")]
+    private static extern bool TranslateMessage(ref MSG msg);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr DispatchMessage(ref MSG msg);
+
+    [DllImport("user32.dll")]
+    private static extern uint MsgWaitForMultipleObjectsEx(uint nCount, IntPtr[] pHandles, uint dwMilliseconds, uint dwWakeMask, uint dwFlags);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MSG
+    {
+        public IntPtr hwnd;
+        public uint message;
+        public IntPtr wParam;
+        public IntPtr lParam;
+        public uint time;
+        public int pt_x;
+        public int pt_y;
+    }
+
     private readonly string _presentationPath;
     private readonly bool _showPowerPoint;
     private readonly bool _createNewFile;
@@ -41,6 +65,7 @@ internal sealed class PresentationBatch : IPresentationBatch
     private readonly Channel<Func<Task>> _workQueue;
     private readonly Thread _staThread;
     private readonly CancellationTokenSource _shutdownCts;
+    private readonly AutoResetEvent _workSignal = new(false);
     private int _disposed;
     private int? _powerPointProcessId;
     private bool _operationTimedOut;
@@ -138,6 +163,13 @@ internal sealed class PresentationBatch : IPresentationBatch
             const int msoFalse = 0;
 
             dynamic dynApp = tempApp;
+            // NOTE (discovered via real integration test, not assumed): PowerPoint's automation
+            // COM object does NOT allow hiding its application window — setting
+            // Application.Visible = False throws COMException "Hiding the application window is
+            // not allowed." (unlike Excel, which does allow it). So PowerPoint is unconditionally
+            // shown; _showPowerPoint is retained for API parity with mcp-server-excel's show
+            // option and any future distinction we might add (e.g. window position), but does not
+            // currently toggle Application.Visible.
             try { dynApp.Visible = msoTrue; } catch { /* best effort */ }
             tempApp.DisplayAlerts = PowerPoint.PpAlertLevel.ppAlertsNone;
 
@@ -176,7 +208,15 @@ internal sealed class PresentationBatch : IPresentationBatch
                     throw new DirectoryNotFoundException($"Directory does not exist: '{directory}'.");
                 }
 
-                presentation = (PowerPoint.Presentation)dynApp.Presentations.Add(msoFalse);
+                // NOTE (discovered via real integration test, not assumed): passing WithWindow=
+                // msoFalse here creates a presentation with NO window at all. That's fine for
+                // basic slide/shape edits, but Shapes.AddChart2's embedded chart-data Excel
+                // workbook needs to in-place-activate against a real document window — without
+                // one, AddChart2 fails with a generic COMException(0x80004005/E_FAIL) that gives
+                // no indication a window is the problem. Always create the window (WithWindow=
+                // msoTrue); on-screen visibility is controlled separately via Application.Visible
+                // (see below), so this does not force PowerPoint to actually show on screen.
+                presentation = (PowerPoint.Presentation)dynApp.Presentations.Add(msoTrue);
 
                 // NOTE (discovered via real integration test, not assumed): Presentations.Add()
                 // creates a presentation with ZERO slides — unlike opening PowerPoint
@@ -212,7 +252,10 @@ internal sealed class PresentationBatch : IPresentationBatch
                               // generic "An error occurred while PowerPoint was saving the file"
                               // COMException — discovered via a real integration test, not
                               // assumed. Must be msoFalse so Save() persists to the original path.
-                    _showPowerPoint ? msoTrue : msoFalse);
+                    msoTrue); // WithWindow = true — same rationale as the Add() path above:
+                              // a document window is required for chart in-place activation
+                              // (Shapes.AddChart2), independent of whether the app itself is
+                              // shown on screen (that's controlled by Application.Visible).
             }
 
             startupPresentation = presentation;
@@ -246,28 +289,51 @@ internal sealed class PresentationBatch : IPresentationBatch
 
     private void ProcessWorkQueue()
     {
-        try
-        {
-            while (true)
-            {
-                ValueTask<bool> waitTask = _workQueue.Reader.WaitToReadAsync(_shutdownCts.Token);
-                bool hasData = waitTask.IsCompleted ? waitTask.Result : waitTask.AsTask().GetAwaiter().GetResult();
-                if (!hasData) break;
+        // NOTE (discovered via real integration test, not assumed): PowerPoint's Chart feature
+        // (Shapes.AddChart2 / Chart.ChartData) embeds a separate, out-of-process Excel instance
+        // for chart data editing. Cross-process COM calls into/out of that embedded Excel
+        // instance require this STA thread to actually pump Windows messages (SendMessage-based
+        // RPC callbacks rely on GetMessage/DispatchMessage) — a plain async Channel.Reader wait
+        // (no message pump at all) causes those calls to fail with a generic
+        // COMException(0x80004005) "Unexpected HRESULT". OleMessageFilter alone does not
+        // substitute for this: it governs COM's busy/reject retry behavior, not Win32 message
+        // dispatch. Fixed by replacing the blocking async wait with a native message pump
+        // (PeekMessage/TranslateMessage/DispatchMessage) interleaved with draining the work
+        // queue, waking on either new work (_workSignal) or new Windows messages
+        // (MsgWaitForMultipleObjectsEx with QS_ALLINPUT).
+        const uint PM_REMOVE = 0x0001;
+        const uint QS_ALLINPUT = 0x04FF;
+        const uint MWMO_INPUTAVAILABLE = 0x0004;
+        const uint pollTimeoutMs = 50;
 
-                while (_workQueue.Reader.TryRead(out var work))
-                {
-                    try { work().GetAwaiter().GetResult(); }
-                    catch (Exception) { /* already captured in the caller's TaskCompletionSource */ }
-                }
-            }
-        }
-        catch (OperationCanceledException)
+        IntPtr[] waitHandles =
+        [
+            _workSignal.SafeWaitHandle.DangerousGetHandle(),
+            _shutdownCts.Token.WaitHandle.SafeWaitHandle.DangerousGetHandle()
+        ];
+
+        while (!_shutdownCts.IsCancellationRequested)
         {
-            while (_workQueue.Reader.TryRead(out var remainingWork))
+            while (_workQueue.Reader.TryRead(out var work))
             {
-                try { remainingWork().GetAwaiter().GetResult(); }
-                catch (Exception) { /* already captured */ }
+                try { work().GetAwaiter().GetResult(); }
+                catch (Exception) { /* already captured in the caller's TaskCompletionSource */ }
             }
+
+            while (PeekMessage(out MSG msg, IntPtr.Zero, 0, 0, PM_REMOVE))
+            {
+                TranslateMessage(ref msg);
+                DispatchMessage(ref msg);
+            }
+
+            _ = MsgWaitForMultipleObjectsEx((uint)waitHandles.Length, waitHandles, pollTimeoutMs, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+        }
+
+        // Drain any remaining queued work after shutdown was signaled.
+        while (_workQueue.Reader.TryRead(out var remainingWork))
+        {
+            try { remainingWork().GetAwaiter().GetResult(); }
+            catch (Exception) { /* already captured */ }
         }
     }
 
@@ -339,6 +405,7 @@ internal sealed class PresentationBatch : IPresentationBatch
 
             if (writeTask.IsCompleted) writeTask.GetAwaiter().GetResult();
             else writeTask.AsTask().GetAwaiter().GetResult();
+            _workSignal.Set();
         }
         catch (ChannelClosedException)
         {
@@ -393,6 +460,7 @@ internal sealed class PresentationBatch : IPresentationBatch
 
         _staThread.Join(ComInteropConstants.StaThreadJoinTimeout);
         _shutdownCts.Dispose();
+        _workSignal.Dispose();
     }
 
     private static void TryKillProcess(int processId)

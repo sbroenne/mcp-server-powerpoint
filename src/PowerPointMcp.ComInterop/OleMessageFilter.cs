@@ -202,8 +202,13 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
 
     /// <summary>
     /// Handles pending message during a COM call. During long operations, dispatches to
-    /// HandleInComingCall (which rejects). During normal operations, queues messages without
-    /// dispatching, to avoid re-entrant COM execution on the STA thread.
+    /// HandleInComingCall (which rejects). During normal operations, dispatches messages to the
+    /// default process (WAITDEFPROCESS) rather than blocking, to avoid STA deadlocks on
+    /// re-entrant COM callbacks — e.g. PowerPoint's embedded chart-data Excel workbook calling
+    /// back into this process during Chart.SetSourceData/ChartData.Activate. Returning
+    /// PENDINGMSG_WAITNOPROCESS here (as many samples do) causes those re-entrant calls to hang
+    /// or fail with a generic COMException(0x80004005) — discovered via a real integration test
+    /// against AddChart2, not assumed. Same fix as mcp-server-excel's OleMessageFilter.
     /// </summary>
     int IOleMessageFilter.MessagePending(nint htaskCallee, int dwTickCount, int dwPendingType)
     {
@@ -219,7 +224,7 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
             return 2; // PENDINGMSG_WAITDEFPROCESS
         }
 
-        return 1; // PENDINGMSG_WAITNOPROCESS
+        return 2; // PENDINGMSG_WAITDEFPROCESS
     }
 
     /// <summary>Registers or revokes a message filter for the current apartment.</summary>
