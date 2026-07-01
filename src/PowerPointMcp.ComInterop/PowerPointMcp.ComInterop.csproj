@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <AssemblyName>Sbroenne.PowerPointMcp.ComInterop</AssemblyName>
+    <RootNamespace>Sbroenne.PowerPointMcp.ComInterop</RootNamespace>
+
+    <PackageId>Sbroenne.PowerPointMcp.ComInterop</PackageId>
+    <Title>Sbroenne PowerPointMcp COM Interop Library</Title>
+    <Description>COM interop utilities for PowerPoint automation by Sbroenne. Provides low-level COM object lifecycle management, STA threading, OLE message filtering, and PowerPoint session management. Foundation library for robust PowerPoint COM automation.</Description>
+    <PackageTags>powerpoint;automation;com;interop;ole;sta;threading;windows;sbroenne</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sbroenne.PowerPointMcp.ComInterop.Tests" />
+    <InternalsVisibleTo Include="Sbroenne.PowerPointMcp.Core.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" Condition="Exists('README.md')" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- PowerPoint COM Interop PIA. See Directory.Build.targets for the embedding target
+         (ForceEmbedPowerPointInteropTypes) that bakes only the used interop types into
+         this assembly, mirroring mcp-server-excel's approach for Excel. -->
+    <PackageReference Include="Microsoft.Office.Interop.PowerPoint">
+      <ExcludeAssets>runtime</ExcludeAssets>
+      <NoWarn>NU1701</NoWarn>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Resilience" />
+  </ItemGroup>
+
+</Project>

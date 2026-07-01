@@ -1,0 +1,60 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- Common properties for all projects -->
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <Authors>Stefan Broenner</Authors>
+    <Company>Open Source Developer</Company>
+    <Product>Sbroenne.PowerPointMcp</Product>
+    <Copyright>Copyright © 2026 Stefan Broenner</Copyright>
+
+    <!-- Repository information -->
+    <PackageProjectUrl>https://github.com/sbroenne/mcp-server-powerpoint</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/sbroenne/mcp-server-powerpoint</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+
+    <!-- Build settings -->
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>14</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+
+    <!--
+      Suppressed warnings (mirrors mcp-server-excel — see that repo's docs/DEVELOPMENT.md):
+      - CA1416: Windows-only APIs (this is a Windows-only COM automation project)
+      - CS8602: Dereference of possibly null reference (dynamic COM objects)
+      - IL2026/IL3050: Reflection/dynamic code incompatible with trimming/NativeAOT (PowerPoint COM uses dynamic)
+      - CS1573: Parameter has no matching param tag (batch parameter is internal, filtered by generators)
+      - CA1848: Use LoggerMessage delegates (perf optimization not needed for our diagnostic logging)
+    -->
+    <NoWarn>$(NoWarn);CA1416;CS8602;IL2026;IL3050;CS1573;CA1848</NoWarn>
+
+    <!-- Deterministic builds for reproducibility -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Code Analysis -->
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
+
+    <!-- Generate XML documentation for all projects -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- Security -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <_SkipUpgradeNetAnalyzersNuGetWarning>true</_SkipUpgradeNetAnalyzersNuGetWarning>
+  </PropertyGroup>
+
+  <!-- Import user-specific properties (gitignored, for local secrets) -->
+  <Import Project="Directory.Build.props.user" Condition="Exists('Directory.Build.props.user')" />
+
+</Project>

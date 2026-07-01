@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PowerPointMcp.CLI/PowerPointMcp.CLI.csproj" />
+    <Project Path="src/PowerPointMcp.ComInterop/PowerPointMcp.ComInterop.csproj" />
+    <Project Path="src/PowerPointMcp.Core/PowerPointMcp.Core.csproj" />
+  </Folder>
+</Solution>

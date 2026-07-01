@@ -1,0 +1,26 @@
+<Project>
+  <!-- Central Package Management for consistent versions across solution -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- PowerPoint COM Interop PIA -->
+    <PackageVersion Include="Microsoft.Office.Interop.PowerPoint" Version="15.0.4420.1018" />
+    <!-- UI Framework (CLI) -->
+    <PackageVersion Include="Spectre.Console" Version="0.57.1" />
+    <PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
+    <!-- Microsoft Extensions for MCP Server / logging / resilience -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.7.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+    <!-- MCP SDK -->
+    <PackageVersion Include="ModelContextProtocol" Version="0.5.0-preview.2" />
+    <!-- Test dependencies -->
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.0.2" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,20 @@
+namespace Sbroenne.PowerPointMcp.Core.Presentation;
+
+/// <summary>
+/// Result of a presentation lifecycle operation (open, create, close, save).
+/// </summary>
+/// <remarks>
+/// Follows the same Success/ErrorMessage invariant used throughout mcp-server-excel
+/// (Rule 1): Success == true implies ErrorMessage is null/empty. Never set both.
+/// </remarks>
+public sealed class PresentationOperationResult
+{
+    /// <summary>Whether the operation succeeded.</summary>
+    public bool Success { get; init; }
+
+    /// <summary>Error message when Success is false; null/empty when Success is true.</summary>
+    public string? ErrorMessage { get; init; }
+
+    /// <summary>Full path to the presentation file the operation acted on.</summary>
+    public string? PresentationPath { get; init; }
+}

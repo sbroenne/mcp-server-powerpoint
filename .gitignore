@@ -1,0 +1,21 @@
+## .NET
+bin/
+obj/
+*.user
+Directory.Build.props.user
+
+## IDE
+.vs/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+
+## Test / temp artifacts
+TestResults/
+*.log
+tmp/
+temp/
+
+## OS
+Thumbs.db
+.DS_Store
