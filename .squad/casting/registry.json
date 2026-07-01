@@ -1,0 +1,32 @@
+{
+  "agents": {
+    "lead": {
+      "persistent_name": "Dallas",
+      "universe": "Alien",
+      "created_at": "2026-07-01T11:07:03+02:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "com-core-dev": {
+      "persistent_name": "Parker",
+      "universe": "Alien",
+      "created_at": "2026-07-01T11:07:03+02:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "mcp-service-dev": {
+      "persistent_name": "Brett",
+      "universe": "Alien",
+      "created_at": "2026-07-01T11:07:03+02:00",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "tester": {
+      "persistent_name": "Ripley",
+      "universe": "Alien",
+      "created_at": "2026-07-01T11:07:03+02:00",
+      "legacy_named": false,
+      "status": "active"
+    }
+  }
+}
