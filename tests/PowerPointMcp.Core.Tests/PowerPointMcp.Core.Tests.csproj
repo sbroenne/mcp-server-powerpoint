@@ -27,4 +27,11 @@
     <ProjectReference Include="..\..\src\PowerPointMcp.ComInterop\PowerPointMcp.ComInterop.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Disables cross-class test parallelization: each test launches a real PowerPoint COM
+         instance, and concurrent Activator.CreateInstance calls against PowerPoint.Application
+         can transiently fail with "RPC server is unavailable" (0x800706BA) under load. -->
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -58,6 +58,28 @@ fix — worth double-checking any other COM call sites that pass `MsoTriState`-t
 positional args (they're easy to get subtly wrong since they're untyped `int` constants
 here, not the real enum, precisely to avoid an office.dll reference).
 
+## Update: first real domain built on top of Presentation lifecycle — Slide commands
+
+Added `ISlideCommands`/`SlideCommands` (AddBlank, GetCount, Delete) following strict TDD
+(tests written first, watched fail, then implemented). All 6 integration tests
+(2 Presentation + 4 Slide) pass against real PowerPoint, with cross-class test
+parallelization disabled via `xunit.runner.json` (`parallelizeTestCollections: false`,
+`maxParallelThreads: 1`) — without it, two test classes launching PowerPoint
+concurrently intermittently hit `COMException 0x800706BA "RPC server is unavailable"`,
+a transient COM activation failure under load, not a product bug (same class of issue
+mcp-server-excel documents as its `maxParallelThreads: 1` test-fixture rule).
+
+`Delete` demonstrates the validation-vs-exception-propagation distinction from Rule 1b:
+out-of-range indices are checked explicitly and return a graceful `Success=false` result;
+genuinely unexpected COM failures still propagate uncaught to `batch.Execute()`.
+
+The hand-written CLI (`PowerPointMcp.CLI/Program.cs`) was extended with `slide add-blank`,
+`slide count`, `slide delete` subcommands and smoke-tested end-to-end against real
+PowerPoint (create → count → add-blank → count → delete → count), confirming no
+lingering `POWERPNT.exe` process afterward. This CLI remains a hand-written placeholder,
+not the real Generators-based CLI mcp-server-excel uses — do not treat its structure as
+the target architecture for the eventual `PowerPointMcp.Generators`/`PowerPointMcp.CLI`.
+
 ## What exists and builds today
 
 - Solution skeleton: `Sbroenne.PowerPointMcp.slnx`, `Directory.Build.props`/`.targets`,
