@@ -22,14 +22,17 @@ public static class PresentationTools
     private static readonly PresentationCommands Commands = new();
 
     /// <summary>
-    /// Creates a new, empty PowerPoint presentation on disk and saves it. Does NOT leave a session
-    /// open — call <c>open_presentation</c> afterwards to edit it.
+    /// Creates a new, empty PowerPoint presentation, saves it to disk, and leaves the session
+    /// OPEN — returns a sessionId immediately, exactly like <c>open_presentation</c>. No
+    /// synchronous dispose happens here, so the call cannot block on PowerPoint's slow shutdown
+    /// sequence (see .squad/decisions/inbox/ripley-create-presentation-blocks-on-dispose.md).
     /// </summary>
     [McpServerTool(Name = "create_presentation")]
-    [Description("Create a new empty PowerPoint presentation file on disk. The containing directory must already exist. Does not open a session; use open_presentation to edit the new file.")]
+    [Description("Create a new empty PowerPoint presentation file on disk and leave it OPEN. The containing directory must already exist. Returns a sessionId that must be passed to subsequent tools (save_presentation, close_presentation, slide/shape tools, etc.) — there is no separate open_presentation call needed for a freshly created file. Returns immediately; does not wait for any PowerPoint shutdown.")]
     public static string CreatePresentation(
         [Description("Full Windows path to the new presentation. Use .pptx (standard) or .pptm (macro-enabled). Example: C:\\Users\\me\\Documents\\deck.pptx")] string filePath,
-        [Description("Set true only when creating a macro-enabled .pptm file. Default: false.")] bool isMacroEnabled = false)
+        [Description("Set true only when creating a macro-enabled .pptm file. Default: false.")] bool isMacroEnabled = false,
+        PresentationSessionRegistry? registry = null)
         => PowerPointToolsBase.ExecuteToolAction("create_presentation", () =>
         {
             if (string.IsNullOrWhiteSpace(filePath))
@@ -37,8 +40,28 @@ public static class PresentationTools
                 return PowerPointToolsBase.ValidationError("filePath is required for create_presentation.");
             }
 
-            var result = Commands.Create(filePath, isMacroEnabled);
-            return SerializeResult(result);
+            var sessionId = registry!.Create(filePath);
+
+            // Persist the new file to disk immediately through the still-open batch — no
+            // Dispose(), so this cannot block on PowerPoint's shutdown/grace-period sequence.
+            if (!registry.TryGet(sessionId, out var batch))
+            {
+                return PowerPointToolsBase.ValidationError($"Session {sessionId} was created but could not be resolved.");
+            }
+
+            var result = Commands.Save(batch);
+            if (!result.Success)
+            {
+                return SerializeResult(result);
+            }
+
+            return PowerPointToolsBase.Serialize(new
+            {
+                success = true,
+                sessionId,
+                presentationPath = result.PresentationPath,
+                message = "Presentation created and saved; session left open. Use the returned sessionId with other tools, then close_presentation when finished."
+            });
         });
 
     /// <summary>
