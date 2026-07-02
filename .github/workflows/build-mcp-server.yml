@@ -1,0 +1,121 @@
+name: Build MCP Server
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/PowerPointMcp.McpServer/**'
+      - 'src/PowerPointMcp.Core/**'
+      - 'src/PowerPointMcp.ComInterop/**'
+      - 'tests/PowerPointMcp.McpServer.Tests/**'
+      - 'tests/PowerPointMcp.Core.Tests/**'
+      - 'global.json'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - '.github/workflows/build-mcp-server.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/PowerPointMcp.McpServer/**'
+      - 'src/PowerPointMcp.Core/**'
+      - 'src/PowerPointMcp.ComInterop/**'
+      - 'tests/PowerPointMcp.McpServer.Tests/**'
+      - 'tests/PowerPointMcp.Core.Tests/**'
+      - 'global.json'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - '.github/workflows/build-mcp-server.yml'
+
+jobs:
+  build-mcp-server:
+    # windows-latest is required (net10.0-windows + COM interop types), but
+    # this hosted runner has no PowerPoint/Office installed, so this job is
+    # build-only. Live-COM tests (tests/PowerPointMcp.Core.Tests and the
+    # McpServer round-trip suite) are NOT run here — they require a
+    # self-hosted Windows runner with PowerPoint installed. See the
+    # "Test MCP Server" step below.
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore src/PowerPointMcp.McpServer/PowerPointMcp.McpServer.csproj
+
+    - name: Build MCP Server
+      run: dotnet build src/PowerPointMcp.McpServer/PowerPointMcp.McpServer.csproj --no-restore --configuration Release
+
+    # NOTE: mcp-server-excel's build-mcp-server.yml runs
+    # scripts/audit-core-coverage.ps1 here to fail the build on Core-command/
+    # MCP-tool coverage gaps. That script does not exist yet in this repo.
+    # Port a PowerPointMcp equivalent once the Core-command surface stabilizes
+    # and re-add this step.
+
+    - name: Verify MCP Server build
+      run: |
+        # Check MCP Server executable
+        if (Test-Path "src/PowerPointMcp.McpServer/bin/Release/net10.0-windows/Sbroenne.PowerPointMcp.McpServer.exe") {
+          Write-Output "✅ Sbroenne.PowerPointMcp.McpServer.exe built successfully"
+          $mcpVersion = (Get-Item "src/PowerPointMcp.McpServer/bin/Release/net10.0-windows/Sbroenne.PowerPointMcp.McpServer.exe").VersionInfo.FileVersion
+          Write-Output "📦 MCP Server Version: $mcpVersion"
+
+          # Check for MCP server.json configuration
+          if (Test-Path "src/PowerPointMcp.McpServer/bin/Release/net10.0-windows/.mcp/server.json") {
+            Write-Output "✅ MCP server.json configuration found"
+          } else {
+            Write-Warning "⚠️ MCP server.json configuration not found"
+          }
+        } else {
+          Write-Error "❌ Sbroenne.PowerPointMcp.McpServer.exe not found"
+          exit 1
+        }
+
+        Write-Output "🧠 MCP Server ready for AI assistant integration"
+      shell: pwsh
+
+    - name: Test MCP Server (requires PowerPoint)
+      run: |
+        Write-Output "ℹ️ Note: MCP Server integration/round-trip tests are NOT run in CI."
+        Write-Output "   tests/PowerPointMcp.McpServer.Tests exercises the in-memory MCP"
+        Write-Output "   transport plus live PowerPoint COM automation (create/close session,"
+        Write-Output "   full authoring workflow, shutdown robustness). GitHub-hosted"
+        Write-Output "   windows-latest runners do not have PowerPoint/Office installed, so"
+        Write-Output "   these tests cannot run here."
+        Write-Output ""
+        Write-Output "   Run 'dotnet test tests/PowerPointMcp.McpServer.Tests/' locally, or on"
+        Write-Output "   a self-hosted Windows+Office runner, with PowerPoint installed."
+        Write-Output "   xunit.runner.json enforces maxParallelThreads: 1 for these suites —"
+        Write-Output "   do not parallelize COM test execution."
+      shell: pwsh
+
+    - name: Upload MCP Server build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: PowerPointMcp-MCP-Server-${{ github.sha }}
+        path: src/PowerPointMcp.McpServer/bin/Release/net10.0-windows/
+
+# ---------------------------------------------------------------------------
+# Self-hosted Windows+Office job (COM integration tests) — DEFERRED.
+# Uncomment and configure once a self-hosted runner with PowerPoint installed
+# is available, mirroring mcp-server-excel's approach to live-COM CI. This
+# must NOT run on GitHub-hosted windows-latest — there is no Office there.
+# ---------------------------------------------------------------------------
+#  test-mcp-server-com:
+#    needs: build-mcp-server
+#    runs-on: [ self-hosted, windows, office ]
+#    steps:
+#      - uses: actions/checkout@v4
+#      - name: Setup .NET
+#        uses: actions/setup-dotnet@v4
+#        with:
+#          dotnet-version: 10.0.x
+#      - name: Run live-COM integration tests
+#        run: dotnet test tests/PowerPointMcp.McpServer.Tests/ --configuration Release

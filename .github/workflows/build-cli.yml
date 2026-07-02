@@ -1,0 +1,95 @@
+name: Build CLI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/PowerPointMcp.CLI/**'
+      - 'src/PowerPointMcp.Core/**'
+      - 'src/PowerPointMcp.ComInterop/**'
+      - 'tests/PowerPointMcp.Core.Tests/**'
+      - 'global.json'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - '.github/workflows/build-cli.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/PowerPointMcp.CLI/**'
+      - 'src/PowerPointMcp.Core/**'
+      - 'src/PowerPointMcp.ComInterop/**'
+      - 'tests/PowerPointMcp.Core.Tests/**'
+      - 'global.json'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - '.github/workflows/build-cli.yml'
+
+jobs:
+  build-cli:
+    # windows-latest is required because PowerPointMcp.ComInterop/Core target
+    # COM interop types that only resolve on Windows, even though the CLI
+    # project itself targets plain net10.0 (no PowerPoint/Office is installed
+    # on this hosted runner, so this job is build-only — no COM automation).
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore src/PowerPointMcp.CLI/PowerPointMcp.CLI.csproj
+
+    - name: Build CLI
+      run: dotnet build src/PowerPointMcp.CLI/PowerPointMcp.CLI.csproj --no-restore --configuration Release
+
+    # NOTE: mcp-server-excel's build-cli.yml runs scripts/audit-core-coverage.ps1
+    # here to fail the build on Core-command/CLI-surface coverage gaps. That
+    # script does not exist yet in this repo (the CLI is still a placeholder
+    # vertical slice — see src/PowerPointMcp.CLI/Program.cs). Port a
+    # PowerPointMcp equivalent of the audit script and re-add this step once
+    # the CLI has a real command surface to audit against Core.
+
+    - name: Verify CLI build
+      run: |
+        # CLI targets plain net10.0 (not net10.0-windows) per PowerPointMcp.CLI.csproj.
+        $exePath = "src/PowerPointMcp.CLI/bin/Release/net10.0/powerpointcli.exe"
+        if (Test-Path $exePath) {
+          Write-Output "✅ powerpointcli.exe built successfully"
+          $version = (Get-Item $exePath).VersionInfo.FileVersion
+          Write-Output "Version: $version"
+
+          # The CLI is currently a minimal placeholder (create/slide add-blank/
+          # slide count/slide delete) proving the ComInterop -> Core -> CLI
+          # vertical slice; it has no --help flag yet. Running with no args is
+          # safe (no PowerPoint COM required) and is expected to print usage
+          # and exit 1 until a real command surface (and --help) lands.
+          & $exePath | Out-Null
+          Write-Output "✅ CLI executable runs (usage/placeholder mode, exit code $LASTEXITCODE expected)"
+        } else {
+          Write-Error "❌ powerpointcli.exe not found at $exePath"
+          exit 1
+        }
+
+        Write-Output "🔧 CLI tool ready for direct automation"
+      shell: pwsh
+
+    - name: Test CLI (requires PowerPoint)
+      run: |
+        Write-Output "ℹ️ Note: CLI integration tests are not run in CI - they require a real"
+        Write-Output "   PowerPoint/Office installation via COM, which GitHub-hosted windows"
+        Write-Output "   runners do not have. Run 'dotnet test tests/PowerPointMcp.Core.Tests/'"
+        Write-Output "   locally (or on a self-hosted Windows+Office runner) with PowerPoint installed."
+      shell: pwsh
+
+    - name: Upload CLI build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: PowerPointMcp-CLI-${{ github.sha }}
+        path: src/PowerPointMcp.CLI/bin/Release/net10.0/
