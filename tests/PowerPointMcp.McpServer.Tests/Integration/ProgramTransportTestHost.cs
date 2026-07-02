@@ -21,8 +21,13 @@ internal static class ProgramTransportTestHost
     private static readonly TimeSpan ClientInitializationTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan ServerReadyTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan ServerReadyRetryDelay = TimeSpan.FromMilliseconds(50);
+    // Must exceed PresentationSessionRegistry's own internal DisposeAll timeout
+    // (StaThreadJoinTimeout + 30s — see PresentationSessionRegistry.DisposeAllTimeout), or this
+    // outer wait could time out and force-cancel the host WHILE DisposeAll is still legitimately
+    // draining a slow-quitting PowerPoint session, turning a benign slow shutdown into a false
+    // test failure. +60s gives 30s of headroom over that inner bound.
     private static readonly TimeSpan ServerShutdownTimeout =
-        ComInteropConstants.StaThreadJoinTimeout + TimeSpan.FromSeconds(15);
+        ComInteropConstants.StaThreadJoinTimeout + TimeSpan.FromSeconds(60);
 
     /// <summary>
     /// Configures the in-memory transport, starts the real server host (<c>Program.Main</c>) on a

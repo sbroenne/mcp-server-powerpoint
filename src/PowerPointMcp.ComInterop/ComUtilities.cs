@@ -45,10 +45,11 @@ public static class ComUtilities
     /// This is a fire-and-forget cleanup helper - errors are swallowed.
     /// </summary>
     /// <remarks>
-    /// Use this for cleanup scenarios where you want to quit PowerPoint but don't
-    /// need to handle or report errors. For production shutdown with retry logic,
-    /// a PresentationShutdownService (mirroring ExcelShutdownService) should be added
-    /// alongside the full batch implementation.
+    /// Use this for ad hoc cleanup scenarios where you want to quit PowerPoint but don't need
+    /// to handle or report errors. Production batch shutdown does NOT use this helper — it goes
+    /// through <see cref="Session.PresentationShutdownService"/>, which retries transient COM
+    /// busy errors on Close()/Quit() and polls for process exit (with a bounded grace period)
+    /// before ever force-terminating.
     /// </remarks>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "CS8602", Justification = "Dynamic COM interop - Quit exists on PowerPoint.Application")]
     public static void TryQuitPowerPoint(PowerPoint.Application? powerPoint)

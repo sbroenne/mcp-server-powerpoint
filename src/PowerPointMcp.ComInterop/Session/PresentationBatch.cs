@@ -23,9 +23,9 @@ namespace Sbroenne.PowerPointMcp.ComInterop.Session;
 /// <b>Scope note:</b> this is a first-pass port focused on proving the architecture
 /// (open/create/close/save). It intentionally omits several hardening features present in
 /// ExcelBatch that should be ported before this is considered production-ready:
-/// multi-presentation batches, IRM/AIP detection, macro-security handling for .pptm,
-/// force-kill-on-timeout diagnostics, and a full PresentationShutdownService with
-/// exponential-backoff retry (a minimal inline close/quit is used here instead).
+/// multi-presentation batches, IRM/AIP detection, and macro-security handling for .pptm.
+/// Resilient close/quit retry + process-exit polling IS implemented — see
+/// <see cref="PresentationShutdownService"/>.
 /// </para>
 /// </remarks>
 internal sealed class PresentationBatch : IPresentationBatch
@@ -276,7 +276,7 @@ internal sealed class PresentationBatch : IPresentationBatch
             var cleanupApp = _app ?? startupApp;
             var cleanupPresentation = _presentation ?? startupPresentation;
 
-            PresentationShutdownService.CloseAndQuit(cleanupPresentation, cleanupApp, _logger);
+            PresentationShutdownService.CloseAndQuit(cleanupPresentation, cleanupApp, _powerPointProcessId, _logger, _presentationPath);
 
             _presentation = null;
             _app = null;
@@ -458,7 +458,19 @@ internal sealed class PresentationBatch : IPresentationBatch
             TryKillProcess(_powerPointProcessId.Value);
         }
 
-        _staThread.Join(ComInteropConstants.StaThreadJoinTimeout);
+        bool staThreadExited = _staThread.Join(ComInteropConstants.StaThreadJoinTimeout);
+
+        // Ultimate backstop: StaThreadJoinTimeout is sized to comfortably cover
+        // PresentationShutdownService's full worst-case duration (Close/Quit retries + the
+        // process-exit grace period + its own force-kill). If the STA thread STILL hasn't
+        // finished even after that — e.g. Quit() itself is blocked on a modal dialog that
+        // outlasts every other safety net — force-kill here so Dispose() never returns having
+        // silently leaked the process.
+        if (!staThreadExited && _powerPointProcessId.HasValue)
+        {
+            TryKillProcess(_powerPointProcessId.Value);
+        }
+
         _shutdownCts.Dispose();
         _workSignal.Dispose();
     }

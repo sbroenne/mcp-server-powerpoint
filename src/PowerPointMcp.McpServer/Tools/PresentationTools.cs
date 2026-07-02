@@ -95,10 +95,19 @@ public static class PresentationTools
         });
 
     /// <summary>
-    /// Closes a session, disposing its batch and the underlying PowerPoint process.
+    /// Closes a session: removes it from the registry immediately and starts disposing its batch
+    /// (releasing the underlying PowerPoint process) on a background task.
     /// </summary>
+    /// <remarks>
+    /// PowerPoint's own post-Quit cleanup can legitimately take up to ~150-210s (bounded grace
+    /// period + force-kill safety net — see .squad/decisions.md, Parker's shutdown hardening).
+    /// This tool call does NOT wait for that; it returns as soon as the session is removed from
+    /// the registry, so the MCP client is never blocked. The host still guarantees the PowerPoint
+    /// process is fully cleaned up before it exits (see
+    /// <see cref="PresentationSessionRegistry.DisposeAll()"/>).
+    /// </remarks>
     [McpServerTool(Name = "close_presentation")]
-    [Description("Close an open session and release its PowerPoint process. Call this when finished with a presentation. Save first with save_presentation if you need to persist changes.")]
+    [Description("Close an open session and release its PowerPoint process. Call this when finished with a presentation. Save first with save_presentation if you need to persist changes. Returns immediately; PowerPoint shuts down in the background (can take up to a few minutes) and the session is already gone from list_sessions.")]
     public static string ClosePresentation(
         [Description("The sessionId returned by open_presentation.")] string sessionId,
         PresentationSessionRegistry registry)
@@ -119,7 +128,8 @@ public static class PresentationTools
             {
                 success = true,
                 sessionId,
-                closed = true
+                closed = true,
+                message = "Session closed; PowerPoint is shutting down in the background."
             });
         });
 

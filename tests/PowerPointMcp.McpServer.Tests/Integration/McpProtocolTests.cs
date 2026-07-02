@@ -34,16 +34,55 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     private Task? _serverTask;
 
     /// <summary>
-    /// The 5 hand-written Presentation tools (Brett's vertical slice) — the source of truth for
-    /// this test. If this set changes, update it deliberately alongside the tool surface.
+    /// The full 31-tool MCP surface across all 10 domains (Presentation, Slide, Shape, TextFrame,
+    /// Table, Notes, Layout, Image, Chart, Export) — the source of truth for this test, enumerated
+    /// directly from every <c>[McpServerTool]</c> in <c>src/PowerPointMcp.McpServer/Tools/*.cs</c>.
+    /// If this set changes, update it deliberately alongside the tool surface (see
+    /// .squad/decisions/inbox/brett-remaining-domain-tools.md for the 5→31 tool-count change).
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
+        // PresentationTools.cs (5)
         "create_presentation",
         "open_presentation",
         "save_presentation",
         "close_presentation",
-        "list_sessions"
+        "list_sessions",
+        // SlideTools.cs (3)
+        "add_slide",
+        "get_slide_count",
+        "delete_slide",
+        // ShapeTools.cs (6)
+        "add_rectangle",
+        "add_text_box",
+        "get_shape_count",
+        "delete_shape",
+        "set_shape_position",
+        "set_shape_size",
+        // TextFrameTools.cs (5)
+        "set_text",
+        "get_text",
+        "set_font_size",
+        "set_bold",
+        "set_font_color",
+        // TableTools.cs (3)
+        "add_table",
+        "set_cell_text",
+        "get_cell_text",
+        // NotesTools.cs (2)
+        "set_notes_text",
+        "get_notes_text",
+        // LayoutTools.cs (2)
+        "set_layout",
+        "get_layout",
+        // ImageTools.cs (1)
+        "add_picture",
+        // ChartTools.cs (2)
+        "add_chart",
+        "get_chart_data",
+        // ExportTools.cs (2)
+        "export_slide_to_image",
+        "export_all_slides_to_images"
     ];
 
     public McpProtocolTests(ITestOutputHelper output)
@@ -83,11 +122,11 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// THE core protocol proof: exactly the 5 expected tools are discoverable via
-    /// <c>tools/list</c> — no more, no less.
+    /// THE core protocol proof: exactly the 31 expected tools (across all 10 domains) are
+    /// discoverable via <c>tools/list</c> — no more, no less.
     /// </summary>
     [Fact]
-    public async Task ListTools_ReturnsExactlyTheFiveExpectedTools()
+    public async Task ListTools_ReturnsExactlyTheThirtyOneExpectedTools()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
 

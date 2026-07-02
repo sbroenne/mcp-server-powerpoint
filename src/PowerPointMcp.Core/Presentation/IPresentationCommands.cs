@@ -18,6 +18,28 @@ public interface IPresentationCommands
     PresentationOperationResult Create(string filePath, bool isMacroEnabled = false);
 
     /// <summary>
+    /// Validates that a presentation file exists and can be opened by PowerPoint, then closes
+    /// it again. Rule 1/1b: a missing file is expected/graceful input and returns
+    /// <c>Success = false</c> with an <see cref="PresentationOperationResult.ErrorMessage"/> —
+    /// it does NOT start PowerPoint. Once the file is confirmed to exist, this opens (and
+    /// immediately closes) a real batch to prove PowerPoint can actually open it; unexpected COM
+    /// failures during that step (corrupt file, PowerPoint not installed, etc.) propagate.
+    /// </summary>
+    /// <remarks>
+    /// This does NOT keep a session open for further edits — callers that want to keep editing
+    /// must call <see cref="Sbroenne.PowerPointMcp.ComInterop.Session.PresentationSession.BeginBatch(string)"/>
+    /// themselves (this mirrors <see cref="Create"/>, which also creates+saves+closes rather than
+    /// returning a live session). "Closing" a presentation is simply disposing the
+    /// <see cref="Sbroenne.PowerPointMcp.ComInterop.Session.IPresentationBatch"/> obtained from
+    /// <c>BeginBatch</c>/<c>CreateNew</c> — there is no separate Core-level Close() command
+    /// because <c>IPresentationBatch.Dispose()</c> already IS the close operation (it drives
+    /// <see cref="Sbroenne.PowerPointMcp.ComInterop.Session.PresentationShutdownService"/>'s
+    /// resilient close/quit). Adding a Close() wrapper here would just re-expose Dispose() under
+    /// a different name.
+    /// </remarks>
+    PresentationOperationResult Open(string filePath);
+
+    /// <summary>
     /// Saves the presentation currently open in the given batch.
     /// </summary>
     PresentationOperationResult Save(IPresentationBatch batch);

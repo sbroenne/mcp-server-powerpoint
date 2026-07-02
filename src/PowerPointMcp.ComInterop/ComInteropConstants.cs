@@ -11,10 +11,30 @@ public static class ComInteropConstants
     public static readonly TimeSpan PowerPointQuitTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Timeout for STA thread join after quit.
-    /// CRITICAL: Must be >= PowerPointQuitTimeout to ensure Dispose() waits for shutdown to complete.
+    /// Grace period for POWERPNT.exe to exit the OS process list after Application.Quit()
+    /// returns, before <see cref="Session.PresentationShutdownService"/> force-terminates it
+    /// as a last resort. Sized comfortably above the ~90-100 second benign Office-cleanup
+    /// lingering window observed in real-COM MCP round-trip testing (see .squad/decisions.md,
+    /// 2026-07-01 McpServer Phase 1 MVP entry) so the happy path never force-kills.
     /// </summary>
-    public static readonly TimeSpan StaThreadJoinTimeout = PowerPointQuitTimeout + TimeSpan.FromSeconds(15);
+    public static readonly TimeSpan PowerPointProcessExitGracePeriod = TimeSpan.FromSeconds(150);
+
+    /// <summary>
+    /// Timeout for STA thread join after quit.
+    /// CRITICAL: must be &gt;= the full worst-case duration of
+    /// <see cref="Session.PresentationShutdownService.CloseAndQuit"/> (Close()/Quit() retries +
+    /// <see cref="PowerPointProcessExitGracePeriod"/> + force-kill), not just
+    /// <see cref="PowerPointQuitTimeout"/>. <c>PresentationBatch.Dispose()</c> runs
+    /// <c>PresentationShutdownService</c> synchronously on the STA thread and joins it with this
+    /// timeout — if this were shorter than the shutdown service's own worst-case duration,
+    /// Dispose() could return (and the host process could exit) BEFORE the process-exit
+    /// grace-period poll / force-kill escalation ever runs, silently defeating the safety net and
+    /// leaking POWERPNT.exe. On the happy path (PowerPoint quits within seconds) Join() returns as
+    /// soon as the STA thread actually finishes, so this long timeout does not slow down normal
+    /// shutdown — it only bounds the worst case.
+    /// </summary>
+    public static readonly TimeSpan StaThreadJoinTimeout =
+        PowerPointProcessExitGracePeriod + PowerPointQuitTimeout + TimeSpan.FromSeconds(30);
 
     /// <summary>Timeout for save operations (5 minutes). Large decks with media may take longer.</summary>
     public static readonly TimeSpan SaveOperationTimeout = TimeSpan.FromMinutes(5);
