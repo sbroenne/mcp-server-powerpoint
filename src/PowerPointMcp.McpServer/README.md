@@ -1,5 +1,8 @@
 # MCP Server for PowerPoint
 
+<!-- mcp-name: io.github.sbroenne/mcp-server-powerpoint -->
+mcp-name: io.github.sbroenne/mcp-server-powerpoint
+
 A [Model Context Protocol](https://modelcontextprotocol.io) server that automates
 Microsoft PowerPoint for AI assistants. It drives a **live PowerPoint desktop
 instance** via COM automation, so decks are created and edited exactly as they
