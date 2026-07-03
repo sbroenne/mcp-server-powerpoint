@@ -1,0 +1,20 @@
+# Node
+node_modules/
+
+# Compiled output
+out/
+
+# Bundled MCP server executable (produced by build:mcp-server)
+bin/
+
+# Skills copied in from ../skills at prepublish time
+skills/
+
+# Changelog copied in from ../CHANGELOG.md at prepublish time
+CHANGELOG.md
+
+# Packaged extension
+*.vsix
+
+# VS Code test harness
+.vscode-test/

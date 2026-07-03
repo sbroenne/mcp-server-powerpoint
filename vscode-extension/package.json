@@ -1,0 +1,75 @@
+{
+  "name": "powerpoint-mcp",
+  "displayName": "PowerPoint MCP Server",
+  "description": "PowerPoint automation for AI assistants - slides, shapes, text, tables, charts, images, notes, layouts & slide-to-image export - requires PowerPoint to be installed",
+  "version": "0.1.0",
+  "publisher": "sbroenne",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sbroenne/mcp-server-powerpoint"
+  },
+  "bugs": {
+    "url": "https://github.com/sbroenne/mcp-server-powerpoint/issues"
+  },
+  "homepage": "https://powerpointmcpserver.dev/",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.118.0"
+  },
+  "os": [
+    "win32"
+  ],
+  "categories": [
+    "AI",
+    "Chat"
+  ],
+  "keywords": [
+    "mcp",
+    "model context protocol",
+    "powerpoint",
+    "microsoft",
+    "office",
+    "presentation",
+    "slides",
+    "automation",
+    "charts",
+    "tables",
+    "copilot",
+    "ai",
+    "github copilot"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "powerpoint-mcp",
+        "label": "PowerPoint MCP Server"
+      }
+    ],
+    "chatSkills": [
+      {
+        "path": "./skills/powerpoint-mcp/SKILL.md"
+      }
+    ]
+  },
+  "scripts": {
+    "clean": "cd .. && dotnet build-server shutdown && dotnet clean src/PowerPointMcp.McpServer/PowerPointMcp.McpServer.csproj -c Release -nodeReuse:false",
+    "clean:bin": "node -e \"const fs=require('fs'); try{fs.rmSync('bin',{recursive:true,force:true})}catch{}\"",
+    "copy:skills": "xcopy /E /I /Y ..\\skills\\powerpoint-mcp skills\\powerpoint-mcp",
+    "build:mcp-server": "npm run clean && npm run clean:bin && cd .. && dotnet publish src/PowerPointMcp.McpServer/PowerPointMcp.McpServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -nodeReuse:false -o vscode-extension/bin --verbosity minimal",
+    "copy:changelog": "node -e \"const fs=require('fs'); fs.copyFileSync('../CHANGELOG.md','CHANGELOG.md');\"",
+    "vscode:prepublish": "npm run build:mcp-server && npm run copy:skills && npm run copy:changelog && npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/vscode": "^1.118.0",
+    "@vscode/vsce": "^3.9.1",
+    "typescript": "^6.0.3"
+  }
+}
