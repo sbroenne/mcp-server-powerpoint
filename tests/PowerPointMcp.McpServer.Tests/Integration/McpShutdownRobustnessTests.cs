@@ -72,9 +72,14 @@ public sealed class McpShutdownRobustnessTests
                 => CallToolAsync(client, toolName, arguments, cts.Token);
 
             // Pay the one, unavoidable create_presentation cost once; reuse the resulting file via
-            // plain filesystem copies (no COM) for every session this test needs.
+            // plain filesystem copies (no COM) for every session this test needs. create_presentation
+            // now creates-and-keeps-open (returns a live sessionId), so we must close that seed
+            // session once the file is on disk — otherwise it lingers in the registry and the
+            // final list_sessions count assertion (expecting 0) would see it.
             var seedFile = Path.Join(tempDir, "Seed.pptx");
-            AssertSuccess(await Call("create_presentation", new() { ["filePath"] = seedFile }), "create_presentation");
+            var seedCreateJson = await Call("create_presentation", new() { ["filePath"] = seedFile });
+            AssertSuccess(seedCreateJson, "create_presentation");
+            var seedSessionId = GetString(seedCreateJson, "sessionId");
             Assert.True(File.Exists(seedFile));
             _output.WriteLine("✓ create_presentation (seed file)");
 
@@ -86,6 +91,12 @@ public sealed class McpShutdownRobustnessTests
             {
                 File.Copy(seedFile, f);
             }
+
+            // Close the seed session now that its file has been copied — the test only needs the
+            // file on disk, not a live seed session. Its background disposal is tracked and awaited
+            // by DisposeAll on host shutdown like any other session.
+            AssertSuccess(await Call("close_presentation", new() { ["sessionId"] = seedSessionId }), "close_presentation (seed)");
+            _output.WriteLine("✓ close_presentation (seed session)");
 
             // Open sessions sequentially — concurrent PowerPoint COM activation is transiently
             // flaky (Ripley's charter: "RPC server is unavailable" under concurrent launch load).
