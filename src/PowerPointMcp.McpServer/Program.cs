@@ -151,7 +151,7 @@ public class Program
                     PowerPointMCP automates Microsoft PowerPoint via COM interop (Windows only).
 
                     SESSION LIFECYCLE:
-                    1. create_presentation(filePath) — create a new empty deck on disk (no session).
+                    1. create_presentation(filePath) — create a new deck and open it; returns a sessionId.
                     2. open_presentation(filePath) — open an existing deck; returns a sessionId.
                     3. Pass that sessionId to all subsequent tools.
                     4. save_presentation(sessionId) — persist changes.
