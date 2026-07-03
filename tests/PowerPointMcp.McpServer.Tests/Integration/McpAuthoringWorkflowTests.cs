@@ -14,12 +14,13 @@ namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
 /// to amortize the real cost of a live PowerPoint COM session (Rule 30: no mocking).
 /// </summary>
 /// <remarks>
-/// Deliberately a single long test rather than many small ones: <c>create_presentation</c> alone
-/// currently blocks synchronously for the full PowerPoint quit/grace-period sequence (observed
-/// ~100-200s — see .squad/decisions/inbox/ripley-create-presentation-blocks-on-dispose.md), so
-/// paying that cost more than once per test class would make the suite unreasonably slow. Every
-/// assertion here goes through a tools/call JSON response — never a direct method call — per
-/// Ripley's charter (integration tests only, no mocking, real COM).
+/// Deliberately a single long test rather than many small ones: a live PowerPoint COM session is
+/// expensive to spin up and tear down (the quit/grace-period sequence dominates), so paying that
+/// cost more than once per test class would make the suite unreasonably slow. <c>create_presentation</c>
+/// itself is now fast and non-blocking (create-and-keep-open, returns an open sessionId — see
+/// .squad/decisions/inbox/brett-create-and-open.md). Every assertion here goes through a tools/call
+/// JSON response — never a direct method call — per Ripley's charter (integration tests only, no
+/// mocking, real COM).
 /// </remarks>
 [Collection("ProgramTransport")]
 [Trait("Category", "Integration")]
@@ -112,17 +113,13 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
     [Fact]
     public async Task FullDeckAuthoringWorkflow_ViaMcpProtocol_ExercisesEveryDomainTool()
     {
-        // 1. create_presentation → open_presentation → sessionId.
+        // 1. create_presentation returns an OPEN session (create-and-keep-open) → sessionId.
         var createResult = await Call("create_presentation", new() { ["filePath"] = _presentationFile });
         AssertSuccess(createResult, "create_presentation");
         Assert.True(File.Exists(_presentationFile));
-        _output.WriteLine("✓ create_presentation");
-
-        var openResult = await Call("open_presentation", new() { ["filePath"] = _presentationFile });
-        AssertSuccess(openResult, "open_presentation");
-        var sessionId = GetString(openResult, "sessionId");
+        var sessionId = GetString(createResult, "sessionId");
         Assert.False(string.IsNullOrEmpty(sessionId));
-        _output.WriteLine($"✓ open_presentation → sessionId={sessionId}");
+        _output.WriteLine($"✓ create_presentation → open sessionId={sessionId}");
 
         // 2. add_slide (x2), get_slide_count asserts the count grew by exactly 2.
         var baselineCountResult = await Call("get_slide_count", new() { ["sessionId"] = sessionId });

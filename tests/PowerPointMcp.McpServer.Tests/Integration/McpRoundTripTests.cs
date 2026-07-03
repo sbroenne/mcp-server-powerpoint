@@ -97,7 +97,8 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
 
     /// <summary>
     /// create_presentation via the MCP protocol: real PowerPoint creates and saves a real .pptx
-    /// on disk, no session left open.
+    /// on disk and returns an OPEN session (create-and-keep-open semantics). The session is closed
+    /// at the end so no PowerPoint instance is left running.
     /// </summary>
     [Fact]
     public async Task CreatePresentation_ViaMcpProtocol_WritesRealPptxFile()
@@ -111,7 +112,17 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         Assert.True(File.Exists(_testPresentationFile), $"Expected file to exist: {_testPresentationFile}");
         Assert.Equal(_testPresentationFile, GetJsonProperty(result, "presentationPath"));
 
-        _output.WriteLine($"✓ create_presentation wrote a real .pptx file: {_testPresentationFile}");
+        var sessionId = GetJsonProperty(result, "sessionId");
+        Assert.False(string.IsNullOrEmpty(sessionId), $"Expected create_presentation to return an open sessionId: {result}");
+
+        // create-and-keep-open: close the returned session so no PowerPoint instance leaks.
+        var closeResult = await CallToolAsync("close_presentation", new Dictionary<string, object?>
+        {
+            ["sessionId"] = sessionId
+        });
+        AssertSuccess(closeResult, "close_presentation");
+
+        _output.WriteLine($"✓ create_presentation wrote a real .pptx file and returned sessionId={sessionId}: {_testPresentationFile}");
     }
 
     /// <summary>
@@ -121,26 +132,18 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
     [Fact]
     public async Task FullSessionLifecycle_ViaMcpProtocol_OpenListSaveClose()
     {
-        // 1. create_presentation (no session left open).
+        // 1. create_presentation returns an OPEN session (create-and-keep-open) → sessionId.
         var createResult = await CallToolAsync("create_presentation", new Dictionary<string, object?>
         {
             ["filePath"] = _testPresentationFile
         });
         AssertSuccess(createResult, "create_presentation");
         Assert.True(File.Exists(_testPresentationFile));
-        _output.WriteLine("✓ Step 1: create_presentation succeeded");
+        var sessionId = GetJsonProperty(createResult, "sessionId");
+        Assert.False(string.IsNullOrEmpty(sessionId), $"Expected a sessionId in create response: {createResult}");
+        _output.WriteLine($"✓ Step 1: create_presentation returned open sessionId={sessionId}");
 
-        // 2. open_presentation → sessionId.
-        var openResult = await CallToolAsync("open_presentation", new Dictionary<string, object?>
-        {
-            ["filePath"] = _testPresentationFile
-        });
-        AssertSuccess(openResult, "open_presentation");
-        var sessionId = GetJsonProperty(openResult, "sessionId");
-        Assert.False(string.IsNullOrEmpty(sessionId), $"Expected a sessionId in response: {openResult}");
-        _output.WriteLine($"✓ Step 2: open_presentation returned sessionId={sessionId}");
-
-        // 3. list_sessions shows the open session.
+        // 2. list_sessions shows the open session.
         var listResult = await CallToolAsync("list_sessions", new Dictionary<string, object?>());
         AssertSuccess(listResult, "list_sessions");
         using (var listJson = JsonDocument.Parse(listResult))
@@ -150,17 +153,17 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
                 .Any(s => string.Equals(s.GetProperty("sessionId").GetString(), sessionId, StringComparison.Ordinal));
             Assert.True(found, $"Expected sessionId {sessionId} in list_sessions response: {listResult}");
         }
-        _output.WriteLine("✓ Step 3: list_sessions shows the open session");
+        _output.WriteLine("✓ Step 2: list_sessions shows the open session");
 
-        // 4. save_presentation.
+        // 3. save_presentation.
         var saveResult = await CallToolAsync("save_presentation", new Dictionary<string, object?>
         {
             ["sessionId"] = sessionId
         });
         AssertSuccess(saveResult, "save_presentation");
-        _output.WriteLine("✓ Step 4: save_presentation succeeded");
+        _output.WriteLine("✓ Step 3: save_presentation succeeded");
 
-        // 5. close_presentation — releases the PowerPoint process for this session.
+        // 4. close_presentation — releases the PowerPoint process for this session.
         var closeResult = await CallToolAsync("close_presentation", new Dictionary<string, object?>
         {
             ["sessionId"] = sessionId
@@ -170,9 +173,9 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         {
             Assert.True(closeJson.RootElement.GetProperty("closed").GetBoolean(), $"Expected closed=true: {closeResult}");
         }
-        _output.WriteLine("✓ Step 5: close_presentation succeeded");
+        _output.WriteLine("✓ Step 4: close_presentation succeeded");
 
-        // 6. list_sessions no longer shows the closed session.
+        // 5. list_sessions no longer shows the closed session.
         var listAfterCloseResult = await CallToolAsync("list_sessions", new Dictionary<string, object?>());
         AssertSuccess(listAfterCloseResult, "list_sessions (after close)");
         using (var listJson = JsonDocument.Parse(listAfterCloseResult))
@@ -182,7 +185,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
                 .Any(s => string.Equals(s.GetProperty("sessionId").GetString(), sessionId, StringComparison.Ordinal));
             Assert.False(stillFound, $"Session {sessionId} should be gone after close_presentation: {listAfterCloseResult}");
         }
-        _output.WriteLine("✓ Step 6: list_sessions confirms the session is closed");
+        _output.WriteLine("✓ Step 5: list_sessions confirms the session is closed");
     }
 
     private async Task<string> CallToolAsync(string toolName, Dictionary<string, object?> arguments)
