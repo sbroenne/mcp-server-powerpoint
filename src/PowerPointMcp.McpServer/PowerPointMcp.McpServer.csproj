@@ -13,11 +13,66 @@
 
     <!-- MCP tool/param docs live in the MCP schema ([Description] attributes), not XML docs. -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- NuGet package configuration (distributed as a .NET tool + MCP Registry entry). -->
+    <PackageId>Sbroenne.PowerPointMcp.McpServer</PackageId>
+    <Title>MCP Server for PowerPoint</Title>
+    <Description>PowerPoint automation for AI assistants - slides, shapes, text, tables, charts, images, notes, layouts, and slide-to-image export for visual verification. Requires PowerPoint to be installed. Only runs on Windows.</Description>
+    <PackageTags>mcp;model-context-protocol;powerpoint;microsoft;office;presentation;slides;automation;charts;tables;copilot;ai;github-copilot</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-powerpoint/releases for release notes</PackageReleaseNotes>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
+    <!-- .NET tool configuration. Command: mcp-powerpoint -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>mcp-powerpoint</ToolCommandName>
+
+    <!-- NuGet tool publishes as portable (no RID). Do NOT declare RuntimeIdentifiers here:
+         combined with PackAsTool it forces the pack flow to look for RID-qualified output,
+         breaking `dotnet pack` (no-build) in CI. Standalone-exe CI builds pass the RID flag. -->
+    <PublishSelfContained>false</PublishSelfContained>
+    <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
+
+  <!-- .NET SDK unconditionally sets PackageType=DotnetTool when PackAsTool=true; append the
+       McpServer package type so the package is discoverable by the MCP Registry. -->
+  <Target Name="_AddMcpServerPackageType" BeforeTargets="GenerateNuspec;Pack">
+    <PropertyGroup>
+      <PackageType>$(PackageType);McpServer</PackageType>
+    </PropertyGroup>
+  </Target>
+
+  <!-- Workaround for NETSDK1146: PackAsTool doesn't support net10.0-windows.
+       See https://github.com/dotnet/sdk/issues/12055#issuecomment-2125927648 -->
+  <Target Name="HackBeforePackToolValidation" BeforeTargets="_PackToolValidation">
+    <PropertyGroup>
+      <TargetPlatformIdentifier></TargetPlatformIdentifier>
+      <TargetPlatformMoniker></TargetPlatformMoniker>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="HackAfterPackToolValidation" AfterTargets="_PackToolValidation" BeforeTargets="PackTool">
+    <PropertyGroup>
+      <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+    </PropertyGroup>
+  </Target>
 
   <ItemGroup>
     <ProjectReference Include="..\PowerPointMcp.Core\PowerPointMcp.Core.csproj" />
     <ProjectReference Include="..\PowerPointMcp.ComInterop\PowerPointMcp.ComInterop.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- MCP server manifest (copied to output and packed for the MCP Registry). -->
+    <Content Include=".mcp/server.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Pack>true</Pack>
+      <PackagePath>.mcp/server.json</PackagePath>
+    </Content>
+
+    <!-- README and LICENSE in the package. -->
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\LICENSE" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <!-- Allow the (Phase-2) test project to drive the in-memory transport and access internals. -->
