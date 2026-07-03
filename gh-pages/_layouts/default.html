@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="{{ site.lang | default: 'en-US' }}">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Search engine verification -->
+    <!-- TODO(sbroenne): replace with a real Bing Webmaster Tools verification token -->
+    <meta name="msvalidate.01" content="REPLACE_WITH_BING_VERIFICATION_TOKEN" />
+
+    <!-- Bot directives for rich snippets -->
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+    <meta name="theme-color" content="#B7472A">
+
+    <!-- Jekyll SEO Tag handles: title, description, canonical, og:*, twitter:*, JSON-LD WebSite -->
+    {% seo %}
+
+    <!-- Keywords (not handled by jekyll-seo-tag) -->
+    {% if page.keywords %}<meta name="keywords" content="{{ page.keywords }}">{% endif %}
+
+    <!-- Structured Data: SoftwareApplication (supplements jekyll-seo-tag's WebSite schema) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "PowerPoint MCP Server",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Windows",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "Control Microsoft PowerPoint with Natural Language through AI assistants like GitHub Copilot and Claude. Automate slides, shapes, tables, charts, and export-to-verify visual checks on a live PowerPoint instance.",
+      "url": "https://powerpointmcpserver.dev/",
+      "softwareVersion": "0.1",
+      "programmingLanguage": "C#",
+      "downloadUrl": "https://www.nuget.org/packages/Sbroenne.PowerPointMcp.McpServer/",
+      "codeRepository": "https://github.com/sbroenne/mcp-server-powerpoint",
+      "keywords": "PowerPoint, automation, MCP, AI, slides, shapes, charts, tables, GitHub Copilot, Claude, COM automation",
+      "author": {
+        "@type": "Person",
+        "name": "Stefan Broenne"
+      },
+      "featureList": [
+        "Live PowerPoint COM automation",
+        "Slide and shape manipulation",
+        "Table and chart creation",
+        "Speaker notes automation",
+        "Export-to-image visual verification",
+        "MCP Server"
+      ]
+    }
+    </script>
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Preload critical assets -->
+    <link rel="preload" href="{{ '/assets/css/style.css' | relative_url }}" as="style">
+    <link rel="preload" href="{{ '/assets/images/icon.png' | relative_url }}" as="image">
+
+    <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+    <link rel="icon" type="image/png" sizes="256x256" href="{{ '/assets/images/icon.png' | relative_url }}">
+    <link rel="shortcut icon" type="image/png" href="{{ '/assets/images/icon.png' | relative_url }}">
+    <link rel="apple-touch-icon" sizes="256x256" href="{{ '/assets/images/icon.png' | relative_url }}">
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      {{ content }}
+
+      {% if site.github.private != true and site.github.license %}
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. {% github_edit_link "Improve this page" %}.
+      </div>
+      {% endif %}
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

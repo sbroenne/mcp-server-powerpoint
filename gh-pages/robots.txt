@@ -1,0 +1,8 @@
+# robots.txt for PowerPoint MCP Server documentation
+# https://powerpointmcpserver.dev/
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://powerpointmcpserver.dev/sitemap.xml

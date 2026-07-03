@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<!-- TODO(sbroenne): replace <user> value with the real Bing Webmaster Tools verification
+     token for powerpointmcpserver.dev before this site goes live. This is a placeholder. -->
+<users>
+	<user>REPLACE_WITH_BING_VERIFICATION_TOKEN</user>
+</users>
