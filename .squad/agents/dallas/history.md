@@ -13,3 +13,6 @@
 
 
 📌 Team update (2026-07-01T13:00:00+02:00): Phase 1 MVP landed green across all three concurrent work streams. Brett: McpServer stdio host (5 tools, in-process registry, DI injection pattern, two-layer shutdown, full solution green). Parker: Export domain (ExportSlideToImage + ExportAllSlidesToImages, 5/5 real-COM tests). Ripley: MCP transport harness (6/6 protocol + live-COM tests, reusable for future domains). Vertical slice proven (session → registry → Core → MCP serialization). All three inbox decisions consolidated into decisions.md. Architecture pass validated against real repo state; 1.3.0 SDK fluent API confirmed; generators deferred to Phase 2 (Core shape now stable). Office post-Quit ~90s latency documented (benign). Ready for Phase 2: remaining 8 domain tools, generators port, out-of-process Service. — decided by Scribe
+
+📌 Team update (2026-07-02T14-15-00+02:00): Phase 1 complete — Dallas's skill pack (12 shared guidance files) + governance docs now part of consolidated decision. Scaled from Excel's patterns to current Phase 1 architecture (no Service, no generators). Build-time sync deferred to Phase 2. Full session summary in decisions.md + orchestration-log/2026-07-02T14-15-00-dallas.md — decided by Scribe
+

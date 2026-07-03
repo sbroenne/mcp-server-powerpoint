@@ -118,56 +118,63 @@ CONVENTIONS: Rule 1/1b (Success/ErrorMessage invariant, no try-catch suppression
 **Custom domain:** CONFIRMED = **powerpointmcpserver.dev** (sbroenne, 2026-07-01). Needs DNS (A/ALIAS to GitHub Pages IPs or CNAME to sbroenne.github.io) + CNAME file in gh-pages/ + Enforce HTTPS. Landing page: https://powerpointmcpserver.dev
 **Why:** User: "we also need github pages" + "the domain will be powerpointmcpserver.dev". Details: session plan.md Phase 4 + §5a row 10.
 
-### 2026-07-01T12:00:00+02:00: McpServer Phase 1 MVP — implementation decisions & follow-ups (consolidated)
+### 2026-07-02T14-15-00+02:00: Phase 1 MVP — implementation decisions & follow-ups (consolidated)
 
-**By:** Brett (MCP/Service Dev), Parker (COM/Core Dev), Ripley (Tester)
+**By:** Parker (COM/Core Dev), Brett (MCP/Service Dev), Dallas (Lead/Architect), Ripley (Tester)
 
-**What:** Phase 1 MVP completed successfully with three work streams:
+**What:** Phase 1 MVP completed successfully with four work streams consolidated below.
 
-**BRETT's McpServer MVP:**
-- Built the empty `src/PowerPointMcp.McpServer` into a working MCP stdio host per Dallas's architecture pass.
-- Implemented: `PowerPointMcp.McpServer.csproj` (net10.0-windows Exe, refs Core+ComInterop, ModelContextProtocol 1.3.0/Hosting/Logging, InternalsVisibleTo McpServer.Tests)
-- `Program.cs` (stdio host + in-memory test transport hooks)
-- `Session/PresentationSessionRegistry.cs` (in-process ConcurrentDictionary<sessionId, IPresentationBatch> singleton)
-- `Tools/PowerPointToolsBase.cs` (JSON opts + ExecuteToolAction + error serialization)
-- `Tools/PresentationTools.cs` (5 hand-written tools: create_presentation, open_presentation, save_presentation, close_presentation, list_sessions)
-- Bumped ModelContextProtocol 0.5.0-preview.2 → 1.3.0 in Directory.Packages.props.
-- Added project to slnx.
-- Full solution builds green (0 warn/0 err); stdio smoke test confirms all 5 tools discovered with correct schemas and clean JSON-RPC on stdout.
+**PARKER's Presentation Open + Resilient Shutdown:**
+- Added `Open(string filePath)` to `IPresentationCommands`/`PresentationCommands` — validates file exists (Rule 1b graceful failure), opens + immediately-disposes a real batch (create+save+close pattern).
+- **Core-level No-Close rule:** Deliberately omitted a standalone `Close()` method from `IPresentationCommands`. `IPresentationBatch.Dispose()` already closes presentations + queues PowerPoint shutdown. Adding parallel `Close()` would either duplicate behavior or require threading batches through Core's stateless command layer — neither fits the API. Documented explicitly: **closing == disposing the batch**.
+- **Resilient quit-retry:** Rewrote `src/PowerPointMcp.ComInterop/Session/PresentationShutdownService.cs` + added new `ResiliencePipelines.cs` with Polly-based exponential backoff:
+  1. `ClosePresentation` (linear-backoff, transient COM-busy tolerance)
+  2. `ComUtilities.Release` (safe cleanup)
+  3. `QuitApplication` (Polly exponential 6×) 
+  4. `WaitForProcessExitOrEscalate` (exponential poll 250ms → 8s cap, grace period = `ComInteropConstants.PowerPointProcessExitGracePeriod = 150s`) 
+  5. Force-kill only as last resort
+- **Critical bug fix:** STA-batch join timeout was ~45s, much shorter than the grace period. When a short-lived process exited right after `Dispose()` returned (join timed out early), .NET killed the background STA thread prematurely, abandoning force-kill safety net → permanently leaked POWERPNT.exe. **Fix:** `StaThreadJoinTimeout` is now `grace-period (150s) + quit-timeout (30s) + 30s buffer (~210s)`, so `Dispose()` genuinely blocks until the entire resilient shutdown sequence completes. `Thread.Join()` returns immediately on the happy path (thread already exited), so normal shutdowns are unaffected — only slow ones are guaranteed to run the safety net.
+- **Impact:** `Dispose()` now legitimately takes up to ~210s (observed ~90-150s in practice, benign Office cleanup per Ripley finding). McpServer `close_presentation` will block for this duration — addressed separately by Brett.
+- **Tests:** 7/7 real-COM passed (`Open_ExistingFile_*`, `Open_MissingFile_*`, `Open_ThenEdit_*`, `Dispose_QuitsPowerPoint_ProcessEventuallyExits`), ~38.5 min. Zero lingering POWERPNT.exe confirmed post-run.
 
-Key implementation decisions:
-- **DI injection into static tool methods:** Tool methods take `PresentationSessionRegistry registry` as a plain parameter; MCP SDK 1.3.0 correctly EXCLUDES it from tool JSON schema (verified via tools/list).
-- **Shutdown disposal two-layered:** `PresentationSessionShutdownService : IHostedService` disposes batches on host StopAsync, AND `Main`'s finally calls `registry.DisposeAll()` as backstop (idempotent).
-- **create_presentation does NOT open a session:** calls Core `PresentationCommands.Create` (create+save+close on disk), returns success+path. Callers must `open_presentation` afterward to edit (2-call flow). [FOLLOW-UP for Dallas/sbroenne: decide if future `create_and_open` or change `create_presentation` return is desired]
-- **No office.dll assembly resolver ported:** PowerPoint's Directory.Build.targets force-embeds interop types (NoPIA), no runtime dependency to resolve.
+**BRETT's McpServer MVP — Async Close + 31 Tools:**
+- **Program.cs + stdio host:** `net10.0-windows` Exe, ModelContextProtocol 1.3.0 (bumped from 0.5.0-preview.2), stderr logging, graceful shutdown. Smoke tests pass; no lingering POWERPNT.exe.
+- **PresentationSessionRegistry (in-process singleton):** `ConcurrentDictionary<sessionId, IPresentationBatch>`, owns session lifecycle. `DisposeAll()` called from `PresentationSessionShutdownService.StopAsync` + `Main`'s finally backstop.
+- **PowerPointToolsBase:** JSON options (camelCase, WriteIndented=false, IgnoreCondition=WhenWritingNull, JsonStringEnumConverter), `ExecuteToolAction` wrapper, error serialization.
+- **5 Presentation tools:** `create_presentation`, `open_presentation`, `save_presentation`, `close_presentation`, `list_sessions`. Validated via in-memory transport (tools/list = 5, no registry leaks, correct schemas).
+- **Hand-wrote 26 new tools:** SlideTools.cs, ShapeTools.cs, TextFrameTools.cs, TableTools.cs, NotesTools.cs, LayoutTools.cs, ImageTools.cs, ChartTools.cs, ExportTools.cs (one tool per Core method, snake_case naming, registry lookups with `TryGet` guard). Total surface: 31 tools across 10 domains (Presentation×5, Slide×3, Shape×6, TextFrame×5, Table×3, Notes×2, Layout×2, Image×1, Chart×2, Export×2).
+- **Async-close at MCP layer (NEW):** Following Parker's shutdown hardening, synchronous dispose could block the MCP client up to 210s — likely timeout. **Fixed entirely in McpServer:** `Registry.Close()` now `TryRemove`s the batch (so it disappears from `list_sessions` immediately) + starts `batch.Dispose()` on `Task.Run` (tracked in `_pendingDisposals` ConcurrentDictionary, tasks self-remove via ContinueWith). `DisposeAll()` blocks on all tracked disposals before host exit (bounded by `StaThreadJoinTimeout + 30s`, concurrent disposals run in parallel). `close_presentation` returns immediately with `{success:true, closed:true, message:"PowerPoint is shutting down in background."}`. Tool description updated to set expectations. Thread-safe: `TryRemove` + `ConcurrentDictionary.Add/Remove` + exception logging.
+- **Why:** Preserves Parker's "no lingering POWERPNT.exe" on host shutdown (still blocks and drains everything) while making MCP client calls fast and non-blocking. Ripley to e2e-test next.
+- **Build:** 0 warnings, 0 errors.
 
-**PARKER's Export Domain:**
-- Implemented Export domain in `src/PowerPointMcp.Core/Export/` with two commands:
-  - `ExportSlideToImage` — single-slide → image file
-  - `ExportAllSlidesToImages` — all slides → image files in a directory
-- Key decisions:
-  - `ExportAllSlidesToImages` calls `Presentation.Export` in single COM call (more efficient than per-slide loop); PowerPoint handles file naming natively (`Slide1.PNG`, `Slide2.PNG`, etc.)
-  - Slide index convention: 1-based (matches PowerPoint native + other Core domains)
-  - Format parameter: string `"PNG"` default, passed directly to `FilterName` (valid: PNG, JPG, GIF, BMP, TIF, WMF, EMF; no pre-validation per Rule 1b)
-  - Output directory creation: pre-created by ExportCommands (graceful `Success=false` vs COM exception if malformed)
-  - COM object access: typed `PowerPoint.Slide`/`Presentation` (no `dynamic` needed, no MsoTriState params)
-- **Test Results:** All 5 real-COM integration tests passed:
-  - ExportSlideToImage_ExportsSingleSlide_FileExistsAndNonEmpty ✅
-  - ExportSlideToImage_WithCustomDimensions_ProducesFile ✅
-  - ExportSlideToImage_WithInvalidIndex_ReturnsFailure_NotException ✅
-  - ExportAllSlidesToImages_ExportsAllSlides_FilesExistAndNonEmpty ✅
-  - ExportAllSlidesToImages_CreatesOutputDirectory_WhenMissing ✅
+**DALLAS's Authoring Skill Pack + Governance:**
+- **Pure markdown/config (no C# changes):** 12 shared guidance files (`behavioral-rules.md`, `workflows.md`, `deck-builder.md`, `slides-and-shapes.md`, `text-formatting.md`, `tables.md`, `charts.md`, `images.md`, `speaker-notes.md`, `layouts.md`, `export-and-verify.md`, `anti-patterns.md`).
+- **Skills scaffold:** `skills/powerpoint-mcp/SKILL.md` (workflow checklist + tool quick-reference), `README.md`, `VERSION` (0.1.0), `references/*.md` (manual copies of shared guidance — no build-time sync script yet).
+- **Governance files:** `.github/copilot-instructions.md` (appended below Squad coordinator canary, did NOT overwrite), `.github/instructions/{critical-rules,architecture-patterns,mcp-server-guide,testing-strategy}.instructions.md` (4 files, scaled down from Excel's 14 — no CLI-parity, Query/DAX, generator-audit since those don't apply yet), `skills/README.md`, `skills/CLAUDE.md`, `skills/.cursorrules`, `scripts/pre-commit.ps1` (6 gates: branch guard, Success-flag regex, Release build, Core tests scoped to touched domains, MCP protocol tests, TODO/FIXME scan). Verified `pre-commit.ps1` syntax via PowerShell AST parser — did not execute (out of scope).
+- **Authoring:** Content rewritten from scratch for 31-tool COM/live-PowerPoint surface, grounding in `office-coding-agent-plugins` + mcp-server-excel patterns but adapted to the current architecture (no Service, no generators, no gradient/shadow/SmartArt-level richness). Anti-patterns.md and layouts.md explicitly call out capability gaps.
+- **Deferred:** Build-time skill-pack sync (manual `Copy-Item` for now), `powerpoint-cli` skill (CLI still placeholder), Excel-specific instruction files (Power Query, DAX, VBA, generator-audit, CLI-parity, documentation-structure, etc.).
+- **Scope:** `skills/`, `.github/`, `scripts/pre-commit.ps1`. No C# touched.
 
-**RIPLEY's MCP Transport Harness:**
-- Created `tests/PowerPointMcp.McpServer.Tests` (added to Sbroenne.PowerPointMcp.slnx) — in-memory MCP transport test harness ported from mcp-server-excel pattern.
-- Architecture: Pipe pair → `Program.ConfigureTestTransport` → `Program.Main([])` on background task → `McpClient.CreateAsync` over `StreamClientTransport` → teardown via `RequestTestTransportShutdown` → pipe completion → await server task → `ResetTestTransport`.
-- Serialized via `xunit.runner.json` (maxParallelThreads: 1) + `[Collection("ProgramTransport")]`.
-- Two test classes:
-  - `McpProtocolTests` (no COM, protocol assertions): tools/list returns 5 expected tools, DI registry never leaks into JSON schema, all tools have name+description, ServerInfo/Instructions validated
-  - `McpRoundTripTests` (live COM): create_presentation via MCP writes real .pptx; full lifecycle test: create → open → list_sessions (shows it) → save → close → list_sessions (gone)
-- **Result:** `dotnet test tests/PowerPointMcp.McpServer.Tests` — 6/6 passed (all green).
-- **Observation (benign, not a bug):** After round-trip test's `close_presentation` disposed sessions, POWERPNT.exe took ~90–100 seconds to exit OS process list (post-Quit Office COM cleanup/telemetry). This is documented Office behavior, self-resolved with no manual kill, did not block back-to-back test runs. Do NOT add force-kill on happy path; reserved for `_operationTimedOut` safety net only.
+**RIPLEY's MCP Transport Harness + E2E Testing:**
+- **Created test project:** `tests/PowerPointMcp.McpServer.Tests` with in-memory pipe-pair transport harness (config hook in Program.cs, `StreamClientTransport` over background server task, graceful teardown). Serialized via `xunit.runner.json` (maxParallelThreads: 1) + `[Collection("ProgramTransport")]`.
+- **Test classes:**
+  - `McpProtocolTests` (4 tests, <1s): tools/list returns 31 expected tools (full set), DI registry never leaks into schema, all tools named+described, ServerInfo/Instructions validated.
+  - `McpRoundTripTests` (2 tests, unchanged): create → open → list → save → close happy path (2m37s, 2m40s — **create_presentation blocks for ~2.5-3 min due to Parker's shutdown fix**; detailed separately).
+  - `McpAuthoringWorkflowTests` (1 new, 3m12s): single-session, single create_presentation, full deck authoring (all 31-tool domains), asserted via JSON.
+  - `McpShutdownRobustnessTests` (1 new, 6m8s): double-close, concurrent closes, close-then-immediate-shutdown race, PID-baseline diff confirming zero orphaned POWERPNT.exe.
+- **Finding:** `create_presentation` now blocks synchronously for ~2.5-3 min (observed: 2m37s, 2m40s, 3m12s) — root cause: `PresentationCommands.Create()` calls `using (batch) { Save(); }` which disposes before returning; `Dispose()` now correctly blocks until Parker's full resilient-shutdown sequence completes (~90-150s). This is a **UX regression, not a bug** — the result (file on disk) is correct long before `Dispose()` finishes. **Suggested fix (not implemented — design decision for Parker/Brett):** Return immediately after `Save()` and let `Dispose()` run fire-and-forget on tracked `_pendingDisposals` task (mirrors Brett's async-close pattern).
+- **Tests adjusted:** `ServerShutdownTimeout` bumped from `StaThreadJoinTimeout + 15s` → `StaThreadJoinTimeout + 60s` (old value was 15s *below* registry's `DisposeAllTimeout`, could force-cancel legit slow Office cleanup). This is a test-only latent-flakiness fix, not a product change. E2E tests minimize `create_presentation` calls (one per test class, reuse via `File.Copy`).
+- **Results:** 8/8 tests passed, ~19m54s wall clock. Zero orphaned POWERPNT.exe confirmed via PID-baseline diff before/after run.
+- **Scope:** Only `tests/PowerPointMcp.McpServer.Tests/`. No changes to `src/`.
 
-**Why recorded:** Phase 1 MVP establishes proven vertical slice (session → registry → Core command → serialized MCP result) so remaining domains can be added mechanically. Validates 1.3.0 SDK fluent API against real repo state before investing in generators. Harness pre-empts false "orphaned process" bug reports for benign Office shutdown latency.
+**Deferred (not in this task):** out-of-process Service + ServiceBridge, source generators, telemetry/AppInsights, MCPB/skill-prompt packaging, `.mcp/server.json` manifest + README, other remaining domains (tooling moved to Phase 2). No Core/ComInterop changes except Export domain + Parker's shutdown hardening.
 
-**Deferred (not in this task):** out-of-process Service + ServiceBridge, source generators, telemetry/AppInsights, MCPB/skill-prompt packaging, `.mcp/server.json` manifest + README, remaining 8 domain tools (Slide/Shape/TextFrame/Table/Notes/Layout/Image/Chart), Domain-specific tooling beyond the 5 Presentation tools. No Core or ComInterop changes except Export domain.
+**Follow-ups flagged for future work:**
+1. `create_presentation` async pattern — design decision for Parker/Brett (suggested: fire-and-forget disposal mirroring async-close).
+2. Build-time skill-pack sync script (ported from Excel's generator step).
+3. `.mcp/server.json` manifest + README (deferred until generator/packaging work).
+4. MCPB bundle + skill-prompt integration (Phase 2).
+5. Refresh CONTINUATION.md (its "NOT done" list is now stale post-Phase-1).
+
+---
+
