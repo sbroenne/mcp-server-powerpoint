@@ -40,6 +40,8 @@
       <ExcludeAssets>runtime</ExcludeAssets>
       <NoWarn>NU1701</NoWarn>
     </PackageReference>
+    <!-- Required for generated CliSettings class (Spectre.Console.Cli.CommandSettings) -->
+    <PackageReference Include="Spectre.Console.Cli" />
   </ItemGroup>
 
 </Project>

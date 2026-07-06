@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Core.Attributes;
 
 namespace Sbroenne.PowerPointMcp.Core.Notes;
 
@@ -6,6 +7,9 @@ namespace Sbroenne.PowerPointMcp.Core.Notes;
 /// Speaker notes commands: set/get the notes text for a slide. Operates within an
 /// already-open IPresentationBatch, targeting a specific slide by its 1-based index.
 /// </summary>
+[ServiceCategory("notes", "Notes")]
+[McpTool("notes", Title = "Speaker Notes Operations", Destructive = true, Category = "content",
+    Description = "Set or get the speaker notes text for a slide in an open presentation session.")]
 public interface INotesCommands
 {
     /// <summary>Sets the speaker notes text for a slide.</summary>
