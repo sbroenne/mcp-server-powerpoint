@@ -19,3 +19,5 @@
 
 📌 Team update (2026-07-02T14-15-00+02:00): Phase 1 complete — Ripley's e2e harness + 8-test suite (8/8 passed) validated full 31-tool surface, lifecycle, robustness, process cleanup. create_presentation blocking finding documented (2.5-3 min due to Parker's shutdown fix; suggested async pattern for future). Zero orphaned POWERPNT.exe confirmed. Full session summary in decisions.md + orchestration-log/2026-07-02T14-15-00-ripley.md — decided by Scribe
 
+
+📌 Team update (2026-07-06T10:41:46+02:00): Brett shipped create_presentation → create-and-open (non-blocking, returns sessionId, ~1.9s vs old ~90-210s). Flagged for you: McpRoundTripTests.FullSessionLifecycle_ViaMcpProtocol_OpenListSaveClose (~line 125) and McpAuthoringWorkflowTests (~lines 116-125) now open a second session via the subsequent open_presentation call on the same file — needs a fix to close the create-returned sessionId or drop the redundant open_presentation call. — decided by Brett
