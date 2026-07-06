@@ -22,7 +22,18 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PowerPointMcp.ComInterop\PowerPointMcp.ComInterop.csproj" />
+    <!-- Source generator for ServiceRegistry (CLI + skill manifest only; no [ServiceCategory]
+         interfaces exist yet — this wiring is inert until Core interfaces are annotated) -->
+    <ProjectReference Include="..\PowerPointMcp.Generators\PowerPointMcp.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <!-- Emit generated source files for inspection -->
+  <PropertyGroup>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)\GeneratedFiles</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Office.Interop.PowerPoint">

@@ -26,6 +26,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PowerPointMcp.Core\PowerPointMcp.Core.csproj" />
+    <!-- Source generator for CLI command classes (inert until Core interfaces expose
+         [ServiceCategory] and this project has Spectre.Console-based commands) -->
+    <ProjectReference Include="..\PowerPointMcp.Generators.Cli\PowerPointMcp.Generators.Cli.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
