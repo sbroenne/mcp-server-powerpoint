@@ -157,18 +157,35 @@ public sealed class ChartCommands : IChartCommands
 
         dynamic worksheet = workbook.Worksheets[1];
 
-        worksheet.Cells[1, 1].Value2 = "Category";
-        worksheet.Cells[1, 2].Value2 = seriesName;
-
-        for (int i = 0; i < categories.Count; i++)
+        // NOTE (discovered via real integration test, not assumed): during a sustained
+        // multi-hour PowerPoint session, the embedded chart-data workbook's out-of-process
+        // Excel host can transiently drop its RPC connection mid-call, surfacing as
+        // COMException(0x80010108 RPC_E_DISCONNECTED, "the object invoked has disconnected
+        // from its clients") on the very NEXT dynamic dispatch (e.g. a Cells[...].Value2
+        // write or a UsedRange access), even though Workbook itself resolved fine moments
+        // earlier. This is transient — retrying the same call shortly after succeeds. Only
+        // this specific HResult is retried; any other exception (bad argument, logic error)
+        // propagates immediately without a retry.
+        RetryOnDisconnect(() =>
         {
-            worksheet.Cells[i + 2, 1].Value2 = categories[i];
-            worksheet.Cells[i + 2, 2].Value2 = values[i];
-        }
+            worksheet.Cells[1, 1].Value2 = "Category";
+            worksheet.Cells[1, 2].Value2 = seriesName;
+
+            for (int i = 0; i < categories.Count; i++)
+            {
+                worksheet.Cells[i + 2, 1].Value2 = categories[i];
+                worksheet.Cells[i + 2, 2].Value2 = values[i];
+            }
+        });
 
         // Clear any leftover default sample rows below our data.
-        dynamic usedRange = worksheet.UsedRange;
-        int usedRowCount = (int)usedRange.Rows.Count;
+        dynamic usedRange = null!;
+        int usedRowCount = 0;
+        RetryOnDisconnect(() =>
+        {
+            usedRange = worksheet.UsedRange;
+            usedRowCount = (int)usedRange.Rows.Count;
+        });
         int dataRowCount = categories.Count + 1; // + header row
         if (usedRowCount > dataRowCount)
         {
@@ -178,8 +195,11 @@ public sealed class ChartCommands : IChartCommands
             // both operands are themselves dynamic COM proxies from the embedded chart-data
             // workbook. A plain string address avoids the ambiguous dynamic-to-dynamic
             // indexer dispatch entirely.
-            dynamic extraRange = worksheet.Range[$"A{dataRowCount + 1}:B{usedRowCount}"];
-            extraRange.ClearContents();
+            RetryOnDisconnect(() =>
+            {
+                dynamic extraRange = worksheet.Range[$"A{dataRowCount + 1}:B{usedRowCount}"];
+                extraRange.ClearContents();
+            });
         }
 
         // NOTE (discovered via real integration test, not assumed): calling
@@ -215,6 +235,43 @@ public sealed class ChartCommands : IChartCommands
         catch (COMException)
         {
             // Embedded workbook was already closed by SetSourceData — nothing to do.
+        }
+    }
+
+    // RPC_E_DISCONNECTED — thrown when a late-bound COM call reaches an object whose
+    // out-of-process server (here, the embedded chart-data mini-Excel host) has dropped the
+    // RPC connection. Bounded, fast-fail retry: a handful of short-backoff attempts is enough
+    // to ride out a transient disconnect, while a genuinely broken COM state still fails
+    // quickly instead of hanging.
+    private const int RpcEDisconnected = unchecked((int)0x80010108);
+    private const int DisconnectRetryAttempts = 4;
+    private const int DisconnectRetryDelayMs = 150;
+
+    /// <summary>
+    /// Runs <paramref name="action"/>, retrying only on COMException(RPC_E_DISCONNECTED)
+    /// (see <see cref="RpcEDisconnected"/>). Any other exception — including a bad argument
+    /// or logic error — propagates immediately without a retry, since only the transient
+    /// disconnect is safe to silently retry.
+    /// </summary>
+    private static void RetryOnDisconnect(Action action)
+    {
+        for (int attempt = 1; attempt <= DisconnectRetryAttempts; attempt++)
+        {
+            try
+            {
+                action();
+                return;
+            }
+            catch (COMException ex) when (ex.HResult == RpcEDisconnected)
+            {
+                if (attempt == DisconnectRetryAttempts)
+                {
+                    throw new InvalidOperationException(
+                        $"The chart's embedded data workbook disconnected from its COM client (RPC_E_DISCONNECTED) after {DisconnectRetryAttempts} attempts while writing chart data.",
+                        ex);
+                }
+                System.Threading.Thread.Sleep(DisconnectRetryDelayMs);
+            }
         }
     }
 
