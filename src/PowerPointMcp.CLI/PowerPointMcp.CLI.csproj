@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
@@ -26,9 +26,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PowerPointMcp.Core\PowerPointMcp.Core.csproj" />
+    <ProjectReference Include="..\PowerPointMcp.Service\PowerPointMcp.Service.csproj" />
     <!-- Source generator for CLI command classes. Emits one ServiceCommandBase<> subclass
-         per [ServiceCategory] interface in Core (currently just Notes, the source-gen pilot
-         domain) plus a CliCommandRegistration helper. -->
+         per [ServiceCategory] interface in Core (Notes, Presentation, Slide, Shape, TextFrame,
+         Table, Layout, Image, Chart) plus a CliCommandRegistration helper. -->
     <ProjectReference Include="..\PowerPointMcp.Generators.Cli\PowerPointMcp.Generators.Cli.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />

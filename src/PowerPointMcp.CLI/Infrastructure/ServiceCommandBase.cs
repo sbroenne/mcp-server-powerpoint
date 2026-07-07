@@ -1,24 +1,24 @@
 using System.Text.Json;
+using Sbroenne.PowerPointMcp.Service;
 using Spectre.Console.Cli;
 
 namespace Sbroenne.PowerPointMcp.CLI.Infrastructure;
 
 /// <summary>
-/// Base class for CLI commands that route to a Core service category.
+/// Base class for CLI commands that send requests to the PowerPointMCP CLI daemon.
+/// Handles common session/action validation and dispatch over the named-pipe RPC transport.
 /// </summary>
 /// <remarks>
-/// Structural port of Sbroenne.ExcelMcp.CLI.Infrastructure.ServiceCommandBase&lt;TSettings&gt;,
-/// scoped down to what the generated CLI command classes need to compile. PowerPointMcp has NO
-/// out-of-process Service/daemon (see squad decision: "SESSION OWNERSHIP — DIVERGE FROM EXCEL FOR
-/// THE MVP" — an in-process <c>PresentationSessionRegistry</c> is used instead, owned by the
-/// MCP server host). Excel's version dispatches over a named-pipe daemon (<c>DaemonAutoStart</c> +
-/// <c>ServiceBridge</c>); porting that is out of scope for this pilot. This base class still
-/// performs the same session/action validation and calls <see cref="Route"/> to prove the
-/// generated routing code round-trips correctly, but reports a clear "not yet wired" error instead
-/// of dispatching, since PowerPointMcp.CLI has no long-lived process to hold an open
-/// IPresentationBatch across separate CLI invocations. Wiring a real dispatch target (e.g. an
-/// in-process session store shared with a future daemon, or direct Core calls that open+close a
-/// batch per invocation) is a follow-up, not part of proving the source-generator pipeline.
+/// Structural port of Sbroenne.ExcelMcp.CLI.Infrastructure.ServiceCommandBase&lt;TSettings&gt;.
+/// PowerPointMCP now HAS an out-of-process daemon (<c>PowerPointMcp.Service</c>) — see squad
+/// decision 2026-07-07, which reverses the earlier "drop the Service — functional overkill" call
+/// (2026-07-06). The daemon holds one long-lived <c>IPresentationBatch</c> per session id across
+/// separate CLI process invocations, so a caller only pays PowerPoint's ~90-150s launch/teardown
+/// cost once per "session open"/"session create", not on every command. Each generated command
+/// class supplies <see cref="GetSessionId"/>/<see cref="GetAction"/>/<see cref="ValidActions"/>/
+/// <see cref="Route"/>; this base class validates them, then hands the routed
+/// <c>(command, args)</c> pair to <see cref="DaemonAutoStart.EnsureAndConnectAsync"/> +
+/// <see cref="ServiceClient.SendAsync"/>, auto-starting the daemon on first use.
 /// </remarks>
 internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
     where TSettings : CommandSettings
@@ -35,33 +35,34 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
     /// <summary>Routes the action to a (command, args) pair using the generated ServiceRegistry.</summary>
     protected abstract (string command, object? args) Route(TSettings settings, string action);
 
-    /// <summary>Whether this command requires a session ID. Default is true.</summary>
+    /// <summary>
+    /// Whether this command requires a session ID. Default is true. Override to return false for
+    /// commands that don't need a session.
+    /// </summary>
     protected virtual bool RequiresSession => true;
 
     /// <inheritdoc/>
-    protected sealed override Task<int> ExecuteAsync(CommandContext context, TSettings settings, CancellationToken cancellationToken)
+    protected sealed override async Task<int> ExecuteAsync(CommandContext context, TSettings settings, CancellationToken cancellationToken)
     {
         var sessionId = GetSessionId(settings);
         if (RequiresSession && string.IsNullOrWhiteSpace(sessionId))
         {
-            return Task.FromResult(WriteError("Session ID is required. Use --session <id>"));
+            return CliErrorOutput.WriteError("Session ID is required. Use --session <id> (see 'pptcli session open'/'pptcli session create').");
         }
 
         var rawAction = GetAction(settings);
         if (string.IsNullOrWhiteSpace(rawAction))
         {
-            return Task.FromResult(WriteError("Action is required."));
+            return CliErrorOutput.WriteError("Action is required.");
         }
 
         var action = rawAction.Trim().ToLowerInvariant();
         if (!ValidActions.Contains(action, StringComparer.OrdinalIgnoreCase))
         {
             var validList = string.Join(", ", ValidActions);
-            return Task.FromResult(WriteError($"Invalid action '{action}'. Valid actions: {validList}"));
+            return CliErrorOutput.WriteError($"Invalid action '{action}'. Valid actions: {validList}");
         }
 
-        // Route and validate parameters (proves the generated RouteFromSettings/RouteCliArgs code
-        // — including ParameterTransforms validation — works end-to-end).
         string command;
         object? args;
         try
@@ -70,20 +71,97 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         }
         catch (ArgumentException ex)
         {
-            return Task.FromResult(WriteError(ex.Message));
+            return CliErrorOutput.WriteError(ex.Message);
         }
 
-        // No out-of-process Service exists yet (deliberate MVP divergence from Excel) — nothing to
-        // dispatch `command`/`args` to. Report this clearly instead of pretending to execute.
-        return Task.FromResult(WriteError(
-            $"'{command}' routed successfully but PowerPointMcp.CLI has no execution backend yet " +
-            "(no out-of-process Service — MCP server owns sessions in-process). " +
-            "Use the MCP server tools for this operation."));
+        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        var response = await client.SendAsync(new ServiceRequest
+        {
+            Command = command,
+            SessionId = sessionId,
+            Args = args != null ? JsonSerializer.Serialize(args, ServiceProtocol.JsonOptions) : null,
+            Source = "cli"
+        }, cancellationToken);
+
+        var outputPath = settings.GetType().GetProperty("OutputPath")?.GetValue(settings) as string;
+
+        if (response.Success)
+        {
+            var result = !string.IsNullOrEmpty(response.Result)
+                ? response.Result
+                : JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions);
+
+            if (!string.IsNullOrEmpty(outputPath))
+            {
+                return WriteOutputToFile(result, outputPath);
+            }
+
+            Console.WriteLine(result);
+            return 0;
+        }
+
+        return CliErrorOutput.WriteServiceError(response);
     }
 
-    private static int WriteError(string message)
+    /// <summary>
+    /// Writes the result to a file. For image results containing base64 data, decodes and writes
+    /// the binary image. Otherwise writes the JSON text.
+    /// </summary>
+    private static int WriteOutputToFile(string result, string outputPath)
     {
-        Console.Error.WriteLine(JsonSerializer.Serialize(new { success = false, error = message }));
-        return 1;
+        try
+        {
+            var base64Data = TryExtractBase64Image(result);
+            if (base64Data != null)
+            {
+                var imageBytes = Convert.FromBase64String(base64Data);
+                File.WriteAllBytes(outputPath, imageBytes);
+
+                var doc = JsonDocument.Parse(result);
+                var metadata = new Dictionary<string, object?>
+                {
+                    ["success"] = true,
+                    ["outputPath"] = outputPath,
+                    ["sizeBytes"] = imageBytes.Length
+                };
+                if (doc.RootElement.TryGetProperty("width", out var w)) metadata["width"] = w.GetInt32();
+                if (doc.RootElement.TryGetProperty("height", out var h)) metadata["height"] = h.GetInt32();
+                if (doc.RootElement.TryGetProperty("mimeType", out var m)) metadata["mimeType"] = m.GetString();
+                Console.WriteLine(JsonSerializer.Serialize(metadata, ServiceProtocol.JsonOptions));
+            }
+            else
+            {
+                File.WriteAllText(outputPath, result);
+                Console.WriteLine(JsonSerializer.Serialize(
+                    new { success = true, outputPath },
+                    ServiceProtocol.JsonOptions));
+            }
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(
+                new { success = false, error = $"Failed to write output: {ex.Message}" },
+                ServiceProtocol.JsonOptions));
+            return 1;
+        }
+    }
+
+    /// <summary>Attempts to extract base64 image data from a JSON result.</summary>
+    private static string? TryExtractBase64Image(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("imageBase64", out var imageElement))
+            {
+                return imageElement.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+            // Not valid JSON, can't extract image.
+        }
+        return null;
     }
 }

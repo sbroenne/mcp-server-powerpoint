@@ -7,6 +7,7 @@
     <Project Path="src/PowerPointMcp.Generators.Cli/PowerPointMcp.Generators.Cli.csproj" />
     <Project Path="src/PowerPointMcp.Generators.Shared/PowerPointMcp.Generators.Shared.csproj" />
     <Project Path="src/PowerPointMcp.McpServer/PowerPointMcp.McpServer.csproj" />
+    <Project Path="src/PowerPointMcp.Service/PowerPointMcp.Service.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/PowerPointMcp.Core.Tests/PowerPointMcp.Core.Tests.csproj" />

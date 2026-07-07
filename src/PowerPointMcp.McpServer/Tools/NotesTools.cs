@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using ModelContextProtocol.Server;
 using Sbroenne.PowerPointMcp.Core.Notes;
-using Sbroenne.PowerPointMcp.McpServer.Session;
+using Sbroenne.PowerPointMcp.ComInterop.Session;
 
 namespace Sbroenne.PowerPointMcp.McpServer.Tools;
 
