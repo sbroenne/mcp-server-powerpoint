@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Core.Attributes;
 
 namespace Sbroenne.PowerPointMcp.Core.TextFrame;
 
@@ -7,6 +8,9 @@ namespace Sbroenne.PowerPointMcp.Core.TextFrame;
 /// shape's text range. Operates within an already-open IPresentationBatch, targeting a
 /// specific shape by its 1-based slide and shape index.
 /// </summary>
+[ServiceCategory("textframe", "TextFrame")]
+[McpTool("textframe", Title = "Text Frame Operations", Destructive = true, Category = "content",
+    Description = "Set or get text and basic font formatting for a shape's text frame in an open presentation session.")]
 public interface ITextFrameCommands
 {
     /// <summary>Sets the text content of a shape's text frame.</summary>

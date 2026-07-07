@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Core.Attributes;
 
 namespace Sbroenne.PowerPointMcp.Core.Table;
 
@@ -7,6 +8,9 @@ namespace Sbroenne.PowerPointMcp.Core.Table;
 /// already-open IPresentationBatch, targeting a specific slide and table shape by their
 /// 1-based indices.
 /// </summary>
+[ServiceCategory("table", "Table")]
+[McpTool("table", Title = "Table Operations", Destructive = true, Category = "content",
+    Description = "Add a table shape and read/write cell text in an open presentation session.")]
 public interface ITableCommands
 {
     /// <summary>Adds a new table shape with the given number of rows/columns to a slide.</summary>

@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Core.Attributes;
 
 namespace Sbroenne.PowerPointMcp.Core.Image;
 
@@ -6,6 +7,9 @@ namespace Sbroenne.PowerPointMcp.Core.Image;
 /// Image commands: embed a picture file into a slide. Operates within an already-open
 /// IPresentationBatch, targeting a specific slide by its 1-based index.
 /// </summary>
+[ServiceCategory("image", "Image")]
+[McpTool("image", Title = "Image Operations", Destructive = true, Category = "content",
+    Description = "Embed a picture file into a slide in an open presentation session.")]
 public interface IImageCommands
 {
     /// <summary>

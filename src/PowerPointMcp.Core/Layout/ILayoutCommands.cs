@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Core.Attributes;
 
 namespace Sbroenne.PowerPointMcp.Core.Layout;
 
@@ -6,6 +7,9 @@ namespace Sbroenne.PowerPointMcp.Core.Layout;
 /// Slide layout commands: apply/read a slide's built-in layout. Operates within an
 /// already-open IPresentationBatch, targeting a specific slide by its 1-based index.
 /// </summary>
+[ServiceCategory("layout", "Layout")]
+[McpTool("layout", Title = "Slide Layout Operations", Destructive = true, Category = "content",
+    Description = "Apply or read a slide's built-in layout in an open presentation session.")]
 public interface ILayoutCommands
 {
     /// <summary>

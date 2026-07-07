@@ -1,3 +1,5 @@
+using Sbroenne.PowerPointMcp.Core.Attributes;
+
 namespace Sbroenne.PowerPointMcp.Core.Shape;
 
 /// <summary>
@@ -5,6 +7,9 @@ namespace Sbroenne.PowerPointMcp.Core.Shape;
 /// Operates within an already-open IPresentationBatch, targeting a specific slide by
 /// its 1-based index.
 /// </summary>
+[ServiceCategory("shape", "Shape")]
+[McpTool("shape", Title = "Shape Operations", Destructive = true, Category = "content",
+    Description = "Add, count, delete, reposition, and resize shapes on a slide in an open presentation session.")]
 public interface IShapeCommands
 {
     /// <summary>Adds a rectangle shape to the given slide.</summary>

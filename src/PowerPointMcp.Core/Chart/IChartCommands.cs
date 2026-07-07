@@ -1,10 +1,14 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Core.Attributes;
 
 namespace Sbroenne.PowerPointMcp.Core.Chart;
 
 /// <summary>
 /// Chart lifecycle and data operations.
 /// </summary>
+[ServiceCategory("chart", "Chart")]
+[McpTool("chart", Title = "Chart Operations", Destructive = true, Category = "content",
+    Description = "Add a native chart shape and read chart data in an open presentation session.")]
 public interface IChartCommands
 {
     /// <summary>

@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Core.Attributes;
 
 namespace Sbroenne.PowerPointMcp.Core.Slide;
 
@@ -6,6 +7,9 @@ namespace Sbroenne.PowerPointMcp.Core.Slide;
 /// Slide lifecycle commands: add, delete, count. First domain built on top of the
 /// presentation lifecycle commands, operating within an already-open IPresentationBatch.
 /// </summary>
+[ServiceCategory("slide", "Slide")]
+[McpTool("slide", Title = "Slide Operations", Destructive = true, Category = "content",
+    Description = "Add, count, and delete slides in an open presentation session.")]
 public interface ISlideCommands
 {
     /// <summary>
