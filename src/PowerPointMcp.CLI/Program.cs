@@ -1,100 +1,97 @@
-using Sbroenne.PowerPointMcp.ComInterop.Session;
-using Sbroenne.PowerPointMcp.Core.Presentation;
-using Sbroenne.PowerPointMcp.Core.Slide;
+using Sbroenne.PowerPointMcp.CLI.Commands;
+using Sbroenne.PowerPointMcp.CLI.Generated;
+using Sbroenne.PowerPointMcp.CLI.Infrastructure;
+using Sbroenne.PowerPointMcp.Service;
+using Spectre.Console.Cli;
 
-void PrintUsage()
+namespace Sbroenne.PowerPointMcp.CLI;
+
+/// <summary>Entry point for the <c>pptcli</c> command-line tool.</summary>
+public static class Program
 {
-    Console.WriteLine("Usage:");
-    Console.WriteLine("  powerpointcli create <path-to-new.pptx>");
-    Console.WriteLine("  powerpointcli slide add-blank <path-to.pptx>");
-    Console.WriteLine("  powerpointcli slide count <path-to.pptx>");
-    Console.WriteLine("  powerpointcli slide delete <path-to.pptx> <slideIndex>");
-    Console.WriteLine();
-    Console.WriteLine("This is a minimal placeholder CLI proving the ComInterop -> Core -> CLI");
-    Console.WriteLine("vertical slice end to end — not the real Generators-based CLI used by");
-    Console.WriteLine("mcp-server-excel. See plan.md for the full command roadmap (shapes, text,");
-    Console.WriteLine("tables, charts, images, notes, layouts, export/QA).");
-}
-
-if (args.Length == 0)
-{
-    PrintUsage();
-    return 1;
-}
-
-var presentationCommands = new PresentationCommands();
-var slideCommands = new SlideCommands();
-
-try
-{
-    switch (args[0])
+    /// <summary>
+    /// Runs the CLI. A special <c>service run</c> invocation launches the daemon in-process
+    /// (blocking); every other invocation goes through Spectre.Console.Cli's command app, which
+    /// dispatches to the daemon over a named pipe, auto-starting it on first use.
+    /// </summary>
+    public static async Task<int> Main(string[] args)
     {
-        case "create" when args.Length >= 2:
+        if (args.Length >= 2 && args[0] == "service" && args[1] == "run")
         {
-            var result = presentationCommands.Create(args[1]);
-            if (!result.Success)
-            {
-                Console.Error.WriteLine($"Error: {result.ErrorMessage}");
-                return 1;
-            }
-            Console.WriteLine($"Created: {result.PresentationPath}");
-            return 0;
+            return await RunDaemonAsync(args);
         }
 
-        case "slide" when args.Length >= 3 && args[1] == "add-blank":
+        var app = new CommandApp();
+        app.Configure(config =>
         {
-            using var batch = PresentationSession.BeginBatch(args[2]);
-            var result = slideCommands.AddBlank(batch);
-            if (!result.Success)
-            {
-                Console.Error.WriteLine($"Error: {result.ErrorMessage}");
-                return 1;
-            }
-            presentationCommands.Save(batch);
-            Console.WriteLine($"Added slide {result.SlideIndex}. Total slides: {result.SlideCount}");
-            return 0;
-        }
+            config.SetApplicationName("pptcli");
 
-        case "slide" when args.Length >= 3 && args[1] == "count":
-        {
-            using var batch = PresentationSession.BeginBatch(args[2]);
-            var result = slideCommands.GetCount(batch);
-            if (!result.Success)
+            config.AddBranch("session", session =>
             {
-                Console.Error.WriteLine($"Error: {result.ErrorMessage}");
-                return 1;
-            }
-            Console.WriteLine($"{result.SlideCount}");
-            return 0;
-        }
+                session.SetDescription("Open, create, save, close, or list presentation sessions held by the daemon.");
+                session.AddCommand<SessionOpenCommand>("open").WithDescription("Open an existing presentation and return a session id.");
+                session.AddCommand<SessionCreateCommand>("create").WithDescription("Create a new presentation and return a session id.");
+                session.AddCommand<SessionCloseCommand>("close").WithDescription("Close a session, optionally saving first.");
+                session.AddCommand<SessionSaveCommand>("save").WithDescription("Save the presentation open in a session.");
+                session.AddCommand<SessionListCommand>("list").WithDescription("List every session currently open in the daemon.");
+            });
 
-        case "slide" when args.Length >= 4 && args[1] == "delete":
-        {
-            if (!int.TryParse(args[3], out int slideIndex))
+            config.AddBranch("service", service =>
             {
-                Console.Error.WriteLine($"Error: '{args[3]}' is not a valid slide index.");
-                return 1;
-            }
+                service.SetDescription("Start, stop, or check the status of the pptcli background daemon.");
+                service.AddCommand<ServiceStartCommand>("start").WithDescription("Start the daemon if it isn't already running.");
+                service.AddCommand<ServiceStopCommand>("stop").WithDescription("Stop the running daemon.");
+                service.AddCommand<ServiceStatusCommand>("status").WithDescription("Report whether the daemon is running.");
+            });
 
-            using var batch = PresentationSession.BeginBatch(args[2]);
-            var result = slideCommands.Delete(batch, slideIndex);
-            if (!result.Success)
-            {
-                Console.Error.WriteLine($"Error: {result.ErrorMessage}");
-                return 1;
-            }
-            presentationCommands.Save(batch);
-            Console.WriteLine($"Deleted slide {slideIndex}. Total slides: {result.SlideCount}");
-            return 0;
-        }
+            CliCommandRegistration.RegisterCommands(config);
+        });
 
-        default:
-            PrintUsage();
-            return 1;
+        return await app.RunAsync(args);
     }
-}
-catch (Exception ex)
-{
-    Console.Error.WriteLine($"Error: {ex.Message}");
-    return 1;
+
+    /// <summary>
+    /// Runs the daemon in the current process until it shuts down (idle timeout, explicit
+    /// <c>service stop</c>, or Ctrl+C). This is the process launched by
+    /// <see cref="DaemonAutoStart"/> when no daemon is currently listening on the pipe.
+    /// </summary>
+    private static async Task<int> RunDaemonAsync(string[] args)
+    {
+        string? pipeName = null;
+        var idleTimeout = TimeSpan.FromMinutes(10);
+
+        for (var i = 2; i < args.Length; i++)
+        {
+            if (args[i] == "--pipe-name" && i + 1 < args.Length)
+            {
+                pipeName = args[++i];
+            }
+            else if (args[i] == "--idle-timeout-minutes" && i + 1 < args.Length && double.TryParse(args[i + 1], out var minutes))
+            {
+                idleTimeout = TimeSpan.FromMinutes(minutes);
+                i++;
+            }
+        }
+
+        pipeName ??= DaemonAutoStart.GetPipeName();
+
+        using var service = new PowerPointMcpService();
+
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            service.RequestShutdown();
+        };
+
+        try
+        {
+            await service.RunAsync(pipeName, idleTimeout);
+        }
+        finally
+        {
+            DaemonProcessTracker.Clear(pipeName);
+        }
+
+        return 0;
+    }
 }

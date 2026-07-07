@@ -1,9 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
-using Sbroenne.PowerPointMcp.ComInterop;
-using Sbroenne.PowerPointMcp.ComInterop.Session;
 
-namespace Sbroenne.PowerPointMcp.McpServer.Session;
+namespace Sbroenne.PowerPointMcp.ComInterop.Session;
 
 /// <summary>
 /// Lightweight, immutable view of a single registered presentation session.
@@ -24,12 +22,15 @@ public sealed record PresentationSessionInfo(
 /// MCP host so that one PowerPoint session can span many tool invocations.
 /// </summary>
 /// <remarks>
-/// This is the MVP replacement for mcp-server-excel's out-of-process Service + named-pipe
-/// bridge (see .squad/decisions.md — Dallas's McpServer architecture pass). Because the STA
-/// thread and work queue already live inside <c>PresentationBatch</c>, an in-process
-/// dictionary fully satisfies "one long-lived session across many tool invocations" without
-/// RPC. Disposing a batch closes PowerPoint for that presentation, so the host MUST call
-/// <see cref="DisposeAll()"/> on shutdown to guarantee no lingering POWERPNT.exe process.
+/// Used by the MCP Server as an in-process singleton (one long-lived session per tool-call
+/// sequence, no RPC needed since the MCP host and the STA thread live in the same process).
+/// Also reused by <c>PowerPointMcp.Service</c> (the CLI's out-of-process daemon, squad decision
+/// 2026-07-07 reversing the earlier "drop the Service" call) as the daemon's session table,
+/// mirroring mcp-server-excel's <c>SessionManager</c> — there each session maps to a live
+/// <c>IPresentationBatch</c> held open across separate CLI process invocations, avoiding a
+/// PowerPoint relaunch on every command. Disposing a batch closes PowerPoint for that
+/// presentation, so any host embedding this registry MUST call <see cref="DisposeAll()"/> on
+/// shutdown to guarantee no lingering POWERPNT.exe process.
 ///
 /// ASYNC CLOSE (2026-07-01, see .squad/decisions/inbox/brett-async-close.md): Parker's shutdown
 /// hardening made <c>IPresentationBatch.Dispose()</c> legitimately block for up to

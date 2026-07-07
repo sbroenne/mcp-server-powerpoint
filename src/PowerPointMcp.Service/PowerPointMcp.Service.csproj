@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <AssemblyName>Sbroenne.PowerPointMcp.Service</AssemblyName>
+    <RootNamespace>Sbroenne.PowerPointMcp.Service</RootNamespace>
+
+    <PackageId>Sbroenne.PowerPointMcp.Service</PackageId>
+    <Title>PowerPoint MCP CLI Daemon</Title>
+    <Description>Out-of-process daemon holding one long-lived PowerPoint session across separate
+    CLI invocations, avoiding a PowerPoint relaunch on every command. Named-pipe + StreamJsonRpc
+    transport, ported 1:1 from mcp-server-excel's ExcelMcp.Service (see squad decision
+    2026-07-07, reversing the earlier "drop the Service" call).</Description>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
+    <!-- Internal daemon project, not published as a NuGet package — skip XML doc generation
+         (CS1591 is treated as an error solution-wide, see Directory.Build.props). -->
+    <NoWarn>$(NoWarn);StreamJsonRpc0003</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sbroenne.PowerPointMcp.CLI" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PowerPointMcp.ComInterop\PowerPointMcp.ComInterop.csproj" />
+    <ProjectReference Include="..\PowerPointMcp.Core\PowerPointMcp.Core.csproj" />
+    <PackageReference Include="StreamJsonRpc" />
+  </ItemGroup>
+
+</Project>
