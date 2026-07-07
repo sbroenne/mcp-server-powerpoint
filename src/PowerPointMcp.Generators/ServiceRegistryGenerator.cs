@@ -493,12 +493,18 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("            public string Action { get; init; } = string.Empty;");
         sb.AppendLine();
 
-        // Session ID (always required for session-based tools)
+        // Target document path. PowerPointMcp.CLI is a stateless, per-invocation CLI (no
+        // out-of-process daemon/Service — see squad decision "DROP the Service"), so unlike
+        // mcp-server-excel's session-based CLI, there is no "--session <id>" referring to a
+        // long-lived daemon session. Instead each invocation opens this file directly via
+        // PresentationSession.BeginBatch, executes one action, saves, and disposes.
+        // Named "DocumentPath" (not "FilePath") to avoid colliding with any Core method
+        // parameter also named filePath (e.g. Presentation.Create/Open below).
         if (!info.NoSession)
         {
-            sb.AppendLine("            [Spectre.Console.Cli.CommandOption(\"-s|--session <SESSION>\")]");
-            sb.AppendLine("            [System.ComponentModel.Description(\"Session ID from 'session open' command\")]");
-            sb.AppendLine("            public string SessionId { get; init; } = string.Empty;");
+            sb.AppendLine("            [Spectre.Console.Cli.CommandOption(\"-f|--file <FILE>\")]");
+            sb.AppendLine("            [System.ComponentModel.Description(\"Path to the .pptx file to operate on. Opened, executed, saved, and closed within this single command invocation.\")]");
+            sb.AppendLine("            public string DocumentPath { get; init; } = string.Empty;");
             sb.AppendLine();
         }
 
