@@ -58,8 +58,9 @@ jobs:
 
     - name: Verify CLI build
       run: |
-        # CLI targets plain net10.0 (not net10.0-windows) per PowerPointMcp.CLI.csproj.
-        $exePath = "src/PowerPointMcp.CLI/bin/Release/net10.0/powerpointcli.exe"
+        # CLI now targets net10.0-windows (changed from plain net10.0 to support the
+        # PowerPointMcp.Service daemon's COM/Windows dependencies).
+        $exePath = "src/PowerPointMcp.CLI/bin/Release/net10.0-windows/powerpointcli.exe"
         if (Test-Path $exePath) {
           Write-Output "✅ powerpointcli.exe built successfully"
           $version = (Get-Item $exePath).VersionInfo.FileVersion
