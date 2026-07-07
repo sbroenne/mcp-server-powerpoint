@@ -17,4 +17,12 @@ public sealed class PresentationOperationResult
 
     /// <summary>Full path to the presentation file the operation acted on.</summary>
     public string? PresentationPath { get; init; }
+
+    /// <summary>
+    /// The design/theme name currently applied to the presentation (set by
+    /// <see cref="Sbroenne.PowerPointMcp.Core.Presentation.IPresentationCommands.ApplyTemplate"/>
+    /// and <see cref="Sbroenne.PowerPointMcp.Core.Presentation.IPresentationCommands.GetThemeName"/>).
+    /// Null for operations that don't touch theming.
+    /// </summary>
+    public string? ThemeName { get; init; }
 }

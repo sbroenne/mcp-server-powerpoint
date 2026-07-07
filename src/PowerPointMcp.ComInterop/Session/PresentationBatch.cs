@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Win32;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.ComInterop.Session;
@@ -136,6 +137,53 @@ internal sealed class PresentationBatch : IPresentationBatch
         }
     }
 
+    /// <summary>
+    /// Sets the (undocumented, per-user) PowerPoint Designer preference that disables the
+    /// "Automatically show me design ideas" feature.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Discovered via real integration testing, not assumed:</b> calling
+    /// <c>Presentation.ApplyTemplate</c> on a slide that already has shape/text content
+    /// triggers PowerPoint's Designer (Design Ideas) feature, which opens a blocking, title-less
+    /// modal dialog of window class <c>NUIDialog</c>. With no interactive user present to dismiss
+    /// it, the call hangs forever until our own <see cref="ComInteropConstants.DefaultOperationTimeout"/>
+    /// force-kills the process.</para>
+    /// <para>
+    /// There is no supported COM/VBA property to toggle this (confirmed: not exposed via
+    /// <c>Application</c> or <c>Presentation</c>). The supported Group Policy key
+    /// (<c>HKCU\Software\Policies\Microsoft\Office\16.0\PowerPoint\Options\DisableDesigner</c>) is
+    /// commonly locked down by MDM/policy and not writable from a normal user context. The key
+    /// set here (<c>HKCU\Software\Microsoft\Office\16.0\PowerPoint\Designer\DisableAutomaticDesigner</c>)
+    /// is the plain per-user preference behind "File &gt; Options &gt; General &gt; PowerPoint
+    /// Designer &gt; Automatically show me design ideas" — undocumented/unsupported by Microsoft,
+    /// but empirically verified (via direct COM repro) to eliminate the hang while leaving slide
+    /// content and theme application fully correct.
+    /// </para>
+    /// <para>
+    /// This is a deliberate, best-effort side effect: it changes the *user's* PowerPoint Designer
+    /// preference machine-wide (HKCU), not just for this automation session, so that Designer
+    /// won't unexpectedly hang ANY future automated session either. Failure to set it (e.g.
+    /// read-only registry, non-Windows test harness) is swallowed — automation continues without
+    /// the mitigation rather than failing startup.
+    /// </para>
+    /// </remarks>
+    private void DisableDesignerAutomationHang()
+    {
+        try
+        {
+            using RegistryKey key = Registry.CurrentUser.CreateSubKey(
+                @"Software\Microsoft\Office\16.0\PowerPoint\Designer");
+            key.SetValue("DisableAutomaticDesigner", 1, RegistryValueKind.DWord);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Could not set the PowerPoint Designer preference registry key to prevent the " +
+                "known ApplyTemplate/Designer hang. Automation will continue, but ApplyTemplate " +
+                "calls on slides with existing content may hang until the operation timeout.");
+        }
+    }
+
     private void RunStaThread(TaskCompletionSource started)
     {
         PowerPoint.Application? startupApp = null;
@@ -143,6 +191,7 @@ internal sealed class PresentationBatch : IPresentationBatch
         try
         {
             OleMessageFilter.Register();
+            DisableDesignerAutomationHang();
 
             Type? appType = Type.GetTypeFromProgID("PowerPoint.Application");
             if (appType == null)

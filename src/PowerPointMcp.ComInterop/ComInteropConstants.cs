@@ -74,5 +74,11 @@ public static class ComInteropConstants
     /// </summary>
     public const int PpSaveAsOpenXmlPresentationMacroEnabled = 25;
 
+    /// <summary>
+    /// PowerPoint Open XML Template format code (.potx).
+    /// PpSaveAsFileType.ppSaveAsOpenXMLTemplate = 26
+    /// </summary>
+    public const int PpSaveAsOpenXmlTemplate = 26;
+
     #endregion
 }

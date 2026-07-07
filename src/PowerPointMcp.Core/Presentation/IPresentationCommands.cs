@@ -47,4 +47,20 @@ public interface IPresentationCommands
     /// Saves the presentation currently open in the given batch.
     /// </summary>
     PresentationOperationResult Save(IPresentationBatch batch);
+
+    /// <summary>
+    /// Applies a PowerPoint template's masters/theme/layouts to the presentation currently open
+    /// in the given batch, preserving all existing slide content. Wraps the COM API
+    /// <c>Presentation.ApplyTemplate(templatePath)</c>.
+    /// </summary>
+    /// <param name="batch">The open batch whose presentation will be restyled.</param>
+    /// <param name="templatePath">Full path to a <c>.potx</c>/<c>.potm</c>/<c>.pot</c> template file (a <c>.pptx</c>/<c>.pptm</c> presentation may also be used as a template source, matching PowerPoint's own behavior).</param>
+    PresentationOperationResult ApplyTemplate(IPresentationBatch batch, string templatePath);
+
+    /// <summary>
+    /// Reads the name of the design/theme currently applied to the presentation open in the
+    /// given batch — useful for verifying that <see cref="ApplyTemplate"/> actually changed the
+    /// presentation's styling.
+    /// </summary>
+    PresentationOperationResult GetThemeName(IPresentationBatch batch);
 }

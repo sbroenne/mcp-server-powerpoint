@@ -181,6 +181,44 @@ public static class PresentationTools
             });
         });
 
+    /// <summary>
+    /// Applies a PowerPoint template's masters/theme/layouts to the open presentation, preserving
+    /// slide content.
+    /// </summary>
+    [McpServerTool(Name = "apply_template")]
+    [Description("Restyle the presentation for an open session using a PowerPoint template file (.potx/.potm/.pot, or a .pptx/.pptm used as a template source). Applies the template's masters, theme, and layouts while preserving all existing slide content. Requires a sessionId from open_presentation or create_presentation.")]
+    public static string ApplyTemplate(
+        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
+        [Description("Full Windows path to the template file, e.g. C:\\Templates\\corporate.potx")] string templatePath,
+        PresentationSessionRegistry registry)
+        => PowerPointToolsBase.ExecuteToolAction("apply_template", () =>
+        {
+            if (!registry.TryGet(sessionId, out var batch))
+            {
+                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            }
+
+            return SerializeResult(Commands.ApplyTemplate(batch, templatePath));
+        });
+
+    /// <summary>
+    /// Reads the design/theme name currently applied to the open presentation.
+    /// </summary>
+    [McpServerTool(Name = "get_theme_name")]
+    [Description("Get the design/theme name currently applied to the presentation for an open session. Useful for verifying that apply_template actually changed the presentation's styling.")]
+    public static string GetThemeName(
+        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
+        PresentationSessionRegistry registry)
+        => PowerPointToolsBase.ExecuteToolAction("get_theme_name", () =>
+        {
+            if (!registry.TryGet(sessionId, out var batch))
+            {
+                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            }
+
+            return SerializeResult(Commands.GetThemeName(batch));
+        });
+
     private static string SerializeResult(PresentationOperationResult result)
     {
         if (result.Success)
@@ -188,7 +226,8 @@ public static class PresentationTools
             return PowerPointToolsBase.Serialize(new
             {
                 success = true,
-                presentationPath = result.PresentationPath
+                presentationPath = result.PresentationPath,
+                themeName = result.ThemeName
             });
         }
 
@@ -197,6 +236,7 @@ public static class PresentationTools
             success = false,
             errorMessage = result.ErrorMessage,
             presentationPath = result.PresentationPath,
+            themeName = result.ThemeName,
             isError = true
         });
     }
