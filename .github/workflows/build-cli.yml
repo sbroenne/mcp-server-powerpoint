@@ -72,6 +72,9 @@ jobs:
           # and exit 1 until a real command surface (and --help) lands.
           & $exePath | Out-Null
           Write-Output "✅ CLI executable runs (usage/placeholder mode, exit code $LASTEXITCODE expected)"
+          # Reset $LASTEXITCODE: the placeholder CLI's exit 1 above is expected
+          # behavior, not a step failure — don't let it fail this workflow step.
+          $global:LASTEXITCODE = 0
         } else {
           Write-Error "❌ powerpointcli.exe not found at $exePath"
           exit 1
