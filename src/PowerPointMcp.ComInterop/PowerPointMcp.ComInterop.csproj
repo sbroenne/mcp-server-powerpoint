@@ -23,6 +23,11 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Sbroenne.PowerPointMcp.ComInterop.Tests" />
     <InternalsVisibleTo Include="Sbroenne.PowerPointMcp.Core.Tests" />
+    <!-- PowerPointMcp.Core.Tests.csproj has no explicit <AssemblyName>, so its actual output
+         assembly name defaults to "PowerPointMcp.Core.Tests" (no "Sbroenne." prefix) - unlike
+         the entry above, which never actually matched. Grant access under the real name too so
+         SharedPresentationFixture.cs can call PresentationBatch.ReopenPresentation internally. -->
+    <InternalsVisibleTo Include="PowerPointMcp.Core.Tests" />
   </ItemGroup>
 
   <ItemGroup>

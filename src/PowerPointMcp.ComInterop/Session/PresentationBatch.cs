@@ -57,7 +57,7 @@ internal sealed class PresentationBatch : IPresentationBatch
         public int pt_y;
     }
 
-    private readonly string _presentationPath;
+    private string _presentationPath;
     private readonly bool _showPowerPoint;
     private readonly bool _createNewFile;
     private readonly TimeSpan _operationTimeout;
@@ -160,7 +160,6 @@ internal sealed class PresentationBatch : IPresentationBatch
             // the raw MsoTriState int values (msoTrue = -1, msoFalse = 0). This keeps the
             // assembly free of any office.dll runtime/compile dependency.
             const int msoTrue = -1;
-            const int msoFalse = 0;
 
             dynamic dynApp = tempApp;
             // NOTE (discovered via real integration test, not assumed): PowerPoint's automation
@@ -197,66 +196,8 @@ internal sealed class PresentationBatch : IPresentationBatch
                 _logger.LogWarning(ex, "Failed to capture PowerPoint process ID. Force-kill will not be available.");
             }
 
-            PowerPoint.Presentation presentation;
             string fullPath = Path.GetFullPath(_presentationPath);
-
-            if (_createNewFile)
-            {
-                string? directory = Path.GetDirectoryName(fullPath);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
-                    throw new DirectoryNotFoundException($"Directory does not exist: '{directory}'.");
-                }
-
-                // NOTE (discovered via real integration test, not assumed): passing WithWindow=
-                // msoFalse here creates a presentation with NO window at all. That's fine for
-                // basic slide/shape edits, but Shapes.AddChart2's embedded chart-data Excel
-                // workbook needs to in-place-activate against a real document window — without
-                // one, AddChart2 fails with a generic COMException(0x80004005/E_FAIL) that gives
-                // no indication a window is the problem. Always create the window (WithWindow=
-                // msoTrue); on-screen visibility is controlled separately via Application.Visible
-                // (see below), so this does not force PowerPoint to actually show on screen.
-                presentation = (PowerPoint.Presentation)dynApp.Presentations.Add(msoTrue);
-
-                // NOTE (discovered via real integration test, not assumed): Presentations.Add()
-                // creates a presentation with ZERO slides — unlike opening PowerPoint
-                // interactively (which starts you on a default slide), the COM-created blank
-                // presentation is genuinely empty until a slide is explicitly added. Add one
-                // blank slide so "create a new presentation" produces something immediately
-                // useful/consistent with user expectations, matching what most callers mean by
-                // "new presentation".
-                presentation.Slides.Add(1, PowerPoint.PpSlideLayout.ppLayoutBlank);
-
-                int formatCode = string.Equals(Path.GetExtension(fullPath), ".pptm", StringComparison.OrdinalIgnoreCase)
-                    ? ComInteropConstants.PpSaveAsOpenXmlPresentationMacroEnabled
-                    : ComInteropConstants.PpSaveAsOpenXmlPresentation;
-                // Late-bound call: Presentation.SaveAs's third parameter (EmbedTrueTypeFonts) is
-                // typed as Microsoft.Office.Core.MsoTriState. Calling it statically would force a
-                // reference to office.dll just to satisfy the default-parameter type. Dynamic
-                // dispatch avoids that entirely (mirrors the AutomationSecurity trick above).
-                ((dynamic)presentation).SaveAs(fullPath, formatCode);
-            }
-            else
-            {
-                if (!File.Exists(fullPath))
-                {
-                    throw new FileNotFoundException($"PowerPoint file not found: {fullPath}.", fullPath);
-                }
-
-                presentation = (PowerPoint.Presentation)dynApp.Presentations.Open(
-                    fullPath,
-                    msoFalse, // ReadOnly = false — we need to be able to Save()
-                    msoFalse, // Untitled = false — CRITICAL: msoTrue here opens the file as an
-                              // unbound "untitled copy" (per PowerPoint COM docs), which has no
-                              // filename to save back to. Presentation.Save() then fails with a
-                              // generic "An error occurred while PowerPoint was saving the file"
-                              // COMException — discovered via a real integration test, not
-                              // assumed. Must be msoFalse so Save() persists to the original path.
-                    msoTrue); // WithWindow = true — same rationale as the Add() path above:
-                              // a document window is required for chart in-place activation
-                              // (Shapes.AddChart2), independent of whether the app itself is
-                              // shown on screen (that's controlled by Application.Visible).
-            }
+            PowerPoint.Presentation presentation = OpenOrCreatePresentationCom(dynApp, fullPath, _createNewFile);
 
             startupPresentation = presentation;
             _app = tempApp;
@@ -285,6 +226,59 @@ internal sealed class PresentationBatch : IPresentationBatch
             try { OleMessageFilter.Revoke(); }
             catch (Exception ex) { _logger.LogWarning(ex, "OleMessageFilter.Revoke() failed during STA cleanup"); }
         }
+    }
+
+    /// <summary>
+    /// Creates a new blank presentation (createNewFile=true) or opens an existing one
+    /// (createNewFile=false) against the given live PowerPoint.Application, using the same
+    /// COM parameters/rationale as the initial STA-thread startup path. Extracted so the
+    /// same logic can be reused by <see cref="ReopenPresentation"/> to swap presentations
+    /// within an already-running Application instance (e.g. shared test fixtures) without
+    /// re-launching PowerPoint.
+    /// </summary>
+    private static PowerPoint.Presentation OpenOrCreatePresentationCom(dynamic dynApp, string fullPath, bool createNewFile)
+    {
+        const int msoTrue = -1;
+        const int msoFalse = 0;
+
+        PowerPoint.Presentation presentation;
+
+        if (createNewFile)
+        {
+            string? directory = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                throw new DirectoryNotFoundException($"Directory does not exist: '{directory}'.");
+            }
+
+            // See RunStaThread's original NOTE: WithWindow must be msoTrue (chart in-place
+            // activation needs a real document window), independent of Application.Visible.
+            presentation = (PowerPoint.Presentation)dynApp.Presentations.Add(msoTrue);
+
+            // Presentations.Add() creates a presentation with ZERO slides — add one blank
+            // slide so "create a new presentation" is immediately useful.
+            presentation.Slides.Add(1, PowerPoint.PpSlideLayout.ppLayoutBlank);
+
+            int formatCode = string.Equals(Path.GetExtension(fullPath), ".pptm", StringComparison.OrdinalIgnoreCase)
+                ? ComInteropConstants.PpSaveAsOpenXmlPresentationMacroEnabled
+                : ComInteropConstants.PpSaveAsOpenXmlPresentation;
+            ((dynamic)presentation).SaveAs(fullPath, formatCode);
+        }
+        else
+        {
+            if (!File.Exists(fullPath))
+            {
+                throw new FileNotFoundException($"PowerPoint file not found: {fullPath}.", fullPath);
+            }
+
+            presentation = (PowerPoint.Presentation)dynApp.Presentations.Open(
+                fullPath,
+                msoFalse, // ReadOnly = false — we need to be able to Save()
+                msoFalse, // Untitled = false — see RunStaThread's original NOTE.
+                msoTrue); // WithWindow = true — see RunStaThread's original NOTE.
+        }
+
+        return presentation;
     }
 
     private void ProcessWorkQueue()
@@ -442,6 +436,53 @@ internal sealed class PresentationBatch : IPresentationBatch
         Execute((ctx, ct) =>
         {
             ctx.Presentation.Save();
+            return 0;
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Closes the currently-open presentation (WITHOUT quitting the Application) and then
+    /// creates a new blank presentation or opens an existing one, reusing the same live
+    /// PowerPoint.Application instance and STA thread. This lets callers (currently: shared
+    /// per-test-class fixtures in Core.Tests) pay the PowerPoint launch/teardown cost once per
+    /// Application instance while still giving every test its own fresh presentation file for
+    /// isolation. Not exposed on <see cref="IPresentationBatch"/> — this is an internal
+    /// test-performance affordance, not a general multi-presentation feature (see the "Scope
+    /// note" on <see cref="IPresentationBatch"/> re: single-presentation-per-batch as the
+    /// production contract).
+    /// </summary>
+    internal void ReopenPresentation(string filePath, bool createNewFile, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+            throw new ArgumentException("A file path is required", nameof(filePath));
+
+        string fullPath = Path.GetFullPath(filePath);
+        string extension = Path.GetExtension(fullPath).ToLowerInvariant();
+        if (createNewFile)
+        {
+            if (extension is not (".pptx" or ".pptm"))
+                throw new ArgumentException($"Invalid file extension '{extension}'. New presentations must be .pptx or .pptm.");
+        }
+        else if (extension is not (".pptx" or ".pptm" or ".ppt"))
+        {
+            throw new ArgumentException($"Invalid file extension '{extension}'. Only PowerPoint files (.pptx, .pptm, .ppt) are supported.");
+        }
+
+        Execute((ctx, ct) =>
+        {
+            var oldPresentation = _presentation;
+            if (oldPresentation != null)
+            {
+                try { oldPresentation.Close(); }
+                catch { /* best effort - proceed with opening the next presentation regardless */ }
+                ComUtilities.Release(ref oldPresentation);
+            }
+
+            dynamic dynApp = _app!;
+            PowerPoint.Presentation newPresentation = OpenOrCreatePresentationCom(dynApp, fullPath, createNewFile);
+            _presentation = newPresentation;
+            _presentationPath = fullPath;
+            _context = new PresentationContext(fullPath, _app!, newPresentation);
             return 0;
         }, cancellationToken);
     }

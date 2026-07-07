@@ -1,4 +1,3 @@
-using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Export;
 using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Slide;
@@ -7,26 +6,33 @@ namespace Sbroenne.PowerPointMcp.Core.Tests;
 
 /// <summary>
 /// Real integration tests for export commands against live PowerPoint COM. No mocking.
+/// Shares one PowerPoint.Application instance across all [Fact]s in this class via
+/// <see cref="SharedPresentationFixture"/> — each test still gets its own freshly-created
+/// presentation file for isolation.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Feature", "Export")]
-public class ExportCommandsTests
+public class ExportCommandsTests : IClassFixture<SharedPresentationFixture>
 {
+    private readonly SharedPresentationFixture _fixture;
     private readonly PresentationCommands _presentationCommands = new();
     private readonly SlideCommands _slideCommands = new();
     private readonly ExportCommands _commands = new();
 
+    public ExportCommandsTests(SharedPresentationFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
     [Fact]
     public void ExportSlideToImage_ExportsSingleSlide_FileExistsAndNonEmpty()
     {
-        string pptxPath = CoreTestHelper.CreateUniqueTestFilePath();
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
         string outputDir = Path.Combine(Path.GetTempPath(), "PowerPointMcpTests", $"export-{Guid.NewGuid():N}");
         string outputFile = Path.Combine(outputDir, "slide1.png");
         try
         {
-            _presentationCommands.Create(pptxPath);
-
-            using var batch = PresentationSession.BeginBatch(pptxPath);
             var result = _commands.ExportSlideToImage(batch, 1, outputFile);
 
             Assert.True(result.Success);
@@ -38,7 +44,6 @@ public class ExportCommandsTests
         }
         finally
         {
-            File.Delete(pptxPath);
             if (Directory.Exists(outputDir))
                 Directory.Delete(outputDir, recursive: true);
         }
@@ -47,14 +52,12 @@ public class ExportCommandsTests
     [Fact]
     public void ExportSlideToImage_WithCustomDimensions_ProducesFile()
     {
-        string pptxPath = CoreTestHelper.CreateUniqueTestFilePath();
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
         string outputDir = Path.Combine(Path.GetTempPath(), "PowerPointMcpTests", $"export-dim-{Guid.NewGuid():N}");
         string outputFile = Path.Combine(outputDir, "slide_800x600.png");
         try
         {
-            _presentationCommands.Create(pptxPath);
-
-            using var batch = PresentationSession.BeginBatch(pptxPath);
             var result = _commands.ExportSlideToImage(batch, 1, outputFile, "PNG", width: 800, height: 600);
 
             Assert.True(result.Success);
@@ -64,7 +67,6 @@ public class ExportCommandsTests
         }
         finally
         {
-            File.Delete(pptxPath);
             if (Directory.Exists(outputDir))
                 Directory.Delete(outputDir, recursive: true);
         }
@@ -73,13 +75,11 @@ public class ExportCommandsTests
     [Fact]
     public void ExportSlideToImage_WithInvalidIndex_ReturnsFailure_NotException()
     {
-        string pptxPath = CoreTestHelper.CreateUniqueTestFilePath();
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
         string outputDir = Path.Combine(Path.GetTempPath(), "PowerPointMcpTests", $"export-err-{Guid.NewGuid():N}");
         try
         {
-            _presentationCommands.Create(pptxPath);
-
-            using var batch = PresentationSession.BeginBatch(pptxPath);
             var result = _commands.ExportSlideToImage(batch, 99, Path.Combine(outputDir, "slide99.png"));
 
             Assert.False(result.Success);
@@ -87,7 +87,6 @@ public class ExportCommandsTests
         }
         finally
         {
-            File.Delete(pptxPath);
             if (Directory.Exists(outputDir))
                 Directory.Delete(outputDir, recursive: true);
         }
@@ -96,20 +95,15 @@ public class ExportCommandsTests
     [Fact]
     public void ExportAllSlidesToImages_ExportsAllSlides_FilesExistAndNonEmpty()
     {
-        string pptxPath = CoreTestHelper.CreateUniqueTestFilePath();
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
         string outputDir = Path.Combine(Path.GetTempPath(), "PowerPointMcpTests", $"export-all-{Guid.NewGuid():N}");
         try
         {
-            _presentationCommands.Create(pptxPath);
-
             // Add a second slide so we have 2 to export.
-            using (var setup = PresentationSession.BeginBatch(pptxPath))
-            {
-                _slideCommands.AddBlank(setup);
-                _presentationCommands.Save(setup);
-            }
+            _slideCommands.AddBlank(batch);
+            _presentationCommands.Save(batch);
 
-            using var batch = PresentationSession.BeginBatch(pptxPath);
             var result = _commands.ExportAllSlidesToImages(batch, outputDir);
 
             Assert.True(result.Success);
@@ -125,7 +119,6 @@ public class ExportCommandsTests
         }
         finally
         {
-            File.Delete(pptxPath);
             if (Directory.Exists(outputDir))
                 Directory.Delete(outputDir, recursive: true);
         }
@@ -134,16 +127,14 @@ public class ExportCommandsTests
     [Fact]
     public void ExportAllSlidesToImages_CreatesOutputDirectory_WhenMissing()
     {
-        string pptxPath = CoreTestHelper.CreateUniqueTestFilePath();
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
         // Use a nested directory that does NOT exist yet.
         string outputDir = Path.Combine(Path.GetTempPath(), "PowerPointMcpTests", $"export-mkdir-{Guid.NewGuid():N}", "nested", "dir");
         try
         {
-            _presentationCommands.Create(pptxPath);
-
             Assert.False(Directory.Exists(outputDir), "Pre-condition: output directory must not exist.");
 
-            using var batch = PresentationSession.BeginBatch(pptxPath);
             var result = _commands.ExportAllSlidesToImages(batch, outputDir);
 
             Assert.True(result.Success);
@@ -152,7 +143,6 @@ public class ExportCommandsTests
         }
         finally
         {
-            File.Delete(pptxPath);
             // Walk up to the top temp directory we created and remove it.
             string topDir = Path.Combine(Path.GetTempPath(), "PowerPointMcpTests");
             string exportRoot = outputDir;

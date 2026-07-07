@@ -1,4 +1,3 @@
-using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Layout;
 using Sbroenne.PowerPointMcp.Core.Presentation;
 
@@ -6,59 +5,50 @@ namespace Sbroenne.PowerPointMcp.Core.Tests;
 
 /// <summary>
 /// Real integration tests for slide layout commands against live PowerPoint COM. No mocking.
+/// Shares one PowerPoint.Application instance across all [Fact]s in this class via
+/// <see cref="SharedPresentationFixture"/> — each test still gets its own freshly-created
+/// presentation file for isolation.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Feature", "Layout")]
-public class LayoutCommandsTests
+public class LayoutCommandsTests : IClassFixture<SharedPresentationFixture>
 {
+    private readonly SharedPresentationFixture _fixture;
     private readonly PresentationCommands _presentationCommands = new();
     private readonly LayoutCommands _commands = new();
+
+    public LayoutCommandsTests(SharedPresentationFixture fixture)
+    {
+        _fixture = fixture;
+    }
 
     [Fact]
     public void SetLayout_ThenGetLayout_RoundTrips_AndPersistsAfterSave()
     {
-        string path = CoreTestHelper.CreateUniqueTestFilePath();
-        try
-        {
-            _presentationCommands.Create(path);
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
 
-            using (var batch = PresentationSession.BeginBatch(path))
-            {
-                var setResult = _commands.SetLayout(batch, 1, "ppLayoutTitleOnly");
-                Assert.True(setResult.Success);
-                Assert.Equal("ppLayoutTitleOnly", setResult.LayoutName);
+        var setResult = _commands.SetLayout(batch, 1, "ppLayoutTitleOnly");
+        Assert.True(setResult.Success);
+        Assert.Equal("ppLayoutTitleOnly", setResult.LayoutName);
 
-                _presentationCommands.Save(batch);
-            }
+        _presentationCommands.Save(batch);
 
-            using var reopened = PresentationSession.BeginBatch(path);
-            var getResult = _commands.GetLayout(reopened, 1);
-            Assert.True(getResult.Success);
-            Assert.Equal("ppLayoutTitleOnly", getResult.LayoutName);
-        }
-        finally
-        {
-            File.Delete(path);
-        }
+        _fixture.ReopenCurrentPresentation();
+        var getResult = _commands.GetLayout(batch, 1);
+        Assert.True(getResult.Success);
+        Assert.Equal("ppLayoutTitleOnly", getResult.LayoutName);
     }
 
     [Fact]
     public void SetLayout_WithUnrecognizedName_ReturnsFailure_NotException()
     {
-        string path = CoreTestHelper.CreateUniqueTestFilePath();
-        try
-        {
-            _presentationCommands.Create(path);
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
 
-            using var batch = PresentationSession.BeginBatch(path);
-            var result = _commands.SetLayout(batch, 1, "NotARealLayout");
+        var result = _commands.SetLayout(batch, 1, "NotARealLayout");
 
-            Assert.False(result.Success);
-            Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
-        }
-        finally
-        {
-            File.Delete(path);
-        }
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
     }
 }
