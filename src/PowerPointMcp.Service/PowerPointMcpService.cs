@@ -60,6 +60,16 @@ public sealed class PowerPointMcpService : IDisposable
     public int SessionCount => _sessions.List().Count;
 
     /// <summary>
+    /// Gets the session registry this daemon instance owns. Exposed so the MCP server can host a
+    /// <see cref="PowerPointMcpService"/> in-process and hand this SAME registry instance to its
+    /// MCP tools via dependency injection — mirroring mcp-server-excel's architecture, where one
+    /// shared Service class is consumed two ways: in-process (direct calls, no pipe) by the MCP
+    /// server, and via named-pipe/StreamJsonRpc by the separate CLI daemon process. The MCP server
+    /// never calls <see cref="ProcessAsync"/>; it only needs the underlying session store.
+    /// </summary>
+    public PresentationSessionRegistry Sessions => _sessions;
+
+    /// <summary>
     /// Runs the daemon, listening for commands on the named pipe. Blocks until shutdown is
     /// requested via <see cref="RequestShutdown"/> (explicit "service.shutdown" RPC or idle
     /// timeout).

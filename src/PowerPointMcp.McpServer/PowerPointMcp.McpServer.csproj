@@ -60,6 +60,10 @@
   <ItemGroup>
     <ProjectReference Include="..\PowerPointMcp.Core\PowerPointMcp.Core.csproj" />
     <ProjectReference Include="..\PowerPointMcp.ComInterop\PowerPointMcp.ComInterop.csproj" />
+    <!-- Hosts the shared PowerPointMcpService in-process (direct calls, no named pipe) so this
+         MCP server and the CLI daemon are backed by the SAME service class — mirroring
+         mcp-server-excel's ServiceBridge architecture. See Infrastructure/ServiceBridge.cs. -->
+    <ProjectReference Include="..\PowerPointMcp.Service\PowerPointMcp.Service.csproj" />
   </ItemGroup>
 
   <ItemGroup>

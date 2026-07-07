@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
-using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Service;
 
 namespace Sbroenne.PowerPointMcp.McpServer;
 
@@ -133,9 +133,15 @@ public class Program
 
         ConfigureStdioLogging(builder.Logging);
 
-        // In-process session registry: one long-lived PowerPoint session per id across many
-        // tool invocations. Disposed on host shutdown by PresentationSessionShutdownService.
-        builder.Services.AddSingleton<PresentationSessionRegistry>();
+        // In-process PowerPointMcpService: the SAME Service class the CLI daemon hosts over a
+        // named pipe, but here consumed directly, in-process, with no pipe — mirroring
+        // mcp-server-excel's ServiceBridge architecture (one shared Service class, two hosting
+        // modes). MCP tools never call the service's string-command dispatch; they only need its
+        // session registry, so that's the only thing exposed to DI. One long-lived PowerPoint
+        // session per id across many tool invocations; disposed on host shutdown by
+        // PresentationSessionShutdownService.
+        builder.Services.AddSingleton<PowerPointMcpService>();
+        builder.Services.AddSingleton(sp => sp.GetRequiredService<PowerPointMcpService>().Sessions);
         builder.Services.AddHostedService<PresentationSessionShutdownService>();
 
         var mcpBuilder = builder.Services
@@ -180,7 +186,7 @@ public class Program
 
         // Capture the singleton reference now — after RunAsync returns the host has disposed its
         // service provider, so resolving it in the finally would throw ObjectDisposedException.
-        var registry = host.Services.GetRequiredService<PresentationSessionRegistry>();
+        var service = host.Services.GetRequiredService<PowerPointMcpService>();
 
         var runToken = testShutdownCts?.Token ?? CancellationToken.None;
 
@@ -203,8 +209,8 @@ public class Program
             stdinMonitor?.Dispose();
 
             // Backstop: guarantee no lingering POWERPNT.exe even if the hosted service did not run.
-            // DisposeAll is idempotent, so double-disposal on normal shutdown is safe.
-            registry.DisposeAll();
+            // Dispose is idempotent, so double-disposal on normal shutdown is safe.
+            service.Dispose();
         }
     }
 
@@ -253,17 +259,17 @@ public class Program
 }
 
 /// <summary>
-/// Hosted service whose sole job is to dispose every open presentation session when the host
-/// stops — closing each PowerPoint process so none is orphaned after MCP client disconnect,
-/// Ctrl+C, or test shutdown.
+/// Hosted service whose sole job is to dispose the in-process <see cref="PowerPointMcpService"/>
+/// (and thereby every open presentation session) when the host stops — closing each PowerPoint
+/// process so none is orphaned after MCP client disconnect, Ctrl+C, or test shutdown.
 /// </summary>
-internal sealed class PresentationSessionShutdownService(PresentationSessionRegistry registry) : IHostedService
+internal sealed class PresentationSessionShutdownService(PowerPointMcpService service) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        registry.DisposeAll();
+        service.Dispose();
         return Task.CompletedTask;
     }
 }
