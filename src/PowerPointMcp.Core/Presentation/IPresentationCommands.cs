@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Core.Attributes;
 
 namespace Sbroenne.PowerPointMcp.Core.Presentation;
 
@@ -10,6 +11,9 @@ namespace Sbroenne.PowerPointMcp.Core.Presentation;
 /// Remaining domains from the plan (Slide, Shape, TextFrame, Table, Chart, Image, Notes,
 /// Layout/Master, Export/QA) are follow-up work — see plan.md continuation notes.
 /// </remarks>
+[ServiceCategory("presentation", "Presentation")]
+[McpTool("presentation", Title = "Presentation Lifecycle Operations", Destructive = true, Category = "lifecycle",
+    Description = "Create, validate, and save PowerPoint presentation files.")]
 public interface IPresentationCommands
 {
     /// <summary>
