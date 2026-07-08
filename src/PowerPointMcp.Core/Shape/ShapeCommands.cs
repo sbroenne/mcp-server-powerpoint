@@ -13,6 +13,58 @@ public sealed class ShapeCommands : IShapeCommands
     private const int MsoShapeRectangle = 1; // MsoAutoShapeType.msoShapeRectangle
     private const int MsoTextOrientationHorizontal = 1; // MsoTextOrientation.msoTextOrientationHorizontal
 
+    // MsoAutoShapeType member name -> value, for AddAutoShape. A curated subset of the full
+    // enum covering the shapes authors most commonly need beyond a plain rectangle (arrows,
+    // ovals, basic flowchart/callout shapes) — verified against the published MsoAutoShapeType
+    // enumeration. Extend this table (never guess a value) if more shapes are needed later.
+    private static readonly Dictionary<string, int> AutoShapeTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["msoShapeRectangle"] = 1,
+        ["msoShapeParallelogram"] = 2,
+        ["msoShapeTrapezoid"] = 3,
+        ["msoShapeDiamond"] = 4,
+        ["msoShapeRoundedRectangle"] = 5,
+        ["msoShapeOctagon"] = 6,
+        ["msoShapeIsoscelesTriangle"] = 7,
+        ["msoShapeRightTriangle"] = 8,
+        ["msoShapeOval"] = 9,
+        ["msoShapeHexagon"] = 10,
+        ["msoShapeCross"] = 11,
+        ["msoShapeRegularPentagon"] = 12,
+        ["msoShapeCan"] = 13,
+        ["msoShapeCube"] = 14,
+        ["msoShapeBevel"] = 15,
+        ["msoShapeFoldedCorner"] = 16,
+        ["msoShapeSmileyFace"] = 17,
+        ["msoShapeDonut"] = 18,
+        ["msoShapeNoSymbol"] = 19,
+        ["msoShapeBlockArc"] = 20,
+        ["msoShapeHeart"] = 21,
+        ["msoShapeLightningBolt"] = 22,
+        ["msoShapeSun"] = 23,
+        ["msoShapeMoon"] = 24,
+        ["msoShapeArc"] = 25,
+        ["msoShapePlaque"] = 26,
+        ["msoShapeLeftBracket"] = 29,
+        ["msoShapeRightBracket"] = 30,
+        ["msoShapeLeftBrace"] = 31,
+        ["msoShapeRightBrace"] = 32,
+        ["msoShapeRightArrow"] = 33,
+        ["msoShapeLeftArrow"] = 34,
+        ["msoShapeUpArrow"] = 35,
+        ["msoShapeDownArrow"] = 36,
+        ["msoShapeLeftRightArrow"] = 37,
+        ["msoShapeUpDownArrow"] = 38,
+    };
+
+    // MsoConnectorType member name -> value, for AddConnector.
+    private static readonly Dictionary<string, int> ConnectorTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["msoConnectorStraight"] = 1,
+        ["msoConnectorElbow"] = 2,
+        ["msoConnectorCurve"] = 3,
+    };
+
     /// <inheritdoc/>
     public ShapeOperationResult AddRectangle(IPresentationBatch batch, int slideIndex, float left, float top, float width, float height)
     {
@@ -63,6 +115,108 @@ public sealed class ShapeCommands : IShapeCommands
                 Success = true,
                 ShapeIndex = newIndex,
                 ShapeCount = (int)slide.Shapes.Count
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult AddAutoShape(IPresentationBatch batch, int slideIndex, string shapeType, float left, float top, float width, float height)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(shapeType);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            if (!AutoShapeTypes.TryGetValue(shapeType, out var typeValue))
+            {
+                return new ShapeOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"'{shapeType}' is not a recognized MsoAutoShapeType name (e.g. 'msoShapeOval', 'msoShapeRightArrow', 'msoShapeDiamond')."
+                };
+            }
+
+            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            slide.Shapes.AddShape(typeValue, left, top, width, height);
+            // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
+            int newIndex = (int)slide.Shapes.Count;
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = newIndex,
+                ShapeCount = (int)slide.Shapes.Count,
+                ShapeTypeName = shapeType
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult AddLine(IPresentationBatch batch, int slideIndex, float beginX, float beginY, float endX, float endY)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            slide.Shapes.AddLine(beginX, beginY, endX, endY);
+            // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
+            int newIndex = (int)slide.Shapes.Count;
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = newIndex,
+                ShapeCount = (int)slide.Shapes.Count,
+                BeginX = beginX,
+                BeginY = beginY,
+                EndX = endX,
+                EndY = endY
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult AddConnector(IPresentationBatch batch, int slideIndex, string connectorType, float beginX, float beginY, float endX, float endY)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(connectorType);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            if (!ConnectorTypes.TryGetValue(connectorType, out var typeValue))
+            {
+                return new ShapeOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"'{connectorType}' is not a recognized MsoConnectorType name (must be 'msoConnectorStraight', 'msoConnectorElbow', or 'msoConnectorCurve')."
+                };
+            }
+
+            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            slide.Shapes.AddConnector(typeValue, beginX, beginY, endX, endY);
+            // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
+            int newIndex = (int)slide.Shapes.Count;
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = newIndex,
+                ShapeCount = (int)slide.Shapes.Count,
+                ConnectorTypeName = connectorType,
+                BeginX = beginX,
+                BeginY = beginY,
+                EndX = endX,
+                EndY = endY
             };
         });
     }

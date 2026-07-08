@@ -1,7 +1,8 @@
 # Slides and Shapes
 
 Reference for the `slide` tool (`add-blank`, `get-count`, `delete`) and the `shape` tool
-(`add-rectangle`, `add-text-box`, `get-count`, `delete`, `set-position`, `set-size`).
+(`add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`,
+`delete`, `set-position`, `set-size`).
 
 ## Slide Actions
 
@@ -20,12 +21,33 @@ Slides always append at the end — there is no "insert at position N" action. S
 |------|--------|------------|-------|
 | `shape` | `add-rectangle` | `session_id`, `slide_index`, `left`, `top`, `width`, `height` | Plain rectangle, no fill/line color parameters — style comes from PowerPoint's theme default. Returns `shapeIndex`. |
 | `shape` | `add-text-box` | `session_id`, `slide_index`, `left`, `top`, `width`, `height`, `text` | Creates the text box AND sets its initial text in one call. Returns `shapeIndex`. |
+| `shape` | `add-auto-shape` | `session_id`, `slide_index`, `shape_type`, `left`, `top`, `width`, `height` | Adds any non-rectangle built-in shape (oval, diamond, arrow, star bracket, etc.) by its `MsoAutoShapeType` name. Returns `shapeIndex` and echoes `shapeTypeName`. See "Auto Shape Types" below for the supported name list. |
+| `shape` | `add-line` | `session_id`, `slide_index`, `begin_x`, `begin_y`, `end_x`, `end_y` | Straight line between two points. Returns `shapeIndex` and echoes `beginX`/`beginY`/`endX`/`endY`. |
+| `shape` | `add-connector` | `session_id`, `slide_index`, `connector_type`, `begin_x`, `begin_y`, `end_x`, `end_y` | Adds a connector shape (`msoConnectorStraight`, `msoConnectorElbow`, or `msoConnectorCurve`) between two points. Free-floating — not glued to other shapes. Returns `shapeIndex` and echoes `connectorTypeName`. |
 | `shape` | `get-count` | `session_id`, `slide_index` | Number of shapes currently on the slide (`shapeCount`). |
 | `shape` | `delete` | `session_id`, `slide_index`, `shape_index` (1-based) | Removes one shape; later shapes on that slide shift down by one index. |
 | `shape` | `set-position` | `session_id`, `slide_index`, `shape_index`, `left`, `top` | Moves an existing shape. |
 | `shape` | `set-size` | `session_id`, `slide_index`, `shape_index`, `width`, `height` | Resizes an existing shape. |
 
 All position/size values are **points** (see `deck-builder.md` for the 960×540pt 16:9 reference).
+
+## Auto Shape Types
+
+`shape_type` for `add-auto-shape` must match a real `MsoAutoShapeType` enum member name exactly
+(case-sensitive, `mso`-prefixed PascalCase) — this is a curated subset (not the full Office enum):
+
+| Category | `shape_type` values |
+|----------|--------------------|
+| Basic | `msoShapeRectangle`, `msoShapeRoundedRectangle`, `msoShapeOval`, `msoShapeDiamond`, `msoShapeParallelogram`, `msoShapeTrapezoid`, `msoShapeIsoscelesTriangle`, `msoShapeRightTriangle`, `msoShapeHexagon`, `msoShapeOctagon`, `msoShapeRegularPentagon`, `msoShapeCross` |
+| Arrows | `msoShapeRightArrow`, `msoShapeLeftArrow`, `msoShapeUpArrow`, `msoShapeDownArrow`, `msoShapeLeftRightArrow`, `msoShapeUpDownArrow` |
+| Brackets/braces | `msoShapeLeftBracket`, `msoShapeRightBracket`, `msoShapeLeftBrace`, `msoShapeRightBrace` |
+| Decorative/misc | `msoShapeCan`, `msoShapeCube`, `msoShapeBevel`, `msoShapeFoldedCorner`, `msoShapeSmileyFace`, `msoShapeDonut`, `msoShapeNoSymbol`, `msoShapeBlockArc`, `msoShapeHeart`, `msoShapeLightningBolt`, `msoShapeSun`, `msoShapeMoon`, `msoShapeArc`, `msoShapePlaque` |
+
+Passing an unrecognized string returns `success: false` — double-check spelling rather than
+guessing variants (e.g. star/callout shapes are not in this curated set).
+
+For lines and connectors, `connector_type` (add-connector only) must be one of
+`msoConnectorStraight`, `msoConnectorElbow`, or `msoConnectorCurve`.
 
 ## Shape Indexing Within a Slide
 

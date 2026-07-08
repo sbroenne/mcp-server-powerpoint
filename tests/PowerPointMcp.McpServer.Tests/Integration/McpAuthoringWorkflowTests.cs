@@ -254,6 +254,50 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         Assert.Equal(shapeCountBeforeDelete - 1, shapeCountAfterDelete);
         _output.WriteLine($"✓ shape.add-rectangle/set-position/set-size/delete, shapeCount {shapeCountBeforeDelete} → {shapeCountAfterDelete}");
 
+        // 4b. shape.add-auto-shape, add-line, add-connector.
+        var addAutoShapeResult = await Call("shape", new()
+        {
+            ["action"] = "add-auto-shape",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_type"] = "msoShapeOval",
+            ["left"] = 10f,
+            ["top"] = 10f,
+            ["width"] = 60f,
+            ["height"] = 40f
+        });
+        AssertSuccess(addAutoShapeResult, "shape.add-auto-shape");
+        Assert.Equal("msoShapeOval", GetString(addAutoShapeResult, "shapeTypeName"));
+        _output.WriteLine("✓ shape.add-auto-shape (msoShapeOval)");
+
+        var addLineResult = await Call("shape", new()
+        {
+            ["action"] = "add-line",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["begin_x"] = 0f,
+            ["begin_y"] = 0f,
+            ["end_x"] = 100f,
+            ["end_y"] = 50f
+        });
+        AssertSuccess(addLineResult, "shape.add-line");
+        _output.WriteLine("✓ shape.add-line");
+
+        var addConnectorResult = await Call("shape", new()
+        {
+            ["action"] = "add-connector",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["connector_type"] = "msoConnectorElbow",
+            ["begin_x"] = 0f,
+            ["begin_y"] = 0f,
+            ["end_x"] = 80f,
+            ["end_y"] = 80f
+        });
+        AssertSuccess(addConnectorResult, "shape.add-connector");
+        Assert.Equal("msoConnectorElbow", GetString(addConnectorResult, "connectorTypeName"));
+        _output.WriteLine("✓ shape.add-connector (msoConnectorElbow)");
+
         // 5. table.add-table, set-cell-text, get-cell-text round-trip.
         var addTableResult = await Call("table", new()
         {

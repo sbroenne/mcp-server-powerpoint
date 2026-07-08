@@ -28,7 +28,7 @@ with camelCase arguments. Domain tools (`slide`, `shape`, `textframe`, `table`, 
 |------|------|--------|------|
 | 1. Create (optional) | `create_presentation` | New file on disk, no session | Only for brand-new files |
 | 2. Open | `open_presentation` | Start a session, get `sessionId` | Always, before any edit |
-| 3. Build | `slide(action: "add-blank")`, `shape(action: "add-rectangle"/"add-text-box")`, `table(action: "add-table")`, `chart(action: "add-chart")`, `image(action: "add-picture")` | Add structure and content | As needed |
+| 3. Build | `slide(action: "add-blank")`, `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector")`, `table(action: "add-table")`, `chart(action: "add-chart")`, `image(action: "add-picture")` | Add structure and content | As needed |
 | 4. Format | `textframe(action: "set-font-size"/"set-bold"/"set-font-color")`, `layout(action: "set-layout")` | Apply formatting | After adding content |
 | 5. Annotate | `notes(action: "set-notes-text")` | Add speaker notes | After each slide's content is final |
 | 6. Verify | `export(action: "export-slide-to-image"/"export-all-slides-to-images")` | Visually confirm the result | After any visual change |
@@ -94,7 +94,7 @@ saved.
 |------|---------|
 | Create/open/save/close/list sessions | `create_presentation`, `open_presentation`, `save_presentation`, `close_presentation`, `list_sessions` |
 | Add/count/delete slides | `slide(action: "add-blank"/"get-count"/"delete")` |
-| Add/count/delete/move/resize shapes | `shape(action: "add-rectangle"/"add-text-box"/"get-count"/"delete"/"set-position"/"set-size")` |
+| Add/count/delete/move/resize shapes | `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector"/"get-count"/"delete"/"set-position"/"set-size")` |
 | Set/read text and font formatting | `textframe(action: "set-text"/"get-text"/"set-font-size"/"set-bold"/"set-font-color")` |
 | Tables | `table(action: "add-table"/"set-cell-text"/"get-cell-text")` |
 | Native charts | `chart(action: "add-chart"/"get-chart-data")` |

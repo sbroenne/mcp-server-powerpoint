@@ -148,19 +148,26 @@ Presentation lifecycle commands: create, open, save, apply-template, get-theme-n
 
 ### shape
 
-Shape commands: add rectangles/text boxes, count, delete, reposition/resize. Operates within an
-already-open session, targeting a specific slide by its 1-based index.
+Shape commands: add rectangles/text boxes/auto-shapes/lines/connectors, count, delete,
+reposition/resize. Operates within an already-open session, targeting a specific slide by its
+1-based index.
 
-**Actions:** `add-rectangle`, `add-text-box`, `get-count`, `delete`, `set-position`, `set-size`
+**Actions:** `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`
 
 | Parameter | Description |
 |-----------|-------------|
 | `--slide-index` | (required) |
-| `--left` | (required for: add-rectangle, add-text-box, set-position) |
-| `--top` | (required for: add-rectangle, add-text-box, set-position) |
-| `--width` | (required for: add-rectangle, add-text-box, set-size) |
-| `--height` | (required for: add-rectangle, add-text-box, set-size) |
+| `--left` | (required for: add-rectangle, add-text-box, add-auto-shape, set-position) |
+| `--top` | (required for: add-rectangle, add-text-box, add-auto-shape, set-position) |
+| `--width` | (required for: add-rectangle, add-text-box, add-auto-shape, set-size) |
+| `--height` | (required for: add-rectangle, add-text-box, add-auto-shape, set-size) |
 | `--text` | (required for: add-text-box) |
+| `--shape-type` | `MsoAutoShapeType` name, e.g. `msoShapeOval`, `msoShapeRightArrow`. (required for: add-auto-shape) |
+| `--begin-x` | (required for: add-line, add-connector) |
+| `--begin-y` | (required for: add-line, add-connector) |
+| `--end-x` | (required for: add-line, add-connector) |
+| `--end-y` | (required for: add-line, add-connector) |
+| `--connector-type` | `msoConnectorStraight`, `msoConnectorElbow`, or `msoConnectorCurve`. (required for: add-connector) |
 | `--shape-index` | (required for: delete, set-position, set-size) |
 
 ### slide

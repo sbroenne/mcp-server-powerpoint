@@ -109,4 +109,138 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
     }
+
+    [Fact]
+    public void AddAutoShape_WithOval_IncreasesShapeCount_AndEchoesShapeTypeName()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddAutoShape(batch, 1, "msoShapeOval", 10f, 20f, 100f, 50f);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Null(result.ErrorMessage);
+        Assert.Equal(1, result.ShapeIndex);
+        Assert.Equal(1, result.ShapeCount);
+        Assert.Equal("msoShapeOval", result.ShapeTypeName);
+    }
+
+    [Fact]
+    public void AddAutoShape_WithRightArrow_IncreasesShapeCount()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddAutoShape(batch, 1, "msoShapeRightArrow", 0f, 0f, 80f, 40f);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.ShapeCount);
+    }
+
+    [Fact]
+    public void AddAutoShape_WithUnrecognizedShapeType_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddAutoShape(batch, 1, "msoShapeDoesNotExist", 0f, 0f, 10f, 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void AddAutoShape_WithInvalidSlideIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddAutoShape(batch, 99, "msoShapeOval", 0f, 0f, 10f, 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void AddLine_IncreasesShapeCount_AndEchoesCoordinates()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddLine(batch, 1, 10f, 20f, 200f, 100f);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.ShapeIndex);
+        Assert.Equal(1, result.ShapeCount);
+        Assert.Equal(10f, result.BeginX);
+        Assert.Equal(20f, result.BeginY);
+        Assert.Equal(200f, result.EndX);
+        Assert.Equal(100f, result.EndY);
+    }
+
+    [Fact]
+    public void AddLine_WithInvalidSlideIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddLine(batch, 99, 0f, 0f, 10f, 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void AddConnector_WithStraightType_IncreasesShapeCount_AndEchoesTypeAndCoordinates()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddConnector(batch, 1, "msoConnectorStraight", 5f, 5f, 150f, 75f);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.ShapeIndex);
+        Assert.Equal(1, result.ShapeCount);
+        Assert.Equal("msoConnectorStraight", result.ConnectorTypeName);
+        Assert.Equal(5f, result.BeginX);
+        Assert.Equal(5f, result.BeginY);
+        Assert.Equal(150f, result.EndX);
+        Assert.Equal(75f, result.EndY);
+    }
+
+    [Fact]
+    public void AddConnector_WithElbowType_IncreasesShapeCount()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddConnector(batch, 1, "msoConnectorElbow", 0f, 0f, 100f, 100f);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.ShapeCount);
+    }
+
+    [Fact]
+    public void AddConnector_WithUnrecognizedConnectorType_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddConnector(batch, 1, "msoConnectorDoesNotExist", 0f, 0f, 10f, 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void AddConnector_WithInvalidSlideIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddConnector(batch, 99, "msoConnectorStraight", 0f, 0f, 10f, 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
 }

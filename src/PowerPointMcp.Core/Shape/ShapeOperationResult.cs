@@ -32,4 +32,22 @@ public sealed class ShapeOperationResult
 
     /// <summary>Shape height in points, if applicable.</summary>
     public float? Height { get; init; }
+
+    /// <summary>The MsoAutoShapeType name used to create the shape, for AddAutoShape.</summary>
+    public string? ShapeTypeName { get; init; }
+
+    /// <summary>The MsoConnectorType name used to create the connector, for AddConnector.</summary>
+    public string? ConnectorTypeName { get; init; }
+
+    /// <summary>X coordinate of the line/connector's start point in points, if applicable.</summary>
+    public float? BeginX { get; init; }
+
+    /// <summary>Y coordinate of the line/connector's start point in points, if applicable.</summary>
+    public float? BeginY { get; init; }
+
+    /// <summary>X coordinate of the line/connector's end point in points, if applicable.</summary>
+    public float? EndX { get; init; }
+
+    /// <summary>Y coordinate of the line/connector's end point in points, if applicable.</summary>
+    public float? EndY { get; init; }
 }
