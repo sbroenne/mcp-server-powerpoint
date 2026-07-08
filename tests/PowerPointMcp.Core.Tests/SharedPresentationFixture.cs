@@ -33,6 +33,11 @@ public sealed class SharedPresentationFixture : IDisposable
 
     public SharedPresentationFixture()
     {
+        // Must run first, before this fixture's own batch exists — see SharedTemplateAsset's
+        // remarks for why building the shared .potx template requires strict, non-overlapping
+        // PowerPoint process lifetimes. Idempotent/cheap on every call after the first.
+        SharedTemplateAsset.EnsureBuilt();
+
         _currentPath = CoreTestHelper.CreateUniqueTestFilePath();
         Batch = PresentationSession.CreateNew(_currentPath);
         _batch = (PresentationBatch)Batch;

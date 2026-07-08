@@ -72,4 +72,82 @@ public sealed class PresentationCommands : IPresentationCommands
             PresentationPath = batch.PresentationPath
         };
     }
+
+    private static readonly string[] AcceptedTemplateExtensions = [".potx", ".potm", ".pot", ".pptx", ".pptm", ".ppt"];
+
+    /// <inheritdoc/>
+    public PresentationOperationResult ApplyTemplate(IPresentationBatch batch, string templatePath)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        if (string.IsNullOrWhiteSpace(templatePath))
+        {
+            return new PresentationOperationResult
+            {
+                Success = false,
+                ErrorMessage = "A template path is required."
+            };
+        }
+
+        string fullTemplatePath = Path.GetFullPath(templatePath);
+        string extension = Path.GetExtension(fullTemplatePath);
+
+        // Rule 1b: a missing file or unsupported extension is expected/graceful bad input —
+        // validate up front and fail without ever calling into COM. Unexpected COM failures
+        // (e.g. a corrupt template PowerPoint can't parse) are NOT caught here and propagate
+        // from ApplyTemplate below.
+        if (!File.Exists(fullTemplatePath))
+        {
+            return new PresentationOperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Template file not found: '{fullTemplatePath}'."
+            };
+        }
+
+        if (!AcceptedTemplateExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+        {
+            return new PresentationOperationResult
+            {
+                Success = false,
+                ErrorMessage = $"'{extension}' is not a supported template extension. Expected one of: {string.Join(", ", AcceptedTemplateExtensions)}."
+            };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            ctx.Presentation.ApplyTemplate(fullTemplatePath);
+
+            string? themeName = ctx.Presentation.Designs.Count > 0
+                ? ctx.Presentation.Designs[1].Name
+                : null;
+
+            return new PresentationOperationResult
+            {
+                Success = true,
+                PresentationPath = batch.PresentationPath,
+                ThemeName = themeName
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public PresentationOperationResult GetThemeName(IPresentationBatch batch)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            string? themeName = ctx.Presentation.Designs.Count > 0
+                ? ctx.Presentation.Designs[1].Name
+                : null;
+
+            return new PresentationOperationResult
+            {
+                Success = true,
+                PresentationPath = batch.PresentationPath,
+                ThemeName = themeName
+            };
+        });
+    }
 }

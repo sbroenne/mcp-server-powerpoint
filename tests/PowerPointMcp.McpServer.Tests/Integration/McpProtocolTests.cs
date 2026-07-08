@@ -34,20 +34,24 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     private Task? _serverTask;
 
     /// <summary>
-    /// The full 31-tool MCP surface across all 10 domains (Presentation, Slide, Shape, TextFrame,
+    /// The full 33-tool MCP surface across all 10 domains (Presentation, Slide, Shape, TextFrame,
     /// Table, Notes, Layout, Image, Chart, Export) — the source of truth for this test, enumerated
     /// directly from every <c>[McpServerTool]</c> in <c>src/PowerPointMcp.McpServer/Tools/*.cs</c>.
     /// If this set changes, update it deliberately alongside the tool surface (see
-    /// .squad/decisions/inbox/brett-remaining-domain-tools.md for the 5→31 tool-count change).
+    /// .squad/decisions/inbox/brett-remaining-domain-tools.md for the 5→31 tool-count change, and
+    /// .squad/decisions/inbox/copilot-issue3-moduleinitializer-root-cause.md for the 31→33 change
+    /// adding apply_template/get_theme_name for .potx template-apply support).
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
-        // PresentationTools.cs (5)
+        // PresentationTools.cs (7)
         "create_presentation",
         "open_presentation",
         "save_presentation",
         "close_presentation",
         "list_sessions",
+        "apply_template",
+        "get_theme_name",
         // SlideTools.cs (3)
         "add_slide",
         "get_slide_count",
@@ -122,11 +126,11 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// THE core protocol proof: exactly the 31 expected tools (across all 10 domains) are
+    /// THE core protocol proof: exactly the 33 expected tools (across all 10 domains) are
     /// discoverable via <c>tools/list</c> — no more, no less.
     /// </summary>
     [Fact]
-    public async Task ListTools_ReturnsExactlyTheThirtyOneExpectedTools()
+    public async Task ListTools_ReturnsExactlyTheThirtyThreeExpectedTools()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
 
