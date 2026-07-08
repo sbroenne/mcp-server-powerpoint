@@ -20,8 +20,8 @@ repo's C# source), follow these rules:
   `close_presentation`, `list_sessions`, `apply_template`, `get_theme_name`) are one-tool-per-verb
   with camelCase arguments.
 - Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`, `notes`, `layout`,
-  `master`, `export`) are action-dispatch: call as `tool(action: "kebab-action", session_id: ...,
-  snake_case_param: ...)`.
+  `master`, `animation`, `export`) are action-dispatch: call as `tool(action: "kebab-action",
+  session_id: ..., snake_case_param: ...)`.
 
 ## Indexing Rules
 
@@ -59,4 +59,4 @@ repo's C# source), follow these rules:
 See `skills/shared/*.md` (also mirrored at `skills/powerpoint-mcp/references/*.md`) for complete
 guidance: `behavioral-rules.md`, `workflows.md`, `deck-builder.md`, `slides-and-shapes.md`,
 `text-formatting.md`, `tables.md`, `charts.md`, `images.md`, `speaker-notes.md`, `layouts.md`,
-`master.md`, `export-and-verify.md`, `anti-patterns.md`.
+`master.md`, `animations.md`, `export-and-verify.md`, `anti-patterns.md`.

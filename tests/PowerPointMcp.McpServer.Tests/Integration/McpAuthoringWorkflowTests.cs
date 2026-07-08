@@ -445,6 +445,66 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(getBackgroundResult, "master.get-background-color");
         _output.WriteLine("✓ master.set-background-color/get-background-color round-trip");
 
+        // 10b. animation.add-effect (entrance + exit), get-effect-count, delete-effect;
+        // animation.set-transition / get-transition round-trip.
+        var addEffectResult = await Call("animation", new()
+        {
+            ["action"] = "add-effect",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = textBoxShapeIndex,
+            ["effect_name"] = "msoAnimEffectFade",
+            ["trigger"] = "with-previous"
+        });
+        AssertSuccess(addEffectResult, "animation.add-effect (entrance)");
+        Assert.Equal("msoAnimEffectFade", GetString(addEffectResult, "effectName"));
+        Assert.False(GetBool(addEffectResult, "isExit"));
+
+        var addExitEffectResult = await Call("animation", new()
+        {
+            ["action"] = "add-effect",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = textBoxShapeIndex,
+            ["effect_name"] = "msoAnimEffectFly",
+            ["is_exit"] = true,
+            ["trigger"] = "after-previous"
+        });
+        AssertSuccess(addExitEffectResult, "animation.add-effect (exit)");
+        Assert.True(GetBool(addExitEffectResult, "isExit"));
+        var exitEffectIndex = GetInt(addExitEffectResult, "effectIndex")!.Value;
+
+        var effectCountResult = await Call("animation", new() { ["action"] = "get-effect-count", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        AssertSuccess(effectCountResult, "animation.get-effect-count");
+        Assert.Equal(2, GetInt(effectCountResult, "effectCount"));
+
+        AssertSuccess(await Call("animation", new()
+        {
+            ["action"] = "delete-effect",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["effect_index"] = exitEffectIndex
+        }), "animation.delete-effect");
+
+        var effectCountAfterDeleteResult = await Call("animation", new() { ["action"] = "get-effect-count", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        AssertSuccess(effectCountAfterDeleteResult, "animation.get-effect-count (after delete)");
+        Assert.Equal(1, GetInt(effectCountAfterDeleteResult, "effectCount"));
+        _output.WriteLine("✓ animation.add-effect (entrance+exit)/get-effect-count/delete-effect");
+
+        AssertSuccess(await Call("animation", new()
+        {
+            ["action"] = "set-transition",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["transition_name"] = "ppEffectFade",
+            ["duration_seconds"] = 1.25
+        }), "animation.set-transition");
+
+        var getTransitionResult = await Call("animation", new() { ["action"] = "get-transition", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        AssertSuccess(getTransitionResult, "animation.get-transition");
+        Assert.Equal("ppEffectFade", GetString(getTransitionResult, "transitionName"));
+        _output.WriteLine("✓ animation.set-transition/get-transition round-trip");
+
         // 11. export.export-slide-to-image and export-all-slides-to-images.
         var singleExportPath = Path.Join(_tempDir, "slide1.png");
         var exportSlideResult = await Call("export", new()
@@ -473,7 +533,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         Assert.All(exportedFiles, f => Assert.True(new FileInfo(f).Length > 0, $"{f} is empty"));
         _output.WriteLine($"✓ export.export-all-slides-to-images → {exportedFiles.Length} files in {exportAllDir}");
 
-        // 11. save_presentation, then close_presentation (fast/non-blocking), then list_sessions
+        // 12. save_presentation, then close_presentation (fast/non-blocking), then list_sessions
         // confirms the session is gone.
         AssertSuccess(await Call("save_presentation", new() { ["sessionId"] = sessionId }), "save_presentation");
         _output.WriteLine("✓ save_presentation");

@@ -1,7 +1,7 @@
 # Canonical Workflow: Create → Build → Verify → Save → Close
 
-The standard end-to-end loop for every PowerPoint MCP task. All 17 tools (7 session-lifecycle +
-10 domain action-dispatch) exist to support this loop for one of two starting points: a brand-new
+The standard end-to-end loop for every PowerPoint MCP task. All 18 tools (7 session-lifecycle +
+11 domain action-dispatch) exist to support this loop for one of two starting points: a brand-new
 deck or an existing file.
 
 ## Starting Point A — New Presentation

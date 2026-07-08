@@ -6,9 +6,9 @@ when working with the PowerPoint MCP Server.
 ## What This Is
 
 `mcp-server-powerpoint` drives a live Microsoft PowerPoint desktop instance via COM
-(`Microsoft.Office.Interop.PowerPoint`) and exposes it as 17 MCP tools across 11 domains: 7
-session-lifecycle tools for Presentation (sessions) plus 10 generated action-dispatch tools, one
-per domain — Slide, Shape, TextFrame, Table, Notes, Layout, Master, Image, Chart, Export.
+(`Microsoft.Office.Interop.PowerPoint`) and exposes it as 18 MCP tools across 12 domains: 7
+session-lifecycle tools for Presentation (sessions) plus 11 generated action-dispatch tools, one
+per domain — Slide, Shape, TextFrame, Table, Notes, Layout, Master, Animation, Image, Chart, Export.
 
 Windows + PowerPoint desktop required. There is no cross-platform or headless mode — everything
 goes through real COM automation of a real PowerPoint process.

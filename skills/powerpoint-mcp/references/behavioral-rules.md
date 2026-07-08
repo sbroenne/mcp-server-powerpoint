@@ -1,8 +1,8 @@
 # Behavioral Rules for PowerPoint MCP Operations
 
 These rules ensure efficient, reliable PowerPoint automation via a live PowerPoint desktop
-instance (COM). AI assistants should follow these guidelines when using the 17 PowerPoint MCP
-tools (7 session-lifecycle tools + 10 domain action-dispatch tools).
+instance (COM). AI assistants should follow these guidelines when using the 18 PowerPoint MCP
+tools (7 session-lifecycle tools + 11 domain action-dispatch tools).
 
 ## Core Execution Rules
 
@@ -43,7 +43,7 @@ Every editing operation requires an open session:
   `close_presentation`, `list_sessions`, `apply_template`, `get_theme_name`) are one-tool-per-verb
   and use camelCase arguments, e.g. `open_presentation(filePath: "C:\\Decks\\q4.pptx")`.
 - **Domain tools** (`slide`, `shape`, `textframe`, `table`, `chart`, `image`, `notes`, `layout`,
-  `master`, `export`) are action-dispatch: one tool per domain, and every call passes an `action` (kebab-case)
+  `master`, `animation`, `export`) are action-dispatch: one tool per domain, and every call passes an `action` (kebab-case)
   plus `session_id` and only the snake_case parameters relevant to that action, e.g.
   `shape(action: "add-rectangle", session_id: ..., slide_index: 1, left: 50, top: 80, width: 100,
   height: 60)`.

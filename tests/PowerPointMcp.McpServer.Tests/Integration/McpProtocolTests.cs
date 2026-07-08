@@ -36,7 +36,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     /// <summary>
     /// The MCP tool surface: 7 hand-written session-lifecycle tools (Presentation) plus one
     /// generated action-dispatch tool per remaining Core domain (Slide, Shape, TextFrame, Table,
-    /// Notes, Layout, Master, Image, Chart, Export) — enumerated directly from every
+    /// Notes, Layout, Master, Animation, Image, Chart, Export) — enumerated directly from every
     /// <c>[McpServerTool]</c> in <c>src/PowerPointMcp.McpServer/Tools/*.cs</c> (hand-written) and
     /// the generated <c>PowerPointMcp.Generators.Mcp</c> output (one action-dispatch tool per
     /// domain, matching mcp-server-excel's/this repo's own CLI's action-dispatch shape). If this
@@ -54,7 +54,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         "list_sessions",
         "apply_template",
         "get_theme_name",
-        // Generated action-dispatch tools (10, one per remaining Core domain)
+        // Generated action-dispatch tools (11, one per remaining Core domain)
         "slide",
         "shape",
         "textframe",
@@ -62,6 +62,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         "notes",
         "layout",
         "master",
+        "animation",
         "image",
         "chart",
         "export"
@@ -104,7 +105,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// THE core protocol proof: exactly the 17 expected tools (7 hand-written + 10 generated
+    /// THE core protocol proof: exactly the 18 expected tools (7 hand-written + 11 generated
     /// action-dispatch) are discoverable via <c>tools/list</c> — no more, no less.
     /// </summary>
     [Fact]

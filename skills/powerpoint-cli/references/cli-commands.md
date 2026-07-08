@@ -117,6 +117,28 @@ slide inheriting from the master (i.e. any slide that doesn't itself override th
 | `--green` | Green channel (0-255). |
 | `--blue` | Blue channel (0-255). |
 
+### animation
+
+Animation commands: add/delete shape entrance, emphasis, and exit effects on a slide's
+timeline (`Slide.TimeLine.MainSequence`), and read/set a slide's transition
+(`Slide.SlideShowTransition`).
+
+**Actions:** `add-effect`, `get-effect-count`, `delete-effect`, `get-transition`, `set-transition`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--slide-index` | (required) |
+| `--shape-index` | (required for: add-effect) |
+| `--effect-name` | (required for: add-effect) — an `MsoAnimEffect` enum member name, e.g. `msoAnimEffectFade`, `msoAnimEffectFly` |
+| `--is-exit` | Whether the effect plays as the shape leaving the slide (default false = entrance/emphasis). (optional for: add-effect) |
+| `--trigger` | `"on-click"` (default), `"with-previous"`, or `"after-previous"`. (optional for: add-effect) |
+| `--effect-index` | (required for: delete-effect) |
+| `--transition-name` | (required for: set-transition) — a `PpEntryEffect` enum member name, e.g. `ppEffectFade`, `ppEffectCut` |
+| `--duration-seconds` | (optional for: set-transition) |
+| `--advance-on-click` | (optional for: set-transition) |
+| `--advance-on-time` | (optional for: set-transition) |
+| `--advance-time-seconds` | (optional for: set-transition) |
+
 ### notes
 
 Speaker notes commands: set/get the notes text for a slide. Operates within an already-open

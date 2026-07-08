@@ -10,7 +10,7 @@ description: >
 
 # PowerPoint MCP Server Skill
 
-Provides 17 PowerPoint MCP tools (7 session-lifecycle tools + 10 domain action-dispatch tools)
+Provides 18 PowerPoint MCP tools (7 session-lifecycle tools + 11 domain action-dispatch tools)
 via the Model Context Protocol, driving a live PowerPoint desktop instance through the official
 `Microsoft.Office.Interop.PowerPoint` PIA. Tools are auto-discovered via MCP `tools/list` — this
 skill documents session lifecycle, indexing conventions, workflows, and gotchas that aren't
@@ -19,8 +19,8 @@ obvious from tool schemas alone.
 Session-lifecycle tools (`create_presentation`, `open_presentation`, `save_presentation`,
 `close_presentation`, `list_sessions`, `apply_template`, `get_theme_name`) are one-tool-per-verb
 with camelCase arguments. Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`,
-`notes`, `layout`, `master`, `export`) are action-dispatch: one tool per domain, called as
-`tool(action: "kebab-action", session_id: ..., snake_case_param: ...)`.
+`notes`, `layout`, `master`, `animation`, `export`) are action-dispatch: one tool per domain,
+called as `tool(action: "kebab-action", session_id: ..., snake_case_param: ...)`.
 
 ## Workflow Checklist
 
@@ -30,9 +30,10 @@ with camelCase arguments. Domain tools (`slide`, `shape`, `textframe`, `table`, 
 | 2. Open | `open_presentation` | Start a session, get `sessionId` | Always, before any edit |
 | 3. Build | `slide(action: "add-blank")`, `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector")`, `table(action: "add-table")`, `chart(action: "add-chart")`, `image(action: "add-picture")` | Add structure and content | As needed |
 | 4. Format | `textframe(action: "set-font-size"/"set-bold"/"set-font-color")`, `layout(action: "set-layout")` | Apply formatting | After adding content |
-| 5. Annotate | `notes(action: "set-notes-text")` | Add speaker notes | After each slide's content is final |
-| 6. Verify | `export(action: "export-slide-to-image"/"export-all-slides-to-images")` | Visually confirm the result | After any visual change |
-| 7. Save & close | `save_presentation`, `close_presentation` | Persist and release the session | Always last |
+| 5. Animate (optional) | `animation(action: "add-effect"/"set-transition")` | Add entrance/emphasis/exit effects or slide transitions | After content/layout are final |
+| 6. Annotate | `notes(action: "set-notes-text")` | Add speaker notes | After each slide's content is final |
+| 7. Verify | `export(action: "export-slide-to-image"/"export-all-slides-to-images")` | Visually confirm the result | After any visual change |
+| 8. Save & close | `save_presentation`, `close_presentation` | Persist and release the session | Always last |
 
 ## Preconditions
 
@@ -102,6 +103,7 @@ saved.
 | Speaker notes | `notes(action: "set-notes-text"/"get-notes-text")` |
 | Slide layouts | `layout(action: "set-layout"/"get-layout")` |
 | Slide master title/body font, background color | `master(action: "get-title-font"/"set-title-font"/"get-body-font"/"set-body-font"/"get-background-color"/"set-background-color")` |
+| Shape entrance/emphasis/exit effects, slide transitions | `animation(action: "add-effect"/"get-effect-count"/"delete-effect"/"get-transition"/"set-transition")` |
 | Visual verification | `export(action: "export-slide-to-image"/"export-all-slides-to-images")` |
 
 ## Reference Documentation
@@ -119,5 +121,6 @@ See `references/` for detailed guidance:
 - [Speaker notes — set/get notes](./references/speaker-notes.md)
 - [Layouts — set/get slide layout](./references/layouts.md)
 - [Slide master — title/body font and background color](./references/master.md)
+- [Animations — entrance/emphasis/exit effects and slide transitions](./references/animations.md)
 - [Export and verify — the visual verification loop](./references/export-and-verify.md)
 - [Anti-patterns — common mistakes to avoid](./references/anti-patterns.md)

@@ -3,6 +3,7 @@ using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Core.Animation;
 using Sbroenne.PowerPointMcp.Core.Chart;
 using Sbroenne.PowerPointMcp.Core.Export;
 using Sbroenne.PowerPointMcp.Core.Image;
@@ -56,6 +57,7 @@ public sealed class PowerPointMcpService : IDisposable
     private readonly NotesCommands _notesCommands = new();
     private readonly LayoutCommands _layoutCommands = new();
     private readonly MasterCommands _masterCommands = new();
+    private readonly AnimationCommands _animationCommands = new();
 
     /// <summary>Gets the UTC time this daemon instance started.</summary>
     public DateTime StartTime => _startTime;
@@ -259,6 +261,9 @@ public sealed class PowerPointMcpService : IDisposable
                 "master" => DispatchSimple<MasterAction>(action, request,
                     ServiceRegistry.Master.TryParseAction,
                     (a, batch) => ServiceRegistry.Master.DispatchToCore(_masterCommands, a, batch, request.Args)),
+                "animation" => DispatchSimple<AnimationAction>(action, request,
+                    ServiceRegistry.Animation.TryParseAction,
+                    (a, batch) => ServiceRegistry.Animation.DispatchToCore(_animationCommands, a, batch, request.Args)),
                 _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
             };
 
