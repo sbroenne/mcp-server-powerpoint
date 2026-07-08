@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Core.Attributes;
 
 namespace Sbroenne.PowerPointMcp.Core.Export;
 
@@ -12,6 +13,9 @@ namespace Sbroenne.PowerPointMcp.Core.Export;
 /// rendering library. This is the visual-verification ("verify visually") differentiator
 /// over competing PowerPoint MCP servers that cannot produce images from slides.
 /// </remarks>
+[ServiceCategory("export", "Export")]
+[McpTool("export", Title = "Export Operations", Destructive = true, Category = "content",
+    Description = "Export slides in an open presentation session to raster image files.")]
 public interface IExportCommands
 {
     /// <summary>

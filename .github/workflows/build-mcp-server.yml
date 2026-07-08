@@ -90,8 +90,9 @@ jobs:
         Write-Output "   windows-latest runners do not have PowerPoint/Office installed, so"
         Write-Output "   these tests cannot run here."
         Write-Output ""
-        Write-Output "   Run 'dotnet test tests/PowerPointMcp.McpServer.Tests/' locally, or on"
-        Write-Output "   a self-hosted Windows+Office runner, with PowerPoint installed."
+        Write-Output "   Run 'dotnet test tests/PowerPointMcp.McpServer.Tests/' locally, with"
+        Write-Output "   PowerPoint installed. No self-hosted Windows+Office CI runner is"
+        Write-Output "   planned — real-COM suites run locally only (by design)."
         Write-Output "   xunit.runner.json enforces maxParallelThreads: 1 for these suites —"
         Write-Output "   do not parallelize COM test execution."
       shell: pwsh
@@ -102,20 +103,3 @@ jobs:
         name: PowerPointMcp-MCP-Server-${{ github.sha }}
         path: src/PowerPointMcp.McpServer/bin/Release/net10.0-windows/
 
-# ---------------------------------------------------------------------------
-# Self-hosted Windows+Office job (COM integration tests) — DEFERRED.
-# Uncomment and configure once a self-hosted runner with PowerPoint installed
-# is available, mirroring mcp-server-excel's approach to live-COM CI. This
-# must NOT run on GitHub-hosted windows-latest — there is no Office there.
-# ---------------------------------------------------------------------------
-#  test-mcp-server-com:
-#    needs: build-mcp-server
-#    runs-on: [ self-hosted, windows, office ]
-#    steps:
-#      - uses: actions/checkout@v4
-#      - name: Setup .NET
-#        uses: actions/setup-dotnet@v4
-#        with:
-#          dotnet-version: 10.0.x
-#      - name: Run live-COM integration tests
-#        run: dotnet test tests/PowerPointMcp.McpServer.Tests/ --configuration Release

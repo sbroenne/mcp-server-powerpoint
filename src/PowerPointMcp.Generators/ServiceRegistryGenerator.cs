@@ -508,8 +508,9 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             var optionName = StringHelper.ToKebabCase(p.Name);
             var description = p.DescriptionWithRequired ?? StringHelper.GetParameterDescription(p.Name);
             var escapedDescription = description
+                .Replace("\\", "\\\\") // Escape backslashes first (e.g. Windows paths in XML docs)
                 .Replace("[", "[[").Replace("]", "]]") // Escape Spectre.Console markup characters
-                .Replace("\"", "\\\"").Replace("\n", " ");
+                .Replace("\"", "\\\"").Replace("\r", "").Replace("\n", " ");
             var valuePlaceholder = p.Name.ToUpperInvariant();
 
             // Collection types (List<T>, List<List<T>>) are emitted as string? so CLI accepts
@@ -534,11 +535,17 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
-        // Output path option (available on all commands)
-        sb.AppendLine("            [Spectre.Console.Cli.CommandOption(\"-o|--output <PATH>\")]");
-        sb.AppendLine("            [System.ComponentModel.Description(\"Write output to file instead of stdout. For image results, decodes and saves as binary file.\")]");
-        sb.AppendLine("            public string? OutputPath { get; init; }");
-        sb.AppendLine();
+        // Output path option (available on all commands), unless a domain parameter already
+        // uses the "OutputPath" PascalCase name (e.g. Export's own outputPath parameter) —
+        // skip the reserved option in that case to avoid a duplicate-member compile error.
+        var hasConflictingOutputPathParam = allParams.Any(p => StringHelper.ToPascalCase(p.Name) == "OutputPath");
+        if (!hasConflictingOutputPathParam)
+        {
+            sb.AppendLine("            [Spectre.Console.Cli.CommandOption(\"-o|--output <PATH>\")]");
+            sb.AppendLine("            [System.ComponentModel.Description(\"Write output to file instead of stdout. For image results, decodes and saves as binary file.\")]");
+            sb.AppendLine("            public string? OutputPath { get; init; }");
+            sb.AppendLine();
+        }
 
         sb.AppendLine("        }");
     }

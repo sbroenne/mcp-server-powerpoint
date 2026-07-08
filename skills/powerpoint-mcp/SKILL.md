@@ -10,10 +10,17 @@ description: >
 
 # PowerPoint MCP Server Skill
 
-Provides 31 PowerPoint operations via the Model Context Protocol, driving a live PowerPoint
-desktop instance through the official `Microsoft.Office.Interop.PowerPoint` PIA. Tools are
-auto-discovered via MCP `tools/list` — this skill documents session lifecycle, indexing
-conventions, workflows, and gotchas that aren't obvious from tool schemas alone.
+Provides 17 PowerPoint MCP tools (7 session-lifecycle tools + 10 domain action-dispatch tools)
+via the Model Context Protocol, driving a live PowerPoint desktop instance through the official
+`Microsoft.Office.Interop.PowerPoint` PIA. Tools are auto-discovered via MCP `tools/list` — this
+skill documents session lifecycle, indexing conventions, workflows, and gotchas that aren't
+obvious from tool schemas alone.
+
+Session-lifecycle tools (`create_presentation`, `open_presentation`, `save_presentation`,
+`close_presentation`, `list_sessions`, `apply_template`, `get_theme_name`) are one-tool-per-verb
+with camelCase arguments. Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`,
+`notes`, `layout`, `master`, `export`) are action-dispatch: one tool per domain, called as
+`tool(action: "kebab-action", session_id: ..., snake_case_param: ...)`.
 
 ## Workflow Checklist
 
@@ -21,10 +28,10 @@ conventions, workflows, and gotchas that aren't obvious from tool schemas alone.
 |------|------|--------|------|
 | 1. Create (optional) | `create_presentation` | New file on disk, no session | Only for brand-new files |
 | 2. Open | `open_presentation` | Start a session, get `sessionId` | Always, before any edit |
-| 3. Build | `add_slide`, `add_rectangle`/`add_text_box`/`add_table`/`add_chart`/`add_picture` | Add structure and content | As needed |
-| 4. Format | `set_font_size`/`set_bold`/`set_font_color`, `set_layout` | Apply formatting | After adding content |
-| 5. Annotate | `set_notes_text` | Add speaker notes | After each slide's content is final |
-| 6. Verify | `export_slide_to_image` / `export_all_slides_to_images` | Visually confirm the result | After any visual change |
+| 3. Build | `slide(action: "add-blank")`, `shape(action: "add-rectangle"/"add-text-box")`, `table(action: "add-table")`, `chart(action: "add-chart")`, `image(action: "add-picture")` | Add structure and content | As needed |
+| 4. Format | `textframe(action: "set-font-size"/"set-bold"/"set-font-color")`, `layout(action: "set-layout")` | Apply formatting | After adding content |
+| 5. Annotate | `notes(action: "set-notes-text")` | Add speaker notes | After each slide's content is final |
+| 6. Verify | `export(action: "export-slide-to-image"/"export-all-slides-to-images")` | Visually confirm the result | After any visual change |
 | 7. Save & close | `save_presentation`, `close_presentation` | Persist and release the session | Always last |
 
 ## Preconditions
@@ -60,9 +67,10 @@ for the OS process to exit.
 
 ### Rule 5: Verify Visually — This Is the Differentiator
 
-`export_slide_to_image` / `export_all_slides_to_images` render real PowerPoint output to an
-image. This is the only reliable way to catch overlapping shapes, text overflow, or chart layout
-problems — text-only inspection tools (`get_text`, `get_shape_count`) cannot. See
+`export(action: "export-slide-to-image"/"export-all-slides-to-images", ...)` renders real
+PowerPoint output to an image. This is the only reliable way to catch overlapping shapes, text
+overflow, or chart layout problems — text-only inspection tools (`textframe(action: "get-text",
+...)`, `shape(action: "get-count", ...)`) cannot. See
 [Export & Verify](./references/export-and-verify.md).
 
 ### Rule 6: Never Ask Clarifying Questions
@@ -72,8 +80,8 @@ Discover state yourself instead of asking the user:
 | Bad (Asking) | Good (Discovering) |
 |---------------|---------------------|
 | "Which presentation is open?" | `list_sessions()` |
-| "How many slides are there?" | `get_slide_count(sessionId)` |
-| "What shapes are already on this slide?" | `get_shape_count(sessionId, slideIndex)` |
+| "How many slides are there?" | `slide(action: "get-count", session_id: sessionId)` |
+| "What shapes are already on this slide?" | `shape(action: "get-count", session_id: sessionId, slide_index: slideIndex)` |
 
 ### Rule 7: Always End With a Text Summary
 
@@ -85,15 +93,16 @@ saved.
 | Task | Tool(s) |
 |------|---------|
 | Create/open/save/close/list sessions | `create_presentation`, `open_presentation`, `save_presentation`, `close_presentation`, `list_sessions` |
-| Add/count/delete slides | `add_slide`, `get_slide_count`, `delete_slide` |
-| Add/count/delete/move/resize shapes | `add_rectangle`, `add_text_box`, `get_shape_count`, `delete_shape`, `set_shape_position`, `set_shape_size` |
-| Set/read text and font formatting | `set_text`, `get_text`, `set_font_size`, `set_bold`, `set_font_color` |
-| Tables | `add_table`, `set_cell_text`, `get_cell_text` |
-| Native charts | `add_chart`, `get_chart_data` |
-| Images | `add_picture` |
-| Speaker notes | `set_notes_text`, `get_notes_text` |
-| Slide layouts | `set_layout`, `get_layout` |
-| Visual verification | `export_slide_to_image`, `export_all_slides_to_images` |
+| Add/count/delete slides | `slide(action: "add-blank"/"get-count"/"delete")` |
+| Add/count/delete/move/resize shapes | `shape(action: "add-rectangle"/"add-text-box"/"get-count"/"delete"/"set-position"/"set-size")` |
+| Set/read text and font formatting | `textframe(action: "set-text"/"get-text"/"set-font-size"/"set-bold"/"set-font-color")` |
+| Tables | `table(action: "add-table"/"set-cell-text"/"get-cell-text")` |
+| Native charts | `chart(action: "add-chart"/"get-chart-data")` |
+| Images | `image(action: "add-picture")` |
+| Speaker notes | `notes(action: "set-notes-text"/"get-notes-text")` |
+| Slide layouts | `layout(action: "set-layout"/"get-layout")` |
+| Slide master title/body font, background color | `master(action: "get-title-font"/"set-title-font"/"get-body-font"/"set-body-font"/"get-background-color"/"set-background-color")` |
+| Visual verification | `export(action: "export-slide-to-image"/"export-all-slides-to-images")` |
 
 ## Reference Documentation
 
@@ -103,11 +112,12 @@ See `references/` for detailed guidance:
 - [Canonical create → build → verify → save → close workflow](./references/workflows.md)
 - [Deck builder — assembling a multi-slide deck](./references/deck-builder.md)
 - [Slides and shapes — add/position/size/delete](./references/slides-and-shapes.md)
-- [Text formatting — set_text, font size/bold/color](./references/text-formatting.md)
-- [Tables — add_table and cell text](./references/tables.md)
-- [Charts — add_chart categories/series/values](./references/charts.md)
-- [Images — add_picture](./references/images.md)
+- [Text formatting — set-text, font size/bold/color](./references/text-formatting.md)
+- [Tables — add-table and cell text](./references/tables.md)
+- [Charts — add-chart categories/series/values](./references/charts.md)
+- [Images — add-picture](./references/images.md)
 - [Speaker notes — set/get notes](./references/speaker-notes.md)
 - [Layouts — set/get slide layout](./references/layouts.md)
+- [Slide master — title/body font and background color](./references/master.md)
 - [Export and verify — the visual verification loop](./references/export-and-verify.md)
 - [Anti-patterns — common mistakes to avoid](./references/anti-patterns.md)

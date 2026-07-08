@@ -121,134 +121,145 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         Assert.False(string.IsNullOrEmpty(sessionId));
         _output.WriteLine($"✓ create_presentation → open sessionId={sessionId}");
 
-        // 2. add_slide (x2), get_slide_count asserts the count grew by exactly 2.
-        var baselineCountResult = await Call("get_slide_count", new() { ["sessionId"] = sessionId });
-        AssertSuccess(baselineCountResult, "get_slide_count (baseline)");
+        // 2. slide.add-blank (x2), slide.get-count asserts the count grew by exactly 2.
+        var baselineCountResult = await Call("slide", new() { ["action"] = "get-count", ["session_id"] = sessionId });
+        AssertSuccess(baselineCountResult, "slide.get-count (baseline)");
         var baselineCount = GetInt(baselineCountResult, "slideCount")!.Value;
 
-        AssertSuccess(await Call("add_slide", new() { ["sessionId"] = sessionId }), "add_slide #1");
-        AssertSuccess(await Call("add_slide", new() { ["sessionId"] = sessionId }), "add_slide #2");
+        AssertSuccess(await Call("slide", new() { ["action"] = "add-blank", ["session_id"] = sessionId }), "slide.add-blank #1");
+        AssertSuccess(await Call("slide", new() { ["action"] = "add-blank", ["session_id"] = sessionId }), "slide.add-blank #2");
 
-        var afterAddCountResult = await Call("get_slide_count", new() { ["sessionId"] = sessionId });
-        AssertSuccess(afterAddCountResult, "get_slide_count (after add)");
+        var afterAddCountResult = await Call("slide", new() { ["action"] = "get-count", ["session_id"] = sessionId });
+        AssertSuccess(afterAddCountResult, "slide.get-count (after add)");
         var afterAddCount = GetInt(afterAddCountResult, "slideCount")!.Value;
         Assert.Equal(baselineCount + 2, afterAddCount);
-        _output.WriteLine($"✓ add_slide x2, get_slide_count {baselineCount} → {afterAddCount}");
+        _output.WriteLine($"✓ slide.add-blank x2, slide.get-count {baselineCount} → {afterAddCount}");
 
         const int slideIndex = 1;
 
-        // 3. add_text_box / set_text / set_font_size / set_bold / set_font_color; get_text round-trips.
-        var addTextBoxResult = await Call("add_text_box", new()
+        // 3. shape.add-text-box / textframe.set-text / set-font-size / set-bold / set-font-color; textframe.get-text round-trips.
+        var addTextBoxResult = await Call("shape", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
+            ["action"] = "add-text-box",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
             ["left"] = 10f,
             ["top"] = 10f,
             ["width"] = 200f,
             ["height"] = 50f,
             ["text"] = "Hello"
         });
-        AssertSuccess(addTextBoxResult, "add_text_box");
+        AssertSuccess(addTextBoxResult, "shape.add-text-box");
         var textBoxShapeIndex = GetInt(addTextBoxResult, "shapeIndex")!.Value;
-        _output.WriteLine($"✓ add_text_box → shapeIndex={textBoxShapeIndex}");
+        _output.WriteLine($"✓ shape.add-text-box → shapeIndex={textBoxShapeIndex}");
 
-        AssertSuccess(await Call("set_text", new()
+        AssertSuccess(await Call("textframe", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["shapeIndex"] = textBoxShapeIndex,
+            ["action"] = "set-text",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = textBoxShapeIndex,
             ["text"] = "Updated Text"
-        }), "set_text");
+        }), "textframe.set-text");
 
-        AssertSuccess(await Call("set_font_size", new()
+        AssertSuccess(await Call("textframe", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["shapeIndex"] = textBoxShapeIndex,
-            ["fontSize"] = 24f
-        }), "set_font_size");
+            ["action"] = "set-font-size",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = textBoxShapeIndex,
+            ["font_size"] = 24f
+        }), "textframe.set-font-size");
 
-        AssertSuccess(await Call("set_bold", new()
+        AssertSuccess(await Call("textframe", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["shapeIndex"] = textBoxShapeIndex,
+            ["action"] = "set-bold",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = textBoxShapeIndex,
             ["bold"] = true
-        }), "set_bold");
+        }), "textframe.set-bold");
 
-        AssertSuccess(await Call("set_font_color", new()
+        AssertSuccess(await Call("textframe", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["shapeIndex"] = textBoxShapeIndex,
+            ["action"] = "set-font-color",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = textBoxShapeIndex,
             ["red"] = (byte)255,
             ["green"] = (byte)0,
             ["blue"] = (byte)0
-        }), "set_font_color");
+        }), "textframe.set-font-color");
 
-        var getTextResult = await Call("get_text", new()
+        var getTextResult = await Call("textframe", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["shapeIndex"] = textBoxShapeIndex
+            ["action"] = "get-text",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = textBoxShapeIndex
         });
-        AssertSuccess(getTextResult, "get_text");
+        AssertSuccess(getTextResult, "textframe.get-text");
         Assert.Equal("Updated Text", GetString(getTextResult, "text"));
-        _output.WriteLine("✓ set_text/set_font_size/set_bold/set_font_color, get_text round-trips");
+        _output.WriteLine("✓ textframe.set-text/set-font-size/set-bold/set-font-color, get-text round-trips");
 
-        // 4. add_rectangle, set_shape_position, set_shape_size, get_shape_count, delete a shape.
-        var addRectResult = await Call("add_rectangle", new()
+        // 4. shape.add-rectangle, set-position, set-size, get-count, delete a shape.
+        var addRectResult = await Call("shape", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
+            ["action"] = "add-rectangle",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
             ["left"] = 50f,
             ["top"] = 80f,
             ["width"] = 100f,
             ["height"] = 60f
         });
-        AssertSuccess(addRectResult, "add_rectangle");
+        AssertSuccess(addRectResult, "shape.add-rectangle");
         var rectShapeIndex = GetInt(addRectResult, "shapeIndex")!.Value;
 
-        AssertSuccess(await Call("set_shape_position", new()
+        AssertSuccess(await Call("shape", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["shapeIndex"] = rectShapeIndex,
+            ["action"] = "set-position",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = rectShapeIndex,
             ["left"] = 75f,
             ["top"] = 90f
-        }), "set_shape_position");
+        }), "shape.set-position");
 
-        AssertSuccess(await Call("set_shape_size", new()
+        AssertSuccess(await Call("shape", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["shapeIndex"] = rectShapeIndex,
+            ["action"] = "set-size",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = rectShapeIndex,
             ["width"] = 120f,
             ["height"] = 70f
-        }), "set_shape_size");
+        }), "shape.set-size");
 
-        var shapeCountBeforeDeleteResult = await Call("get_shape_count", new() { ["sessionId"] = sessionId, ["slideIndex"] = slideIndex });
-        AssertSuccess(shapeCountBeforeDeleteResult, "get_shape_count (before delete)");
+        var shapeCountBeforeDeleteResult = await Call("shape", new() { ["action"] = "get-count", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        AssertSuccess(shapeCountBeforeDeleteResult, "shape.get-count (before delete)");
         var shapeCountBeforeDelete = GetInt(shapeCountBeforeDeleteResult, "shapeCount")!.Value;
 
-        AssertSuccess(await Call("delete_shape", new()
+        AssertSuccess(await Call("shape", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["shapeIndex"] = rectShapeIndex
-        }), "delete_shape");
+            ["action"] = "delete",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = rectShapeIndex
+        }), "shape.delete");
 
-        var shapeCountAfterDeleteResult = await Call("get_shape_count", new() { ["sessionId"] = sessionId, ["slideIndex"] = slideIndex });
-        AssertSuccess(shapeCountAfterDeleteResult, "get_shape_count (after delete)");
+        var shapeCountAfterDeleteResult = await Call("shape", new() { ["action"] = "get-count", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        AssertSuccess(shapeCountAfterDeleteResult, "shape.get-count (after delete)");
         var shapeCountAfterDelete = GetInt(shapeCountAfterDeleteResult, "shapeCount")!.Value;
         Assert.Equal(shapeCountBeforeDelete - 1, shapeCountAfterDelete);
-        _output.WriteLine($"✓ add_rectangle/set_shape_position/set_shape_size/delete_shape, shapeCount {shapeCountBeforeDelete} → {shapeCountAfterDelete}");
+        _output.WriteLine($"✓ shape.add-rectangle/set-position/set-size/delete, shapeCount {shapeCountBeforeDelete} → {shapeCountAfterDelete}");
 
-        // 5. add_table, set_cell_text, get_cell_text round-trip.
-        var addTableResult = await Call("add_table", new()
+        // 5. table.add-table, set-cell-text, get-cell-text round-trip.
+        var addTableResult = await Call("table", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
+            ["action"] = "add-table",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
             ["rows"] = 2,
             ["columns"] = 2,
             ["left"] = 20f,
@@ -256,129 +267,167 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
             ["width"] = 300f,
             ["height"] = 100f
         });
-        AssertSuccess(addTableResult, "add_table");
+        AssertSuccess(addTableResult, "table.add-table");
         var tableShapeIndex = GetInt(addTableResult, "shapeIndex")!.Value;
 
-        AssertSuccess(await Call("set_cell_text", new()
+        AssertSuccess(await Call("table", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["shapeIndex"] = tableShapeIndex,
+            ["action"] = "set-cell-text",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = tableShapeIndex,
             ["row"] = 1,
             ["column"] = 1,
             ["text"] = "Cell A1"
-        }), "set_cell_text");
+        }), "table.set-cell-text");
 
-        var getCellTextResult = await Call("get_cell_text", new()
+        var getCellTextResult = await Call("table", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["shapeIndex"] = tableShapeIndex,
+            ["action"] = "get-cell-text",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = tableShapeIndex,
             ["row"] = 1,
             ["column"] = 1
         });
-        AssertSuccess(getCellTextResult, "get_cell_text");
+        AssertSuccess(getCellTextResult, "table.get-cell-text");
         Assert.Equal("Cell A1", GetString(getCellTextResult, "cellText"));
-        _output.WriteLine("✓ add_table/set_cell_text, get_cell_text round-trip");
+        _output.WriteLine("✓ table.add-table/set-cell-text, get-cell-text round-trip");
 
-        // 6. add_chart (categories/series/values), get_chart_data.
-        var addChartResult = await Call("add_chart", new()
+        // 6. chart.add-chart (categories/series/values), get-chart-data.
+        var addChartResult = await Call("chart", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["chartType"] = "bar",
+            ["action"] = "add-chart",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["chart_type"] = "bar",
             ["left"] = 20f,
             ["top"] = 320f,
             ["width"] = 300f,
             ["height"] = 150f,
             ["categories"] = ChartCategories,
-            ["seriesName"] = "Revenue",
+            ["series_name"] = "Revenue",
             ["values"] = ChartValues
         });
-        AssertSuccess(addChartResult, "add_chart");
+        AssertSuccess(addChartResult, "chart.add-chart");
         var chartShapeIndex = GetInt(addChartResult, "shapeIndex")!.Value;
 
-        var getChartDataResult = await Call("get_chart_data", new()
+        var getChartDataResult = await Call("chart", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["shapeIndex"] = chartShapeIndex
+            ["action"] = "get-chart-data",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = chartShapeIndex
         });
-        AssertSuccess(getChartDataResult, "get_chart_data");
+        AssertSuccess(getChartDataResult, "chart.get-chart-data");
         Assert.Equal(3, GetInt(getChartDataResult, "categoryCount"));
         Assert.Equal(1, GetInt(getChartDataResult, "seriesCount"));
-        _output.WriteLine("✓ add_chart, get_chart_data (3 categories, 1 series)");
+        _output.WriteLine("✓ chart.add-chart, get-chart-data (3 categories, 1 series)");
 
-        // 7. add_picture (small local PNG generated at test setup).
-        var shapeCountBeforePictureResult = await Call("get_shape_count", new() { ["sessionId"] = sessionId, ["slideIndex"] = slideIndex });
-        AssertSuccess(shapeCountBeforePictureResult, "get_shape_count (before picture)");
+        // 7. image.add-picture (small local PNG generated at test setup).
+        var shapeCountBeforePictureResult = await Call("shape", new() { ["action"] = "get-count", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        AssertSuccess(shapeCountBeforePictureResult, "shape.get-count (before picture)");
         var shapeCountBeforePicture = GetInt(shapeCountBeforePictureResult, "shapeCount")!.Value;
 
-        var addPictureResult = await Call("add_picture", new()
+        var addPictureResult = await Call("image", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["imagePath"] = _imageFile,
+            ["action"] = "add-picture",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["image_path"] = _imageFile,
             ["left"] = 350f,
             ["top"] = 20f,
             ["width"] = 40f,
             ["height"] = 40f
         });
-        AssertSuccess(addPictureResult, "add_picture");
+        AssertSuccess(addPictureResult, "image.add-picture");
         Assert.Equal(shapeCountBeforePicture + 1, GetInt(addPictureResult, "shapeCount"));
-        _output.WriteLine("✓ add_picture");
+        _output.WriteLine("✓ image.add-picture");
 
-        // 8. set_notes_text / get_notes_text round-trip.
-        AssertSuccess(await Call("set_notes_text", new()
+        // 8. notes.set-notes-text / get-notes-text round-trip.
+        AssertSuccess(await Call("notes", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
+            ["action"] = "set-notes-text",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
             ["text"] = "Speaker notes for slide 1."
-        }), "set_notes_text");
+        }), "notes.set-notes-text");
 
-        var getNotesResult = await Call("get_notes_text", new() { ["sessionId"] = sessionId, ["slideIndex"] = slideIndex });
-        AssertSuccess(getNotesResult, "get_notes_text");
+        var getNotesResult = await Call("notes", new() { ["action"] = "get-notes-text", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        AssertSuccess(getNotesResult, "notes.get-notes-text");
         Assert.Equal("Speaker notes for slide 1.", GetString(getNotesResult, "notesText"));
-        _output.WriteLine("✓ set_notes_text/get_notes_text round-trip");
+        _output.WriteLine("✓ notes.set-notes-text/get-notes-text round-trip");
 
-        // 9. set_layout / get_layout.
-        AssertSuccess(await Call("set_layout", new()
+        // 9. layout.set-layout / get-layout.
+        AssertSuccess(await Call("layout", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["layoutName"] = "ppLayoutTitleOnly"
-        }), "set_layout");
+            ["action"] = "set-layout",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["layout_name"] = "ppLayoutTitleOnly"
+        }), "layout.set-layout");
 
-        var getLayoutResult = await Call("get_layout", new() { ["sessionId"] = sessionId, ["slideIndex"] = slideIndex });
-        AssertSuccess(getLayoutResult, "get_layout");
+        var getLayoutResult = await Call("layout", new() { ["action"] = "get-layout", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        AssertSuccess(getLayoutResult, "layout.get-layout");
         Assert.Equal("ppLayoutTitleOnly", GetString(getLayoutResult, "layoutName"));
-        _output.WriteLine("✓ set_layout/get_layout round-trip");
+        _output.WriteLine("✓ layout.set-layout/get-layout round-trip");
 
-        // 10. export_slide_to_image and export_all_slides_to_images.
-        var singleExportPath = Path.Join(_tempDir, "slide1.png");
-        var exportSlideResult = await Call("export_slide_to_image", new()
+        // 10. master.set-title-font / get-title-font, set-background-color / get-background-color.
+        AssertSuccess(await Call("master", new()
         {
-            ["sessionId"] = sessionId,
-            ["slideIndex"] = slideIndex,
-            ["outputPath"] = singleExportPath
+            ["action"] = "set-title-font",
+            ["session_id"] = sessionId,
+            ["font_name"] = "Georgia",
+            ["font_size"] = 36.0,
+            ["bold"] = true
+        }), "master.set-title-font");
+
+        var getTitleFontResult = await Call("master", new() { ["action"] = "get-title-font", ["session_id"] = sessionId });
+        AssertSuccess(getTitleFontResult, "master.get-title-font");
+        Assert.Equal("Georgia", GetString(getTitleFontResult, "fontName"));
+        Assert.True(GetBool(getTitleFontResult, "bold"));
+        _output.WriteLine("✓ master.set-title-font/get-title-font round-trip");
+
+        AssertSuccess(await Call("master", new()
+        {
+            ["action"] = "set-background-color",
+            ["session_id"] = sessionId,
+            ["red"] = 240,
+            ["green"] = 240,
+            ["blue"] = 240
+        }), "master.set-background-color");
+
+        var getBackgroundResult = await Call("master", new() { ["action"] = "get-background-color", ["session_id"] = sessionId });
+        AssertSuccess(getBackgroundResult, "master.get-background-color");
+        _output.WriteLine("✓ master.set-background-color/get-background-color round-trip");
+
+        // 11. export.export-slide-to-image and export-all-slides-to-images.
+        var singleExportPath = Path.Join(_tempDir, "slide1.png");
+        var exportSlideResult = await Call("export", new()
+        {
+            ["action"] = "export-slide-to-image",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["output_path"] = singleExportPath
         });
-        AssertSuccess(exportSlideResult, "export_slide_to_image");
+        AssertSuccess(exportSlideResult, "export.export-slide-to-image");
         Assert.True(File.Exists(singleExportPath), $"Expected exported file: {singleExportPath}");
         Assert.True(new FileInfo(singleExportPath).Length > 0, "Exported single-slide image is empty.");
-        _output.WriteLine($"✓ export_slide_to_image → {singleExportPath} ({new FileInfo(singleExportPath).Length} bytes)");
+        _output.WriteLine($"✓ export.export-slide-to-image → {singleExportPath} ({new FileInfo(singleExportPath).Length} bytes)");
 
         var exportAllDir = Path.Join(_tempDir, "all-slides");
-        var exportAllResult = await Call("export_all_slides_to_images", new()
+        var exportAllResult = await Call("export", new()
         {
-            ["sessionId"] = sessionId,
-            ["outputDirectory"] = exportAllDir
+            ["action"] = "export-all-slides-to-images",
+            ["session_id"] = sessionId,
+            ["output_directory"] = exportAllDir
         });
-        AssertSuccess(exportAllResult, "export_all_slides_to_images");
+        AssertSuccess(exportAllResult, "export.export-all-slides-to-images");
         Assert.True(Directory.Exists(exportAllDir), $"Expected export directory: {exportAllDir}");
         var exportedFiles = Directory.GetFiles(exportAllDir);
         Assert.Equal(afterAddCount, exportedFiles.Length);
         Assert.All(exportedFiles, f => Assert.True(new FileInfo(f).Length > 0, $"{f} is empty"));
-        _output.WriteLine($"✓ export_all_slides_to_images → {exportedFiles.Length} files in {exportAllDir}");
+        _output.WriteLine($"✓ export.export-all-slides-to-images → {exportedFiles.Length} files in {exportAllDir}");
 
         // 11. save_presentation, then close_presentation (fast/non-blocking), then list_sessions
         // confirms the session is gone.

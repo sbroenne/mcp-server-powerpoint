@@ -1,0 +1,144 @@
+---
+name: powerpoint-cli
+description: >
+  PowerPoint CLI automation skill for Windows presentations. Use when a coding agent needs
+  token-efficient, scriptable, or unattended PowerPoint automation via pptcli commands. Best
+  for CI/CD, scheduled jobs, batch processing, PowerShell workflows, and bulk deck edits.
+  Supports slides, shapes, text frames, tables, charts, images, speaker notes, layouts, and
+  .potx template restyling. Triggers: pptcli, PowerPoint CLI, command line, batch, script,
+  automation, CI/CD, scheduled, PowerShell, unattended, coding agent, deck processing.
+---
+
+# PowerPoint Automation with pptcli
+
+## Preconditions
+
+- Windows host with Microsoft PowerPoint installed (2016+)
+- Uses COM interop — does NOT work on macOS or Linux
+- Requires `pptcli.exe` on PATH (`dotnet tool install --global Sbroenne.PowerPointMcp.CLI`)
+
+## How pptcli Works — a Background Daemon, Not a Cold Start Per Command
+
+Launching PowerPoint and tearing it down again can take 90-150 seconds. To avoid paying that
+cost on every single CLI invocation, `pptcli` keeps one PowerPoint instance alive in a small
+background daemon (`pptcli service run`), auto-started the first time you open or create a
+session, and reused by every subsequent command that references the same session id — even
+though each command is a separate OS process.
+
+## Workflow Checklist
+
+| Step | Command | When |
+|------|---------|------|
+| 1. Session | `session create/open` | Always first |
+| 2. Slides | `slide add-blank` | If needed |
+| 3. Edit content | See command reference below | Shapes, text, tables, charts, images, notes |
+| 4. Save & close | `session close --save` | Always last |
+
+## CRITICAL RULES (MUST FOLLOW)
+
+### Rule 1: NEVER Ask Clarifying Questions
+
+Execute commands to discover the answer instead:
+
+| DON'T ASK | DO THIS INSTEAD |
+|-----------|-----------------|
+| "Which file should I use?" | `pptcli session list` |
+| "How many slides does the deck have?" | `pptcli slide get-count -s <id>` |
+| "How many shapes are on this slide?" | `pptcli shape get-count -s <id> --slide-index N` |
+
+**You have commands to answer your own questions. USE THEM.**
+
+### Rule 2: Always End With a Text Summary
+
+**NEVER end your turn with only a command execution.** After completing all operations, always
+provide a brief text message confirming what was done. Silent command-only responses are
+incomplete.
+
+### Rule 3: Session Lifecycle
+
+**Creating vs Opening Files:**
+```powershell
+# NEW file - use session create
+pptcli session create C:\decks\demo.pptx   # Creates file + returns session ID
+
+# EXISTING file - use session open
+pptcli session open C:\decks\demo.pptx     # Opens file + returns session ID
+```
+
+**CRITICAL: Use `session create` for new files. `session open` on non-existent files will fail!**
+
+**CRITICAL: ALWAYS use the session ID returned by `session create` or `session open` in
+subsequent commands via `-s`/`--session`. NEVER guess or hardcode session IDs. The session ID is
+in the JSON output (e.g., `{"sessionId":"abc123"}`). Parse it and use it.**
+
+```powershell
+# Example: capture session ID from output, then use it
+pptcli session create C:\decks\demo.pptx        # Returns JSON with sessionId
+pptcli slide add-blank -s <returned-session-id>
+pptcli session close <returned-session-id> --save
+```
+
+**Unclosed sessions leave PowerPoint processes running, locking files** — but the daemon shuts
+down automatically after an idle period with no open sessions, or immediately via
+`pptcli service stop`.
+
+### Rule 4: 1-Based Indexing Everywhere
+
+`--slide-index`, `--shape-index`, `--row`, `--column` are all **1-based**, matching PowerPoint's
+native object model — not 0-based.
+
+### Rule 5: Restyling an Existing Deck via a .potx Template
+
+```powershell
+$session = pptcli session open C:\decks\demo.pptx | ConvertFrom-Json
+pptcli presentation apply-template -s $session.sessionId --template-path C:\templates\corp.potx
+pptcli presentation get-theme-name -s $session.sessionId   # verify the theme actually changed
+pptcli session close $session.sessionId --save
+```
+
+Slide content is preserved; only masters/theme/layouts change.
+
+### Rule 6: Report File Errors Immediately
+
+If you see "File not found" or "Path not found" - STOP and report to user. Don't retry.
+
+### Rule 7: Managing the Daemon Directly
+
+```powershell
+pptcli service status         # Report whether the daemon is running, session count, uptime
+pptcli service stop           # Graceful shutdown
+pptcli service stop --force   # Force-kill if a graceful shutdown doesn't respond
+```
+
+## CLI Command Reference
+
+**Syntax rule:** CLI commands use `pptcli <command> <action> -s <SESSION_ID> --kebab-case-flags ...`.
+Do not use MCP call syntax such as `shape(action: "add-rectangle", session_id: ..., slide_index: ...)` or
+snake_case parameters — the CLI uses kebab-case flags and a `<command> <action>` shape instead
+of one flat tool per verb.
+
+Available command groups (in addition to `session` and `service`):
+
+{{ for cmd in clicommands }}`{{ cmd.name }}`{{ if !for.last }}, {{ end }}{{ end }}
+
+Run `pptcli <command> --help` for the live, authoritative list of actions and flags for that
+command — the table below is a summary generated from the same Core interfaces as the MCP tool
+surface, so it can lag a `--help` run for in-flight changes.
+
+{{ for cmd in clicommands }}
+### `{{ cmd.name }}` — {{ cmd.description }}
+
+Actions: {{ for a in cmd.actions }}`{{ a }}`{{ if !for.last }}, {{ end }}{{ end }}
+
+| Flag | Description |
+|------|-------------|
+{{ for p in cmd.parameters }}| `--{{ p.name }}` | {{ p.description }} |
+{{ end }}
+{{ end }}
+
+## Common Pitfalls
+
+- `--red`/`--green`/`--blue` for `textframe set-font-color` are each 0-255 integers, not a single
+  hex string.
+- A session created with `session create` is already open — do not call `session open` on the
+  same path again; that opens a SECOND session against the same file.

@@ -1,0 +1,223 @@
+# CLI Command Reference
+
+> Auto-generated from `pptcli --help`. Use these exact parameter names.
+
+## Global Commands
+
+### session
+
+Open, create, save, close, or list presentation sessions held by the daemon.
+
+**Commands:** `open <FILE_PATH>`, `create <FILE_PATH>`, `close <SESSION_ID>`, `save <SESSION_ID>`, `list`
+
+| Command | Description |
+|---------|-------------|
+| `session open <FILE_PATH>` | Open an existing presentation and return a session id |
+| `session create <FILE_PATH>` | Create a new presentation and return a session id |
+| `session close <SESSION_ID>` | Close a session, optionally saving first |
+| `session save <SESSION_ID>` | Save the presentation open in a session |
+| `session list` | List every session currently open in the daemon |
+
+### service
+
+Start, stop, or check the status of the `pptcli` background daemon.
+
+**Commands:** `start`, `stop`, `status`
+
+| Command | Description |
+|---------|-------------|
+| `service start` | Start the daemon if it isn't already running |
+| `service stop` | Stop the running daemon |
+| `service status` | Report whether the daemon is running |
+
+## Domain Commands
+
+Every domain command below follows the shape `pptcli <domain> <ACTION> [OPTIONS]`, targeting an
+already-open session via `-s, --session <SESSION>` (obtained from `session open`/`session
+create`). All slide/shape/row/column indices are 1-based, matching PowerPoint's own COM object
+model.
+
+### chart
+
+Chart lifecycle and data operations.
+
+**Actions:** `add-chart`, `get-chart-data`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--slide-index` | 1-based slide index. (required) |
+| `--chart-type` | Chart type: "bar", "line", or "pie". (required for: add-chart) |
+| `--left` | Left position in points. (required for: add-chart) |
+| `--top` | Top position in points. (required for: add-chart) |
+| `--width` | Width in points. (required for: add-chart) |
+| `--height` | Height in points. (required for: add-chart) |
+| `--categories` | Category labels (x-axis / pie slice labels). (required for: add-chart) (JSON format) |
+| `--series-name` | Name of the single data series. (required for: add-chart) |
+| `--values` | Data values, one per category. (required for: add-chart) (JSON format) |
+| `--shape-index` | (required for: get-chart-data) |
+
+### export
+
+Export commands: render presentation slides to raster image files. Operates within an
+already-open session.
+
+**Actions:** `export-slide-to-image`, `export-all-slides-to-images`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--slide-index` | 1-based index of the slide to export. (required for: export-slide-to-image) |
+| `--output-path` | Full path for the output image file (e.g. `C:\output\slide1.png`). (required for: export-slide-to-image) |
+| `--format` | PowerPoint filter name for the image format (e.g. "PNG", "JPG", "GIF"). Defaults to "PNG" |
+| `--width` | Optional output width in pixels; 0 or null uses PowerPoint's default |
+| `--height` | Optional output height in pixels; 0 or null uses PowerPoint's default |
+| `--output-directory` | Directory where slide images will be written. Created if it does not exist. PowerPoint names the output files `Slide1.{ext}`, `Slide2.{ext}`, etc. (required for: export-all-slides-to-images) |
+
+### image
+
+Image commands: embed a picture file into a slide. Operates within an already-open session,
+targeting a specific slide by its 1-based index.
+
+**Actions:** `add-picture`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--slide-index` | (required) |
+| `--image-path` | (required) |
+| `--left` | (required) |
+| `--top` | (required) |
+| `--width` | (required) |
+| `--height` | (required) |
+
+### layout
+
+Slide layout commands: apply/read a slide's built-in layout. Operates within an already-open
+session, targeting a specific slide by its 1-based index.
+
+**Actions:** `set-layout`, `get-layout`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--slide-index` | (required) |
+| `--layout-name` | (required for: set-layout) — a `PpSlideLayout` enum member name, e.g. `ppLayoutBlank`, `ppLayoutTitle` |
+
+### master
+
+Slide master commands: read/edit the title and body placeholder fonts on the presentation's
+slide master, and read/edit the slide master's background fill color. Changes apply to every
+slide inheriting from the master (i.e. any slide that doesn't itself override the property).
+
+**Actions:** `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`, `get-background-color`, `set-background-color`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--font-name` | Font name, e.g. "Arial". (optional for: set-title-font, set-body-font) |
+| `--font-size` | Font size in points. (optional for: set-title-font, set-body-font) |
+| `--bold` | Whether the font is bold. (optional for: set-title-font, set-body-font) |
+| `--red` | Red channel (0-255). (required for: set-background-color; pass together with green/blue for set-title-font/set-body-font color changes) |
+| `--green` | Green channel (0-255). |
+| `--blue` | Blue channel (0-255). |
+
+### notes
+
+Speaker notes commands: set/get the notes text for a slide. Operates within an already-open
+session, targeting a specific slide by its 1-based index.
+
+**Actions:** `set-notes-text`, `get-notes-text`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--slide-index` | (required) |
+| `--text` | (required for: set-notes-text) |
+
+### presentation
+
+Presentation lifecycle commands: create, open, save, apply-template, get-theme-name.
+
+**Actions:** `create`, `open`, `save`, `apply-template`, `get-theme-name`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--file-path` | (required for: create, open) |
+| `--is-macro-enabled` | IsMacroEnabled |
+| `--template-path` | Full path to a `.potx`/`.potm`/`.pot` template file (a `.pptx`/`.pptm` presentation may also be used as a template source, matching PowerPoint's own behavior). (required for: apply-template) |
+
+> Prefer the top-level `session open`/`session create`/`session save` commands for everyday
+> session lifecycle management — `presentation <ACTION>` is the lower-level domain dispatch
+> underneath them, exposed mainly for `apply-template` and `get-theme-name`, which have no
+> `session`-level equivalent.
+
+### shape
+
+Shape commands: add rectangles/text boxes, count, delete, reposition/resize. Operates within an
+already-open session, targeting a specific slide by its 1-based index.
+
+**Actions:** `add-rectangle`, `add-text-box`, `get-count`, `delete`, `set-position`, `set-size`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--slide-index` | (required) |
+| `--left` | (required for: add-rectangle, add-text-box, set-position) |
+| `--top` | (required for: add-rectangle, add-text-box, set-position) |
+| `--width` | (required for: add-rectangle, add-text-box, set-size) |
+| `--height` | (required for: add-rectangle, add-text-box, set-size) |
+| `--text` | (required for: add-text-box) |
+| `--shape-index` | (required for: delete, set-position, set-size) |
+
+### slide
+
+Slide lifecycle commands: add, delete, count. First domain built on top of the presentation
+lifecycle commands, operating within an already-open session.
+
+**Actions:** `add-blank`, `get-count`, `delete`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--slide-index` | (required for: delete) |
+
+### table
+
+Table commands: add a table shape and read/write cell text. Operates within an already-open
+session, targeting a specific slide and table shape by their 1-based indices.
+
+**Actions:** `add-table`, `set-cell-text`, `get-cell-text`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--slide-index` | (required) |
+| `--rows` | (required for: add-table) |
+| `--columns` | (required for: add-table) |
+| `--left` | (required for: add-table) |
+| `--top` | (required for: add-table) |
+| `--width` | (required for: add-table) |
+| `--height` | (required for: add-table) |
+| `--shape-index` | (required for: set-cell-text, get-cell-text) |
+| `--row` | (required for: set-cell-text, get-cell-text) |
+| `--column` | (required for: set-cell-text, get-cell-text) |
+| `--text` | (required for: set-cell-text) |
+
+### textframe
+
+Text frame commands: set/get text and basic font formatting (size, bold, color) for a shape's
+text range. Operates within an already-open session, targeting a specific shape by its 1-based
+slide and shape index.
+
+**Actions:** `set-text`, `get-text`, `set-font-size`, `set-bold`, `set-font-color`
+
+| Parameter | Description |
+|-----------|-------------|
+| `--slide-index` | (required) |
+| `--shape-index` | (required) |
+| `--text` | (required for: set-text) |
+| `--font-size` | (required for: set-font-size) |
+| `--bold` | (required for: set-bold) |
+| `--red` | (required for: set-font-color) — 0-255 |
+| `--green` | (required for: set-font-color) — 0-255 |
+| `--blue` | (required for: set-font-color) — 0-255 |
+
+## Common Options (All Domain Commands)
+
+| Option | Description |
+|--------|-------------|
+| `-h, --help` | Prints help information |
+| `-s, --session <SESSION>` | Session ID from `session open`/`session create` |
+| `-o, --output <PATH>` | Write output to file instead of stdout. For image results, decodes and saves as a binary file |
