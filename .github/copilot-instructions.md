@@ -84,27 +84,43 @@ interop, designed for coding agents and automation scripts. It drives a **live P
 instance** through the official `Microsoft.Office.Interop.PowerPoint` PIA (embedded via
 `ForceEmbedPowerPointInteropTypes` — no runtime assembly-resolver needed, unlike Excel).
 
-> **NOTE: Unlike `mcp-server-excel`, the CLI here is currently a hand-written placeholder, not an
-> equal first-class entry point.** The MCP Server is the primary, actively-developed surface.
-> Do not assume CLI/MCP parity exists yet — see `src/PowerPointMcp.CLI/Program.cs`.
+The project ships **two equal, first-class entry points** — an MCP Server and a CLI — that share
+one `Core` codebase and are kept in parity by source generators, mirroring `mcp-server-excel`'s
+Unified Service Architecture.
 
 **Core Layers:**
 1. **ComInterop** (`src/PowerPointMcp.ComInterop`) - STA thread + OLE message filter + channel-based
    work queue (`PresentationBatch`), ported from `mcp-server-excel`'s `ExcelBatch` pattern.
 2. **Core** (`src/PowerPointMcp.Core`) - PowerPoint domain commands, one folder per domain
-   (Presentation, Slide, Shape, TextFrame, Table, Notes, Layout, Image, Chart, Export).
-3. **McpServer** (`src/PowerPointMcp.McpServer`) - Model Context Protocol stdio host. Hand-written
-   `[McpServerToolType]` classes (one per domain, 31 tools total) — no source generators yet
-   (deferred until the Core shape is proven stable; see architecture decision in
-   `.squad/decisions.md`, 2026-07-01T11-14-34).
-4. **CLI** (`src/PowerPointMcp.CLI`) - Minimal hand-written placeholder proving
-   ComInterop → Core → CLI end to end. NOT the target Generators-based CLI.
+   (Presentation, Slide, Shape, TextFrame, Table, Notes, Layout, Master, Animation, Image, Chart,
+   Export). Domains other than Presentation carry a `[ServiceCategory]` marker attribute that the
+   generators discover.
+3. **Generators** (`src/PowerPointMcp.Generators.Mcp`, `src/PowerPointMcp.Generators.Cli`,
+   `src/PowerPointMcp.Generators.Shared`) - Roslyn source generators that read `[ServiceCategory]`
+   Core interfaces and emit one **action-dispatch tool per domain** for the MCP surface (e.g.
+   `slide`, `shape`, `chart`, each taking an `operation` parameter like `"chart.add-chart"`) and
+   one `pptcli {category} {action}` command per operation for the CLI. `Presentation` (session
+   lifecycle) and its `ApplyTemplate`/`GetThemeName` methods stay hand-written
+   (`PresentationTools.cs`) since they don't fit the per-session action-dispatch shape.
+4. **Service** (`src/PowerPointMcp.Service`) - `PowerPointMcpService`: the shared session registry
+   + dispatch layer both entry points call into. **McpServer** hosts it **in-process** (no pipe,
+   via `ServiceBridge.ForwardToService`); **CLI** (`pptcli`) talks to it via a **separate
+   background daemon process** over a named pipe (`ServiceClient`/`IPowerPointDaemonRpc`,
+   auto-started on first `session open`/`session create`), so sessions persist across CLI
+   invocations without paying PowerPoint's ~90-150s launch cost every command.
+5. **McpServer** (`src/PowerPointMcp.McpServer`) - Model Context Protocol stdio host. 18 tools
+   total: 7 hand-written session-lifecycle/template tools
+   (`create_presentation`/`open_presentation`/`save_presentation`/`close_presentation`/
+   `list_sessions`/`apply_template`/`get_theme_name`) + 11 generated action-dispatch tools (one per
+   remaining Core domain), covering ~98 operations. See
+   `tests/PowerPointMcp.McpServer.Tests/Integration/McpProtocolTests.cs`'s `ExpectedToolNames` for
+   the ground-truth tool list.
+6. **CLI** (`src/PowerPointMcp.CLI`) - `pptcli`, built on the same generators as the MCP surface
+   (`CliCommandRegistration.RegisterCommands`) plus hand-written `session`/`service` command
+   branches for daemon lifecycle. Full parity with the MCP surface (Export is exposed here too).
 
-**No out-of-process Service** (unlike Excel's `ExcelMcp.Service` + named-pipe `ServiceBridge`).
-The MVP uses an in-process `PresentationSessionRegistry` singleton
-(`ConcurrentDictionary<string sessionId, IPresentationBatch>`) inside the MCP host — the STA
-thread + work queue already live inside `PresentationBatch`, and the MCP stdio host is itself
-long-lived, so no RPC layer is needed for the MVP. Out-of-process hardening is deferred to Phase 2.
+MCP Server and CLI run as **separate processes**, each managing its own PowerPoint instance — they
+do **not** share live sessions with each other, only the same `Core`/`Service` codebase.
 
 ## Session Model (MCP Server)
 
@@ -217,22 +233,25 @@ When using `gh` against `sbroenne/mcp-server-powerpoint` (issues, PRs, comments,
 **Success Flag:** NEVER `Success = true` with `ErrorMessage`. Set `Success` in the success path
 only; catch-free in Core (see Rule 1/1b above).
 
-**Session Registry:** DI-injected `PresentationSessionRegistry registry` parameter on static MCP
-tool methods is correctly EXCLUDED from the MCP JSON schema by SDK 1.3.0 — verified via
-`tools/list`. Don't add manual schema suppression for it.
+**Session Registry / Service DI:** The DI-injected `PresentationSessionRegistry registry` parameter
+(hand-written session-lifecycle tools) and `PowerPointMcpService service` parameter (generated
+action-dispatch tools) are both correctly EXCLUDED from the MCP JSON schema by SDK 1.3.0 —
+verified via `tools/list`. Don't add manual schema suppression for either.
 
 **Two-Layer Shutdown:** `PresentationSessionShutdownService : IHostedService` disposes batches on
 host `StopAsync`, AND `Main`'s `finally` calls `registry.DisposeAll()` as an idempotent backstop.
 Both layers must stay in sync if session lifecycle changes.
 
-**No CLI/MCP Parity Requirement (Yet):** Unlike Excel, do not assume every MCP action needs a
-matching CLI command — the CLI is a placeholder pending a future Generators-based rebuild. Don't
-block MCP feature work on CLI parity.
+**No CLI/MCP Parity Gaps:** Both entry points are built from the same generators against the same
+`[ServiceCategory]` Core interfaces, so a new Core operation is automatically available on both
+surfaces once its domain's generator runs — there is no placeholder/parity-gap state to track
+anymore. Export is exposed identically on both.
 
-**Generators Deferred:** Do not stand up source generators (mirroring
-`ExcelMcp.Generators.Mcp`) until explicitly decided — Core interfaces currently take
-`IPresentationBatch batch` directly (no `[ServiceCategory]`/session-id marker attributes the
-generator would need). See `.squad/decisions.md` for the full rationale.
+**Generators Are Live:** `PowerPointMcp.Generators.Mcp`/`PowerPointMcp.Generators.Cli` (mirroring
+`ExcelMcp.Generators.Mcp`/`.Cli`) read `[ServiceCategory]`-attributed Core interfaces and emit the
+action-dispatch MCP tools and `pptcli` commands. Adding a new domain means adding the
+`[ServiceCategory]` attribute + interface/implementation to Core — the generators pick it up
+automatically; do not hand-write a new tool class for it.
 
 **Export Domain:** `ExportSlideToImage`/`ExportAllSlidesToImages` use PowerPoint's native
 `Presentation.Export`/`Slide.Export` COM calls — prefer the single multi-slide `Export` call over

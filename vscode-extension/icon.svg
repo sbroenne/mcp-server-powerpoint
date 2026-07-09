@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient - PowerPoint orange/red -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#D24726;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8f3720;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded background -->
+  <rect width="256" height="256" fill="url(#bg)" rx="32"/>
+
+  <!-- Slide (presentation) card -->
+  <g transform="translate(48, 44)">
+    <!-- Slide body -->
+    <rect x="0" y="0" width="160" height="118" rx="8" fill="#ffffff"/>
+
+    <!-- Title bar -->
+    <rect x="14" y="14" width="132" height="16" rx="3" fill="#D24726" opacity="0.9"/>
+
+    <!-- Content lines (banded, mirrors table-row rhythm) -->
+    <rect x="14" y="42" width="132" height="10" rx="2" fill="#D24726" opacity="0.55"/>
+    <rect x="14" y="60" width="104" height="10" rx="2" fill="#D24726" opacity="0.4"/>
+    <rect x="14" y="78" width="118" height="10" rx="2" fill="#D24726" opacity="0.55"/>
+    <rect x="14" y="96" width="88" height="10" rx="2" fill="#D24726" opacity="0.4"/>
+  </g>
+
+  <!-- Slideshow "play" badge, overlapping the slide's bottom-right corner -->
+  <circle cx="196" cy="150" r="26" fill="#ffffff"/>
+  <path d="M188 138 L208 150 L188 162 Z" fill="#D24726"/>
+
+  <!-- "PowerPoint MCP" text at bottom -->
+  <text x="128" y="222" font-family="Segoe UI, Arial, sans-serif"
+        font-size="21" font-weight="700" fill="#ffffff"
+        text-anchor="middle" opacity="0.95">PowerPoint MCP</text>
+</svg>
