@@ -5,7 +5,9 @@
     <Project Path="src/PowerPointMcp.Core/PowerPointMcp.Core.csproj" />
     <Project Path="src/PowerPointMcp.Generators/PowerPointMcp.Generators.csproj" />
     <Project Path="src/PowerPointMcp.Generators.Cli/PowerPointMcp.Generators.Cli.csproj" />
+    <Project Path="src/PowerPointMcp.Generators.Mcp/PowerPointMcp.Generators.Mcp.csproj" />
     <Project Path="src/PowerPointMcp.Generators.Shared/PowerPointMcp.Generators.Shared.csproj" />
+    <Project Path="src/PowerPointMcp.Build.Tasks/PowerPointMcp.Build.Tasks.csproj" />
     <Project Path="src/PowerPointMcp.McpServer/PowerPointMcp.McpServer.csproj" />
     <Project Path="src/PowerPointMcp.Service/PowerPointMcp.Service.csproj" />
   </Folder>
