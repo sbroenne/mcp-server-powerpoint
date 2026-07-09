@@ -59,7 +59,7 @@ public class ShapeCommandsTests
 ```
 
 `Feature` values match the Core domain folder name (`Presentation`, `Slide`, `Shape`, `TextFrame`,
-`Table`, `Notes`, `Layout`, `Image`, `Chart`, `Export`). This enables:
+`Table`, `Notes`, `Layout`, `Master`, `Animation`, `Image`, `Chart`, `Export`). This enables:
 
 ```powershell
 # Fast, targeted feedback for the domain you're changing
