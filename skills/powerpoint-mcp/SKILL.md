@@ -97,7 +97,7 @@ saved.
 | Add/count/delete slides | `slide(action: "add-blank"/"get-count"/"delete")` |
 | Add/count/delete/move/resize shapes | `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector"/"get-count"/"delete"/"set-position"/"set-size")` |
 | Format shapes (fill/line/rotation/flip/z-order/shadow/group/name/alt-text) | `shape(action: "set-fill"/"get-fill"/"set-line"/"get-line"/"set-rotation"/"get-rotation"/"flip"/"set-z-order"/"set-shadow"/"get-shadow"/"group"/"ungroup"/"set-name"/"get-name"/"set-alt-text"/"get-alt-text")` |
-| Set/read text and font formatting | `textframe(action: "set-text"/"get-text"/"set-font-size"/"set-bold"/"set-font-color")` |
+| Set/read text and font formatting | `textframe(action: "set-text"/"get-text"/"set-font-size"/"set-bold"/"set-font-color"/"set-italic"/"set-underline"/"set-font-name"/"set-alignment"/"set-bullet")` |
 | Tables | `table(action: "add-table"/"set-cell-text"/"get-cell-text")` |
 | Native charts | `chart(action: "add-chart"/"get-chart-data")` |
 | Images | `image(action: "add-picture")` |

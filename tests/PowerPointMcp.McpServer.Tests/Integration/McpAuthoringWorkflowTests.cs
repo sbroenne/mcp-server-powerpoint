@@ -202,6 +202,71 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         Assert.Equal("Updated Text", GetString(getTextResult, "text"));
         _output.WriteLine("✓ textframe.set-text/set-font-size/set-bold/set-font-color, get-text round-trips");
 
+        // 3b. textframe.set-italic/get-italic, set-underline/get-underline, set-font-name/get-font-name,
+        // set-alignment/get-alignment, set-bullet/get-bullet.
+        AssertSuccess(await Call("textframe", new()
+        {
+            ["action"] = "set-italic",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = textBoxShapeIndex,
+            ["italic"] = true
+        }), "textframe.set-italic");
+        var getItalicResult = await Call("textframe", new() { ["action"] = "get-italic", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
+        AssertSuccess(getItalicResult, "textframe.get-italic");
+        Assert.True(GetBool(getItalicResult, "italic"));
+
+        AssertSuccess(await Call("textframe", new()
+        {
+            ["action"] = "set-underline",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = textBoxShapeIndex,
+            ["underline"] = true
+        }), "textframe.set-underline");
+        var getUnderlineResult = await Call("textframe", new() { ["action"] = "get-underline", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
+        AssertSuccess(getUnderlineResult, "textframe.get-underline");
+        Assert.True(GetBool(getUnderlineResult, "underline"));
+
+        AssertSuccess(await Call("textframe", new()
+        {
+            ["action"] = "set-font-name",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = textBoxShapeIndex,
+            ["font_name"] = "Georgia"
+        }), "textframe.set-font-name");
+        var getFontNameResult = await Call("textframe", new() { ["action"] = "get-font-name", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
+        AssertSuccess(getFontNameResult, "textframe.get-font-name");
+        Assert.Equal("Georgia", GetString(getFontNameResult, "fontName"));
+
+        AssertSuccess(await Call("textframe", new()
+        {
+            ["action"] = "set-alignment",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = textBoxShapeIndex,
+            ["alignment"] = "ppAlignCenter"
+        }), "textframe.set-alignment");
+        var getAlignmentResult = await Call("textframe", new() { ["action"] = "get-alignment", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
+        AssertSuccess(getAlignmentResult, "textframe.get-alignment");
+        Assert.Equal("ppAlignCenter", GetString(getAlignmentResult, "alignment"));
+
+        AssertSuccess(await Call("textframe", new()
+        {
+            ["action"] = "set-bullet",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = textBoxShapeIndex,
+            ["enabled"] = true,
+            ["character"] = "-"
+        }), "textframe.set-bullet");
+        var getBulletResult = await Call("textframe", new() { ["action"] = "get-bullet", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
+        AssertSuccess(getBulletResult, "textframe.get-bullet");
+        Assert.True(GetBool(getBulletResult, "bulletEnabled"));
+        Assert.Equal("-", GetString(getBulletResult, "bulletCharacter"));
+        _output.WriteLine("✓ textframe.set-italic/set-underline/set-font-name/set-alignment/set-bullet round-trips");
+
         // 4. shape.add-rectangle, set-position, set-size, get-count, delete a shape.
         var addRectResult = await Call("shape", new()
         {

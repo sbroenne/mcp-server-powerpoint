@@ -1,7 +1,9 @@
 # Text Formatting: TextFrame Tools
 
 Reference for the `textframe` tool's actions — `set-text`, `get-text`, `set-font-size`,
-`set-bold`, `set-font-color` — all operate on a shape's text frame.
+`set-bold`, `set-font-color`, `set-italic`/`get-italic`, `set-underline`/`get-underline`,
+`set-font-name`/`get-font-name`, `set-alignment`/`get-alignment`, `set-bullet`/`get-bullet` — all
+operate on a shape's text frame.
 
 ## Actions
 
@@ -12,6 +14,23 @@ Reference for the `textframe` tool's actions — `set-text`, `get-text`, `set-fo
 | `textframe` | `set-font-size` | `session_id`, `slide_index`, `shape_index`, `font_size` (points) | Applies to the shape's **entire** text range, not a substring. |
 | `textframe` | `set-bold` | `session_id`, `slide_index`, `shape_index`, `bold` (bool) | Applies to the entire text range. |
 | `textframe` | `set-font-color` | `session_id`, `slide_index`, `shape_index`, `red`, `green`, `blue` (each 0-255) | RGB triplet, applies to the entire text range. |
+| `textframe` | `set-italic` | `session_id`, `slide_index`, `shape_index`, `italic` (bool) | Applies to the entire text range. |
+| `textframe` | `get-italic` | `session_id`, `slide_index`, `shape_index` | Returns `italic`. |
+| `textframe` | `set-underline` | `session_id`, `slide_index`, `shape_index`, `underline` (bool) | Applies to the entire text range. |
+| `textframe` | `get-underline` | `session_id`, `slide_index`, `shape_index` | Returns `underline`. |
+| `textframe` | `set-font-name` | `session_id`, `slide_index`, `shape_index`, `font_name` | Sets the typeface (e.g. `"Calibri"`, `"Georgia"`). No validation against installed fonts — an unrecognized name silently falls back to a substitute font in PowerPoint. |
+| `textframe` | `get-font-name` | `session_id`, `slide_index`, `shape_index` | Returns `fontName`. |
+| `textframe` | `set-alignment` | `session_id`, `slide_index`, `shape_index`, `alignment` | Sets paragraph alignment. `alignment` is a `PpParagraphAlignment` name (see below). |
+| `textframe` | `get-alignment` | `session_id`, `slide_index`, `shape_index` | Returns `alignment`. Fails if paragraphs within the text range have mixed alignment. |
+| `textframe` | `set-bullet` | `session_id`, `slide_index`, `shape_index`, `enabled` (bool), optional `character` (single character) | Turns bullets on/off for every paragraph in the text range. When enabling, `character` sets the bullet glyph (e.g. `"-"`, `"•"`); omit to keep the theme's default bullet. |
+| `textframe` | `get-bullet` | `session_id`, `slide_index`, `shape_index` | Returns `bulletEnabled` and `bulletCharacter` (null when bullets are off). |
+
+## Paragraph Alignment Names
+
+`alignment` for `set-alignment` must match a real `PpParagraphAlignment` enum member name exactly:
+`ppAlignLeft`, `ppAlignCenter`, `ppAlignRight`, `ppAlignJustify`, `ppAlignDistribute`,
+`ppAlignThaiDistribute`, `ppAlignJustifyLow`. Passing an unrecognized string returns
+`success: false`.
 
 ## Whole-Range Formatting Only
 
@@ -27,19 +46,21 @@ textframe(action: "set-bold", session_id: ..., slide_index: ..., shape_index: <l
 shape(action: "add-text-box", session_id: ..., slide_index: ..., left: 210, top: 100, width: 300, height: 30, text: "$2.4M, up 12%")
 ```
 
-## Bullet Lists via Line Breaks
+## Bullet Lists
 
-There is no dedicated "bullet list" action. Build a bulleted look by embedding line breaks (`\n`)
-in the `text` parameter of `shape(action: "add-text-box", ...)` / `textframe(action: "set-text",
-...)`, with a leading dash or similar marker per line:
+Use `textframe(action: "set-bullet", ...)` for native PowerPoint bullets — it applies PowerPoint's
+own bullet glyph and per-paragraph indent, unlike a plain leading `-`/`•` character embedded in
+text. Put each bullet item on its own line (`\n`-separated) in the `text` parameter first, then
+turn bullets on for the whole text range:
 
 ```
 textframe(action: "set-text", session_id: ..., slide_index: ..., shape_index: ...,
-  text: "- Revenue grew 24% year over year\n- APAC now the fastest-growing region\n- Retention held steady at 91%")
+  text: "Revenue grew 24% year over year\nAPAC now the fastest-growing region\nRetention held steady at 91%")
+textframe(action: "set-bullet", session_id: ..., slide_index: ..., shape_index: ..., enabled: true)
 ```
 
-Keep each line short — this is plain text, not PowerPoint's native outline/bullet formatting, so
-there's no auto-indent or bullet glyph; a leading `-` or `•` character is the simplest visual cue.
+If a specific bullet glyph is required (e.g. a dash instead of the theme's default), pass
+`character`: `textframe(action: "set-bullet", ..., enabled: true, character: "-")`.
 
 ## Font Size Guidance
 
@@ -80,3 +101,4 @@ After setting text and font size, export the slide (see `export-and-verify.md`) 
 text fits inside the shape's `width`/`height` without visually overflowing — there is no
 auto-shrink-to-fit in this tool surface. If text overflows: shorten the text, reduce
 `font_size`, or grow the shape with `shape(action: "set-size", ...)`.
+

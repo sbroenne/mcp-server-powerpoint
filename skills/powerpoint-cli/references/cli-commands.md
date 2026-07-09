@@ -238,11 +238,11 @@ session, targeting a specific slide and table shape by their 1-based indices.
 
 ### textframe
 
-Text frame commands: set/get text and basic font formatting (size, bold, color) for a shape's
-text range. Operates within an already-open session, targeting a specific shape by its 1-based
-slide and shape index.
+Text frame commands: set/get text and font/paragraph formatting (size, bold, italic, underline,
+font name, color, alignment, bullets) for a shape's text range. Operates within an already-open
+session, targeting a specific shape by its 1-based slide and shape index.
 
-**Actions:** `set-text`, `get-text`, `set-font-size`, `set-bold`, `set-font-color`
+**Actions:** `set-text`, `get-text`, `set-font-size`, `set-bold`, `set-font-color`, `set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`
 
 | Parameter | Description |
 |-----------|-------------|
@@ -254,6 +254,12 @@ slide and shape index.
 | `--red` | (required for: set-font-color) — 0-255 |
 | `--green` | (required for: set-font-color) — 0-255 |
 | `--blue` | (required for: set-font-color) — 0-255 |
+| `--italic` | (required for: set-italic) |
+| `--underline` | (required for: set-underline) |
+| `--font-name` | (required for: set-font-name) |
+| `--alignment` | `PpParagraphAlignment` name: `ppAlignLeft`, `ppAlignCenter`, `ppAlignRight`, `ppAlignJustify`, `ppAlignDistribute`, `ppAlignThaiDistribute`, `ppAlignJustifyLow`. (required for: set-alignment) |
+| `--enabled` | (required for: set-bullet) |
+| `--character` | Single-character bullet glyph. (optional for: set-bullet) |
 
 ## Common Options (All Domain Commands)
 
