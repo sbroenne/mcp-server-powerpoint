@@ -7,9 +7,10 @@ description: Security policy for PowerPoint MCP Server. How to report vulnerabil
 
 ## Supported versions
 
-PowerPoint MCP Server is currently in early development (pre-1.0). Only the
-latest published release receives security fixes until a formal support
-matrix is established after the first stable release.
+PowerPoint MCP Server is now in production use, though still pre-1.0
+(`0.x`) while the tool surface stabilizes. Only the latest published
+release receives security fixes; a formal multi-version support matrix
+will be established once the project reaches a `1.0` release.
 
 ## Reporting a vulnerability
 

@@ -57,11 +57,12 @@ tool for `CHANGELOG.md` generation. Node is not used to build, version, or publi
 any PowerPointMcp component — the MCP Server, CLI, VS Code Extension, and MCPB
 all remain built by their existing pipelines (`dotnet`, `vsce`, etc.).
 
-### Note on the pre-1.0 `[Unreleased]` section
+### Note on the `[Unreleased]` → `[0.0.1]` transition
 
-Since this repo hasn't cut its first tagged release yet, `CHANGELOG.md`'s
-existing `## [Unreleased]` section predates the changesets pipeline and was
-accumulated by hand. When cutting the first release, manually rename that
-section's header to `## [<version>] - <date>` as part of the release PR
-*before* running `scripts/Build-Changelog.ps1` for any subsequent release —
-after that one-time transition, all future entries are changeset-generated.
+Before the changesets pipeline existed, `CHANGELOG.md`'s `## [Unreleased]`
+section was accumulated by hand. When `v0.0.1` — the first tagged release —
+shipped, that section's header was manually renamed to
+`## [0.0.1] - 2026-07-09` as a one-time transition step (the changesets
+pipeline didn't run for that release). All subsequent releases are fully
+changeset-generated via `scripts/Build-Changelog.ps1`; no further manual
+`[Unreleased]` handling is needed.
