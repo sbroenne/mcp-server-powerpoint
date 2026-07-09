@@ -22,6 +22,10 @@
     <ToolCommandName>pptcli</ToolCommandName>
     <PublishSelfContained>false</PublishSelfContained>
     <PublishTrimmed>false</PublishTrimmed>
+    <!-- IMPORTANT: Do NOT declare <RuntimeIdentifiers> here — combined with PackAsTool it forces
+         the pack flow to look for RID-qualified build output (bin/Release/net10.0-windows/win-x64/),
+         but `dotnet build` without a RID produces plain bin/Release/net10.0-windows/, breaking
+         `dotnet pack` with the no-build switch in CI. Standalone exe publish passes the RID on the command line. -->
   </PropertyGroup>
 
   <ItemGroup>
@@ -50,6 +54,21 @@
   <!-- Import the Build.Tasks project to use GenerateSkillFile task -->
   <UsingTask TaskName="Sbroenne.PowerPointMcp.Build.Tasks.GenerateSkillFile"
              AssemblyFile="$(MSBuildProjectDirectory)\..\PowerPointMcp.Build.Tasks\bin\$(Configuration)\netstandard2.0\Sbroenne.PowerPointMcp.Build.Tasks.dll" />
+
+  <!-- Workaround for NETSDK1146: PackAsTool doesn't support net10.0-windows -->
+  <!-- See: https://github.com/dotnet/sdk/issues/12055#issuecomment-2125927648 -->
+  <Target Name="HackBeforePackToolValidation" BeforeTargets="_PackToolValidation">
+    <PropertyGroup>
+      <TargetPlatformIdentifier></TargetPlatformIdentifier>
+      <TargetPlatformMoniker></TargetPlatformMoniker>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="HackAfterPackToolValidation" AfterTargets="_PackToolValidation" BeforeTargets="PackTool">
+    <PropertyGroup>
+      <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+    </PropertyGroup>
+  </Target>
 
   <!-- Generate CLI Skill file from template after build -->
   <Target Name="GenerateCliSkill" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'"
