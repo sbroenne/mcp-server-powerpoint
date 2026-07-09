@@ -135,6 +135,114 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         Assert.Equal(baselineCount + 2, afterAddCount);
         _output.WriteLine($"✓ slide.add-blank x2, slide.get-count {baselineCount} → {afterAddCount}");
 
+        // 2b. slide.duplicate, move-to, set/get-background-color, and section management.
+        var duplicateResult = await Call("slide", new()
+        {
+            ["action"] = "duplicate",
+            ["session_id"] = sessionId,
+            ["slide_index"] = afterAddCount
+        });
+        AssertSuccess(duplicateResult, "slide.duplicate");
+        var duplicatedSlideIndex = GetInt(duplicateResult, "slideIndex")!.Value;
+        Assert.Equal(afterAddCount + 1, duplicatedSlideIndex);
+        var afterDuplicateCount = afterAddCount + 1;
+
+        var moveToResult = await Call("slide", new()
+        {
+            ["action"] = "move-to",
+            ["session_id"] = sessionId,
+            ["slide_index"] = duplicatedSlideIndex,
+            ["to_position"] = 1
+        });
+        AssertSuccess(moveToResult, "slide.move-to");
+        Assert.Equal(1, GetInt(moveToResult, "slideIndex"));
+
+        // Move it back to the end so remaining slideIndex-based steps below are unaffected.
+        AssertSuccess(await Call("slide", new()
+        {
+            ["action"] = "move-to",
+            ["session_id"] = sessionId,
+            ["slide_index"] = 1,
+            ["to_position"] = afterDuplicateCount
+        }), "slide.move-to (restore)");
+
+        var setBackgroundResult = await Call("slide", new()
+        {
+            ["action"] = "set-background-color",
+            ["session_id"] = sessionId,
+            ["slide_index"] = afterDuplicateCount,
+            ["red"] = 0,
+            ["green"] = 0,
+            ["blue"] = 255
+        });
+        AssertSuccess(setBackgroundResult, "slide.set-background-color");
+        Assert.Equal(16711680, GetInt(setBackgroundResult, "colorRgb"));
+
+        var getSlideBackgroundResult = await Call("slide", new()
+        {
+            ["action"] = "get-background-color",
+            ["session_id"] = sessionId,
+            ["slide_index"] = afterDuplicateCount
+        });
+        AssertSuccess(getSlideBackgroundResult, "slide.get-background-color");
+        Assert.Equal(16711680, GetInt(getSlideBackgroundResult, "colorRgb"));
+
+        var addSectionResult = await Call("slide", new()
+        {
+            ["action"] = "add-section",
+            ["session_id"] = sessionId,
+            ["section_index"] = 1,
+            ["section_name"] = "Intro"
+        });
+        AssertSuccess(addSectionResult, "slide.add-section");
+
+        // Add a second section so section 1 isn't the only one — PowerPoint disallows deleting
+        // section 1 unless its slides are deleted too, so a second section lets us exercise
+        // delete-section without removing any slide content.
+        AssertSuccess(await Call("slide", new()
+        {
+            ["action"] = "add-section",
+            ["session_id"] = sessionId,
+            ["section_index"] = 2,
+            ["section_name"] = "Body"
+        }), "slide.add-section (second)");
+
+        AssertSuccess(await Call("slide", new()
+        {
+            ["action"] = "rename-section",
+            ["session_id"] = sessionId,
+            ["section_index"] = 1,
+            ["section_name"] = "Introduction"
+        }), "slide.rename-section");
+
+        var getSectionNameResult = await Call("slide", new()
+        {
+            ["action"] = "get-section-name",
+            ["session_id"] = sessionId,
+            ["section_index"] = 1
+        });
+        AssertSuccess(getSectionNameResult, "slide.get-section-name");
+        Assert.Equal("Introduction", GetString(getSectionNameResult, "sectionName"));
+
+        var getSectionCountResult = await Call("slide", new()
+        {
+            ["action"] = "get-section-count",
+            ["session_id"] = sessionId
+        });
+        AssertSuccess(getSectionCountResult, "slide.get-section-count");
+        Assert.Equal(2, GetInt(getSectionCountResult, "sectionCount"));
+
+        var deleteSectionResult = await Call("slide", new()
+        {
+            ["action"] = "delete-section",
+            ["session_id"] = sessionId,
+            ["section_index"] = 2,
+            ["delete_slides"] = false
+        });
+        AssertSuccess(deleteSectionResult, "slide.delete-section");
+        Assert.Equal(1, GetInt(deleteSectionResult, "sectionCount"));
+        _output.WriteLine("✓ slide.duplicate/move-to/set-background-color/get-background-color, section add/rename/get-name/get-count/delete");
+
         const int slideIndex = 1;
 
         // 3. shape.add-text-box / textframe.set-text / set-font-size / set-bold / set-font-color; textframe.get-text round-trips.

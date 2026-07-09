@@ -206,14 +206,20 @@ Operates within an already-open session, targeting a specific slide by its 1-bas
 
 ### slide
 
-Slide lifecycle commands: add, delete, count. First domain built on top of the presentation
-lifecycle commands, operating within an already-open session.
+Slide lifecycle commands: add, delete, count, duplicate, reorder, per-slide background color,
+and section management. First domain built on top of the presentation lifecycle commands,
+operating within an already-open session.
 
-**Actions:** `add-blank`, `get-count`, `delete`
+**Actions:** `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-background-color`, `get-background-color`, `add-section`, `rename-section`, `delete-section`, `get-section-count`, `get-section-name`
 
 | Parameter | Description |
 |-----------|-------------|
-| `--slide-index` | (required for: delete) |
+| `--slide-index` | (required for: delete, duplicate, move-to, set-background-color, get-background-color) |
+| `--to-position` | (required for: move-to) |
+| `--red` / `--green` / `--blue` | (required for: set-background-color, 0-255 per channel) |
+| `--section-index` | (required for: add-section, rename-section, delete-section, get-section-name) |
+| `--section-name` | (required for: rename-section; optional for: add-section) |
+| `--delete-slides` | Optional bool (delete-section); if true, deletes the section's slides too. PowerPoint disallows deleting section 1 without this. |
 
 ### table
 

@@ -1,6 +1,7 @@
 # Slides and Shapes
 
-Reference for the `slide` tool (`add-blank`, `get-count`, `delete`) and the `shape` tool
+Reference for the `slide` tool (`add-blank`, `get-count`, `delete`, `duplicate`, `move-to`,
+`set-background-color`, `get-background-color`, section management) and the `shape` tool
 (`add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`,
 `delete`, `set-position`, `set-size`, plus the fill/line/rotation/flip/z-order/shadow/group/
 name/alt-text formatting actions below).
@@ -12,9 +13,35 @@ name/alt-text formatting actions below).
 | `slide` | `add-blank` | `session_id` | Adds a **blank** slide at the end. No insert-at-index. |
 | `slide` | `get-count` | `session_id` | Returns current slide count (`slideCount`). Call before/after mutations to confirm state. |
 | `slide` | `delete` | `session_id`, `slide_index` (1-based) | Removes the slide; later slides shift down by one index. |
+| `slide` | `duplicate` | `session_id`, `slide_index` | Inserts a copy of the slide immediately after the source. Returns the duplicate's new `slideIndex` and total `slideCount`. |
+| `slide` | `move-to` | `session_id`, `slide_index`, `to_position` | Moves a slide to a new 1-based position, renumbering the rest. Returns the slide's new `slideIndex`. |
+| `slide` | `set-background-color` | `session_id`, `slide_index`, `red`, `green`, `blue` | Sets a solid per-slide background color, overriding the slide master for that slide only. Returns `colorRgb` and `followsMasterBackground: false`. |
+| `slide` | `get-background-color` | `session_id`, `slide_index` | Returns the slide's background `colorRgb` and `followsMasterBackground`. |
+| `slide` | `add-section` | `session_id`, `section_index`, `section_name` (optional) | Adds a new section before `section_index` (pass `sectionCount + 1` to append). Returns the new `sectionIndex` and total `sectionCount`. |
+| `slide` | `rename-section` | `session_id`, `section_index`, `section_name` | Renames an existing section. |
+| `slide` | `delete-section` | `session_id`, `section_index`, `delete_slides` (optional, default `false`) | Deletes a section. If `delete_slides` is true, its slides are deleted too; otherwise they're kept and merged into a neighboring section. **PowerPoint disallows deleting section 1 unless `delete_slides` is true** — delete/reorder other sections first if you need to remove the first one's boundary without losing its slides. |
+| `slide` | `get-section-count` | `session_id` | Returns the current number of sections (`sectionCount`, `0` if none exist). |
+| `slide` | `get-section-name` | `session_id`, `section_index` | Returns a section's name (`sectionName`). |
 
-Slides always append at the end — there is no "insert at position N" action. See
-`deck-builder.md` for planning multi-slide order.
+Slides always append at the end via `add-blank` — there is no "insert blank at position N" action;
+use `add-blank` then `move-to` if you need a blank slide inserted mid-deck. See `deck-builder.md`
+for planning multi-slide order.
+
+## Sections
+
+Sections group contiguous ranges of slides for organizational purposes (visible in PowerPoint's
+slide thumbnail panel) — they do not affect slide content or rendering. A slide's section
+membership is purely positional (determined by where the slide sits between section boundaries),
+so reordering slides with `move-to` can move them into a different section.
+
+```
+slide(action: "add-section", session_id: ..., section_index: 1, section_name: "Introduction")
+slide(action: "add-section", session_id: ..., section_index: 2, section_name: "Deep Dive")
+  → splits the deck into two sections at the current slide count boundary
+
+slide(action: "get-section-count", session_id: ...) → sectionCount: 2
+slide(action: "rename-section", session_id: ..., section_index: 2, section_name: "Details")
+```
 
 ## Shape Actions
 
