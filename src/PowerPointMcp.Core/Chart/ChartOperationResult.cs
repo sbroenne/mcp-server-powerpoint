@@ -22,4 +22,16 @@ public sealed class ChartOperationResult
 
     /// <summary>Number of series in the chart's data (for data queries).</summary>
     public int? SeriesCount { get; init; }
+
+    /// <summary>Chart or axis title text, for title queries/updates.</summary>
+    public string? Title { get; init; }
+
+    /// <summary>Whether the chart or axis currently has a title.</summary>
+    public bool? HasTitle { get; init; }
+
+    /// <summary>Axis type the operation acted on ("category" or "value"), echoed back.</summary>
+    public string? AxisType { get; init; }
+
+    /// <summary>Whether the chart's legend is currently visible.</summary>
+    public bool? LegendVisible { get; init; }
 }

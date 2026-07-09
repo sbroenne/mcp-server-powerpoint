@@ -37,6 +37,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
 
     private static readonly string[] ChartCategories = ["Q1", "Q2", "Q3"];
     private static readonly double[] ChartValues = [10.0, 20.0, 30.0];
+    private static readonly double[] SecondSeriesValues = [5.0, 12.0, 18.0];
 
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
@@ -815,6 +816,104 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         Assert.Equal(1, GetInt(getChartDataResult, "seriesCount"));
         _output.WriteLine("✓ chart.add-chart, get-chart-data (3 categories, 1 series)");
 
+        // 6b. chart.add-series, set/get-chart-title, set/get-axis-title (category + value), set/get-legend-visibility.
+        var addSeriesResult = await Call("chart", new()
+        {
+            ["action"] = "add-series",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = chartShapeIndex,
+            ["series_name"] = "Costs",
+            ["values"] = SecondSeriesValues
+        });
+        AssertSuccess(addSeriesResult, "chart.add-series");
+        Assert.Equal(2, GetInt(addSeriesResult, "seriesCount"));
+
+        var setChartTitleResult = await Call("chart", new()
+        {
+            ["action"] = "set-chart-title",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = chartShapeIndex,
+            ["title"] = "Quarterly Overview"
+        });
+        AssertSuccess(setChartTitleResult, "chart.set-chart-title");
+
+        var getChartTitleResult = await Call("chart", new()
+        {
+            ["action"] = "get-chart-title",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = chartShapeIndex
+        });
+        AssertSuccess(getChartTitleResult, "chart.get-chart-title");
+        Assert.Equal("Quarterly Overview", GetString(getChartTitleResult, "title"));
+
+        var setCategoryAxisTitleResult = await Call("chart", new()
+        {
+            ["action"] = "set-axis-title",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = chartShapeIndex,
+            ["axis_type"] = "category",
+            ["title"] = "Quarter"
+        });
+        AssertSuccess(setCategoryAxisTitleResult, "chart.set-axis-title (category)");
+
+        var getCategoryAxisTitleResult = await Call("chart", new()
+        {
+            ["action"] = "get-axis-title",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = chartShapeIndex,
+            ["axis_type"] = "category"
+        });
+        AssertSuccess(getCategoryAxisTitleResult, "chart.get-axis-title (category)");
+        Assert.Equal("Quarter", GetString(getCategoryAxisTitleResult, "title"));
+
+        var setValueAxisTitleResult = await Call("chart", new()
+        {
+            ["action"] = "set-axis-title",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = chartShapeIndex,
+            ["axis_type"] = "value",
+            ["title"] = "USD (thousands)"
+        });
+        AssertSuccess(setValueAxisTitleResult, "chart.set-axis-title (value)");
+
+        var getValueAxisTitleResult = await Call("chart", new()
+        {
+            ["action"] = "get-axis-title",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = chartShapeIndex,
+            ["axis_type"] = "value"
+        });
+        AssertSuccess(getValueAxisTitleResult, "chart.get-axis-title (value)");
+        Assert.Equal("USD (thousands)", GetString(getValueAxisTitleResult, "title"));
+
+        var setLegendVisibilityResult = await Call("chart", new()
+        {
+            ["action"] = "set-legend-visibility",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = chartShapeIndex,
+            ["visible"] = true
+        });
+        AssertSuccess(setLegendVisibilityResult, "chart.set-legend-visibility");
+
+        var getLegendVisibilityResult = await Call("chart", new()
+        {
+            ["action"] = "get-legend-visibility",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = chartShapeIndex
+        });
+        AssertSuccess(getLegendVisibilityResult, "chart.get-legend-visibility");
+        Assert.True(GetBool(getLegendVisibilityResult, "legendVisible"));
+        _output.WriteLine("✓ chart.add-series, set/get-chart-title, set/get-axis-title, set/get-legend-visibility");
+
         // 7. image.add-picture (small local PNG generated at test setup).
         var shapeCountBeforePictureResult = await Call("shape", new() { ["action"] = "get-count", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
         AssertSuccess(shapeCountBeforePictureResult, "shape.get-count (before picture)");
@@ -976,7 +1075,10 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(exportAllResult, "export.export-all-slides-to-images");
         Assert.True(Directory.Exists(exportAllDir), $"Expected export directory: {exportAllDir}");
         var exportedFiles = Directory.GetFiles(exportAllDir);
-        Assert.Equal(afterAddCount, exportedFiles.Length);
+        // Note: afterAddCount reflects the slide count after the initial slide.add-blank x2 step;
+        // slide.duplicate (step 2b) added one more slide since then, so the true total is
+        // afterDuplicateCount, not afterAddCount.
+        Assert.Equal(afterDuplicateCount, exportedFiles.Length);
         Assert.All(exportedFiles, f => Assert.True(new FileInfo(f).Length > 0, $"{f} is empty"));
         _output.WriteLine($"✓ export.export-all-slides-to-images → {exportedFiles.Length} files in {exportAllDir}");
 

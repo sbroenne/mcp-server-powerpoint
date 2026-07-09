@@ -100,7 +100,7 @@ saved.
 | Format shapes (fill/line/rotation/flip/z-order/shadow/group/name/alt-text) | `shape(action: "set-fill"/"get-fill"/"set-line"/"get-line"/"set-rotation"/"get-rotation"/"flip"/"set-z-order"/"set-shadow"/"get-shadow"/"group"/"ungroup"/"set-name"/"get-name"/"set-alt-text"/"get-alt-text")` |
 | Set/read text and font formatting | `textframe(action: "set-text"/"get-text"/"set-font-size"/"set-bold"/"set-font-color"/"set-italic"/"set-underline"/"set-font-name"/"set-alignment"/"set-bullet")` |
 | Tables | `table(action: "add-table"/"set-cell-text"/"get-cell-text"/"insert-row"/"delete-row"/"insert-column"/"delete-column"/"set-cell-fill"/"get-cell-fill"/"set-cell-border"/"get-cell-border"/"merge-cells")` |
-| Native charts | `chart(action: "add-chart"/"get-chart-data")` |
+| Native charts | `chart(action: "add-chart"/"get-chart-data"/"add-series"/"set-chart-title"/"get-chart-title"/"set-axis-title"/"get-axis-title"/"set-legend-visibility"/"get-legend-visibility")` |
 | Images | `image(action: "add-picture")` |
 | Speaker notes | `notes(action: "set-notes-text"/"get-notes-text")` |
 | Slide layouts | `layout(action: "set-layout"/"get-layout")` |
@@ -118,7 +118,7 @@ See `references/` for detailed guidance:
 - [Slides and shapes — add/position/size/delete](./references/slides-and-shapes.md)
 - [Text formatting — set-text, font size/bold/color](./references/text-formatting.md)
 - [Tables — add-table, cell text, row/column edits, fill/border formatting, merge](./references/tables.md)
-- [Charts — add-chart categories/series/values](./references/charts.md)
+- [Charts — add-chart/add-series categories/series/values, titles, legend](./references/charts.md)
 - [Images — add-picture](./references/images.md)
 - [Speaker notes — set/get notes](./references/speaker-notes.md)
 - [Layouts — set/get slide layout](./references/layouts.md)

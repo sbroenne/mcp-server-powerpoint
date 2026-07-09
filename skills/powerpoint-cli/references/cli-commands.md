@@ -41,7 +41,7 @@ model.
 
 Chart lifecycle and data operations.
 
-**Actions:** `add-chart`, `get-chart-data`
+**Actions:** `add-chart`, `get-chart-data`, `add-series`, `set-chart-title`, `get-chart-title`, `set-axis-title`, `get-axis-title`, `set-legend-visibility`, `get-legend-visibility`
 
 | Parameter | Description |
 |-----------|-------------|
@@ -52,9 +52,12 @@ Chart lifecycle and data operations.
 | `--width` | Width in points. (required for: add-chart) |
 | `--height` | Height in points. (required for: add-chart) |
 | `--categories` | Category labels (x-axis / pie slice labels). (required for: add-chart) (JSON format) |
-| `--series-name` | Name of the single data series. (required for: add-chart) |
-| `--values` | Data values, one per category. (required for: add-chart) (JSON format) |
-| `--shape-index` | (required for: get-chart-data) |
+| `--series-name` | Name of the data series. (required for: add-chart, add-series) |
+| `--values` | Data values, one per category. (required for: add-chart, add-series) (JSON format) |
+| `--shape-index` | (required for: get-chart-data, add-series, set-chart-title, get-chart-title, set-axis-title, get-axis-title, set-legend-visibility, get-legend-visibility) |
+| `--title` | Chart or axis title text. (required for: set-chart-title, set-axis-title) |
+| `--axis-type` | Axis to target: "category" or "value". (required for: set-axis-title, get-axis-title) |
+| `--visible` | Whether the legend is shown. (required for: set-legend-visibility) |
 
 ### export
 
