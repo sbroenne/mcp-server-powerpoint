@@ -21,62 +21,63 @@ applyTo: "src/**/*.cs"
 ```
 ComInterop (STA thread, OLE message filter, PresentationBatch work queue)
     ↓
-Core (domain commands: Presentation, Slide, Shape, TextFrame, Table, Notes, Layout, Image, Chart, Export)
+Core (domain commands: Presentation, Slide, Shape, TextFrame, Table, Notes, Layout, Master,
+      Animation, Image, Chart, Export — all but Presentation carry a [ServiceCategory] attribute)
     ↓
-McpServer (hand-written [McpServerToolType] classes, PresentationSessionRegistry)
-    ↓ (separately, not yet at parity)
-CLI (placeholder Program.cs)
+Service (PowerPointMcpService: session registry + dispatch, shared codebase)
+    ↓                                              ↓
+McpServer (in-process, ServiceBridge)        CLI / pptcli (named-pipe daemon, ServiceClient)
 ```
 
 - **ComInterop** owns all direct COM object lifetime and STA-thread marshaling. Core never talks
   to `Microsoft.Office.Interop.PowerPoint` types outside of a `batch.Execute(...)` callback.
 - **Core** commands take `IPresentationBatch batch` as an explicit first parameter (no ambient
-  session state, no `[ServiceCategory]` marker attributes — those exist in `mcp-server-excel` for
-  its generator pipeline, which this repo has NOT ported; see
-  `.squad/decisions.md` for the rationale).
-- **McpServer** tools are thin: resolve `sessionId` → `IPresentationBatch` via
-  `PresentationSessionRegistry.TryGet`, call the matching Core command, serialize the
-  `{Domain}OperationResult` to JSON. No domain logic lives in the `Tools/` classes.
+  session state). Domains other than `Presentation` also carry a `[ServiceCategory("name",
+  "PascalName")]` attribute (and an `[McpTool(...)]` attribute describing the generated tool) so
+  `PowerPointMcp.Generators.Mcp`/`.Cli` can discover them — mirroring `mcp-server-excel`'s
+  generator pipeline.
+- **Service** (`PowerPointMcp.Service`) resolves `sessionId` → `IPresentationBatch` via its own
+  `PresentationSessionRegistry`, then calls the matching Core command with the resolved batch.
+  Both entry points call into this same dispatch logic (`ServiceRegistry.{Category}.RouteAction`)
+  — MCP in-process via `ServiceBridge.ForwardToService`, CLI over a named pipe via
+  `ServiceClient`/`IPowerPointDaemonRpc`.
+- **McpServer** tools are thin either way: the 7 hand-written session/template tools
+  (`PresentationTools.cs`) resolve `sessionId` → batch directly via
+  `PresentationSessionRegistry.TryGet`; the 11 generated action-dispatch tools
+  (`slide`/`shape`/`chart`/etc., one per `[ServiceCategory]` domain) forward straight to the
+  shared `PowerPointMcpService`. No domain logic lives in either.
 
 ## Command Pattern
 
 ### Structure (per domain)
 ```
 Core/Shape/
-├── IShapeCommands.cs     # Interface (contract)
+├── IShapeCommands.cs     # Interface (contract) — [ServiceCategory] + [McpTool] attributes
 ├── ShapeCommands.cs      # Implementation
 └── ShapeOperationResult.cs  # Result DTO (Success/ErrorMessage + domain fields)
 ```
 
-### MCP Tool Routing (one static class per domain, not action-dispatch)
+### MCP Tool Routing (generated action-dispatch, one tool per domain)
 
-Unlike `mcp-server-excel`'s single action-dispatch tool per domain (e.g. `slide(action:'add')`),
-PowerPointMcp registers **one `[McpServerTool]` method per verb** (e.g. `add_slide`,
-`get_slide_count`, `delete_slide` as three separate MCP tools). This was a deliberate MVP choice
-(see `.squad/decisions.md`, Q2) to keep the hand-written tool classes simple before generators are
-introduced — do not silently convert existing tools to action-dispatch without an explicit
-architecture decision.
+Matching `mcp-server-excel`'s pattern, each `[ServiceCategory]` Core domain is exposed as a
+**single generated action-dispatch MCP tool** (e.g. `shape`) taking an `operation` parameter (e.g.
+`"shape.add-rectangle"`) rather than one hand-written `[McpServerTool]` method per verb. Do not
+hand-write a new per-verb tool class for a Core domain — add the domain's
+`[ServiceCategory]`/`[McpTool]` attributes and the generators emit the dispatch tool and its
+`pptcli` commands automatically. `Presentation` (session lifecycle) and its
+`ApplyTemplate`/`GetThemeName` methods are the deliberate exception and stay hand-written in
+`PresentationTools.cs`, since session create/open/save/close doesn't fit the per-session
+action-dispatch shape.
 
 ```csharp
-[McpServerToolType]
-public static class ShapeTools
+// Core: attribute-driven, discovered by the generators — no hand-written tool class needed.
+[ServiceCategory("shape", "Shape")]
+[McpTool("shape", Title = "Shape Operations", Destructive = true, Category = "content",
+    Description = "Add, count, delete, reposition, and resize shapes on a slide in an open presentation session.")]
+public interface IShapeCommands
 {
-    private static readonly ShapeCommands Commands = new();
-
-    [McpServerTool(Name = "add_rectangle")]
-    [Description("Add a rectangle shape to the given slide.")]
-    public static string AddRectangle(
-        [Description("The session id returned by open_presentation.")] string sessionId,
-        [Description("1-based index of the slide to add the rectangle to.")] int slideIndex,
-        float left, float top, float width, float height,
-        PresentationSessionRegistry registry)
-        => PowerPointToolsBase.ExecuteToolAction("add_rectangle", () =>
-        {
-            if (!registry.TryGet(sessionId, out var batch))
-                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
-
-            return SerializeResult(Commands.AddRectangle(batch, slideIndex, left, top, width, height));
-        });
+    ShapeOperationResult AddRectangle(IPresentationBatch batch, int slideIndex, float left, float top, float width, float height);
+    // ...
 }
 ```
 
@@ -94,15 +95,19 @@ objects beyond what the PIA's NoPIA embedding already manages for you.
 returns an error result. See `critical-rules.instructions.md` Rule 1b for the full rationale and
 example.
 
-## Session Ownership (In-Process Registry, No Out-of-Process Service)
+## Session Ownership (Service-Backed Registry, Two Entry Points)
 
-Unlike `mcp-server-excel`'s `ExcelMcp.Service` + named-pipe `ServiceBridge`, PowerPointMcp's MVP
-uses an **in-process singleton** `PresentationSessionRegistry`
-(`ConcurrentDictionary<string sessionId, IPresentationBatch>`) registered as a DI singleton /
-`IHostedService` inside the MCP stdio host itself. There is no separate daemon process, no named
-pipe RPC — the STA thread + work queue already live inside `PresentationBatch`, and the MCP host
-is itself long-lived per client connection.
+`PowerPointMcp.Service`'s `PowerPointMcpService` owns a `PresentationSessionRegistry`
+(`ConcurrentDictionary<string sessionId, IPresentationBatch>`) and is the single dispatch point
+both entry points use — mirroring `mcp-server-excel`'s `ExcelMcp.Service` + `ServiceBridge`:
 
-Do not introduce an out-of-process Service without an explicit architecture decision — it's a
-deliberate Phase-2 item (crash isolation, multi-client sharing, survives MCP restart), not
-required for current functionality.
+- **MCP Server** hosts `PowerPointMcpService` **in-process** (no pipe): DI singleton, called
+  directly via `ServiceBridge.ForwardToService`. The stdio host is itself long-lived per client
+  connection, so no RPC layer is needed on this side.
+- **CLI** (`pptcli`) talks to a **separate background daemon process** hosting the same
+  `PowerPointMcpService`, over a named pipe (`ServiceClient`/`IPowerPointDaemonRpc`,
+  `StreamJsonRpc`), auto-started on first `session open`/`session create` and reused by every
+  subsequent `pptcli` invocation referencing the same session id.
+
+The two entry points run as **separate processes** with **separate PowerPoint instances** and do
+**not** share live sessions with each other — only the same `Core`/`Service` codebase.
