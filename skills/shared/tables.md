@@ -1,7 +1,7 @@
 # Tables
 
-Reference for `table(action: "add-table", ...)`, `table(action: "set-cell-text", ...)`,
-`table(action: "get-cell-text", ...)`.
+Reference for `table` actions: creating tables, reading/writing cell text, inserting/deleting rows
+and columns, formatting cell fill and borders, and merging cells.
 
 ## Actions
 
@@ -10,22 +10,50 @@ Reference for `table(action: "add-table", ...)`, `table(action: "set-cell-text",
 | `table` | `add-table` | `session_id`, `slide_index`, `rows`, `columns`, `left`, `top`, `width`, `height` | Creates a table shape with the given dimensions; cells start empty. Returns `shapeIndex`. |
 | `table` | `set-cell-text` | `session_id`, `slide_index`, `shape_index`, `row`, `column`, `text` | `row`/`column` are 1-based. |
 | `table` | `get-cell-text` | `session_id`, `slide_index`, `shape_index`, `row`, `column` | Reads a single cell's text (`cellText`). |
+| `table` | `insert-row` | `session_id`, `slide_index`, `shape_index`, `before_row` (optional) | Inserts a new row before `before_row`; omit to append as the last row. Returns new `rowCount`. |
+| `table` | `delete-row` | `session_id`, `slide_index`, `shape_index`, `row` | Deletes the row at `row`. Returns new `rowCount`. |
+| `table` | `insert-column` | `session_id`, `slide_index`, `shape_index`, `before_column` (optional) | Inserts a new column before `before_column`; omit to append as the last column. Returns new `columnCount`. |
+| `table` | `delete-column` | `session_id`, `slide_index`, `shape_index`, `column` | Deletes the column at `column`. Returns new `columnCount`. |
+| `table` | `set-cell-fill` | `session_id`, `slide_index`, `shape_index`, `row`, `column`, `red`, `green`, `blue` | Sets a cell's solid fill color (0-255 per channel). Returns `colorRgb`. |
+| `table` | `get-cell-fill` | `session_id`, `slide_index`, `shape_index`, `row`, `column` | Reads a cell's solid fill color (`colorRgb`). |
+| `table` | `set-cell-border` | `session_id`, `slide_index`, `shape_index`, `row`, `column`, `border_type`, `red`/`green`/`blue` (optional), `weight` (optional), `dash_style` (optional), `visible` (optional) | Sets one border of a cell. All formatting params optional except `border_type`; omit a param to leave it unchanged. |
+| `table` | `get-cell-border` | `session_id`, `slide_index`, `shape_index`, `row`, `column`, `border_type` | Reads a cell border's color, weight, dash style, and visibility. |
+| `table` | `merge-cells` | `session_id`, `slide_index`, `shape_index`, `row`, `column`, `merge_to_row`, `merge_to_column` | Merges two adjacent cells into one. Returns new `rowCount`/`columnCount` (unchanged — grid dimensions stay the same after a merge). |
 
-## Fixed Dimensions
+## `border_type` values
 
-`rows` and `columns` are set at creation time by `add-table` — there is no "add row"/"add column"
-action in this surface. Decide the final table shape (including a header row, if any) before
-calling `add-table`. If you need a different size later, delete the table shape (`shape(action:
-"delete", ...)`) and re-create it with `add-table` at the corrected dimensions — cell content is
-not preserved automatically, so re-populate all cells after resizing this way.
+`ppBorderTop`, `ppBorderLeft`, `ppBorderBottom`, `ppBorderRight`, `ppBorderDiagonalDown`,
+`ppBorderDiagonalUp` (`PpBorderType` enum member names).
+
+## `dash_style` values
+
+Same curated `MsoLineDashStyle` subset as `shape(action: "set-line", ...)`: `msoLineSolid`,
+`msoLineSquareDot`, `msoLineRoundDot`, `msoLineDash`, `msoLineDashDot`, `msoLineDashDotDot`,
+`msoLineLongDash`, `msoLineLongDashDot`, `msoLineLongDashDotDot`.
+
+## Editing Table Structure
+
+Rows and columns no longer need to be fixed at creation time — use `insert-row`/`delete-row` and
+`insert-column`/`delete-column` to adjust an existing table's shape. Existing cell content in
+unaffected rows/columns is preserved automatically; there is no need to delete and re-create the
+table shape for a structural change.
+
+```
+table(action: "insert-row", session_id: ..., slide_index: ..., shape_index: ..., before_row: 2)
+  → rowCount
+
+table(action: "delete-column", session_id: ..., slide_index: ..., shape_index: ..., column: 4)
+  → columnCount
+```
 
 ## Populating a Table
 
 Header row is just row 1 — set it like any other row, typically with `set-bold`/`set-font-size`
 applied via the TextFrame tools once the cell text is set (tables share the shape/text-frame
 model, so `textframe(action: "set-bold"/"set-font-size"/"set-font-color", ...)` also work against
-a table's `shape_index` if you want uniform emphasis across the whole table; per-cell formatting
-beyond text content is not exposed by this tool surface).
+a table's `shape_index`). Per-cell fill color and borders can be set directly with
+`set-cell-fill`/`set-cell-border` — e.g. shading the header row or highlighting a specific data
+cell — without affecting the rest of the table.
 
 ```
 table(action: "add-table", session_id: ..., slide_index: ..., rows: 4, columns: 3, left: 60, top: 120, width: 500, height: 250)

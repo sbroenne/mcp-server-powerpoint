@@ -25,4 +25,19 @@ public sealed class TableOperationResult
 
     /// <summary>Cell text content, for GetCellText or after SetCellText.</summary>
     public string? CellText { get; init; }
+
+    /// <summary>Fill or border color as an RGB integer (0xBBGGRR, PowerPoint's native color order), if applicable.</summary>
+    public int? ColorRgb { get; init; }
+
+    /// <summary>The PpBorderType name of the border acted on, if applicable.</summary>
+    public string? BorderType { get; init; }
+
+    /// <summary>Border weight in points, if applicable.</summary>
+    public float? LineWeight { get; init; }
+
+    /// <summary>The MsoLineDashStyle name of the border, if applicable.</summary>
+    public string? DashStyleName { get; init; }
+
+    /// <summary>Whether the border is visible, if applicable.</summary>
+    public bool? Visible { get; init; }
 }

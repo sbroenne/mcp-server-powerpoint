@@ -559,6 +559,124 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         Assert.Equal("Cell A1", GetString(getCellTextResult, "cellText"));
         _output.WriteLine("✓ table.add-table/set-cell-text, get-cell-text round-trip");
 
+        // 5b. table row/column editing, cell fill/border formatting, and cell merge.
+        var insertRowResult = await Call("table", new()
+        {
+            ["action"] = "insert-row",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = tableShapeIndex
+        });
+        AssertSuccess(insertRowResult, "table.insert-row");
+        Assert.Equal(3, GetInt(insertRowResult, "rowCount"));
+
+        var deleteRowResult = await Call("table", new()
+        {
+            ["action"] = "delete-row",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = tableShapeIndex,
+            ["row"] = 3
+        });
+        AssertSuccess(deleteRowResult, "table.delete-row");
+        Assert.Equal(2, GetInt(deleteRowResult, "rowCount"));
+
+        var insertColumnResult = await Call("table", new()
+        {
+            ["action"] = "insert-column",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = tableShapeIndex
+        });
+        AssertSuccess(insertColumnResult, "table.insert-column");
+        Assert.Equal(3, GetInt(insertColumnResult, "columnCount"));
+
+        var deleteColumnResult = await Call("table", new()
+        {
+            ["action"] = "delete-column",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = tableShapeIndex,
+            ["column"] = 3
+        });
+        AssertSuccess(deleteColumnResult, "table.delete-column");
+        Assert.Equal(2, GetInt(deleteColumnResult, "columnCount"));
+
+        var setCellFillResult = await Call("table", new()
+        {
+            ["action"] = "set-cell-fill",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = tableShapeIndex,
+            ["row"] = 1,
+            ["column"] = 2,
+            ["red"] = 0,
+            ["green"] = 0,
+            ["blue"] = 255
+        });
+        AssertSuccess(setCellFillResult, "table.set-cell-fill");
+        Assert.Equal(16711680, GetInt(setCellFillResult, "colorRgb"));
+
+        var getCellFillResult = await Call("table", new()
+        {
+            ["action"] = "get-cell-fill",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = tableShapeIndex,
+            ["row"] = 1,
+            ["column"] = 2
+        });
+        AssertSuccess(getCellFillResult, "table.get-cell-fill");
+        Assert.Equal(16711680, GetInt(getCellFillResult, "colorRgb"));
+
+        var setCellBorderResult = await Call("table", new()
+        {
+            ["action"] = "set-cell-border",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = tableShapeIndex,
+            ["row"] = 1,
+            ["column"] = 1,
+            ["border_type"] = "ppBorderBottom",
+            ["red"] = 0,
+            ["green"] = 255,
+            ["blue"] = 0,
+            ["weight"] = 2f,
+            ["dash_style"] = "msoLineDash",
+            ["visible"] = true
+        });
+        AssertSuccess(setCellBorderResult, "table.set-cell-border");
+        Assert.Equal("ppBorderBottom", GetString(setCellBorderResult, "borderType"));
+
+        var getCellBorderResult = await Call("table", new()
+        {
+            ["action"] = "get-cell-border",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = tableShapeIndex,
+            ["row"] = 1,
+            ["column"] = 1,
+            ["border_type"] = "ppBorderBottom"
+        });
+        AssertSuccess(getCellBorderResult, "table.get-cell-border");
+        Assert.Equal(65280, GetInt(getCellBorderResult, "colorRgb"));
+
+        var mergeCellsResult = await Call("table", new()
+        {
+            ["action"] = "merge-cells",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = tableShapeIndex,
+            ["row"] = 2,
+            ["column"] = 1,
+            ["merge_to_row"] = 2,
+            ["merge_to_column"] = 2
+        });
+        AssertSuccess(mergeCellsResult, "table.merge-cells");
+        Assert.Equal(2, GetInt(mergeCellsResult, "rowCount"));
+        Assert.Equal(2, GetInt(mergeCellsResult, "columnCount"));
+        _output.WriteLine("✓ table row/column insert-delete, cell fill/border, and merge-cells");
+
         // 6. chart.add-chart (categories/series/values), get-chart-data.
         var addChartResult = await Call("chart", new()
         {

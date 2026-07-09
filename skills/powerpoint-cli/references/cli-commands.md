@@ -217,10 +217,11 @@ lifecycle commands, operating within an already-open session.
 
 ### table
 
-Table commands: add a table shape and read/write cell text. Operates within an already-open
-session, targeting a specific slide and table shape by their 1-based indices.
+Table commands: add a table shape, read/write cell text, insert/delete rows and columns, format
+cell fill and borders, and merge cells. Operates within an already-open session, targeting a
+specific slide and table shape by their 1-based indices.
 
-**Actions:** `add-table`, `set-cell-text`, `get-cell-text`
+**Actions:** `add-table`, `set-cell-text`, `get-cell-text`, `insert-row`, `delete-row`, `insert-column`, `delete-column`, `set-cell-fill`, `get-cell-fill`, `set-cell-border`, `get-cell-border`, `merge-cells`
 
 | Parameter | Description |
 |-----------|-------------|
@@ -231,10 +232,18 @@ session, targeting a specific slide and table shape by their 1-based indices.
 | `--top` | (required for: add-table) |
 | `--width` | (required for: add-table) |
 | `--height` | (required for: add-table) |
-| `--shape-index` | (required for: set-cell-text, get-cell-text) |
-| `--row` | (required for: set-cell-text, get-cell-text) |
-| `--column` | (required for: set-cell-text, get-cell-text) |
+| `--shape-index` | (required for: set-cell-text, get-cell-text, insert-row, delete-row, insert-column, delete-column, set-cell-fill, get-cell-fill, set-cell-border, get-cell-border, merge-cells) |
+| `--row` | (required for: set-cell-text, get-cell-text, delete-row, set-cell-fill, get-cell-fill, set-cell-border, get-cell-border, merge-cells) |
+| `--column` | (required for: set-cell-text, get-cell-text, delete-column, set-cell-fill, get-cell-fill, set-cell-border, get-cell-border, merge-cells) |
 | `--text` | (required for: set-cell-text) |
+| `--before-row` | Optional row to insert before (insert-row); omit to append. |
+| `--before-column` | Optional column to insert before (insert-column); omit to append. |
+| `--red` / `--green` / `--blue` | (required for: set-cell-fill); optional for set-cell-border (0-255 per channel). |
+| `--border-type` | (required for: set-cell-border, get-cell-border) — `PpBorderType` name: `ppBorderTop`, `ppBorderLeft`, `ppBorderBottom`, `ppBorderRight`, `ppBorderDiagonalDown`, `ppBorderDiagonalUp`. |
+| `--weight` | Optional border line weight (set-cell-border). |
+| `--dash-style` | Optional `MsoLineDashStyle` name, e.g. `msoLineSolid`, `msoLineDash` (set-cell-border). |
+| `--visible` | Optional border visibility (set-cell-border). |
+| `--merge-to-row` / `--merge-to-column` | (required for: merge-cells) — the adjacent cell to merge into. |
 
 ### textframe
 
