@@ -40,21 +40,29 @@ layout regressions that text-only automation simply cannot detect.
 
 ## 🎯 What You Can Do
 
-**31 tools across 10 domains:**
+**18 MCP tools with ~98 operations across 12 domains:**
 
-- 🗂️ **Presentation** (5 tools) — create, open, save, close, list sessions
-- 📑 **Slide** (3 tools) — add, count, delete
-- ▭ **Shape** (6 tools) — rectangle, text box, count, delete, position, size
-- ✏️ **TextFrame** (5 tools) — set/get text, font size, bold, font color
-- 📊 **Table** (3 tools) — add, set/get cell text
-- 🗣️ **Notes** (2 tools) — set/get speaker notes
-- 🖼️ **Layout** (2 tools) — set/get slide layout
-- 🖼️ **Image** (1 tool) — insert pictures
-- 📈 **Chart** (2 tools) — add chart, get chart data
-- 🖼️ **Export** (2 tools) — export a slide, or all slides, to images for visual verification
+- 🗂️ **Presentation** (5 ops) — create, open, save, close, list sessions
+- 🎨 **Template** (2 ops) — apply a `.potx`/`.pptx` template's masters/theme/layouts, read the current theme name
+- 📑 **Slide** (12 ops) — add, count, delete, duplicate, reorder, per-slide background color, sections
+- ▭ **Shape** (25 ops) — rectangles, text boxes, auto shapes, lines, connectors, fill/line/shadow,
+  rotation, flip, z-order, grouping, naming, alt text
+- ✏️ **TextFrame** (15 ops) — text, font size/name/color, bold, italic, underline, alignment, bullets
+- 📊 **Table** (12 ops) — add, cell text, insert/delete rows &amp; columns, cell fill/border, merge cells
+- 🗣️ **Notes** (2 ops) — set/get speaker notes
+- 🖼️ **Layout** (2 ops) — set/get slide layout
+- 🎭 **Master** (6 ops) — slide master title/body placeholder fonts, background color
+- 🎬 **Animation** (5 ops) — shape entrance/emphasis/exit effects, slide transitions
+- 🖼️ **Image** (1 op) — insert pictures
+- 📈 **Chart** (9 ops) — add chart, multi-series data, titles, axis titles, legend
+- 🖼️ **Export** (2 ops) — export a slide, or all slides, to images for visual verification
+
+Each domain other than Presentation/Template is exposed as a single **action-dispatch tool**
+(e.g. `shape`, `table`, `chart`) with an `operation` parameter selecting the specific action —
+keeping the tool list small for AI assistants while still exposing every operation.
 
 📚 **[Complete Feature Reference →](https://powerpointmcpserver.dev/features/)** — detailed
-documentation of all 31 tools
+documentation of every tool and operation
 
 ## 💬 Example Prompts
 
@@ -70,6 +78,9 @@ documentation of all 31 tools
 
 **Speaker notes:**
 - *"Write speaker notes for each slide summarizing the key talking point."*
+
+**Templates &amp; themes:**
+- *"Apply our corporate template to this deck without losing any of the slide content."*
 
 **Visual verification:**
 - *"Export slide 3 as an image and tell me if the chart overlaps the text box."*
