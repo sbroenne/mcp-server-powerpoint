@@ -122,7 +122,7 @@ slide, you're set up correctly.
 
 ## More information
 
-- [Complete Feature Reference](features.md) — all 31 tools across 10 domains
+- [Complete Feature Reference](features.md) — all 18 tools (~98 operations) across 12 domains
 - [MCP Server Documentation](mcp-server.md) — MCP tool reference
 - [CLI Documentation](cli.md) — CLI command reference
 - [Agent Skills](skills.md) — AI guidance for Claude Code, Cursor, Windsurf and more
