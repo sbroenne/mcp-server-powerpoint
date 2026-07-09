@@ -129,10 +129,15 @@ npx skills add sbroenne/mcp-server-powerpoint --skill powerpoint-mcp
 > 💡 The VS Code extension installs this skill automatically. Manual `npx skills add` is for other
 > MCP clients (Claude Code, Cursor, Windsurf, etc.).
 
-## ⚙️ How It Works — Live COM Automation
+## ⚙️ How It Works - COM Automation & Unified Service Architecture
 
 **PowerPointMcp uses Windows COM automation to control the actual PowerPoint application (not
 just `.pptx` files).**
+
+The **MCP Server** and **CLI** are two equal, first-class entry points. Each hosts its own
+**PowerPointMcp Service** that manages presentation sessions — the MCP Server runs it
+**in-process** (direct calls, no pipe), while the CLI uses a **background daemon** over a named
+pipe so sessions persist across CLI invocations:
 
 ```
 ┌──────────────────────┐        ┌──────────────────────┐
@@ -140,7 +145,17 @@ just `.pptx` files).**
 │  (AI assistants)     │        │  (coding agents)     │
 └──────────┬───────────┘        └──────────┬───────────┘
            │ in-process                     │ named pipe →
-           │ session registry               │ background daemon
+           │ (direct calls)                 │ background daemon
+           ▼                                ▼
+┌──────────────────────┐        ┌──────────────────────┐
+│  PowerPointMcp       │        │  PowerPointMcp       │
+│  Service             │        │  Service             │
+│  (session mgmt)      │        │  (daemon; sessions   │
+│                      │        │   persist across     │
+│                      │        │   CLI invocations)   │
+└──────────┬───────────┘        └──────────┬───────────┘
+           ▼                                ▼
+      Core Commands                    Core Commands
            ▼                                ▼
 ┌──────────────────────┐        ┌──────────────────────┐
 │  PowerPoint COM API  │        │  PowerPoint COM API  │
@@ -149,17 +164,19 @@ just `.pptx` files).**
 └──────────────────────┘        └──────────────────────┘
 ```
 
-The MCP Server keeps sessions **in-process** in a `PresentationSessionRegistry` (no pipe, no
-daemon) — sessions live as long as the MCP host process. The CLI instead keeps one PowerPoint
-instance alive in a small **background daemon** (`pptcli service run`, auto-started on first use),
-so a session persists across multiple separate `pptcli` invocations even though each command is
-its own OS process.
+Both entry points share the same Core Commands codebase, so every operation behaves identically.
+They are separate processes, though: each runs its own PowerPointMcp Service and its own
+PowerPoint instance, and they do **not** share live sessions with each other.
 
 **Key Benefits:**
-- ✅ **True fidelity** — every render, export, and edit happens inside real PowerPoint, so what you
-  get is exactly what PowerPoint would produce
-- ✅ **Session-based workflow** — `open_presentation`/`create_presentation` start a session; every
-  subsequent tool call operates on that session by `session_id`
+- ✅ **Two equal entry points** — every operation works identically through the MCP Server and
+  the CLI
+- ✅ **Persistent CLI sessions** — the CLI daemon keeps presentations open across multiple
+  `pptcli` calls, so scripts don't re-open files each time
+- ✅ **In-process MCP calls** — the MCP Server runs the service in-process (no pipe) for
+  low-latency automation
+- ✅ **Real PowerPoint automation** — drives the actual `PowerPoint.Application` via COM, not just
+  file parsing
 - ✅ **Export-to-verify** — close the loop on every visual change with a real rendered image
 
 ## 📋 Additional Information
@@ -190,10 +207,8 @@ Other projects by the author:
 - [Excel MCP Server](https://excelmcpserver.dev/) — AI-powered Excel automation via Power Query,
   DAX, VBA, and PivotTables
 - [Windows MCP Server](https://windowsmcpserver.dev/) — AI-powered Windows automation via MCP
-- [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering) — LLM-powered
-  testing framework for AI agents
 - [OBS Studio MCP Server](https://github.com/sbroenne/mcp-server-obs) — AI-powered OBS Studio
   automation
-- [HeyGen MCP Server](https://github.com/sbroenne/heygen-mcp) — MCP server for HeyGen AI video
-  generation
+- [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering) — LLM-powered
+  testing framework for AI agents
 
