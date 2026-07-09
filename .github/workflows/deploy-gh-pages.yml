@@ -7,6 +7,9 @@ on:
     paths:
       - 'gh-pages/**'
       - 'CHANGELOG.md'
+      - 'src/PowerPointMcp.McpServer/README.md'
+      - 'src/PowerPointMcp.CLI/README.md'
+      - 'skills/README.md'
       - '.github/workflows/deploy-gh-pages.yml'
   workflow_dispatch:
 
@@ -31,20 +34,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          ruby-version: '3.3'
-          bundler-cache: true
-          working-directory: gh-pages
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: gh-pages/requirements.txt
 
-      - name: Build with Jekyll
+      - name: Install dependencies
+        run: pip install -r gh-pages/requirements.txt
+
+      - name: Build with MkDocs
         working-directory: gh-pages
-        run: |
-          chmod +x build.sh
-          ./build.sh production
-        env:
-          JEKYLL_ENV: production
+        run: mkdocs build --strict --clean
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

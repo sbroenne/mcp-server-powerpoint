@@ -1,13 +1,10 @@
-# Jekyll build output
+# MkDocs build output
 _site/
 
-# Ruby/Bundler
-vendor/
-.bundle/
-Gemfile.lock
+# Generated documentation pages (produced by hooks.py from canonical repo docs)
+docs/_generated/
 
-# Generated content files (copied by build.sh from project root / src)
-_includes/changelog.md
-_includes/mcp-server.md
-_includes/cli.md
-_includes/skills.md
+# Python
+__pycache__/
+.venv/
+venv/

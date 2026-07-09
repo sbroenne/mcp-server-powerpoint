@@ -703,81 +703,36 @@ jobs:
         echo "Downloaded artifacts:"
         find artifacts -type f -name "*" | head -20
 
-    - name: Extract Changelog from [Unreleased]
-      id: changelog
-      run: |
-        CHANGELOG_FILE="CHANGELOG.md"
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
 
-        if [ -f "$CHANGELOG_FILE" ]; then
-          # Extract content between ## [Unreleased] and the next ## [ section
-          CONTENT=$(awk '/^## \[Unreleased\]/,/^## \[/' "$CHANGELOG_FILE" | head -n -1 | tail -n +2)
-          if [ -n "$CONTENT" ]; then
-            echo "Found changelog under [Unreleased]"
-            echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-            echo "$CONTENT" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "No content under [Unreleased]"
-            echo "CHANGELOG=See repository for details." >> $GITHUB_OUTPUT
-          fi
-        else
-          echo "CHANGELOG=See repository for details." >> $GITHUB_OUTPUT
-        fi
+    - name: Install changesets CLI
+      run: npm install --no-save --registry https://registry.npmjs.org/
+
+    - name: Compile changesets into CHANGELOG.md
+      id: changelog
+      shell: pwsh
+      env:
+        # @changesets/changelog-github needs a token to look up PR/commit info for changelog entries.
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        $releaseDate = Get-Date -AsUTC -Format 'yyyy-MM-dd'
+        ./scripts/Build-Changelog.ps1 -Version "${{ env.VERSION }}" -Date $releaseDate
+
+    - name: Render Release Notes
+      shell: pwsh
+      run: |
+        $template = Get-Content -Raw '.github/release-notes-template.md'
+        $changelogBody = Get-Content -Raw release_notes_body.md
+        $notes = $template.Replace('{{VERSION}}', $env:VERSION).Replace('{{CHANGELOG}}', $changelogBody.Trim())
+        Set-Content -Path release_notes.md -Value $notes -NoNewline
 
     - name: Create Release
       run: |
         VERSION=${{ env.VERSION }}
         TAG=${{ needs.version.outputs.tag }}
-
-        # Build release notes
-        cat > release_notes.md << 'NOTES'
-        ## PowerPointMcp ${{ env.VERSION }}
-
-        ### What's New
-        ${{ steps.changelog.outputs.CHANGELOG }}
-
-        ### Installation Options
-
-        **VS Code Extension** (Recommended)
-        - Search "PowerPoint MCP" in VS Code Marketplace and click Install
-        - Or download `powerpoint-mcp-${{ env.VERSION }}.vsix` below
-        - Self-contained: no .NET runtime or SDK required
-        - Auto-registers the MCP server via `mcpServerDefinitionProviders`
-        - Agent skills (powerpoint-mcp) registered automatically via `chatSkills`
-
-        **Claude Desktop (MCPB)**
-        - Download `powerpoint-mcp-${{ env.VERSION }}.mcpb` and double-click to install
-
-        **Standalone Executables** (Primary — no .NET runtime required)
-        - MCP Server: Download `PowerPointMcp-MCP-Server-${{ env.VERSION }}-windows.zip`, extract `mcp-powerpoint.exe`
-        - CLI: Download `PowerPointMcp-CLI-${{ env.VERSION }}-windows.zip`, extract `powerpointcli.exe`
-        - Add the exe(s) to your PATH, then configure your MCP client with command `mcp-powerpoint`
-
-        **NuGet (.NET Tool)** (Secondary — requires .NET 10 runtime)
-        ```powershell
-        dotnet tool install --global Sbroenne.PowerPointMcp.McpServer
-        dotnet tool install --global Sbroenne.PowerPointMcp.CLI
-        ```
-
-        **Agent Skills** (for AI coding assistants)
-        - VS Code Extension includes the skill automatically (powerpoint-mcp)
-        - Install via Skills CLI: `npx skills add sbroenne/mcp-server-powerpoint`
-        - Or download `powerpoint-skills-v${{ env.VERSION }}.zip`
-
-        **MCP Registry**
-        - Discoverable in the official MCP Registry as `io.github.sbroenne/mcp-server-powerpoint`
-
-        ### Requirements
-        - Windows OS
-        - Microsoft PowerPoint 2016+
-        - No .NET runtime required for VS Code Extension, MCPB, or standalone executables
-        - .NET 10 Runtime required for NuGet (.NET tool) installation only
-
-        ### Documentation
-        - [Website](https://powerpointmcpserver.dev/)
-        - [GitHub Repository](https://github.com/sbroenne/mcp-server-powerpoint)
-        - [Changelog](https://github.com/sbroenne/mcp-server-powerpoint/blob/main/CHANGELOG.md)
-        NOTES
 
         # Collect all artifacts
         ARTIFACTS=""
@@ -792,5 +747,34 @@ jobs:
         gh release create "$TAG" $ARTIFACTS \
           --title "PowerPointMcp $VERSION" \
           --notes-file release_notes.md
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Create a PR to commit the CHANGELOG.md/package.json changes produced by
+    # Build-Changelog.ps1 above (and the consumed .changeset/*.md deletions),
+    # since branch protection prevents direct push.
+    - name: Commit Changelog Update
+      run: |
+        VERSION=${{ env.VERSION }}
+        BRANCH="chore/changelog-v${VERSION}"
+
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        git checkout -b "$BRANCH"
+        git add CHANGELOG.md package.json .changeset
+        git commit -m "chore: update CHANGELOG.md for v${VERSION} release [skip ci]"
+        git push origin "$BRANCH"
+
+        gh pr create \
+          --base main \
+          --head "$BRANCH" \
+          --title "chore: update CHANGELOG.md for v${VERSION} release" \
+          --body "Automated post-release changelog update: compiles pending .changeset/*.md fragments into a new \`## [$VERSION]\` entry in CHANGELOG.md via \`scripts/Build-Changelog.ps1\`." \
+          --label "documentation"
+      # Intentionally NOT continue-on-error: a silently swallowed failure here
+      # (e.g. Actions lacking permission to create PRs) would leave a release
+      # missing its changelog commit-back PR. Let this step fail loudly so it
+      # gets noticed and fixed immediately.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -4,6 +4,9 @@ obj/
 *.user
 Directory.Build.props.user
 
+## Node (changesets tooling only — see docs/RELEASE-STRATEGY.md)
+node_modules/
+
 ## IDE
 .vs/
 .vscode/*
