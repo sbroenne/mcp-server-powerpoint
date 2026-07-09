@@ -14,33 +14,49 @@ repo's C# source), follow these rules:
 - `close_presentation` returns immediately; it does not wait for the PowerPoint process to fully
   exit. Do not poll for process exit.
 
+## Tool Shapes
+
+- Session-lifecycle tools (`create_presentation`, `open_presentation`, `save_presentation`,
+  `close_presentation`, `list_sessions`, `apply_template`, `get_theme_name`) are one-tool-per-verb
+  with camelCase arguments.
+- Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`, `notes`, `layout`,
+  `master`, `animation`, `export`) are action-dispatch: call as `tool(action: "kebab-action",
+  session_id: ..., snake_case_param: ...)`.
+
 ## Indexing Rules
 
-- `slideIndex`, `shapeIndex`, and table `row`/`column` are all **1-based**. The first slide is
-  `slideIndex=1`, not `0`.
+- `slide_index`, `shape_index`, and table `row`/`column` are all **1-based**. The first slide is
+  `slide_index=1`, not `0`.
 
 ## Verification Rules
 
 - After adding or repositioning any shape, table, chart, or image, call
-  `export_slide_to_image(sessionId, slideIndex, outputPath)` and inspect the result before moving
-  on or saving. Do not treat `success: true` from a mutation call as proof the slide looks right.
-- For a finished multi-slide deck, call `export_all_slides_to_images` once as a final pass.
+  `export(action: "export-slide-to-image", session_id: ..., slide_index: ..., output_path: ...)`
+  and inspect the result before moving on or saving. Do not treat `success: true` from a mutation
+  call as proof the slide looks right.
+- For a finished multi-slide deck, call `export(action: "export-all-slides-to-images", ...)` once
+  as a final pass.
 
 ## Behavioral Rules
 
 - Never ask the user clarifying questions you can answer yourself — use `list_sessions`,
-  `get_slide_count`, `get_shape_count`, `get_text`, `get_layout`, `get_cell_text`,
-  `get_chart_data`, `get_notes_text` to discover current state.
+  `slide(action: "get-count", ...)`, `shape(action: "get-count", ...)`, `textframe(action:
+  "get-text", ...)`, `layout(action: "get-layout", ...)`, `master(action: "get-title-font"/
+  "get-body-font"/"get-background-color", ...)`, `table(action: "get-cell-text", ...)`,
+  `chart(action: "get-chart-data", ...)`, `notes(action: "get-notes-text", ...)` to discover
+  current state.
 - Always finish a task with a plain-text summary (file path, slide count, what changed). Never
   end a turn with only a tool call.
-- Prefer targeted updates (`set_cell_text`, `set_shape_position`, `set_shape_size`) over
-  delete-and-recreate for small changes.
-- `add_chart` supports exactly one data series per call — there is no multi-series parameter.
-- There is no slide-reorder tool — plan the final slide order before calling `add_slide`.
+- Prefer targeted updates (`table(action: "set-cell-text", ...)`, `shape(action: "set-position",
+  ...)`, `shape(action: "set-size", ...)`) over delete-and-recreate for small changes.
+- `chart(action: "add-chart", ...)` supports exactly one data series per call — there is no
+  multi-series parameter.
+- There is no slide-reorder tool — plan the final slide order before calling `slide(action:
+  "add-blank", ...)`.
 
 ## Full Reference
 
 See `skills/shared/*.md` (also mirrored at `skills/powerpoint-mcp/references/*.md`) for complete
 guidance: `behavioral-rules.md`, `workflows.md`, `deck-builder.md`, `slides-and-shapes.md`,
 `text-formatting.md`, `tables.md`, `charts.md`, `images.md`, `speaker-notes.md`, `layouts.md`,
-`export-and-verify.md`, `anti-patterns.md`.
+`master.md`, `animations.md`, `export-and-verify.md`, `anti-patterns.md`.

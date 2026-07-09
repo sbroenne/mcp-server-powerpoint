@@ -109,4 +109,427 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
     }
+
+    [Fact]
+    public void AddAutoShape_WithOval_IncreasesShapeCount_AndEchoesShapeTypeName()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddAutoShape(batch, 1, "msoShapeOval", 10f, 20f, 100f, 50f);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Null(result.ErrorMessage);
+        Assert.Equal(1, result.ShapeIndex);
+        Assert.Equal(1, result.ShapeCount);
+        Assert.Equal("msoShapeOval", result.ShapeTypeName);
+    }
+
+    [Fact]
+    public void AddAutoShape_WithRightArrow_IncreasesShapeCount()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddAutoShape(batch, 1, "msoShapeRightArrow", 0f, 0f, 80f, 40f);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.ShapeCount);
+    }
+
+    [Fact]
+    public void AddAutoShape_WithUnrecognizedShapeType_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddAutoShape(batch, 1, "msoShapeDoesNotExist", 0f, 0f, 10f, 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void AddAutoShape_WithInvalidSlideIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddAutoShape(batch, 99, "msoShapeOval", 0f, 0f, 10f, 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void AddLine_IncreasesShapeCount_AndEchoesCoordinates()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddLine(batch, 1, 10f, 20f, 200f, 100f);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.ShapeIndex);
+        Assert.Equal(1, result.ShapeCount);
+        Assert.Equal(10f, result.BeginX);
+        Assert.Equal(20f, result.BeginY);
+        Assert.Equal(200f, result.EndX);
+        Assert.Equal(100f, result.EndY);
+    }
+
+    [Fact]
+    public void AddLine_WithInvalidSlideIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddLine(batch, 99, 0f, 0f, 10f, 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void AddConnector_WithStraightType_IncreasesShapeCount_AndEchoesTypeAndCoordinates()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddConnector(batch, 1, "msoConnectorStraight", 5f, 5f, 150f, 75f);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.ShapeIndex);
+        Assert.Equal(1, result.ShapeCount);
+        Assert.Equal("msoConnectorStraight", result.ConnectorTypeName);
+        Assert.Equal(5f, result.BeginX);
+        Assert.Equal(5f, result.BeginY);
+        Assert.Equal(150f, result.EndX);
+        Assert.Equal(75f, result.EndY);
+    }
+
+    [Fact]
+    public void AddConnector_WithElbowType_IncreasesShapeCount()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddConnector(batch, 1, "msoConnectorElbow", 0f, 0f, 100f, 100f);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.ShapeCount);
+    }
+
+    [Fact]
+    public void AddConnector_WithUnrecognizedConnectorType_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddConnector(batch, 1, "msoConnectorDoesNotExist", 0f, 0f, 10f, 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void AddConnector_WithInvalidSlideIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddConnector(batch, 99, "msoConnectorStraight", 0f, 0f, 10f, 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetFill_AndGetFill_RoundTripsColor()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var setResult = _commands.SetFill(batch, 1, 1, 255, 0, 0);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal(255, setResult.ColorRgb);
+
+        var getResult = _commands.GetFill(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal(255, getResult.ColorRgb);
+    }
+
+    [Fact]
+    public void SetFill_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.SetFill(batch, 1, 99, 255, 0, 0);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetLine_AndGetLine_RoundTripsColorWeightDashStyleAndVisibility()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var setResult = _commands.SetLine(batch, 1, 1, red: 0, green: 255, blue: 0, weight: 3f, dashStyle: "msoLineDash", visible: true);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal(65280, setResult.ColorRgb);
+        Assert.Equal(3f, setResult.LineWeight);
+        Assert.Equal("msoLineDash", setResult.DashStyleName);
+        Assert.True(setResult.Visible);
+
+        var getResult = _commands.GetLine(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal(65280, getResult.ColorRgb);
+        Assert.Equal(3f, getResult.LineWeight);
+        Assert.Equal("msoLineDash", getResult.DashStyleName);
+        Assert.True(getResult.Visible);
+    }
+
+    [Fact]
+    public void SetLine_WithUnrecognizedDashStyle_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var result = _commands.SetLine(batch, 1, 1, dashStyle: "msoLineDoesNotExist");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetLine_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.SetLine(batch, 1, 99, weight: 3f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetRotation_AndGetRotation_RoundTripsDegrees()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var setResult = _commands.SetRotation(batch, 1, 1, 45f);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal(45f, setResult.Rotation);
+
+        var getResult = _commands.GetRotation(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal(45f, getResult.Rotation);
+    }
+
+    [Fact]
+    public void SetRotation_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.SetRotation(batch, 1, 99, 45f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void Flip_WithHorizontalDirection_Succeeds()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var result = _commands.Flip(batch, 1, 1, "horizontal");
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal("horizontal", result.FlipDirection);
+    }
+
+    [Fact]
+    public void Flip_WithVerticalDirection_Succeeds()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var result = _commands.Flip(batch, 1, 1, "vertical");
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal("vertical", result.FlipDirection);
+    }
+
+    [Fact]
+    public void Flip_WithUnrecognizedDirection_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var result = _commands.Flip(batch, 1, 1, "diagonal");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetZOrder_WithBringToFront_Succeeds()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+        _commands.AddRectangle(batch, 1, 10f, 10f, 50f, 50f);
+
+        var result = _commands.SetZOrder(batch, 1, 1, "bring-to-front");
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal("bring-to-front", result.ZOrderCommand);
+    }
+
+    [Fact]
+    public void SetZOrder_WithUnrecognizedCommand_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var result = _commands.SetZOrder(batch, 1, 1, "bring-in-front-of-text");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetShadow_AndGetShadow_RoundTripsVisibility()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var setResult = _commands.SetShadow(batch, 1, 1, true);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.True(setResult.Visible);
+
+        var getResult = _commands.GetShadow(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.True(getResult.Visible);
+
+        var offResult = _commands.SetShadow(batch, 1, 1, false);
+        Assert.True(offResult.Success, offResult.ErrorMessage);
+        Assert.False(offResult.Visible);
+    }
+
+    [Fact]
+    public void Group_TwoShapes_ReducesShapeCountByOne_AndUngroupRestoresIt()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+        _commands.AddRectangle(batch, 1, 60f, 0f, 50f, 50f);
+
+        var groupResult = _commands.Group(batch, 1, [1, 2]);
+        Assert.True(groupResult.Success, groupResult.ErrorMessage);
+        Assert.Equal(1, groupResult.ShapeCount);
+
+        var ungroupResult = _commands.Ungroup(batch, 1, 1);
+        Assert.True(ungroupResult.Success, ungroupResult.ErrorMessage);
+        Assert.Equal(2, ungroupResult.UngroupedShapeCount);
+        Assert.Equal(2, ungroupResult.ShapeCount);
+    }
+
+    [Fact]
+    public void Group_WithFewerThanTwoIndexes_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var result = _commands.Group(batch, 1, [1]);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void Group_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var result = _commands.Group(batch, 1, [1, 99]);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetName_AndGetName_RoundTripsName()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var setResult = _commands.SetName(batch, 1, 1, "MyRectangle");
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal("MyRectangle", setResult.Name);
+
+        var getResult = _commands.GetName(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal("MyRectangle", getResult.Name);
+    }
+
+    [Fact]
+    public void SetName_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.SetName(batch, 1, 99, "MyRectangle");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetAltText_AndGetAltText_RoundTripsText()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var setResult = _commands.SetAltText(batch, 1, 1, "A red rectangle");
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal("A red rectangle", setResult.AltText);
+
+        var getResult = _commands.GetAltText(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal("A red rectangle", getResult.AltText);
+    }
+
+    [Fact]
+    public void SetAltText_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.SetAltText(batch, 1, 99, "A red rectangle");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
 }

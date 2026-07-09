@@ -7,12 +7,11 @@ turns — avoid them.
 
 ### The Problem
 
-Calling any tool other than `create_presentation`/`open_presentation` without a valid
-`sessionId`:
+Calling a domain tool without a valid `session_id`:
 
 ```
 WRONG:
-add_slide(sessionId: "made-up-id")  → success: false, "Unknown sessionId"
+slide(action: "add-blank", session_id: "made-up-id")  → success: false, "Unknown sessionId"
 ```
 
 ### The Solution
@@ -23,19 +22,19 @@ Always open a session first and reuse the exact `sessionId` string it returns:
 CORRECT:
 result = open_presentation(filePath: "C:\Decks\q4.pptx")
 sessionId = result.sessionId
-add_slide(sessionId)
+slide(action: "add-blank", session_id: sessionId)
 ```
 
 ## Wrong Index Base (0-Based Instead of 1-Based)
 
 ### The Problem
 
-Treating `slideIndex`/`shapeIndex`/table `row`/`column` as 0-based, matching most programming
+Treating `slide_index`/`shape_index`/table `row`/`column` as 0-based, matching most programming
 languages:
 
 ```
 WRONG: assuming the first slide is index 0
-get_shape_count(sessionId, slideIndex: 0)  → success: false (out of range)
+shape(action: "get-count", session_id: ..., slide_index: 0)  → success: false (out of range)
 ```
 
 ### The Solution
@@ -44,7 +43,7 @@ Every index in this tool surface is 1-based, matching PowerPoint's own object mo
 
 ```
 CORRECT:
-get_shape_count(sessionId, slideIndex: 1)  → the first slide
+shape(action: "get-count", session_id: ..., slide_index: 1)  → the first slide
 ```
 
 See `behavioral-rules.md` for the full indexing rule.
@@ -57,8 +56,8 @@ Making changes, then closing without saving:
 
 ```
 WRONG:
-add_slide(sessionId)
-set_text(sessionId, ...)
+slide(action: "add-blank", session_id: ...)
+textframe(action: "set-text", session_id: ..., ...)
 close_presentation(sessionId)   → changes since last save are LOST
 ```
 
@@ -68,8 +67,8 @@ Always call `save_presentation` before `close_presentation` when changes were ma
 
 ```
 CORRECT:
-add_slide(sessionId)
-set_text(sessionId, ...)
+slide(action: "add-blank", session_id: ...)
+textframe(action: "set-text", session_id: ..., ...)
 save_presentation(sessionId)
 close_presentation(sessionId)
 ```
@@ -102,7 +101,7 @@ Trusting `success: true` from a shape/chart/table/image call as proof the slide 
 
 ```
 WRONG:
-add_chart(sessionId, slideIndex, ...)  → success: true
+chart(action: "add-chart", session_id: ..., slide_index: ..., ...)  → success: true
 save_presentation(sessionId)
 close_presentation(sessionId)
 # Never looked at the rendered slide — chart could be mis-sized, overlapping, or have wrong data
@@ -115,8 +114,8 @@ Export and look at the result before saving/closing when visual content was adde
 
 ```
 CORRECT:
-add_chart(sessionId, slideIndex, ...)
-export_slide_to_image(sessionId, slideIndex, outputPath)
+chart(action: "add-chart", session_id: ..., slide_index: ..., ...)
+export(action: "export-slide-to-image", session_id: ..., slide_index: ..., output_path: ...)
 # Inspect the image, fix issues found
 save_presentation(sessionId)
 close_presentation(sessionId)
@@ -130,22 +129,22 @@ Deleting and re-creating a shape/table/chart to make a small change:
 
 ```
 WRONG: fixing one table cell
-delete_shape(sessionId, slideIndex, shapeIndex)
-add_table(sessionId, slideIndex, rows=4, columns=3, ...)
+shape(action: "delete", session_id: ..., slide_index: ..., shape_index: ...)
+table(action: "add-table", session_id: ..., slide_index: ..., rows: 4, columns: 3, ...)
 # ... re-populate every cell from scratch ...
 ```
 
 ### The Solution
 
-Use the targeted update tool for the specific thing that changed:
+Use the targeted update action for the specific thing that changed:
 
 ```
 CORRECT:
-set_cell_text(sessionId, slideIndex, shapeIndex, row=3, column=2, text="$1.8M")
+table(action: "set-cell-text", session_id: ..., slide_index: ..., shape_index: ..., row: 3, column: 2, text: "$1.8M")
 ```
 
-Same principle for shapes: prefer `set_shape_position`/`set_shape_size` over
-delete-and-recreate (see `slides-and-shapes.md`).
+Same principle for shapes: prefer `shape(action: "set-position", ...)`/`shape(action: "set-size",
+...)` over delete-and-recreate (see `slides-and-shapes.md`).
 
 ## Session Leaks
 
@@ -185,24 +184,25 @@ close_presentation(s2)
 
 ### The Problem
 
-Trying to pass multiple series into a single `add_chart` call — the tool only accepts one
-`seriesName` + one `values` array (see `charts.md`).
+Trying to pass multiple series into a single `chart(action: "add-chart", ...)` call — the action
+only accepts one `series_name` + one `values` array (see `charts.md`).
 
 ### The Solution
 
-Pick the single most important series, or place multiple `add_chart` calls side-by-side on the
-slide with separate labels, rather than expecting a multi-series parameter that doesn't exist in
-this surface.
+Pick the single most important series, or place multiple `chart(action: "add-chart", ...)` calls
+side-by-side on the slide with separate labels, rather than expecting a multi-series parameter
+that doesn't exist in this surface.
 
 ## Guessing Layout Names
 
 ### The Problem
 
-Passing an invented or approximate `layoutName` to `set_layout` (e.g., `"Blank"`, `"TitleSlide"`):
+Passing an invented or approximate `layout_name` to `layout(action: "set-layout", ...)` (e.g.,
+`"Blank"`, `"TitleSlide"`):
 
 ```
 WRONG:
-set_layout(sessionId, slideIndex, layoutName: "TitleSlide")  → success: false
+layout(action: "set-layout", session_id: ..., slide_index: ..., layout_name: "TitleSlide")  → success: false
 ```
 
 ### The Solution
@@ -214,19 +214,19 @@ Use the exact `PpSlideLayout` enum member name (`ppLayoutTitle`, `ppLayoutBlank`
 
 ### The Problem
 
-Repeating `list_sessions`, `get_slide_count`, or `get_shape_count` multiple times without acting
-on the result:
+Repeating `list_sessions`, `slide(action: "get-count", ...)`, or `shape(action: "get-count", ...)`
+multiple times without acting on the result:
 
 ```
 WRONG:
-get_shape_count(sessionId, slideIndex)  → 3
-get_shape_count(sessionId, slideIndex)  → 3 (same call again)
-list_sessions()                          → unrelated re-check
-get_shape_count(sessionId, slideIndex)  → 3 (again)
+shape(action: "get-count", session_id: ..., slide_index: ...)  → 3
+shape(action: "get-count", session_id: ..., slide_index: ...)  → 3 (same call again)
+list_sessions()                                                → unrelated re-check
+shape(action: "get-count", session_id: ..., slide_index: ...)  → 3 (again)
 ```
 
 ### The Solution
 
-Call a discovery tool once, then act on what it returned. If a session genuinely expired,
+Call a discovery action once, then act on what it returned. If a session genuinely expired,
 re-open it once and continue — don't loop on the same discovery call more than twice in a row
 (see `behavioral-rules.md`).

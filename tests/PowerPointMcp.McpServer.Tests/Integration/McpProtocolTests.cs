@@ -34,17 +34,19 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     private Task? _serverTask;
 
     /// <summary>
-    /// The full 33-tool MCP surface across all 10 domains (Presentation, Slide, Shape, TextFrame,
-    /// Table, Notes, Layout, Image, Chart, Export) — the source of truth for this test, enumerated
-    /// directly from every <c>[McpServerTool]</c> in <c>src/PowerPointMcp.McpServer/Tools/*.cs</c>.
-    /// If this set changes, update it deliberately alongside the tool surface (see
-    /// .squad/decisions/inbox/brett-remaining-domain-tools.md for the 5→31 tool-count change, and
-    /// .squad/decisions/inbox/copilot-issue3-moduleinitializer-root-cause.md for the 31→33 change
-    /// adding apply_template/get_theme_name for .potx template-apply support).
+    /// The MCP tool surface: 7 hand-written session-lifecycle tools (Presentation) plus one
+    /// generated action-dispatch tool per remaining Core domain (Slide, Shape, TextFrame, Table,
+    /// Notes, Layout, Master, Animation, Image, Chart, Export) — enumerated directly from every
+    /// <c>[McpServerTool]</c> in <c>src/PowerPointMcp.McpServer/Tools/*.cs</c> (hand-written) and
+    /// the generated <c>PowerPointMcp.Generators.Mcp</c> output (one action-dispatch tool per
+    /// domain, matching mcp-server-excel's/this repo's own CLI's action-dispatch shape). If this
+    /// set changes, update it deliberately alongside the tool surface (see .squad/decisions.md
+    /// for the 31→16 tool-count change that replaced 31 per-verb hand-written domain tools with 9
+    /// generated action-dispatch tools).
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
-        // PresentationTools.cs (7)
+        // PresentationTools.cs (7, hand-written — session lifecycle)
         "create_presentation",
         "open_presentation",
         "save_presentation",
@@ -52,41 +54,18 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         "list_sessions",
         "apply_template",
         "get_theme_name",
-        // SlideTools.cs (3)
-        "add_slide",
-        "get_slide_count",
-        "delete_slide",
-        // ShapeTools.cs (6)
-        "add_rectangle",
-        "add_text_box",
-        "get_shape_count",
-        "delete_shape",
-        "set_shape_position",
-        "set_shape_size",
-        // TextFrameTools.cs (5)
-        "set_text",
-        "get_text",
-        "set_font_size",
-        "set_bold",
-        "set_font_color",
-        // TableTools.cs (3)
-        "add_table",
-        "set_cell_text",
-        "get_cell_text",
-        // NotesTools.cs (2)
-        "set_notes_text",
-        "get_notes_text",
-        // LayoutTools.cs (2)
-        "set_layout",
-        "get_layout",
-        // ImageTools.cs (1)
-        "add_picture",
-        // ChartTools.cs (2)
-        "add_chart",
-        "get_chart_data",
-        // ExportTools.cs (2)
-        "export_slide_to_image",
-        "export_all_slides_to_images"
+        // Generated action-dispatch tools (11, one per remaining Core domain)
+        "slide",
+        "shape",
+        "textframe",
+        "table",
+        "notes",
+        "layout",
+        "master",
+        "animation",
+        "image",
+        "chart",
+        "export"
     ];
 
     public McpProtocolTests(ITestOutputHelper output)
@@ -126,11 +105,11 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// THE core protocol proof: exactly the 33 expected tools (across all 10 domains) are
-    /// discoverable via <c>tools/list</c> — no more, no less.
+    /// THE core protocol proof: exactly the 18 expected tools (7 hand-written + 11 generated
+    /// action-dispatch) are discoverable via <c>tools/list</c> — no more, no less.
     /// </summary>
     [Fact]
-    public async Task ListTools_ReturnsExactlyTheThirtyThreeExpectedTools()
+    public async Task ListTools_ReturnsExactlyTheExpectedTools()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
 
@@ -152,13 +131,13 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// The DI-injected <c>PresentationSessionRegistry registry</c> parameter on
-    /// open_presentation/save_presentation/close_presentation/list_sessions must never leak into
-    /// the JSON schema the client sees — it's satisfied from the host's service provider, not
-    /// supplied by the caller.
+    /// The DI-injected <c>PresentationSessionRegistry registry</c> parameter (hand-written
+    /// session-lifecycle tools) and <c>PowerPointMcpService service</c> parameter (generated
+    /// action-dispatch tools) must never leak into the JSON schema the client sees — both are
+    /// satisfied from the host's service provider, not supplied by the caller.
     /// </summary>
     [Fact]
-    public async Task ListTools_NoToolSchemaExposesTheRegistryParameter()
+    public async Task ListTools_NoToolSchemaExposesDiInjectedParameters()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
         Assert.NotEmpty(tools);
@@ -174,11 +153,12 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
             foreach (var property in properties.EnumerateObject())
             {
                 Assert.False(
-                    string.Equals(property.Name, "registry", StringComparison.OrdinalIgnoreCase),
-                    $"Tool '{tool.Name}' leaked the DI-injected 'registry' parameter into its schema: {schema.GetRawText()}");
+                    string.Equals(property.Name, "registry", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(property.Name, "service", StringComparison.OrdinalIgnoreCase),
+                    $"Tool '{tool.Name}' leaked a DI-injected parameter into its schema: {schema.GetRawText()}");
             }
 
-            _output.WriteLine($"✓ {tool.Name}: schema has no 'registry' parameter ({properties.EnumerateObject().Count()} properties)");
+            _output.WriteLine($"✓ {tool.Name}: schema has no DI-injected parameter ({properties.EnumerateObject().Count()} properties)");
         }
     }
 

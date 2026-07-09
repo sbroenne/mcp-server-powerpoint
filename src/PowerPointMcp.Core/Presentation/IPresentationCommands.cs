@@ -13,7 +13,7 @@ namespace Sbroenne.PowerPointMcp.Core.Presentation;
 /// </remarks>
 [ServiceCategory("presentation", "Presentation")]
 [McpTool("presentation", Title = "Presentation Lifecycle Operations", Destructive = true, Category = "lifecycle",
-    Description = "Create, validate, and save PowerPoint presentation files.")]
+    Description = "Create, validate, and save PowerPoint presentation files.", SkipMcpToolGeneration = true)]
 public interface IPresentationCommands
 {
     /// <summary>

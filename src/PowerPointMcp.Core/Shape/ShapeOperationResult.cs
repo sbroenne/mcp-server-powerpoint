@@ -32,4 +32,52 @@ public sealed class ShapeOperationResult
 
     /// <summary>Shape height in points, if applicable.</summary>
     public float? Height { get; init; }
+
+    /// <summary>The MsoAutoShapeType name used to create the shape, for AddAutoShape.</summary>
+    public string? ShapeTypeName { get; init; }
+
+    /// <summary>The MsoConnectorType name used to create the connector, for AddConnector.</summary>
+    public string? ConnectorTypeName { get; init; }
+
+    /// <summary>X coordinate of the line/connector's start point in points, if applicable.</summary>
+    public float? BeginX { get; init; }
+
+    /// <summary>Y coordinate of the line/connector's start point in points, if applicable.</summary>
+    public float? BeginY { get; init; }
+
+    /// <summary>X coordinate of the line/connector's end point in points, if applicable.</summary>
+    public float? EndX { get; init; }
+
+    /// <summary>Y coordinate of the line/connector's end point in points, if applicable.</summary>
+    public float? EndY { get; init; }
+
+    /// <summary>Fill or line color as an RGB integer (0xBBGGRR, PowerPoint's native color order), if applicable.</summary>
+    public int? ColorRgb { get; init; }
+
+    /// <summary>Line/border weight in points, if applicable.</summary>
+    public float? LineWeight { get; init; }
+
+    /// <summary>The MsoLineDashStyle name of the shape's line/border, if applicable.</summary>
+    public string? DashStyleName { get; init; }
+
+    /// <summary>Whether the shape's line/border or shadow is visible, if applicable.</summary>
+    public bool? Visible { get; init; }
+
+    /// <summary>Shape rotation in degrees clockwise from upright, if applicable.</summary>
+    public float? Rotation { get; init; }
+
+    /// <summary>The flip direction applied ("horizontal" or "vertical"), if applicable.</summary>
+    public string? FlipDirection { get; init; }
+
+    /// <summary>The z-order command applied, if applicable.</summary>
+    public string? ZOrderCommand { get; init; }
+
+    /// <summary>Number of shapes produced by an Ungroup operation, if applicable.</summary>
+    public int? UngroupedShapeCount { get; init; }
+
+    /// <summary>Shape name, if applicable.</summary>
+    public string? Name { get; init; }
+
+    /// <summary>Shape alternative text (accessibility description), if applicable.</summary>
+    public string? AltText { get; init; }
 }

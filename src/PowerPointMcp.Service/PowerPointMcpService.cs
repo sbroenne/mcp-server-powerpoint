@@ -3,9 +3,12 @@ using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Core.Animation;
 using Sbroenne.PowerPointMcp.Core.Chart;
+using Sbroenne.PowerPointMcp.Core.Export;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Layout;
+using Sbroenne.PowerPointMcp.Core.Master;
 using Sbroenne.PowerPointMcp.Core.Notes;
 using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Shape;
@@ -49,9 +52,12 @@ public sealed class PowerPointMcpService : IDisposable
     private readonly TextFrameCommands _textFrameCommands = new();
     private readonly TableCommands _tableCommands = new();
     private readonly ChartCommands _chartCommands = new();
+    private readonly ExportCommands _exportCommands = new();
     private readonly ImageCommands _imageCommands = new();
     private readonly NotesCommands _notesCommands = new();
     private readonly LayoutCommands _layoutCommands = new();
+    private readonly MasterCommands _masterCommands = new();
+    private readonly AnimationCommands _animationCommands = new();
 
     /// <summary>Gets the UTC time this daemon instance started.</summary>
     public DateTime StartTime => _startTime;
@@ -62,10 +68,13 @@ public sealed class PowerPointMcpService : IDisposable
     /// <summary>
     /// Gets the session registry this daemon instance owns. Exposed so the MCP server can host a
     /// <see cref="PowerPointMcpService"/> in-process and hand this SAME registry instance to its
-    /// MCP tools via dependency injection — mirroring mcp-server-excel's architecture, where one
-    /// shared Service class is consumed two ways: in-process (direct calls, no pipe) by the MCP
-    /// server, and via named-pipe/StreamJsonRpc by the separate CLI daemon process. The MCP server
-    /// never calls <see cref="ProcessAsync"/>; it only needs the underlying session store.
+    /// hand-written session-lifecycle tools (<c>PresentationTools</c>) via dependency injection —
+    /// mirroring mcp-server-excel's architecture, where one shared Service class is consumed two
+    /// ways: in-process (direct calls, no pipe) by the MCP server, and via
+    /// named-pipe/StreamJsonRpc by the separate CLI daemon process. The generated domain MCP
+    /// tools (Slide, Shape, TextFrame, Table, Chart, Image, Notes, Layout, Master, Export) DO call
+    /// <see cref="ProcessAsync"/> in-process via <c>ServiceBridge.ForwardToService</c> — only the
+    /// hand-written <c>PresentationTools</c> bypass it and use <see cref="Sessions"/> directly.
     /// </summary>
     public PresentationSessionRegistry Sessions => _sessions;
 
@@ -237,6 +246,9 @@ public sealed class PowerPointMcpService : IDisposable
                 "chart" => DispatchSimple<ChartAction>(action, request,
                     ServiceRegistry.Chart.TryParseAction,
                     (a, batch) => ServiceRegistry.Chart.DispatchToCore(_chartCommands, a, batch, request.Args)),
+                "export" => DispatchSimple<ExportAction>(action, request,
+                    ServiceRegistry.Export.TryParseAction,
+                    (a, batch) => ServiceRegistry.Export.DispatchToCore(_exportCommands, a, batch, request.Args)),
                 "image" => DispatchSimple<ImageAction>(action, request,
                     ServiceRegistry.Image.TryParseAction,
                     (a, batch) => ServiceRegistry.Image.DispatchToCore(_imageCommands, a, batch, request.Args)),
@@ -246,6 +258,12 @@ public sealed class PowerPointMcpService : IDisposable
                 "layout" => DispatchSimple<LayoutAction>(action, request,
                     ServiceRegistry.Layout.TryParseAction,
                     (a, batch) => ServiceRegistry.Layout.DispatchToCore(_layoutCommands, a, batch, request.Args)),
+                "master" => DispatchSimple<MasterAction>(action, request,
+                    ServiceRegistry.Master.TryParseAction,
+                    (a, batch) => ServiceRegistry.Master.DispatchToCore(_masterCommands, a, batch, request.Args)),
+                "animation" => DispatchSimple<AnimationAction>(action, request,
+                    ServiceRegistry.Animation.TryParseAction,
+                    (a, batch) => ServiceRegistry.Animation.DispatchToCore(_animationCommands, a, batch, request.Args)),
                 _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
             };
 

@@ -43,6 +43,16 @@ public sealed class McpToolAttribute : Attribute
     public string? Description { get; set; }
 
     /// <summary>
+    /// When true, <c>PowerPointMcp.Generators.Mcp</c> skips generating an action-dispatch MCP
+    /// tool for this category, even though its CLI/service registry code is still generated
+    /// normally. Use this for categories whose MCP surface is intentionally hand-written instead
+    /// (e.g. session lifecycle tools for Presentation — <c>create_presentation</c>,
+    /// <c>open_presentation</c>, etc. — which have no CLI-parity concept of a generated
+    /// "presentation" action-dispatch tool). Default: false.
+    /// </summary>
+    public bool SkipMcpToolGeneration { get; set; }
+
+    /// <summary>
     /// Creates a new McpToolAttribute.
     /// </summary>
     /// <param name="toolName">The MCP tool name (e.g., "slide")</param>

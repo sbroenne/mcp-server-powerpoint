@@ -34,6 +34,12 @@
     <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
 
+  <!-- Emit generated source files for inspection -->
+  <PropertyGroup>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)\GeneratedFiles</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+
   <!-- .NET SDK unconditionally sets PackageType=DotnetTool when PackAsTool=true; append the
        McpServer package type so the package is discoverable by the MCP Registry. -->
   <Target Name="_AddMcpServerPackageType" BeforeTargets="GenerateNuspec;Pack">
@@ -64,6 +70,12 @@
          MCP server and the CLI daemon are backed by the SAME service class — mirroring
          mcp-server-excel's ServiceBridge architecture. See Infrastructure/ServiceBridge.cs. -->
     <ProjectReference Include="..\PowerPointMcp.Service\PowerPointMcp.Service.csproj" />
+    <!-- Generates one action-dispatch MCP tool per [ServiceCategory] Core domain (skips
+         categories flagged SkipMcpToolGeneration, e.g. Presentation, whose session-lifecycle
+         tools stay hand-written in Tools/PresentationTools.cs). -->
+    <ProjectReference Include="..\PowerPointMcp.Generators.Mcp\PowerPointMcp.Generators.Mcp.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

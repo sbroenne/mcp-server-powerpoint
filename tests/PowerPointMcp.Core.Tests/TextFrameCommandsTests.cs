@@ -90,4 +90,176 @@ public class TextFrameCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
     }
+
+    [Fact]
+    public void SetItalic_AndGetItalic_RoundTrips()
+    {
+        var batch = SetUpPresentationWithShape();
+        _commands.SetText(batch, 1, 1, "Italic Text");
+
+        var setResult = _commands.SetItalic(batch, 1, 1, true);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.True(setResult.Italic);
+
+        var getResult = _commands.GetItalic(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.True(getResult.Italic);
+    }
+
+    [Fact]
+    public void SetItalic_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        var batch = SetUpPresentationWithShape();
+
+        var result = _commands.SetItalic(batch, 1, 99, true);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetUnderline_AndGetUnderline_RoundTrips()
+    {
+        var batch = SetUpPresentationWithShape();
+        _commands.SetText(batch, 1, 1, "Underlined Text");
+
+        var setResult = _commands.SetUnderline(batch, 1, 1, true);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.True(setResult.Underline);
+
+        var getResult = _commands.GetUnderline(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.True(getResult.Underline);
+    }
+
+    [Fact]
+    public void SetUnderline_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        var batch = SetUpPresentationWithShape();
+
+        var result = _commands.SetUnderline(batch, 1, 99, true);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetFontName_AndGetFontName_RoundTrips()
+    {
+        var batch = SetUpPresentationWithShape();
+        _commands.SetText(batch, 1, 1, "Styled Text");
+
+        var setResult = _commands.SetFontName(batch, 1, 1, "Georgia");
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal("Georgia", setResult.FontName);
+
+        var getResult = _commands.GetFontName(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal("Georgia", getResult.FontName);
+    }
+
+    [Fact]
+    public void SetFontName_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        var batch = SetUpPresentationWithShape();
+
+        var result = _commands.SetFontName(batch, 1, 99, "Georgia");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetAlignment_AndGetAlignment_RoundTrips()
+    {
+        var batch = SetUpPresentationWithShape();
+        _commands.SetText(batch, 1, 1, "Centered Text");
+
+        var setResult = _commands.SetAlignment(batch, 1, 1, "ppAlignCenter");
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal("ppAlignCenter", setResult.Alignment);
+
+        var getResult = _commands.GetAlignment(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal("ppAlignCenter", getResult.Alignment);
+    }
+
+    [Fact]
+    public void SetAlignment_WithUnrecognizedName_ReturnsFailure_NotException()
+    {
+        var batch = SetUpPresentationWithShape();
+        _commands.SetText(batch, 1, 1, "Text");
+
+        var result = _commands.SetAlignment(batch, 1, 1, "ppAlignDoesNotExist");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetAlignment_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        var batch = SetUpPresentationWithShape();
+
+        var result = _commands.SetAlignment(batch, 1, 99, "ppAlignCenter");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetBullet_Enabled_WithCharacter_AndGetBullet_RoundTrips()
+    {
+        var batch = SetUpPresentationWithShape();
+        _commands.SetText(batch, 1, 1, "Bulleted Text");
+
+        var setResult = _commands.SetBullet(batch, 1, 1, enabled: true, character: "-");
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.True(setResult.BulletEnabled);
+        Assert.Equal("-", setResult.BulletCharacter);
+
+        var getResult = _commands.GetBullet(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.True(getResult.BulletEnabled);
+        Assert.Equal("-", getResult.BulletCharacter);
+    }
+
+    [Fact]
+    public void SetBullet_Disabled_AfterEnabled_TurnsOffBullets()
+    {
+        var batch = SetUpPresentationWithShape();
+        _commands.SetText(batch, 1, 1, "Text");
+
+        _commands.SetBullet(batch, 1, 1, enabled: true, character: "-");
+        var disableResult = _commands.SetBullet(batch, 1, 1, enabled: false);
+        Assert.True(disableResult.Success, disableResult.ErrorMessage);
+        Assert.False(disableResult.BulletEnabled);
+
+        var getResult = _commands.GetBullet(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.False(getResult.BulletEnabled);
+    }
+
+    [Fact]
+    public void SetBullet_WithMultiCharacterString_ReturnsFailure_NotException()
+    {
+        var batch = SetUpPresentationWithShape();
+        _commands.SetText(batch, 1, 1, "Text");
+
+        var result = _commands.SetBullet(batch, 1, 1, enabled: true, character: "ab");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetBullet_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        var batch = SetUpPresentationWithShape();
+
+        var result = _commands.SetBullet(batch, 1, 99, enabled: true);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
 }

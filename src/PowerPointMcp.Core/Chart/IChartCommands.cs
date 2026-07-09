@@ -8,7 +8,7 @@ namespace Sbroenne.PowerPointMcp.Core.Chart;
 /// </summary>
 [ServiceCategory("chart", "Chart")]
 [McpTool("chart", Title = "Chart Operations", Destructive = true, Category = "content",
-    Description = "Add a native chart shape and read chart data in an open presentation session.")]
+    Description = "Add a native chart shape, add data series, set titles/legend, and read chart data in an open presentation session.")]
 public interface IChartCommands
 {
     /// <summary>
@@ -31,4 +31,35 @@ public interface IChartCommands
     /// Gets the category and series counts of an existing chart shape's data.
     /// </summary>
     ChartOperationResult GetChartData(IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Adds another data series to an existing chart (created via <see cref="AddChart"/>),
+    /// producing a multi-series chart. <paramref name="values"/> must have the same count as the
+    /// chart's existing categories. Returns the new total <c>seriesCount</c>.
+    /// </summary>
+    ChartOperationResult AddSeries(IPresentationBatch batch, int slideIndex, int shapeIndex, string seriesName, IReadOnlyList<double> values);
+
+    /// <summary>Sets the chart's main title text (and turns the title on).</summary>
+    ChartOperationResult SetChartTitle(IPresentationBatch batch, int slideIndex, int shapeIndex, string title);
+
+    /// <summary>Gets the chart's main title text and whether it currently has a title (<c>hasTitle</c>).</summary>
+    ChartOperationResult GetChartTitle(IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Sets an axis title (and turns that axis's title on). <paramref name="axisType"/> is
+    /// <c>"category"</c> or <c>"value"</c>.
+    /// </summary>
+    ChartOperationResult SetAxisTitle(IPresentationBatch batch, int slideIndex, int shapeIndex, string axisType, string title);
+
+    /// <summary>
+    /// Gets an axis's title text and whether it currently has a title (<c>hasTitle</c>).
+    /// <paramref name="axisType"/> is <c>"category"</c> or <c>"value"</c>.
+    /// </summary>
+    ChartOperationResult GetAxisTitle(IPresentationBatch batch, int slideIndex, int shapeIndex, string axisType);
+
+    /// <summary>Shows or hides the chart's legend.</summary>
+    ChartOperationResult SetLegendVisibility(IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible);
+
+    /// <summary>Gets whether the chart's legend is currently visible.</summary>
+    ChartOperationResult GetLegendVisibility(IPresentationBatch batch, int slideIndex, int shapeIndex);
 }

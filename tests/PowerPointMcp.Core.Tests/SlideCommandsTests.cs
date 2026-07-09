@@ -86,4 +86,202 @@ public class SlideCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
     }
+
+    [Fact]
+    public void Duplicate_InsertsCopyImmediatelyAfterSource_AndIncreasesCount()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddBlank(batch); // now 2 slides
+
+        var result = _commands.Duplicate(batch, 1);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(2, result.SlideIndex);
+        Assert.Equal(3, result.SlideCount);
+    }
+
+    [Fact]
+    public void Duplicate_WithInvalidIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.Duplicate(batch, 99);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void MoveTo_ReordersSlide_AndPersistsAfterSave()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddBlank(batch);
+        _commands.AddBlank(batch); // now 3 slides
+
+        var moveResult = _commands.MoveTo(batch, 1, 3);
+
+        Assert.True(moveResult.Success, moveResult.ErrorMessage);
+        Assert.Equal(3, moveResult.SlideIndex);
+        Assert.Equal(3, moveResult.SlideCount);
+
+        _presentationCommands.Save(batch);
+        _fixture.ReopenCurrentPresentation();
+        var countResult = _commands.GetCount(batch);
+        Assert.Equal(3, countResult.SlideCount);
+    }
+
+    [Fact]
+    public void MoveTo_WithInvalidToPosition_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddBlank(batch); // now 2 slides
+
+        var result = _commands.MoveTo(batch, 1, 99);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetBackgroundColor_AndGetBackgroundColor_RoundTripsColorAndFollowsMasterFlag()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var beforeResult = _commands.GetBackgroundColor(batch, 1);
+        Assert.True(beforeResult.Success, beforeResult.ErrorMessage);
+        Assert.True(beforeResult.FollowsMasterBackground);
+
+        var setResult = _commands.SetBackgroundColor(batch, 1, red: 0, green: 0, blue: 255);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal(16711680, setResult.ColorRgb);
+        Assert.False(setResult.FollowsMasterBackground);
+
+        var getResult = _commands.GetBackgroundColor(batch, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal(16711680, getResult.ColorRgb);
+        Assert.False(getResult.FollowsMasterBackground);
+    }
+
+    [Fact]
+    public void SetBackgroundColor_WithInvalidIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.SetBackgroundColor(batch, 99, red: 255, green: 0, blue: 0);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void AddSection_AppendsSection_AndIncreasesSectionCount()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddSection(batch, 1, "Introduction");
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.SectionIndex);
+        Assert.Equal(1, result.SectionCount);
+    }
+
+    [Fact]
+    public void AddSection_WithInvalidIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddSection(batch, 99);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void RenameSection_ThenGetSectionName_RoundTrips()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddSection(batch, 1, "Original");
+
+        var renameResult = _commands.RenameSection(batch, 1, "Renamed");
+        Assert.True(renameResult.Success, renameResult.ErrorMessage);
+
+        var getNameResult = _commands.GetSectionName(batch, 1);
+        Assert.True(getNameResult.Success, getNameResult.ErrorMessage);
+        Assert.Equal("Renamed", getNameResult.SectionName);
+    }
+
+    [Fact]
+    public void RenameSection_WithInvalidIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.RenameSection(batch, 99, "x");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void GetSectionCount_ReturnsZero_WhenNoSectionsExist()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.GetSectionCount(batch);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(0, result.SectionCount);
+    }
+
+    [Fact]
+    public void DeleteSection_KeepingSlides_DecreasesSectionCount_ButKeepsSlideCount()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddBlank(batch); // 2 slides
+        _commands.AddSection(batch, 1, "Section A");
+        _commands.AddSection(batch, 2, "Section B");
+
+        // PowerPoint disallows deleting section 1 unless deleteSlides is true, so delete
+        // section 2 here to exercise the keep-slides path.
+        var result = _commands.DeleteSection(batch, 2, deleteSlides: false);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.SectionCount);
+        Assert.Equal(2, _commands.GetCount(batch).SlideCount);
+    }
+
+    [Fact]
+    public void DeleteSection_WithInvalidIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.DeleteSection(batch, 99);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void GetSectionName_WithInvalidIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.GetSectionName(batch, 99);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
 }

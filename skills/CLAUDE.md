@@ -6,8 +6,9 @@ when working with the PowerPoint MCP Server.
 ## What This Is
 
 `mcp-server-powerpoint` drives a live Microsoft PowerPoint desktop instance via COM
-(`Microsoft.Office.Interop.PowerPoint`) and exposes it as 31 MCP tools across 10 domains:
-Presentation (sessions), Slide, Shape, TextFrame, Table, Notes, Layout, Image, Chart, Export.
+(`Microsoft.Office.Interop.PowerPoint`) and exposes it as 18 MCP tools across 12 domains: 7
+session-lifecycle tools for Presentation (sessions) plus 11 generated action-dispatch tools, one
+per domain — Slide, Shape, TextFrame, Table, Notes, Layout, Master, Animation, Image, Chart, Export.
 
 Windows + PowerPoint desktop required. There is no cross-platform or headless mode — everything
 goes through real COM automation of a real PowerPoint process.
@@ -26,14 +27,15 @@ exists (see `.github/copilot-instructions.md`).
 
 1. **Sessions required** — `open_presentation` before any edit; `create_presentation` does NOT
    open a session.
-2. **1-based indexing everywhere** — `slideIndex`, `shapeIndex`, table `row`/`column` all start
+2. **1-based indexing everywhere** — `slide_index`, `shape_index`, table `row`/`column` all start
    at 1.
 3. **Explicit save** — nothing persists to disk until `save_presentation`.
 4. **Close is async** — `close_presentation` does not wait for the PowerPoint process to exit.
-5. **Verify visually** — use `export_slide_to_image`/`export_all_slides_to_images` after any
-   visual change; this is the project's core differentiator over text-only PowerPoint tooling.
-6. **Never ask clarifying questions** — discover state with `list_sessions`, `get_slide_count`,
-   `get_shape_count`, etc.
+5. **Verify visually** — use `export(action: "export-slide-to-image"/"export-all-slides-to-images",
+   ...)` after any visual change; this is the project's core differentiator over text-only
+   PowerPoint tooling.
+6. **Never ask clarifying questions** — discover state with `list_sessions`, `slide(action:
+   "get-count", ...)`, `shape(action: "get-count", ...)`, etc.
 7. **Always end with a text summary** — never end a turn on a bare tool call.
 
 ## When Building Decks

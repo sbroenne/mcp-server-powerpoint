@@ -205,3 +205,26 @@ CONVENTIONS: Rule 1/1b (Success/ErrorMessage invariant, no try-catch suppression
 **By:** Ripley (Tester)
 **What:** E2E gate results (2026-07-03): Release build green across all 6 projects (0 warnings/errors). Full MCP e2e suite (tests/PowerPointMcp.McpServer.Tests): 9/9 GREEN in a clean single run (12m54s) — real MCP client → stdio server → live PowerPoint across all 9 domains + Export + protocol + shutdown-robustness, zero orphaned POWERPNT.exe. Core real-COM suite (36 tests): 35/36 green in a 3h42m marathon run; the one failure (`ChartCommandsTests.AddChart_Bar`, RPC_E_DISCONNECTED) is a transient COM disconnection from environment degradation after hours of churn, and passes 2/2 in isolation (no code defect — see Parker's chart-retry hardening decision above). Fixed this session: `McpShutdownRobustnessTests` created a create-and-keep-open seed session but never closed it, causing `list_sessions` to see count=1 after A/B/C/D closed; now captures and closes the seed session. `release.yml` (10-job master pipeline) ported from Excel and committed; `mcp-name` added to McpServer package README for MCP Registry ownership validation.
 **Why/Decision:** Phase 3 completeness breadth (source generators port, templates/themes, animations/transitions, LaTeX equations, 20+ auto-shapes) is DEFERRED as a separate post-MVP push, per the plan's roadmap framing. The real-COM suite already runs ~3.7h and flakes under sustained load; adding large batches of new COM tools now would destabilize the green e2e gate and cannot be responsibly validated in a single session. The "most complete release surface" north-star (dual CLI+MCP, NuGet tools, standalone exes, VS Code extension, MCPB bundle, agent skills, MCP Registry, GitHub Pages, full release pipeline) is delivered and e2e-verified.
+### 2026-07-07: Ported skill-manifest/SKILL.md generation pipeline for the CLI
+
+**By:** Copilot (coding agent)
+**What:** Ported Excel's `Build.Tasks` skill-manifest generation pipeline to PowerPoint:
+new `src/PowerPointMcp.Build.Tasks` project (`GenerateSkillFile` MSBuild task + Scriban
+render of the generator's JSON manifest), a new `skills/templates/SKILL.cli.sbn` template
+authored from scratch for `pptcli`, and wiring into `PowerPointMcp.CLI.csproj` via
+`UsingTask` + a `GenerateCliSkill` target that runs `AfterTargets="Build"` only in Release
+config (mirrors Excel exactly). Generated output committed at
+`skills/powerpoint-cli/SKILL.md` (9 command groups, 29 operations), matching the live
+generator manifest.
+**Why:** Completes the final `p3-gen-skill-manifest` backlog item in the source-generator
+rollout. Scope was deliberately limited to the SKILL.md pipeline only — Excel's separate
+`Build-AgentSkills.ps1 -PopulateReferences` script (which scrapes `excelcli --help` into a
+`references/cli-commands.md` doc) was explicitly left out of scope; no equivalent reference
+doc exists yet for the PowerPoint CLI skill. `Build.Tasks` is intentionally excluded from
+`Sbroenne.PowerPointMcp.slnx` (built transitively via a `ProjectReference` with
+`ReferenceOutputAssembly="false"` from the CLI project), matching the Excel repo's own
+solution-file convention. Full-solution Debug and Release builds verified green
+(0 warnings/errors); Release build correctly regenerates `SKILL.md`; Debug build correctly
+skips generation. MCP protocol tests re-run as a sanity check (4/4 pass, unaffected — this
+change touches CLI build tooling only, not Core/ComInterop/McpServer production code).
+

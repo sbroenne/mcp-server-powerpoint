@@ -72,6 +72,40 @@ public static class PowerPointToolsBase
     }
 
     /// <summary>
+    /// Overload used by generated action-dispatch tools: includes the resolved action string
+    /// (e.g. "add-chart") in stderr diagnostics for easier troubleshooting, since a single
+    /// generated tool (e.g. "chart") now covers many actions.
+    /// </summary>
+    /// <param name="toolName">Tool name for error context (e.g. "chart").</param>
+    /// <param name="actionName">Kebab-case action name for error context (e.g. "add-chart").</param>
+    /// <param name="operation">The synchronous operation producing a JSON response string.</param>
+    /// <returns>The operation's JSON response, or a serialized error payload on exception.</returns>
+    public static string ExecuteToolAction(string toolName, string actionName, Func<string> operation)
+    {
+        var context = $"{toolName}.{actionName}";
+        try
+        {
+            return operation();
+        }
+#pragma warning disable CA1031 // Top-of-tool handler: unexpected exceptions must be serialized, not crash the MCP host.
+        catch (Exception ex)
+        {
+            if (ex is COMException comEx)
+            {
+                Console.Error.WriteLine(
+                    $"[PowerPointMcp] COM Exception in {context}: HResult=0x{comEx.HResult:X8}, Message={comEx.Message}");
+            }
+            else
+            {
+                Console.Error.WriteLine($"[PowerPointMcp] Exception in {context}: {ex.GetType().Name}: {ex.Message}");
+            }
+
+            return SerializeToolError(context, ex);
+        }
+#pragma warning restore CA1031
+    }
+
+    /// <summary>
     /// Serializes an exception into a consistent error payload
     /// (<c>success=false</c>, <c>isError=true</c>, plus COM diagnostics where available).
     /// </summary>

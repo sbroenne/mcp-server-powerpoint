@@ -25,4 +25,22 @@ public sealed class TextFrameOperationResult
 
     /// <summary>Font color as an RGB integer (0xBBGGRR, PowerPoint's native color order), if applicable.</summary>
     public int? ColorRgb { get; init; }
+
+    /// <summary>Whether the font is italic, if applicable.</summary>
+    public bool? Italic { get; init; }
+
+    /// <summary>Whether the font is underlined, if applicable.</summary>
+    public bool? Underline { get; init; }
+
+    /// <summary>Font name (typeface), if applicable.</summary>
+    public string? FontName { get; init; }
+
+    /// <summary>The PpParagraphAlignment name of the text range's paragraph alignment, if applicable.</summary>
+    public string? Alignment { get; init; }
+
+    /// <summary>Whether bullets are enabled for the text range, if applicable.</summary>
+    public bool? BulletEnabled { get; init; }
+
+    /// <summary>The bullet glyph character, if bullets are enabled and applicable.</summary>
+    public string? BulletCharacter { get; init; }
 }
