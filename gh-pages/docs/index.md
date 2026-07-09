@@ -28,6 +28,10 @@ hide:
       *see* the result — catching overlapping shapes, text overflow, and
       layout regressions that text-only automation simply cannot detect.
 
+!!! tip "Also automating spreadsheets?"
+    Check out [Excel MCP Server](https://excelmcpserver.dev/) — the sister
+    project, built the same way.
+
 ## Key features
 
 <div class="grid cards" markdown>
@@ -149,8 +153,3 @@ based on your use case:
 | **MCP Server** (`mcp-powerpoint`) | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent session. Better for interactive, exploratory workflows. |
 
 [MCP Server docs](mcp-server.md){ .md-button } [CLI docs](cli.md){ .md-button }
-
-!!! tip "Also automating spreadsheets?"
-    Check out [Excel MCP Server](https://excelmcpserver.dev/) — the sister
-    project to PowerPoint MCP Server, bringing the same real-application
-    automation approach to Excel.
