@@ -86,10 +86,12 @@ nav:
   - CLI: cli.md
   - More:
       - Agent Skills: skills.md
+      - Architecture: architecture.md
       - Changelog: changelog.md
       - Contributing: contributing.md
       - Security: security.md
       - Privacy: privacy.md
+      - Related projects: related-projects.md
 
 markdown_extensions:
   - abbr

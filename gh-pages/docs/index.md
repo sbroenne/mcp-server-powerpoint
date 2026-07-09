@@ -28,36 +28,6 @@ hide:
       *see* the result — catching overlapping shapes, text overflow, and
       layout regressions that text-only automation simply cannot detect.
 
-## Quick install
-
-<div class="grid cards" markdown>
-
--   :material-microsoft-visual-studio-code:{ .lg .middle } __VS Code / GitHub Copilot__
-
-    ---
-
-    [Install Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.powerpoint-mcp){ .md-button .md-button--primary }
-
--   :material-robot:{ .lg .middle } __Claude Desktop__
-
-    ---
-
-    [One-click install (MCPB)](https://github.com/sbroenne/mcp-server-powerpoint/releases/latest){ .md-button }
-
--   :material-nuget:{ .lg .middle } __NuGet .NET tool__
-
-    ---
-
-    [dotnet tool install guide](installation.md){ .md-button }
-
--   :material-console:{ .lg .middle } __Cursor, Windsurf, etc.__
-
-    ---
-
-    [Installation guide](installation.md){ .md-button }
-
-</div>
-
 ## Key features
 
 <div class="grid cards" markdown>
@@ -96,6 +66,27 @@ hide:
 
     Insert pictures from local files directly onto any slide.
 
+-   :material-palette-swatch:{ .lg .middle } __Templates &amp; themes__
+
+    ---
+
+    Apply a `.potx`/`.pptx` template's masters, theme and layouts while
+    preserving existing slide content, and read back the current theme name.
+
+-   :material-format-font:{ .lg .middle } __Slide masters__
+
+    ---
+
+    Set title/body placeholder fonts and background color on the slide
+    master — one edit, applied to every slide that inherits it.
+
+-   :material-motion-play:{ .lg .middle } __Animations &amp; transitions__
+
+    ---
+
+    Add entrance/emphasis/exit effects to shapes and set slide transitions,
+    then read them back to verify.
+
 -   :material-image-check:{ .lg .middle } __Export-to-verify__
 
     ---
@@ -106,7 +97,7 @@ hide:
 
 </div>
 
-[See all 31 tools across 10 domains :material-arrow-right:](features.md){ .md-button .md-button--primary }
+[See all 18 tools (~98 operations) across 12 domains :material-arrow-right:](features.md){ .md-button .md-button--primary }
 
 ## See it in action
 
@@ -159,38 +150,7 @@ based on your use case:
 
 [MCP Server docs](mcp-server.md){ .md-button } [CLI docs](cli.md){ .md-button }
 
-## How it works — live COM automation
-
-**PowerPoint MCP Server uses Windows COM automation to control the actual
-PowerPoint application (not just `.pptx` files).**
-
-```mermaid
-flowchart TB
-    A[MCP Server<br/>AI assistants] --> C[Session Registry<br/>in-process, per-server]
-    B[CLI - pptcli<br/>coding agents] --> C
-    C --> D[PowerPoint COM API<br/>PowerPoint.Application]
-```
-
-- ✅ **True fidelity** — every render, export, and edit happens inside real
-  PowerPoint, so what you get is exactly what PowerPoint would produce.
-- ✅ **Session-based workflow** — `open_presentation`/`create_presentation`
-  start a session; every subsequent tool call operates on that session by
-  `session_id`.
-- ✅ **Export-to-verify** — close the loop on every visual change with a real
-  rendered image.
-
-## Related projects
-
-Other projects by the author:
-
-- [Excel MCP Server](https://excelmcpserver.dev/) — the sibling project this
-  port is based on: AI-powered Excel automation via Power Query, DAX, VBA and
-  PivotTables
-- [Windows MCP Server](https://windowsmcpserver.dev/) — AI-powered Windows
-  automation via GitHub Copilot, Claude and other MCP clients
-- [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering) —
-  LLM-powered testing framework for AI agents
-- [OBS Studio MCP Server](https://github.com/sbroenne/mcp-server-obs) —
-  AI-powered OBS Studio automation
-- [HeyGen MCP Server](https://github.com/sbroenne/heygen-mcp) — MCP server
-  for HeyGen AI video generation
+!!! tip "Also automating spreadsheets?"
+    Check out [Excel MCP Server](https://excelmcpserver.dev/) — the sister
+    project to PowerPoint MCP Server, bringing the same real-application
+    automation approach to Excel.
