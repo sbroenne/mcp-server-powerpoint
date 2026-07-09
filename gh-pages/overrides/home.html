@@ -1,0 +1,38 @@
+{% extends "main.html" %}
+
+<!-- Marketing landing page: custom hero above the standard page content. -->
+
+{% block htmltitle %}
+  <title>PowerPoint MCP Server — Automate Slides, Charts &amp; Tables with AI</title>
+{% endblock %}
+
+{% block content %}
+<section class="mcp-hero">
+  <h1 class="mcp-hero__title">Automate real PowerPoint with AI</h1>
+  <p class="mcp-hero__subtitle">
+    Drive Microsoft PowerPoint with natural language from GitHub Copilot, Claude and
+    any MCP client — slides, shapes, tables, charts, text formatting and export-to-verify
+    visual checks on a live desktop instance.
+  </p>
+  <div class="mcp-hero__actions">
+    <a class="md-button md-button--primary" href="https://marketplace.visualstudio.com/items?itemName=sbroenne.powerpoint-mcp">
+      Install for VS Code
+    </a>
+    <a class="md-button" href="{{ 'installation/' | url }}">
+      All installation options
+    </a>
+  </div>
+  <p class="mcp-hero__badges">
+    <a href="https://marketplace.visualstudio.com/items?itemName=sbroenne.powerpoint-mcp"><img src="https://vsmarketplacebadges.dev/installs-short/sbroenne.powerpoint-mcp.svg?label=VS%20Code%20Installs" alt="VS Code Marketplace installs"></a>
+    <a href="https://github.com/sbroenne/mcp-server-powerpoint"><img src="https://img.shields.io/github/stars/sbroenne/mcp-server-powerpoint?style=flat&label=GitHub%20Stars" alt="GitHub stars"></a>
+    <a href="https://github.com/sbroenne/mcp-server-powerpoint/releases"><img src="https://img.shields.io/github/downloads/sbroenne/mcp-server-powerpoint/total?label=GitHub%20Downloads" alt="GitHub downloads"></a>
+    <a href="https://www.nuget.org/packages/Sbroenne.PowerPointMcp.McpServer"><img src="https://img.shields.io/nuget/dt/Sbroenne.PowerPointMcp.McpServer.svg?label=NuGet%20MCP" alt="NuGet MCP Server downloads"></a>
+    <a href="https://www.nuget.org/packages/Sbroenne.PowerPointMcp.CLI"><img src="https://img.shields.io/nuget/dt/Sbroenne.PowerPointMcp.CLI.svg?label=NuGet%20CLI" alt="NuGet CLI downloads"></a>
+  </p>
+</section>
+
+<!-- Render the page body directly instead of the parent content block, so
+     Material does not inject a duplicate "Home" heading above the markdown
+     content. The hero above already provides the page's single h1. -->
+{{ page.content }}
+{% endblock %}
