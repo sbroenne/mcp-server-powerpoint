@@ -171,10 +171,10 @@ Presentation lifecycle commands: create, open, save, apply-template, get-theme-n
 ### shape
 
 Shape commands: add rectangles/text boxes/auto-shapes/lines/connectors, count, delete,
-reposition/resize. Operates within an already-open session, targeting a specific slide by its
-1-based index.
+reposition/resize, and format (fill/line/rotation/flip/z-order/shadow/group/name/alt-text).
+Operates within an already-open session, targeting a specific slide by its 1-based index.
 
-**Actions:** `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`
+**Actions:** `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`
 
 | Parameter | Description |
 |-----------|-------------|
@@ -190,7 +190,19 @@ reposition/resize. Operates within an already-open session, targeting a specific
 | `--end-x` | (required for: add-line, add-connector) |
 | `--end-y` | (required for: add-line, add-connector) |
 | `--connector-type` | `msoConnectorStraight`, `msoConnectorElbow`, or `msoConnectorCurve`. (required for: add-connector) |
-| `--shape-index` | (required for: delete, set-position, set-size) |
+| `--shape-index` | (required for: delete, set-position, set-size, set-fill, get-fill, set-line, get-line, set-rotation, get-rotation, flip, set-z-order, set-shadow, get-shadow, ungroup, set-name, get-name, set-alt-text, get-alt-text) |
+| `--red` | 0-255. (required for: set-fill; optional for: set-line) |
+| `--green` | 0-255. (required for: set-fill; optional for: set-line) |
+| `--blue` | 0-255. (required for: set-fill; optional for: set-line) |
+| `--weight` | Line weight in points. (optional for: set-line) |
+| `--dash-style` | `MsoLineDashStyle` name: `msoLineSolid`, `msoLineSquareDot`, `msoLineRoundDot`, `msoLineDash`, `msoLineDashDot`, `msoLineDashDotDot`, `msoLineLongDash`, `msoLineLongDashDot`. (optional for: set-line) |
+| `--visible` | (required for: set-shadow; optional for: set-line) |
+| `--degrees` | Rotation in degrees clockwise from upright. (required for: set-rotation) |
+| `--direction` | `horizontal` or `vertical`. (required for: flip) |
+| `--z-order-command` | `bring-to-front`, `send-to-back`, `bring-forward`, or `send-backward`. (required for: set-z-order) |
+| `--shape-indexes` | JSON array of 1-based shape indices, at least 2. (required for: group) |
+| `--name` | (required for: set-name) |
+| `--alt-text` | (required for: set-alt-text) |
 
 ### slide
 

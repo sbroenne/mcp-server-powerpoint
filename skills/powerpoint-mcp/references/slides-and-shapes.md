@@ -2,7 +2,8 @@
 
 Reference for the `slide` tool (`add-blank`, `get-count`, `delete`) and the `shape` tool
 (`add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`,
-`delete`, `set-position`, `set-size`).
+`delete`, `set-position`, `set-size`, plus the fill/line/rotation/flip/z-order/shadow/group/
+name/alt-text formatting actions below).
 
 ## Slide Actions
 
@@ -30,6 +31,47 @@ Slides always append at the end — there is no "insert at position N" action. S
 | `shape` | `set-size` | `session_id`, `slide_index`, `shape_index`, `width`, `height` | Resizes an existing shape. |
 
 All position/size values are **points** (see `deck-builder.md` for the 960×540pt 16:9 reference).
+
+## Shape Formatting Actions
+
+| Tool | Action | Parameters | Notes |
+|------|--------|------------|-------|
+| `shape` | `set-fill` | `session_id`, `slide_index`, `shape_index`, `red`, `green`, `blue` (each 0-255) | Sets a solid fill color. Returns `colorRgb`. |
+| `shape` | `get-fill` | `session_id`, `slide_index`, `shape_index` | Returns the current fill color as `colorRgb`. |
+| `shape` | `set-line` | `session_id`, `slide_index`, `shape_index`, plus optional `red`/`green`/`blue`, `weight`, `dash_style`, `visible` | All formatting params are optional and independently applied — pass only what you want to change. `red`/`green`/`blue` must be passed together to set the line color. `dash_style` is an `MsoLineDashStyle` name (see below). Returns the shape's full line state (`colorRgb`, `lineWeight`, `dashStyleName`, `visible`). |
+| `shape` | `get-line` | `session_id`, `slide_index`, `shape_index` | Returns the current line color, weight, dash style, and visibility. |
+| `shape` | `set-rotation` | `session_id`, `slide_index`, `shape_index`, `degrees` | Sets rotation in degrees clockwise from upright. Returns `rotation`. |
+| `shape` | `get-rotation` | `session_id`, `slide_index`, `shape_index` | Returns the current rotation in degrees. |
+| `shape` | `flip` | `session_id`, `slide_index`, `shape_index`, `direction` (`horizontal` or `vertical`) | Flips the shape in place. Returns `flipDirection`. |
+| `shape` | `set-z-order` | `session_id`, `slide_index`, `shape_index`, `z_order_command` | Moves the shape's stacking position. `z_order_command` is one of `bring-to-front`, `send-to-back`, `bring-forward`, `send-backward`. Returns `zOrderCommand`. |
+| `shape` | `set-shadow` | `session_id`, `slide_index`, `shape_index`, `visible` | Turns the shape's default drop shadow on/off. Returns `visible`. |
+| `shape` | `get-shadow` | `session_id`, `slide_index`, `shape_index` | Returns whether the shadow is visible. |
+| `shape` | `group` | `session_id`, `slide_index`, `shape_indexes` (JSON array of 1-based indices, at least 2) | Groups multiple shapes into one. Returns the new total `shapeCount` on the slide — **not** the grouped shape's index (see NoPIA note below). |
+| `shape` | `ungroup` | `session_id`, `slide_index`, `shape_index` | Splits a group back into its member shapes. Returns `ungroupedShapeCount` (members produced) and the new total `shapeCount`. |
+| `shape` | `set-name` | `session_id`, `slide_index`, `shape_index`, `name` | Sets the shape's name (as shown in PowerPoint's Selection Pane). Returns `name`. |
+| `shape` | `get-name` | `session_id`, `slide_index`, `shape_index` | Returns the shape's current name. |
+| `shape` | `set-alt-text` | `session_id`, `slide_index`, `shape_index`, `alt_text` | Sets the shape's alternative text (accessibility description). Returns `altText`. |
+| `shape` | `get-alt-text` | `session_id`, `slide_index`, `shape_index` | Returns the shape's current alternative text. |
+
+**Finding a just-grouped shape's index**: `group` does not return the new group shape's own
+`shapeIndex` — reading `.Index` off a freshly-created COM group object is unreliable in this
+codebase's NoPIA late-binding setup. If the shapes you grouped were the **last** shapes added to
+the slide (highest indices, nothing added after them), the resulting group occupies the new,
+smaller `shapeCount` as its index (since grouping N shapes always removes N-1 from the slide's
+shape list). Otherwise, call `shape(action: "get-count", ...)` before and after grouping and
+inspect via a follow-up read if you need to confirm which index now holds the group.
+
+### Dash Styles (`dash_style` for `set-line`)
+
+Must match a real `MsoLineDashStyle` enum member name exactly: `msoLineSolid`,
+`msoLineSquareDot`, `msoLineRoundDot`, `msoLineDash`, `msoLineDashDot`, `msoLineDashDotDot`,
+`msoLineLongDash`, `msoLineLongDashDot`.
+
+### Z-Order Commands (`z_order_command` for `set-z-order`)
+
+`bring-to-front`, `send-to-back`, `bring-forward`, `send-backward`. (PowerPoint's Word-only
+z-order members — bring/send relative to text — are intentionally not exposed here.)
+
 
 ## Auto Shape Types
 

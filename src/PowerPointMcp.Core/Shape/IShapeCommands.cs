@@ -53,4 +53,73 @@ public interface IShapeCommands
 
     /// <summary>Sets the size of a shape on the given slide.</summary>
     ShapeOperationResult SetSize(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, float width, float height);
+
+    /// <summary>Sets a shape's fill to a solid RGB color.</summary>
+    ShapeOperationResult SetFill(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, byte red, byte green, byte blue);
+
+    /// <summary>Gets a shape's solid fill color.</summary>
+    ShapeOperationResult GetFill(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Sets one or more line/border properties of a shape. Any parameter left null is unchanged.
+    /// Passing <paramref name="red"/>/<paramref name="green"/>/<paramref name="blue"/> together
+    /// sets the line color; <paramref name="dashStyle"/> is an <c>MsoLineDashStyle</c> enum
+    /// member name (e.g. <c>"msoLineSolid"</c>, <c>"msoLineDash"</c>).
+    /// </summary>
+    ShapeOperationResult SetLine(
+        ComInterop.Session.IPresentationBatch batch,
+        int slideIndex,
+        int shapeIndex,
+        byte? red = null,
+        byte? green = null,
+        byte? blue = null,
+        float? weight = null,
+        string? dashStyle = null,
+        bool? visible = null);
+
+    /// <summary>Gets a shape's line/border color, weight, dash style, and visibility.</summary>
+    ShapeOperationResult GetLine(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>Sets a shape's rotation, in degrees clockwise from its upright position.</summary>
+    ShapeOperationResult SetRotation(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, float degrees);
+
+    /// <summary>Gets a shape's rotation, in degrees clockwise from its upright position.</summary>
+    ShapeOperationResult GetRotation(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>Flips a shape horizontally or vertically in place (<paramref name="direction"/>: <c>"horizontal"</c> or <c>"vertical"</c>).</summary>
+    ShapeOperationResult Flip(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, string direction);
+
+    /// <summary>
+    /// Moves a shape's position in the slide's z-order (draw order). <paramref name="zOrderCommand"/>
+    /// is one of <c>"bring-to-front"</c>, <c>"send-to-back"</c>, <c>"bring-forward"</c>, or
+    /// <c>"send-backward"</c>.
+    /// </summary>
+    ShapeOperationResult SetZOrder(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, string zOrderCommand);
+
+    /// <summary>Turns a shape's default drop shadow on or off.</summary>
+    ShapeOperationResult SetShadow(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible);
+
+    /// <summary>Gets whether a shape's drop shadow is visible.</summary>
+    ShapeOperationResult GetShadow(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Groups two or more shapes on the given slide into a single shape, identified by their
+    /// 1-based shape indices. Returns the new grouped shape's index.
+    /// </summary>
+    ShapeOperationResult Group(ComInterop.Session.IPresentationBatch batch, int slideIndex, IReadOnlyList<int> shapeIndexes);
+
+    /// <summary>Ungroups a previously-grouped shape back into its individual member shapes.</summary>
+    ShapeOperationResult Ungroup(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>Sets a shape's name (as shown in the Selection Pane).</summary>
+    ShapeOperationResult SetName(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, string name);
+
+    /// <summary>Gets a shape's name.</summary>
+    ShapeOperationResult GetName(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>Sets a shape's alternative text (accessibility description).</summary>
+    ShapeOperationResult SetAltText(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, string altText);
+
+    /// <summary>Gets a shape's alternative text (accessibility description).</summary>
+    ShapeOperationResult GetAltText(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
 }

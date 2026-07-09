@@ -298,6 +298,162 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         Assert.Equal("msoConnectorElbow", GetString(addConnectorResult, "connectorTypeName"));
         _output.WriteLine("✓ shape.add-connector (msoConnectorElbow)");
 
+        // 4c. shape formatting: fill/line/rotation/flip/z-order/shadow/group/name/alt-text.
+        var formattingShapeIndex = GetInt(addAutoShapeResult, "shapeIndex")!.Value;
+
+        AssertSuccess(await Call("shape", new()
+        {
+            ["action"] = "set-fill",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = formattingShapeIndex,
+            ["red"] = (byte)255,
+            ["green"] = (byte)0,
+            ["blue"] = (byte)0
+        }), "shape.set-fill");
+        var getFillResult = await Call("shape", new() { ["action"] = "get-fill", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
+        AssertSuccess(getFillResult, "shape.get-fill");
+        Assert.Equal(255, GetInt(getFillResult, "colorRgb"));
+        _output.WriteLine("✓ shape.set-fill/get-fill");
+
+        AssertSuccess(await Call("shape", new()
+        {
+            ["action"] = "set-line",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = formattingShapeIndex,
+            ["weight"] = 2f,
+            ["dash_style"] = "msoLineDash"
+        }), "shape.set-line");
+        var getLineResult = await Call("shape", new() { ["action"] = "get-line", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
+        AssertSuccess(getLineResult, "shape.get-line");
+        Assert.Equal("msoLineDash", GetString(getLineResult, "dashStyleName"));
+        _output.WriteLine("✓ shape.set-line/get-line");
+
+        AssertSuccess(await Call("shape", new()
+        {
+            ["action"] = "set-rotation",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = formattingShapeIndex,
+            ["degrees"] = 30f
+        }), "shape.set-rotation");
+        var getRotationResult = await Call("shape", new() { ["action"] = "get-rotation", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
+        AssertSuccess(getRotationResult, "shape.get-rotation");
+        _output.WriteLine("✓ shape.set-rotation/get-rotation");
+
+        AssertSuccess(await Call("shape", new()
+        {
+            ["action"] = "flip",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = formattingShapeIndex,
+            ["direction"] = "horizontal"
+        }), "shape.flip");
+        _output.WriteLine("✓ shape.flip");
+
+        AssertSuccess(await Call("shape", new()
+        {
+            ["action"] = "set-z-order",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = formattingShapeIndex,
+            ["z_order_command"] = "bring-to-front"
+        }), "shape.set-z-order");
+        _output.WriteLine("✓ shape.set-z-order");
+
+        AssertSuccess(await Call("shape", new()
+        {
+            ["action"] = "set-shadow",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = formattingShapeIndex,
+            ["visible"] = true
+        }), "shape.set-shadow");
+        var getShadowResult = await Call("shape", new() { ["action"] = "get-shadow", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
+        AssertSuccess(getShadowResult, "shape.get-shadow");
+        Assert.True(GetBool(getShadowResult, "visible"));
+        _output.WriteLine("✓ shape.set-shadow/get-shadow");
+
+        AssertSuccess(await Call("shape", new()
+        {
+            ["action"] = "set-name",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = formattingShapeIndex,
+            ["name"] = "FormattingDemoShape"
+        }), "shape.set-name");
+        var getNameResult = await Call("shape", new() { ["action"] = "get-name", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
+        AssertSuccess(getNameResult, "shape.get-name");
+        Assert.Equal("FormattingDemoShape", GetString(getNameResult, "name"));
+        _output.WriteLine("✓ shape.set-name/get-name");
+
+        AssertSuccess(await Call("shape", new()
+        {
+            ["action"] = "set-alt-text",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = formattingShapeIndex,
+            ["alt_text"] = "An oval used in the MCP authoring workflow test"
+        }), "shape.set-alt-text");
+        var getAltTextResult = await Call("shape", new() { ["action"] = "get-alt-text", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
+        AssertSuccess(getAltTextResult, "shape.get-alt-text");
+        Assert.Equal("An oval used in the MCP authoring workflow test", GetString(getAltTextResult, "altText"));
+        _output.WriteLine("✓ shape.set-alt-text/get-alt-text");
+
+        // Add two fresh rectangles at the end of the z-order so their group's resulting shape
+        // index is predictable (the last index) — avoids relying on Group()'s returned dynamic
+        // shape object, which is subject to the NoPIA late-binding ".Index" quirk.
+        var groupRectAResult = await Call("shape", new()
+        {
+            ["action"] = "add-rectangle",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["left"] = 200f,
+            ["top"] = 200f,
+            ["width"] = 40f,
+            ["height"] = 40f
+        });
+        AssertSuccess(groupRectAResult, "shape.add-rectangle (group A)");
+        var groupRectA = GetInt(groupRectAResult, "shapeIndex")!.Value;
+
+        var groupRectBResult = await Call("shape", new()
+        {
+            ["action"] = "add-rectangle",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["left"] = 250f,
+            ["top"] = 200f,
+            ["width"] = 40f,
+            ["height"] = 40f
+        });
+        AssertSuccess(groupRectBResult, "shape.add-rectangle (group B)");
+        var groupRectB = GetInt(groupRectBResult, "shapeIndex")!.Value;
+
+        var groupResult = await Call("shape", new()
+        {
+            ["action"] = "group",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_indexes"] = new[] { groupRectA, groupRectB }
+        });
+        AssertSuccess(groupResult, "shape.group");
+        var groupedShapeCount = GetInt(groupResult, "shapeCount")!.Value;
+        _output.WriteLine($"✓ shape.group → shapeCount={groupedShapeCount}");
+
+        // groupRectA and groupRectB were the last two shapes on the slide, so the resulting
+        // group shape occupies the last index (== groupedShapeCount).
+        var ungroupResult = await Call("shape", new()
+        {
+            ["action"] = "ungroup",
+            ["session_id"] = sessionId,
+            ["slide_index"] = slideIndex,
+            ["shape_index"] = groupedShapeCount
+        });
+        AssertSuccess(ungroupResult, "shape.ungroup");
+        Assert.Equal(2, GetInt(ungroupResult, "ungroupedShapeCount"));
+        _output.WriteLine("✓ shape.ungroup");
+
         // 5. table.add-table, set-cell-text, get-cell-text round-trip.
         var addTableResult = await Call("table", new()
         {

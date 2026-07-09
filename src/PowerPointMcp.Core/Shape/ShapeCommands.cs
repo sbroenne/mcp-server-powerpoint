@@ -12,6 +12,8 @@ public sealed class ShapeCommands : IShapeCommands
     // values instead of the typed enum.
     private const int MsoShapeRectangle = 1; // MsoAutoShapeType.msoShapeRectangle
     private const int MsoTextOrientationHorizontal = 1; // MsoTextOrientation.msoTextOrientationHorizontal
+    private const int MsoTrue = -1;
+    private const int MsoFalse = 0;
 
     // MsoAutoShapeType member name -> value, for AddAutoShape. A curated subset of the full
     // enum covering the shapes authors most commonly need beyond a plain rectangle (arrows,
@@ -63,6 +65,39 @@ public sealed class ShapeCommands : IShapeCommands
         ["msoConnectorStraight"] = 1,
         ["msoConnectorElbow"] = 2,
         ["msoConnectorCurve"] = 3,
+    };
+
+    // MsoLineDashStyle member name -> value, for SetLine (learn.microsoft.com/office/vba/api/office.msolinedashstyle).
+    private static readonly Dictionary<string, int> LineDashStyles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["msoLineSolid"] = 1,
+        ["msoLineSquareDot"] = 2,
+        ["msoLineRoundDot"] = 3,
+        ["msoLineDash"] = 4,
+        ["msoLineDashDot"] = 5,
+        ["msoLineDashDotDot"] = 6,
+        ["msoLineLongDash"] = 7,
+        ["msoLineLongDashDot"] = 8,
+    };
+
+    private static readonly Dictionary<int, string> LineDashStylesByValue =
+        LineDashStyles.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+
+    // MsoFlipCmd member -> value (learn.microsoft.com/office/vba/api/office.msoflipcmd).
+    private static readonly Dictionary<string, int> FlipDirections = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["horizontal"] = 0, // msoFlipHorizontal
+        ["vertical"] = 1,   // msoFlipVertical
+    };
+
+    // MsoZOrderCmd member -> value (learn.microsoft.com/office/vba/api/office.msozordercmd).
+    // Word-only members (msoBringInFrontOfText, msoSendBehindText) are intentionally omitted.
+    private static readonly Dictionary<string, int> ZOrderCommands = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["bring-to-front"] = 0, // msoBringToFront
+        ["send-to-back"] = 1,   // msoSendToBack
+        ["bring-forward"] = 2,  // msoBringForward
+        ["send-backward"] = 3,  // msoSendBackward
     };
 
     /// <inheritdoc/>
@@ -318,6 +353,447 @@ public sealed class ShapeCommands : IShapeCommands
                 Height = shape.Height
             };
         });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult SetFill(IPresentationBatch batch, int slideIndex, int shapeIndex, byte red, byte green, byte blue)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            int rgb = red + (green << 8) + (blue << 16);
+            shape.Fill.Solid();
+            shape.Fill.ForeColor.RGB = rgb;
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ColorRgb = rgb };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult GetFill(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            int rgb = (int)shape.Fill.ForeColor.RGB;
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ColorRgb = rgb };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult SetLine(
+        IPresentationBatch batch,
+        int slideIndex,
+        int shapeIndex,
+        byte? red = null,
+        byte? green = null,
+        byte? blue = null,
+        float? weight = null,
+        string? dashStyle = null,
+        bool? visible = null)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            int? dashStyleValue = null;
+            if (dashStyle is not null)
+            {
+                if (!LineDashStyles.TryGetValue(dashStyle, out var resolvedDashStyle))
+                {
+                    return new ShapeOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"'{dashStyle}' is not a recognized MsoLineDashStyle name (e.g. 'msoLineSolid', 'msoLineDash', 'msoLineDashDot')."
+                    };
+                }
+                dashStyleValue = resolvedDashStyle;
+            }
+
+            dynamic shape = slide.Shapes[shapeIndex];
+
+            if (red is not null || green is not null || blue is not null)
+            {
+                int rgb = (red ?? 0) + ((green ?? 0) << 8) + ((blue ?? 0) << 16);
+                shape.Line.ForeColor.RGB = rgb;
+            }
+
+            if (weight is not null)
+            {
+                shape.Line.Weight = weight.Value;
+            }
+
+            if (dashStyleValue is not null)
+            {
+                shape.Line.DashStyle = dashStyleValue.Value;
+            }
+
+            if (visible is not null)
+            {
+                shape.Line.Visible = visible.Value ? MsoTrue : MsoFalse;
+            }
+
+            return ReadLine(shape, shapeIndex);
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult GetLine(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            return ReadLine(shape, shapeIndex);
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult SetRotation(IPresentationBatch batch, int slideIndex, int shapeIndex, float degrees)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            var shape = slide.Shapes[shapeIndex];
+            shape.Rotation = degrees;
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Rotation = shape.Rotation };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult GetRotation(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            var shape = slide.Shapes[shapeIndex];
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Rotation = shape.Rotation };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult Flip(IPresentationBatch batch, int slideIndex, int shapeIndex, string direction)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(direction);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            if (!FlipDirections.TryGetValue(direction, out var directionValue))
+            {
+                return new ShapeOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"'{direction}' is not a recognized flip direction (must be 'horizontal' or 'vertical')."
+                };
+            }
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            shape.Flip(directionValue);
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, FlipDirection = direction };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult SetZOrder(IPresentationBatch batch, int slideIndex, int shapeIndex, string zOrderCommand)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(zOrderCommand);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            if (!ZOrderCommands.TryGetValue(zOrderCommand, out var commandValue))
+            {
+                return new ShapeOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"'{zOrderCommand}' is not a recognized z-order command (must be 'bring-to-front', 'send-to-back', 'bring-forward', or 'send-backward')."
+                };
+            }
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            shape.ZOrder(commandValue);
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ZOrderCommand = zOrderCommand };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult SetShadow(IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            shape.Shadow.Visible = visible ? MsoTrue : MsoFalse;
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = visible };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult GetShadow(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            bool visible = (int)shape.Shadow.Visible == MsoTrue;
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = visible };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult Group(IPresentationBatch batch, int slideIndex, IReadOnlyList<int> shapeIndexes)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(shapeIndexes);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            int shapeCount = (int)slide.Shapes.Count;
+
+            if (shapeIndexes.Count < 2)
+            {
+                return new ShapeOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"At least 2 shape indexes are required to group (got {shapeIndexes.Count})."
+                };
+            }
+
+            foreach (var index in shapeIndexes)
+            {
+                var validation = ValidateShapeIndex(shapeCount, index);
+                if (validation is not null) return validation;
+            }
+
+            object[] indexArray = shapeIndexes.Select(i => (object)i).ToArray();
+            dynamic range = slide.Shapes.Range(indexArray);
+            range.Group();
+
+            return new ShapeOperationResult { Success = true, ShapeCount = (int)slide.Shapes.Count };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult Ungroup(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            dynamic ungrouped = shape.Ungroup();
+            int ungroupedCount = (int)ungrouped.Count;
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                UngroupedShapeCount = ungroupedCount,
+                ShapeCount = (int)slide.Shapes.Count
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult SetName(IPresentationBatch batch, int slideIndex, int shapeIndex, string name)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(name);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            var shape = slide.Shapes[shapeIndex];
+            shape.Name = name;
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Name = shape.Name };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult GetName(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            var shape = slide.Shapes[shapeIndex];
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Name = shape.Name };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult SetAltText(IPresentationBatch batch, int slideIndex, int shapeIndex, string altText)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(altText);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            shape.AlternativeText = altText;
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, AltText = (string)shape.AlternativeText };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult GetAltText(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, AltText = (string)shape.AlternativeText };
+        });
+    }
+
+    private static ShapeOperationResult ReadLine(dynamic shape, int shapeIndex)
+    {
+        int rgb = (int)shape.Line.ForeColor.RGB;
+        float weight = (float)shape.Line.Weight;
+        int dashStyleValue = (int)shape.Line.DashStyle;
+        string dashStyleName = LineDashStylesByValue.TryGetValue(dashStyleValue, out var name)
+            ? name
+            : $"unknown ({dashStyleValue})";
+        bool visible = (int)shape.Line.Visible == MsoTrue;
+
+        return new ShapeOperationResult
+        {
+            Success = true,
+            ShapeIndex = shapeIndex,
+            ColorRgb = rgb,
+            LineWeight = weight,
+            DashStyleName = dashStyleName,
+            Visible = visible
+        };
     }
 
     private static ShapeOperationResult? ValidateSlideIndex(int slideCount, int slideIndex)
