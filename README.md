@@ -38,6 +38,10 @@ layout regressions that text-only automation simply cannot detect.
 - ⚠️ **PowerPoint Required** — Microsoft PowerPoint 2016 or later must be installed
 - ⚠️ **Desktop Environment** — controls a real PowerPoint process (not for server-side processing)
 
+> [!TIP]
+> **Also automating spreadsheets?** Check out [Excel MCP Server](https://excelmcpserver.dev/) —
+> the sister project, built the same way.
+
 ## 🎯 What You Can Do
 
 **18 MCP tools with ~98 operations across 12 domains:**
