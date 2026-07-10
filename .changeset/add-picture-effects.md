@@ -1,5 +1,5 @@
 ---
-"@sbroenne/mcp-server-powerpoint": minor
+"powerpointmcp": minor
 ---
 
 Add picture-effect actions to the `image` domain: `set-brightness-contrast`/`get-brightness-contrast`
