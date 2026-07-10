@@ -16,7 +16,8 @@
     4. Core tests        - surgical Feature=-filtered real-COM integration tests, scoped to the
                             Core domains touched by this commit (skipped if no Core changes)
     5. MCP protocol tests - dotnet test tests\PowerPointMcp.McpServer.Tests (in-memory transport,
-                            fast, no PowerPoint launch required for most cases)
+                            fast, no PowerPoint launch required for most cases; skipped for
+                            docs/changeset-only commits)
     6. TODO/FIXME/HACK scan - blocks unresolved markers in staged files
 
     NOTE: Unlike mcp-server-excel, this repo does not yet have companion scripts
@@ -41,6 +42,14 @@ function Write-Step {
 function Stop-DotNetBuildServers {
     dotnet build-server shutdown *> $null
 }
+
+# Determine whether this commit touches actual code (as opposed to docs/changeset-only
+# changes). The MCP protocol test suite launches real processes and is unnecessary for
+# pure documentation changes.
+$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))'
+$allStagedFilesForGate = git diff --cached --name-only 2>&1 | Where-Object { $_ }
+$codeChangedFilesForGate = $allStagedFilesForGate | Where-Object { $_ -notmatch $docOnlyPattern }
+$hasCodeChanges = @($codeChangedFilesForGate).Count -gt 0
 
 # --- 1. Branch guard (never commit directly to main) ---------------------------------------
 Write-Step "Checking current branch..."
@@ -160,16 +169,20 @@ else {
 }
 
 # --- 5. MCP protocol tests (fast, in-memory transport) ---------------------------------------
-Write-Step "Running MCP Server tests..."
+if ($hasCodeChanges) {
+    Write-Step "Running MCP Server tests..."
 
-& dotnet test (Join-Path $rootDir "tests\PowerPointMcp.McpServer.Tests") --nologo
-if ($LASTEXITCODE -ne 0) {
-    Write-Host ""
-    Write-Host "BLOCKED: MCP Server tests failed." -ForegroundColor Red
-    exit 1
+    & dotnet test (Join-Path $rootDir "tests\PowerPointMcp.McpServer.Tests") --nologo
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "BLOCKED: MCP Server tests failed." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "MCP Server tests passed" -ForegroundColor Green
+} else {
+    Write-Step "Skipping MCP Server tests (no code changes detected - docs/changeset only)"
 }
-
-Write-Host "MCP Server tests passed" -ForegroundColor Green
 
 # --- 6. TODO/FIXME/HACK scan ------------------------------------------------------------------
 Write-Step "Scanning staged files for TODO/FIXME/HACK markers..."
