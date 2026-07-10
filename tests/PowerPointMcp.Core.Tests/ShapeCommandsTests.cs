@@ -434,6 +434,132 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     }
 
     [Fact]
+    public void SetShadow_WithParameters_RoundTripsColorAndFormatting()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var setResult = _commands.SetShadow(batch, 1, 1, true, red: 255, green: 0, blue: 0, transparency: 0.25f, blur: 4f, offsetX: 4f, offsetY: 5f);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal(255, setResult.ColorRgb);
+        Assert.Equal(0.25f, setResult.Transparency);
+        // PowerPoint round-trips points through EMUs internally, so exact float equality is not
+        // guaranteed for shadow Blur/OffsetX/OffsetY — assert within a small tolerance instead.
+        Assert.InRange(setResult.Blur!.Value, 3f, 7f);
+        Assert.InRange(setResult.OffsetX!.Value, 3.9f, 4.1f);
+        Assert.InRange(setResult.OffsetY!.Value, 4.9f, 5.1f);
+
+        var getResult = _commands.GetShadow(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.True(getResult.Visible);
+        Assert.Equal(255, getResult.ColorRgb);
+        Assert.Equal(0.25f, getResult.Transparency);
+        Assert.InRange(getResult.Blur!.Value, 3f, 7f);
+        Assert.InRange(getResult.OffsetX!.Value, 3.9f, 4.1f);
+        Assert.InRange(getResult.OffsetY!.Value, 4.9f, 5.1f);
+    }
+
+    [Fact]
+    public void SetGlow_AndGetGlow_RoundTripsColorRadiusAndTransparency()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var setResult = _commands.SetGlow(batch, 1, 1, red: 0, green: 255, blue: 0, radius: 8f, transparency: 0.3f);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal(0x00FF00, setResult.ColorRgb);
+        Assert.InRange(setResult.GlowRadius!.Value, 7.9f, 8.1f);
+        Assert.Equal(0.3f, setResult.Transparency);
+
+        var getResult = _commands.GetGlow(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal(0x00FF00, getResult.ColorRgb);
+        Assert.InRange(getResult.GlowRadius!.Value, 7.9f, 8.1f);
+        Assert.Equal(0.3f, getResult.Transparency);
+    }
+
+    [Fact]
+    public void SetReflection_AndGetReflection_RoundTripsVisibilityAndFormatting()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var setResult = _commands.SetReflection(batch, 1, 1, true, transparency: 0.6f, size: 40f, blur: 2f);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.True(setResult.Visible);
+        Assert.Equal(0.6f, setResult.Transparency);
+        Assert.InRange(setResult.ReflectionSize!.Value, 39.9f, 40.1f);
+        Assert.InRange(setResult.Blur!.Value, 1.9f, 2.1f);
+
+        var getResult = _commands.GetReflection(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.True(getResult.Visible);
+        Assert.Equal(0.6f, getResult.Transparency);
+        Assert.InRange(getResult.ReflectionSize!.Value, 39.9f, 40.1f);
+        Assert.InRange(getResult.Blur!.Value, 1.9f, 2.1f);
+
+        var offResult = _commands.SetReflection(batch, 1, 1, false);
+        Assert.True(offResult.Success, offResult.ErrorMessage);
+        Assert.False(offResult.Visible);
+
+        var getOffResult = _commands.GetReflection(batch, 1, 1);
+        Assert.True(getOffResult.Success, getOffResult.ErrorMessage);
+        Assert.False(getOffResult.Visible);
+    }
+
+    [Fact]
+    public void SetSoftEdge_AndGetSoftEdge_RoundTripsRadius()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var setResult = _commands.SetSoftEdge(batch, 1, 1, 5f);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.InRange(setResult.SoftEdgeRadius!.Value, 4.9f, 5.1f);
+
+        var getResult = _commands.GetSoftEdge(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.InRange(getResult.SoftEdgeRadius!.Value, 4.9f, 5.1f);
+    }
+
+    [Fact]
+    public void SetBevel_AndGetBevel_RoundTripsTypeDepthAndInset()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var setResult = _commands.SetBevel(batch, 1, 1, "msoBevelCircle", depth: 7f, inset: 8f);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal("msoBevelCircle", setResult.BevelTypeName);
+        Assert.InRange(setResult.BevelDepth!.Value, 6.9f, 7.1f);
+        Assert.InRange(setResult.BevelInset!.Value, 7.9f, 8.1f);
+
+        var getResult = _commands.GetBevel(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal("msoBevelCircle", getResult.BevelTypeName);
+        Assert.InRange(getResult.BevelDepth!.Value, 6.9f, 7.1f);
+        Assert.InRange(getResult.BevelInset!.Value, 7.9f, 8.1f);
+    }
+
+    [Fact]
+    public void SetBevel_WithUnrecognizedTypeName_Fails()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var result = _commands.SetBevel(batch, 1, 1, "msoBevelNotARealType");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
     public void Group_TwoShapes_ReducesShapeCountByOne_AndUngroupRestoresIt()
     {
         _fixture.CreateFreshPresentation();

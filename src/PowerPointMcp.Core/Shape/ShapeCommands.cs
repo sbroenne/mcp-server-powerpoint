@@ -22,6 +22,17 @@ public sealed class ShapeCommands : IShapeCommands
     private const int PpActionNone = 0; // PpActionType.ppActionNone
     private const int PpActionHyperlink = 7; // PpActionType.ppActionHyperlink
 
+    // MsoShadowStyle constant for SetShadow — verified live via ShapeEffectsDiagTests (a
+    // temporary diagnostic spike, since removed): shape.Shadow.Type = 20 ("offset" style shadow)
+    // is the closest match to GongRzhe/Office-PowerPoint-MCP-Server's parameterized drop-shadow
+    // feature (color/transparency/blur/offset are all settable on this shadow style).
+    private const int MsoShadow20 = 20;
+
+    // MsoReflectionType constants for SetReflection/GetReflection — verified live via
+    // ShapeEffectsDiagTests: 0 = none, 9 = "full reflection, touching" (the common default look).
+    private const int MsoReflectionTypeNone = 0;
+    private const int MsoReflectionType9 = 9;
+
     // MsoAutoShapeType member name -> value, for AddAutoShape. A curated subset of the full
     // enum covering the shapes authors most commonly need beyond a plain rectangle (arrows,
     // ovals, basic flowchart/callout shapes) — verified against the published MsoAutoShapeType
@@ -89,6 +100,27 @@ public sealed class ShapeCommands : IShapeCommands
 
     private static readonly Dictionary<int, string> LineDashStylesByValue =
         LineDashStyles.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+
+    // MsoBevelType member name -> value, for SetBevel/GetBevel (learn.microsoft.com/office/vba/api/office.msobeveltype).
+    private static readonly Dictionary<string, int> BevelTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["msoBevelNone"] = 6,
+        ["msoBevelRelaxedInset"] = 2,
+        ["msoBevelCircle"] = 3,
+        ["msoBevelSlope"] = 8,
+        ["msoBevelCross"] = 5,
+        ["msoBevelAngle"] = 4,
+        ["msoBevelSoftRound"] = 1,
+        ["msoBevelConvex"] = 7,
+        ["msoBevelCoolSlant"] = 12,
+        ["msoBevelDivot"] = 9,
+        ["msoBevelRiblet"] = 10,
+        ["msoBevelHardEdge"] = 11,
+        ["msoBevelArtDeco"] = 13,
+    };
+
+    private static readonly Dictionary<int, string> BevelTypesByValue =
+        BevelTypes.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
     // MsoFlipCmd member -> value (learn.microsoft.com/office/vba/api/office.msoflipcmd).
     private static readonly Dictionary<string, int> FlipDirections = new(StringComparer.OrdinalIgnoreCase)
@@ -593,7 +625,10 @@ public sealed class ShapeCommands : IShapeCommands
     }
 
     /// <inheritdoc/>
-    public ShapeOperationResult SetShadow(IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible)
+    public ShapeOperationResult SetShadow(
+        IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible,
+        byte red = 0, byte green = 0, byte blue = 0,
+        float transparency = 0.5f, float blur = 4f, float offsetX = 3f, float offsetY = 3f)
     {
         ArgumentNullException.ThrowIfNull(batch);
 
@@ -607,9 +642,33 @@ public sealed class ShapeCommands : IShapeCommands
             if (shapeValidation is not null) return shapeValidation;
 
             dynamic shape = slide.Shapes[shapeIndex];
-            shape.Shadow.Visible = visible ? MsoTrue : MsoFalse;
+            dynamic shadow = shape.Shadow;
+            shadow.Visible = visible ? MsoTrue : MsoFalse;
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = visible };
+            if (!visible)
+            {
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+            }
+
+            int rgb = red + (green << 8) + (blue << 16);
+            shadow.Type = MsoShadow20; // offset shadow — verified live via ShapeEffectsDiagTests
+            shadow.ForeColor.RGB = rgb;
+            shadow.Transparency = transparency;
+            shadow.Blur = blur;
+            shadow.OffsetX = offsetX;
+            shadow.OffsetY = offsetY;
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                Visible = true,
+                ColorRgb = rgb,
+                Transparency = transparency,
+                Blur = blur,
+                OffsetX = offsetX,
+                OffsetY = offsetY,
+            };
         });
     }
 
@@ -628,9 +687,273 @@ public sealed class ShapeCommands : IShapeCommands
             if (shapeValidation is not null) return shapeValidation;
 
             dynamic shape = slide.Shapes[shapeIndex];
-            bool visible = (int)shape.Shadow.Visible == MsoTrue;
+            dynamic shadow = shape.Shadow;
+            bool visible = (int)shadow.Visible == MsoTrue;
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = visible };
+            if (!visible)
+            {
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+            }
+
+            int rgb = (int)shadow.ForeColor.RGB;
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                Visible = true,
+                ColorRgb = rgb,
+                Transparency = (float)shadow.Transparency,
+                Blur = (float)shadow.Blur,
+                OffsetX = (float)shadow.OffsetX,
+                OffsetY = (float)shadow.OffsetY,
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult SetGlow(IPresentationBatch batch, int slideIndex, int shapeIndex, byte red, byte green, byte blue, float radius, float transparency = 0f)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            dynamic glow = shape.Glow;
+            int rgb = red + (green << 8) + (blue << 16);
+            glow.Radius = radius;
+            glow.Color.RGB = rgb;
+            glow.Transparency = transparency;
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                ColorRgb = rgb,
+                GlowRadius = radius,
+                Transparency = transparency,
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult GetGlow(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            dynamic glow = shape.Glow;
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                ColorRgb = (int)glow.Color.RGB,
+                GlowRadius = (float)glow.Radius,
+                Transparency = (float)glow.Transparency,
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult SetReflection(IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible, float transparency = 0.5f, float size = 50f, float blur = 3f)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            dynamic reflection = shape.Reflection;
+
+            if (!visible)
+            {
+                reflection.Type = MsoReflectionTypeNone;
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+            }
+
+            reflection.Type = MsoReflectionType9; // full touching — verified live via ShapeEffectsDiagTests
+            reflection.Transparency = transparency;
+            reflection.Size = size;
+            reflection.Blur = blur;
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                Visible = true,
+                Transparency = transparency,
+                ReflectionSize = size,
+                Blur = blur,
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult GetReflection(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            dynamic reflection = shape.Reflection;
+            bool visible = (int)reflection.Type != MsoReflectionTypeNone;
+
+            if (!visible)
+            {
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+            }
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                Visible = true,
+                Transparency = (float)reflection.Transparency,
+                ReflectionSize = (float)reflection.Size,
+                Blur = (float)reflection.Blur,
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult SetSoftEdge(IPresentationBatch batch, int slideIndex, int shapeIndex, float radius)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            shape.SoftEdge.Radius = radius;
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, SoftEdgeRadius = radius };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult GetSoftEdge(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            float radius = (float)shape.SoftEdge.Radius;
+
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, SoftEdgeRadius = radius };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult SetBevel(IPresentationBatch batch, int slideIndex, int shapeIndex, string bevelType, float depth = 6f, float inset = 6f)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        if (!BevelTypes.TryGetValue(bevelType, out var typeValue))
+        {
+            return new ShapeOperationResult
+            {
+                Success = false,
+                ErrorMessage = $"'{bevelType}' is not a recognized MsoBevelType member name (e.g. 'msoBevelCircle', 'msoBevelSoftRound', 'msoBevelNone')."
+            };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            dynamic threeD = shape.ThreeD;
+            threeD.BevelTopType = typeValue;
+            threeD.BevelTopDepth = depth;
+            threeD.BevelTopInset = inset;
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                BevelTypeName = bevelType,
+                BevelDepth = depth,
+                BevelInset = inset,
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult GetBevel(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            dynamic threeD = shape.ThreeD;
+            int typeValue = (int)threeD.BevelTopType;
+            string typeName = BevelTypesByValue.TryGetValue(typeValue, out var name) ? name : $"unknown({typeValue})";
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                BevelTypeName = typeName,
+                BevelDepth = (float)threeD.BevelTopDepth,
+                BevelInset = (float)threeD.BevelTopInset,
+            };
         });
     }
 

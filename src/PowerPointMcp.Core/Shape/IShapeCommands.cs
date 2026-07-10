@@ -96,11 +96,47 @@ public interface IShapeCommands
     /// </summary>
     ShapeOperationResult SetZOrder(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, string zOrderCommand);
 
-    /// <summary>Turns a shape's default drop shadow on or off.</summary>
-    ShapeOperationResult SetShadow(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible);
+    /// <summary>
+    /// Turns a shape's drop shadow on or off and, when <paramref name="visible"/> is true, sets
+    /// its color/transparency/blur/offset. The color/formatting parameters are optional additions
+    /// to the original visibility-only overload — existing callers passing only <paramref name="visible"/>
+    /// remain valid and get PowerPoint's shadow defaults.
+    /// </summary>
+    ShapeOperationResult SetShadow(
+        ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible,
+        byte red = 0, byte green = 0, byte blue = 0,
+        float transparency = 0.5f, float blur = 4f, float offsetX = 3f, float offsetY = 3f);
 
-    /// <summary>Gets whether a shape's drop shadow is visible.</summary>
+    /// <summary>Gets a shape's drop shadow visibility and, when visible, its color/transparency/blur/offset.</summary>
     ShapeOperationResult GetShadow(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>Applies a glow effect to a shape with the given color, radius (in points), and transparency (0-1). A radius of 0 removes the glow.</summary>
+    ShapeOperationResult SetGlow(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, byte red, byte green, byte blue, float radius, float transparency = 0f);
+
+    /// <summary>Gets a shape's glow color, radius, and transparency.</summary>
+    ShapeOperationResult GetGlow(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>Turns a shape's reflection effect on or off and, when visible, sets its transparency, size (% of shape height), and blur.</summary>
+    ShapeOperationResult SetReflection(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible, float transparency = 0.5f, float size = 50f, float blur = 3f);
+
+    /// <summary>Gets a shape's reflection visibility, transparency, size, and blur.</summary>
+    ShapeOperationResult GetReflection(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>Sets a shape's soft edge (feathered edge) radius in points. A radius of 0 removes the soft edge.</summary>
+    ShapeOperationResult SetSoftEdge(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, float radius);
+
+    /// <summary>Gets a shape's soft edge radius in points.</summary>
+    ShapeOperationResult GetSoftEdge(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Applies a 3D bevel effect to a shape's top edge. <paramref name="bevelType"/> is an
+    /// <c>MsoBevelType</c> enum member name (e.g. <c>"msoBevelCircle"</c>, <c>"msoBevelSoftRound"</c>,
+    /// or <c>"msoBevelNone"</c> to remove the bevel).
+    /// </summary>
+    ShapeOperationResult SetBevel(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, string bevelType, float depth = 6f, float inset = 6f);
+
+    /// <summary>Gets a shape's bevel type name, depth, and inset.</summary>
+    ShapeOperationResult GetBevel(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
 
     /// <summary>
     /// Groups two or more shapes on the given slide into a single shape, identified by their
