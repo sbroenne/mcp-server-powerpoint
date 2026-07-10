@@ -150,4 +150,221 @@ public sealed class PresentationCommands : IPresentationCommands
             };
         });
     }
+
+    /// <summary>
+    /// The built-in document properties this domain supports writing/reading, matching
+    /// <c>Presentation.BuiltInDocumentProperties</c>'s name-indexed entries (verified live via
+    /// COM spike). Read-only/statistical built-ins (word count, slide count, etc.) are
+    /// intentionally out of scope — those are already exposed by other domains (e.g. Slide).
+    /// </summary>
+    private static readonly string[] SupportedBuiltInProperties =
+        ["Title", "Subject", "Author", "Keywords", "Comments", "Category", "Manager", "Company"];
+
+    /// <inheritdoc/>
+    public PresentationOperationResult SetDocumentProperty(IPresentationBatch batch, string propertyName, string value)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(value);
+
+        string? matchedName = MatchSupportedBuiltInProperty(propertyName);
+        if (matchedName is null)
+        {
+            return UnsupportedBuiltInPropertyError(propertyName);
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic property = ctx.Presentation.BuiltInDocumentProperties[matchedName];
+            property.Value = value;
+
+            return new PresentationOperationResult
+            {
+                Success = true,
+                PresentationPath = batch.PresentationPath,
+                PropertyName = matchedName,
+                PropertyValue = (string)property.Value
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public PresentationOperationResult GetDocumentProperty(IPresentationBatch batch, string propertyName)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        string? matchedName = MatchSupportedBuiltInProperty(propertyName);
+        if (matchedName is null)
+        {
+            return UnsupportedBuiltInPropertyError(propertyName);
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic property = ctx.Presentation.BuiltInDocumentProperties[matchedName];
+
+            return new PresentationOperationResult
+            {
+                Success = true,
+                PresentationPath = batch.PresentationPath,
+                PropertyName = matchedName,
+                PropertyValue = (string)property.Value
+            };
+        });
+    }
+
+    private static string? MatchSupportedBuiltInProperty(string propertyName)
+    {
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return null;
+        }
+
+        foreach (string candidate in SupportedBuiltInProperties)
+        {
+            if (string.Equals(candidate, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static PresentationOperationResult UnsupportedBuiltInPropertyError(string propertyName) => new()
+    {
+        Success = false,
+        ErrorMessage = $"'{propertyName}' is not a supported built-in document property. " +
+                       $"Expected one of: {string.Join(", ", SupportedBuiltInProperties)}."
+    };
+
+    /// <inheritdoc/>
+    public PresentationOperationResult SetCustomProperty(IPresentationBatch batch, string propertyName, string value)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(value);
+
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return new PresentationOperationResult
+            {
+                Success = false,
+                ErrorMessage = "A custom property name is required."
+            };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var custom = ctx.Presentation.CustomDocumentProperties;
+
+            // PowerPoint's CustomDocumentProperties collection has no TryGetValue/Contains
+            // helper — an ArgumentException from the name-indexed lookup is the documented way
+            // to detect "not present yet" (verified live via COM spike), so this upsert pattern
+            // is a normal existence check, not suppression of an unexpected failure (Rule 1b).
+            try
+            {
+                dynamic existing = custom[propertyName];
+                existing.Value = value;
+            }
+            catch (ArgumentException)
+            {
+                custom.Add(propertyName, false, MsoPropertyTypeString, value);
+            }
+
+            return new PresentationOperationResult
+            {
+                Success = true,
+                PresentationPath = batch.PresentationPath,
+                PropertyName = propertyName,
+                PropertyValue = value
+            };
+        });
+    }
+
+    /// <summary>
+    /// <c>MsoDocProperties.msoPropertyTypeString</c> — used directly as an <c>int</c> to avoid
+    /// pulling in the full <c>Microsoft.Office.Core</c> interop surface for a single enum value.
+    /// </summary>
+    private const int MsoPropertyTypeString = 4;
+
+    /// <inheritdoc/>
+    public PresentationOperationResult GetCustomProperty(IPresentationBatch batch, string propertyName)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return new PresentationOperationResult
+            {
+                Success = false,
+                ErrorMessage = "A custom property name is required."
+            };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var custom = ctx.Presentation.CustomDocumentProperties;
+
+            try
+            {
+                dynamic existing = custom[propertyName];
+
+                return new PresentationOperationResult
+                {
+                    Success = true,
+                    PresentationPath = batch.PresentationPath,
+                    PropertyName = propertyName,
+                    PropertyValue = (string)existing.Value
+                };
+            }
+            catch (ArgumentException)
+            {
+                return new PresentationOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"No custom property named '{propertyName}' was found."
+                };
+            }
+        });
+    }
+
+    /// <inheritdoc/>
+    public PresentationOperationResult RemoveCustomProperty(IPresentationBatch batch, string propertyName)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return new PresentationOperationResult
+            {
+                Success = false,
+                ErrorMessage = "A custom property name is required."
+            };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var custom = ctx.Presentation.CustomDocumentProperties;
+
+            try
+            {
+                dynamic existing = custom[propertyName];
+                existing.Delete();
+
+                return new PresentationOperationResult
+                {
+                    Success = true,
+                    PresentationPath = batch.PresentationPath,
+                    PropertyName = propertyName
+                };
+            }
+            catch (ArgumentException)
+            {
+                return new PresentationOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"No custom property named '{propertyName}' was found."
+                };
+            }
+        });
+    }
 }

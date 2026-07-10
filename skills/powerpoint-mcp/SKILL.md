@@ -10,17 +10,19 @@ description: >
 
 # PowerPoint MCP Server Skill
 
-Provides 18 PowerPoint MCP tools (7 session-lifecycle tools + 11 domain action-dispatch tools)
+Provides 24 PowerPoint MCP tools (12 session-lifecycle tools + 12 domain action-dispatch tools)
 via the Model Context Protocol, driving a live PowerPoint desktop instance through the official
 `Microsoft.Office.Interop.PowerPoint` PIA. Tools are auto-discovered via MCP `tools/list` — this
 skill documents session lifecycle, indexing conventions, workflows, and gotchas that aren't
 obvious from tool schemas alone.
 
 Session-lifecycle tools (`create_presentation`, `open_presentation`, `save_presentation`,
-`close_presentation`, `list_sessions`, `apply_template`, `get_theme_name`) are one-tool-per-verb
-with camelCase arguments. Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`,
-`notes`, `layout`, `master`, `animation`, `export`) are action-dispatch: one tool per domain,
-called as `tool(action: "kebab-action", session_id: ..., snake_case_param: ...)`.
+`close_presentation`, `list_sessions`, `apply_template`, `get_theme_name`,
+`set_document_property`, `get_document_property`, `set_custom_property`, `get_custom_property`,
+`remove_custom_property`) are one-tool-per-verb with camelCase arguments. Domain tools (`slide`,
+`shape`, `textframe`, `table`, `chart`, `image`, `notes`, `layout`, `master`, `smartart`,
+`animation`, `export`) are action-dispatch: one tool per domain, called as `tool(action:
+"kebab-action", session_id: ..., snake_case_param: ...)`.
 
 ## Workflow Checklist
 
@@ -94,6 +96,8 @@ saved.
 | Task | Tool(s) |
 |------|---------|
 | Create/open/save/close/list sessions | `create_presentation`, `open_presentation`, `save_presentation`, `close_presentation`, `list_sessions` |
+| Apply template, read theme name | `apply_template`, `get_theme_name` |
+| Document metadata (built-in and custom properties) | `set_document_property`, `get_document_property`, `set_custom_property`, `get_custom_property`, `remove_custom_property` |
 | Add/count/delete/duplicate/reorder slides | `slide(action: "add-blank"/"get-count"/"delete"/"duplicate"/"move-to")` |
 | Per-slide background color, sections | `slide(action: "set-background-color"/"get-background-color"/"add-section"/"rename-section"/"delete-section"/"get-section-count"/"get-section-name")` |
 | Add/count/delete/move/resize shapes | `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector"/"get-count"/"delete"/"set-position"/"set-size")` |

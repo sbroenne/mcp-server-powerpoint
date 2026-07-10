@@ -46,7 +46,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
-        // PresentationTools.cs (7, hand-written — session lifecycle)
+        // PresentationTools.cs (12, hand-written — session lifecycle + document properties)
         "create_presentation",
         "open_presentation",
         "save_presentation",
@@ -54,7 +54,12 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         "list_sessions",
         "apply_template",
         "get_theme_name",
-        // Generated action-dispatch tools (11, one per remaining Core domain)
+        "set_document_property",
+        "get_document_property",
+        "set_custom_property",
+        "get_custom_property",
+        "remove_custom_property",
+        // Generated action-dispatch tools (12, one per remaining Core domain)
         "slide",
         "shape",
         "textframe",
@@ -106,7 +111,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// THE core protocol proof: exactly the 18 expected tools (7 hand-written + 11 generated
+    /// THE core protocol proof: exactly the 24 expected tools (12 hand-written + 12 generated
     /// action-dispatch) are discoverable via <c>tools/list</c> — no more, no less.
     /// </summary>
     [Fact]

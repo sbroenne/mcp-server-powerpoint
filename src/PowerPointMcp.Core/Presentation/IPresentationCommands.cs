@@ -63,4 +63,47 @@ public interface IPresentationCommands
     /// presentation's styling.
     /// </summary>
     PresentationOperationResult GetThemeName(IPresentationBatch batch);
+
+    /// <summary>
+    /// Sets a built-in document metadata property (Title, Subject, Author, Keywords, Comments,
+    /// Category, Manager, or Company) on the presentation open in the given batch. Wraps
+    /// <c>Presentation.BuiltInDocumentProperties[name].Value</c>.
+    /// </summary>
+    /// <param name="batch">The open batch whose presentation metadata will be updated.</param>
+    /// <param name="propertyName">One of the supported built-in property names (case-insensitive).</param>
+    /// <param name="value">The new value for the property.</param>
+    PresentationOperationResult SetDocumentProperty(IPresentationBatch batch, string propertyName, string value);
+
+    /// <summary>
+    /// Reads a built-in document metadata property (Title, Subject, Author, Keywords, Comments,
+    /// Category, Manager, or Company) from the presentation open in the given batch.
+    /// </summary>
+    /// <param name="batch">The open batch whose presentation metadata will be read.</param>
+    /// <param name="propertyName">One of the supported built-in property names (case-insensitive).</param>
+    PresentationOperationResult GetDocumentProperty(IPresentationBatch batch, string propertyName);
+
+    /// <summary>
+    /// Creates or updates a custom (user-defined) string document property on the presentation
+    /// open in the given batch. Wraps <c>Presentation.CustomDocumentProperties</c>.
+    /// </summary>
+    /// <param name="batch">The open batch whose presentation metadata will be updated.</param>
+    /// <param name="propertyName">The custom property's name.</param>
+    /// <param name="value">The custom property's string value.</param>
+    PresentationOperationResult SetCustomProperty(IPresentationBatch batch, string propertyName, string value);
+
+    /// <summary>
+    /// Reads a custom (user-defined) document property from the presentation open in the given
+    /// batch. Returns <c>Success = false</c> if no custom property with that name exists.
+    /// </summary>
+    /// <param name="batch">The open batch whose presentation metadata will be read.</param>
+    /// <param name="propertyName">The custom property's name.</param>
+    PresentationOperationResult GetCustomProperty(IPresentationBatch batch, string propertyName);
+
+    /// <summary>
+    /// Removes a custom (user-defined) document property from the presentation open in the
+    /// given batch. Returns <c>Success = false</c> if no custom property with that name exists.
+    /// </summary>
+    /// <param name="batch">The open batch whose presentation metadata will be updated.</param>
+    /// <param name="propertyName">The custom property's name.</param>
+    PresentationOperationResult RemoveCustomProperty(IPresentationBatch batch, string propertyName);
 }

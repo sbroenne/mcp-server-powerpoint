@@ -219,6 +219,105 @@ public static class PresentationTools
             return SerializeResult(Commands.GetThemeName(batch));
         });
 
+    /// <summary>
+    /// Sets a built-in document metadata property (Title, Subject, Author, Keywords, Comments,
+    /// Category, Manager, or Company) on the open presentation.
+    /// </summary>
+    [McpServerTool(Name = "set_document_property")]
+    [Description("Set a built-in document metadata property on the presentation for an open session. Supported property names (case-insensitive): Title, Subject, Author, Keywords, Comments, Category, Manager, Company. Requires a sessionId from open_presentation or create_presentation.")]
+    public static string SetDocumentProperty(
+        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
+        [Description("One of: Title, Subject, Author, Keywords, Comments, Category, Manager, Company (case-insensitive).")] string propertyName,
+        [Description("The new value for the property.")] string value,
+        PresentationSessionRegistry registry)
+        => PowerPointToolsBase.ExecuteToolAction("set_document_property", () =>
+        {
+            if (!registry.TryGet(sessionId, out var batch))
+            {
+                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            }
+
+            return SerializeResult(Commands.SetDocumentProperty(batch, propertyName, value));
+        });
+
+    /// <summary>
+    /// Reads a built-in document metadata property from the open presentation.
+    /// </summary>
+    [McpServerTool(Name = "get_document_property")]
+    [Description("Get a built-in document metadata property from the presentation for an open session. Supported property names (case-insensitive): Title, Subject, Author, Keywords, Comments, Category, Manager, Company. Requires a sessionId from open_presentation or create_presentation.")]
+    public static string GetDocumentProperty(
+        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
+        [Description("One of: Title, Subject, Author, Keywords, Comments, Category, Manager, Company (case-insensitive).")] string propertyName,
+        PresentationSessionRegistry registry)
+        => PowerPointToolsBase.ExecuteToolAction("get_document_property", () =>
+        {
+            if (!registry.TryGet(sessionId, out var batch))
+            {
+                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            }
+
+            return SerializeResult(Commands.GetDocumentProperty(batch, propertyName));
+        });
+
+    /// <summary>
+    /// Creates or updates a custom (user-defined) string document property on the open
+    /// presentation.
+    /// </summary>
+    [McpServerTool(Name = "set_custom_property")]
+    [Description("Create or update a custom (user-defined) string document property on the presentation for an open session. Requires a sessionId from open_presentation or create_presentation.")]
+    public static string SetCustomProperty(
+        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
+        [Description("The custom property's name.")] string propertyName,
+        [Description("The custom property's string value.")] string value,
+        PresentationSessionRegistry registry)
+        => PowerPointToolsBase.ExecuteToolAction("set_custom_property", () =>
+        {
+            if (!registry.TryGet(sessionId, out var batch))
+            {
+                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            }
+
+            return SerializeResult(Commands.SetCustomProperty(batch, propertyName, value));
+        });
+
+    /// <summary>
+    /// Reads a custom (user-defined) document property from the open presentation.
+    /// </summary>
+    [McpServerTool(Name = "get_custom_property")]
+    [Description("Get a custom (user-defined) document property from the presentation for an open session. Returns success=false if no custom property with that name exists. Requires a sessionId from open_presentation or create_presentation.")]
+    public static string GetCustomProperty(
+        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
+        [Description("The custom property's name.")] string propertyName,
+        PresentationSessionRegistry registry)
+        => PowerPointToolsBase.ExecuteToolAction("get_custom_property", () =>
+        {
+            if (!registry.TryGet(sessionId, out var batch))
+            {
+                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            }
+
+            return SerializeResult(Commands.GetCustomProperty(batch, propertyName));
+        });
+
+    /// <summary>
+    /// Removes a custom (user-defined) document property from the open presentation.
+    /// </summary>
+    [McpServerTool(Name = "remove_custom_property")]
+    [Description("Remove a custom (user-defined) document property from the presentation for an open session. Returns success=false if no custom property with that name exists. Requires a sessionId from open_presentation or create_presentation.")]
+    public static string RemoveCustomProperty(
+        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
+        [Description("The custom property's name.")] string propertyName,
+        PresentationSessionRegistry registry)
+        => PowerPointToolsBase.ExecuteToolAction("remove_custom_property", () =>
+        {
+            if (!registry.TryGet(sessionId, out var batch))
+            {
+                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            }
+
+            return SerializeResult(Commands.RemoveCustomProperty(batch, propertyName));
+        });
+
     private static string SerializeResult(PresentationOperationResult result)
     {
         if (result.Success)
@@ -227,7 +326,9 @@ public static class PresentationTools
             {
                 success = true,
                 presentationPath = result.PresentationPath,
-                themeName = result.ThemeName
+                themeName = result.ThemeName,
+                propertyName = result.PropertyName,
+                propertyValue = result.PropertyValue
             });
         }
 
@@ -237,6 +338,8 @@ public static class PresentationTools
             errorMessage = result.ErrorMessage,
             presentationPath = result.PresentationPath,
             themeName = result.ThemeName,
+            propertyName = result.PropertyName,
+            propertyValue = result.PropertyValue,
             isError = true
         });
     }
