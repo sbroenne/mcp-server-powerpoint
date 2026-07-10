@@ -60,4 +60,75 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
     }
+
+    [Fact]
+    public void SetBrightnessContrast_AndGetBrightnessContrast_RoundTrips()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        string imagePath = CoreTestHelper.CreateUniqueTestImageFile();
+        try
+        {
+            _commands.AddPicture(batch, 1, imagePath, 10f, 10f, 100f, 100f);
+
+            var setResult = _commands.SetBrightnessContrast(batch, 1, 1, 0.6f, 0.7f);
+            Assert.True(setResult.Success, setResult.ErrorMessage);
+            Assert.Equal(0.6f, setResult.Brightness);
+            Assert.Equal(0.7f, setResult.Contrast);
+
+            var getResult = _commands.GetBrightnessContrast(batch, 1, 1);
+            Assert.True(getResult.Success, getResult.ErrorMessage);
+            Assert.Equal(0.6f, getResult.Brightness);
+            Assert.Equal(0.7f, getResult.Contrast);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public void SetRecolor_AndGetRecolor_RoundTrips()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        string imagePath = CoreTestHelper.CreateUniqueTestImageFile();
+        try
+        {
+            _commands.AddPicture(batch, 1, imagePath, 10f, 10f, 100f, 100f);
+
+            var setResult = _commands.SetRecolor(batch, 1, 1, "msoPictureGrayscale");
+            Assert.True(setResult.Success, setResult.ErrorMessage);
+            Assert.Equal("msoPictureGrayscale", setResult.ColorTypeName);
+
+            var getResult = _commands.GetRecolor(batch, 1, 1);
+            Assert.True(getResult.Success, getResult.ErrorMessage);
+            Assert.Equal("msoPictureGrayscale", getResult.ColorTypeName);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public void SetRecolor_WithUnrecognizedColorTypeName_Fails()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        string imagePath = CoreTestHelper.CreateUniqueTestImageFile();
+        try
+        {
+            _commands.AddPicture(batch, 1, imagePath, 10f, 10f, 100f, 100f);
+
+            var result = _commands.SetRecolor(batch, 1, 1, "msoPictureNotARealType");
+
+            Assert.False(result.Success);
+            Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
 }
