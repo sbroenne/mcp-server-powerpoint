@@ -10,6 +10,7 @@ embedded chart data sheet.
 | `chart` | `add-chart` | `session_id`, `slide_index`, `chart_type`, `left`, `top`, `width`, `height`, `categories` (string array), `series_name` (string), `values` (double array) | Creates a native chart shape with **one** data series. |
 | `chart` | `get-chart-data` | `session_id`, `slide_index`, `shape_index` | Returns `categoryCount` and `seriesCount` of an existing chart — dimensions only, not the raw values. |
 | `chart` | `add-series` | `session_id`, `slide_index`, `shape_index`, `series_name`, `values` (double array) | Adds one more data series to an existing chart. `values` length must match the chart's existing category count. Call repeatedly to build an N-series chart. |
+| `chart` | `replace-chart-data` | `session_id`, `slide_index`, `shape_index`, `categories` (string array), `series_names` (string array), `series_values` (double array, **series-major flat**) | Replaces ALL of an existing chart's categories/series/values in one call — including changing the category count. See "Replacing Chart Data" below for the flat layout. |
 | `chart` | `set-chart-title` | `session_id`, `slide_index`, `shape_index`, `title` | Sets/shows the chart's title text. |
 | `chart` | `get-chart-title` | `session_id`, `slide_index`, `shape_index` | Returns `hasTitle` and, if present, `title`. |
 | `chart` | `set-axis-title` | `session_id`, `slide_index`, `shape_index`, `axis_type` (`"category"` or `"value"`), `title` | Sets the title of the category (X) or value (Y) axis. |
@@ -49,6 +50,27 @@ chart(action: "add-series", session_id: ..., slide_index: ..., shape_index: <sha
 Each `add-series` call's `values` array length must match the chart's existing category count
 (from the original `add-chart` call) — a mismatch returns `Success=false` without throwing.
 
+## Replacing Chart Data
+
+Unlike `add-series` (which appends one more series to the existing category count),
+`chart(action: "replace-chart-data", ...)` wholesale-replaces an existing chart's categories, series
+names, and values in a single call — including changing the number of categories. This avoids the
+delete-shape-and-recreate workaround mentioned above.
+
+`series_values` is a **flat, series-major** array: all values for `series_names[0]` first, then all
+values for `series_names[1]`, etc. Its length must equal `categories.length * series_names.length`.
+
+```
+chart(action: "replace-chart-data", session_id: ..., slide_index: ..., shape_index: <shapeIndex>,
+  categories: ["Jan", "Feb", "Mar", "Apr"],
+  series_names: ["Revenue", "Cost"],
+  # Revenue: 100, 200, 300, 400 — then Cost: 50, 60, 70, 80
+  series_values: [100.0, 200.0, 300.0, 400.0, 50.0, 60.0, 70.0, 80.0])
+```
+
+A mismatched `series_values` length or an invalid/non-chart `shape_index` returns `Success=false`
+without throwing.
+
 ## Pie Charts
 
 For `"pie"`, `categories` become the slice labels and `values` the slice sizes — keep to 6 or
@@ -83,9 +105,8 @@ series — without a visible legend, a multi-series chart's colors are unlabeled
 `chart(action: "get-chart-data", ...)` only reports `categoryCount`/`seriesCount` — it does not
 return the actual category labels or values. Use it to confirm a chart was created with the
 expected shape (e.g., 4 categories, 1 series) after `add-chart`, not to recover the original data
-for editing — there is no set/edit-in-place action for the underlying category/value data; to
-change the category labels or a series' values, delete the shape (`shape(action: "delete", ...)`)
-and call `add-chart` (and `add-series`) again with corrected data.
+for editing. To change the category labels or values, use `replace-chart-data` (see "Replacing
+Chart Data" above) rather than deleting and recreating the shape.
 
 ## Verify Visually
 

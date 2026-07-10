@@ -201,6 +201,101 @@ public sealed class ChartCommands : IChartCommands
     }
 
     /// <inheritdoc/>
+    public ChartOperationResult ReplaceChartData(
+        IPresentationBatch batch,
+        int slideIndex,
+        int shapeIndex,
+        IReadOnlyList<string> categories,
+        IReadOnlyList<string> seriesNames,
+        IReadOnlyList<double> seriesValues)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(categories);
+        ArgumentNullException.ThrowIfNull(seriesNames);
+        ArgumentNullException.ThrowIfNull(seriesValues);
+
+        if (seriesNames.Count == 0)
+        {
+            return new ChartOperationResult
+            {
+                Success = false,
+                ErrorMessage = "At least one series name is required."
+            };
+        }
+
+        int expectedValueCount = categories.Count * seriesNames.Count;
+        if (seriesValues.Count != expectedValueCount)
+        {
+            return new ChartOperationResult
+            {
+                Success = false,
+                ErrorMessage = $"seriesValues length ({seriesValues.Count}) must equal categories.Count ({categories.Count}) * seriesNames.Count ({seriesNames.Count}) = {expectedValueCount}."
+            };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            if ((int)shape.HasChart != MsoTrue)
+            {
+                return new ChartOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Shape {shapeIndex} on slide {slideIndex} is not a chart."
+                };
+            }
+
+            dynamic chart = shape.Chart;
+
+            // NOTE (discovered via real integration test, not assumed): re-entering the chart's
+            // embedded data workbook (Chart.ChartData.Activate()/.Workbook) a second time, after
+            // AddChart already Activate()d/Quit()'d it once via WriteChartData, deterministically
+            // throws COMException(0xB0D7019E) — not a transient race. As with AddSeries above, we
+            // avoid the embedded workbook entirely and manipulate SeriesCollection directly:
+            // delete all existing series, then add fresh series with the new categories/values.
+            dynamic seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
+            int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
+            for (int i = existingSeriesCount; i >= 1; i--)
+            {
+                dynamic existingSeries = seriesCollection.Item(i);
+                existingSeries.Delete();
+            }
+
+            string[] categoriesArray = categories.ToArray();
+            for (int s = 0; s < seriesNames.Count; s++)
+            {
+                var valuesForSeries = new double[categories.Count];
+                for (int i = 0; i < categories.Count; i++)
+                {
+                    valuesForSeries[i] = seriesValues[(s * categories.Count) + i];
+                }
+
+                dynamic newSeries = seriesCollection.NewSeries();
+                newSeries.Values = valuesForSeries;
+                newSeries.XValues = categoriesArray;
+                newSeries.Name = seriesNames[s];
+            }
+
+            int newSeriesCount = (int)chart.SeriesCollection().Count;
+
+            return new ChartOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                SeriesCount = newSeriesCount,
+                CategoryCount = categories.Count
+            };
+        });
+    }
+
+    /// <inheritdoc/>
     public ChartOperationResult SetChartTitle(IPresentationBatch batch, int slideIndex, int shapeIndex, string title)
     {
         ArgumentNullException.ThrowIfNull(batch);
