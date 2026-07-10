@@ -9,6 +9,25 @@ public sealed class SlideCommands : ISlideCommands
     private const int MsoTrue = -1;
     private const int MsoFalse = 0;
 
+    // MsoGradientStyle member name -> value, for SetGradientBackground/GetGradientBackground
+    // (learn.microsoft.com/office/vba/api/office.msogradientstyle) — verified live via a
+    // temporary diagnostic spike (since removed): FillFormat.TwoColorGradient(style, variant)
+    // must be called BEFORE setting ForeColor/BackColor.RGB, since TwoColorGradient() itself
+    // resets both colors to PowerPoint's defaults (white/theme accent) as a side effect.
+    private static readonly Dictionary<string, int> GradientStyles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["msoGradientHorizontal"] = 1,
+        ["msoGradientVertical"] = 2,
+        ["msoGradientDiagonalUp"] = 3,
+        ["msoGradientDiagonalDown"] = 4,
+        ["msoGradientFromCorner"] = 5,
+        ["msoGradientFromTitle"] = 6,
+        ["msoGradientFromCenter"] = 7,
+    };
+
+    private static readonly Dictionary<int, string> GradientStylesByValue =
+        GradientStyles.ToDictionary(kv => kv.Value, kv => kv.Key);
+
     /// <inheritdoc/>
     public SlideOperationResult AddBlank(IPresentationBatch batch)
     {
@@ -210,6 +229,113 @@ public sealed class SlideCommands : ISlideCommands
                 SlideIndex = slideIndex,
                 ColorRgb = rgb,
                 FollowsMasterBackground = followsMaster
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public SlideOperationResult SetGradientBackground(
+        IPresentationBatch batch,
+        int slideIndex,
+        byte red1, byte green1, byte blue1,
+        byte red2, byte green2, byte blue2,
+        string gradientStyle = "msoGradientHorizontal",
+        int gradientVariant = 1)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        if (!GradientStyles.TryGetValue(gradientStyle, out int styleValue))
+        {
+            return new SlideOperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Unrecognized gradientStyle '{gradientStyle}'. Valid values: {string.Join(", ", GradientStyles.Keys)}."
+            };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            int count = ctx.Presentation.Slides.Count;
+            if (slideIndex < 1 || slideIndex > count)
+            {
+                return new SlideOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Slide index {slideIndex} is out of range. The presentation has {count} slide(s) (valid range: 1-{count}).",
+                    SlideCount = count
+                };
+            }
+
+            int rgb1 = red1 + (green1 << 8) + (blue1 << 16);
+            int rgb2 = red2 + (green2 << 8) + (blue2 << 16);
+
+            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            slide.FollowMasterBackground = MsoFalse;
+            // TwoColorGradient() must be called BEFORE setting ForeColor/BackColor — it resets
+            // both colors to PowerPoint's defaults as a side effect (verified via diagnostic spike).
+            slide.Background.Fill.TwoColorGradient(styleValue, gradientVariant);
+            slide.Background.Fill.ForeColor.RGB = rgb1;
+            slide.Background.Fill.BackColor.RGB = rgb2;
+
+            return new SlideOperationResult
+            {
+                Success = true,
+                SlideIndex = slideIndex,
+                ColorRgb = rgb1,
+                ColorRgb2 = rgb2,
+                GradientStyleName = gradientStyle,
+                GradientVariant = gradientVariant,
+                FollowsMasterBackground = false
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public SlideOperationResult GetGradientBackground(IPresentationBatch batch, int slideIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            int count = ctx.Presentation.Slides.Count;
+            if (slideIndex < 1 || slideIndex > count)
+            {
+                return new SlideOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Slide index {slideIndex} is out of range. The presentation has {count} slide(s) (valid range: 1-{count}).",
+                    SlideCount = count
+                };
+            }
+
+            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            int fillType = (int)slide.Background.Fill.Type;
+            const int MsoFillGradient = 3;
+            if (fillType != MsoFillGradient)
+            {
+                return new SlideOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Slide {slideIndex}'s background fill is not a gradient (fill type = {fillType}).",
+                    SlideIndex = slideIndex
+                };
+            }
+
+            int rgb1 = (int)slide.Background.Fill.ForeColor.RGB;
+            int rgb2 = (int)slide.Background.Fill.BackColor.RGB;
+            int styleValue = (int)slide.Background.Fill.GradientStyle;
+            int variant = (int)slide.Background.Fill.GradientVariant;
+            string? styleName = GradientStylesByValue.GetValueOrDefault(styleValue);
+
+            return new SlideOperationResult
+            {
+                Success = true,
+                SlideIndex = slideIndex,
+                ColorRgb = rgb1,
+                ColorRgb2 = rgb2,
+                GradientStyleName = styleName,
+                GradientVariant = variant,
+                FollowsMasterBackground = false
             };
         });
     }

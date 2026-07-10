@@ -121,4 +121,61 @@ public class MasterCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.True(getResult.Success);
         Assert.Equal(expectedRgb, getResult.ColorRgb);
     }
+
+    [Fact]
+    public void SetGradientBackground_AndGetGradientBackground_RoundTrips()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var setResult = _commands.SetGradientBackground(
+            batch,
+            red1: 255, green1: 0, blue1: 0,
+            red2: 0, green2: 0, blue2: 255,
+            gradientStyle: "msoGradientVertical",
+            gradientVariant: 2);
+
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal(255, setResult.ColorRgb);
+        Assert.Equal(16711680, setResult.ColorRgb2);
+        Assert.Equal("msoGradientVertical", setResult.GradientStyleName);
+        Assert.Equal(2, setResult.GradientVariant);
+
+        var getResult = _commands.GetGradientBackground(batch);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal(255, getResult.ColorRgb);
+        Assert.Equal(16711680, getResult.ColorRgb2);
+        Assert.Equal("msoGradientVertical", getResult.GradientStyleName);
+        Assert.Equal(2, getResult.GradientVariant);
+    }
+
+    [Fact]
+    public void SetGradientBackground_WithUnrecognizedStyleName_Fails()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.SetGradientBackground(
+            batch,
+            red1: 255, green1: 0, blue1: 0,
+            red2: 0, green2: 0, blue2: 255,
+            gradientStyle: "msoGradientNotARealStyle");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void GetGradientBackground_WhenBackgroundIsSolid_Fails()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        _commands.SetBackgroundColor(batch, red: 255, green: 0, blue: 0);
+
+        var result = _commands.GetGradientBackground(batch);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
 }
