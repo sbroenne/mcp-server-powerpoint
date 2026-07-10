@@ -76,6 +76,23 @@ Always run tests with an explicit timeout in the terminal/tooling layer that inv
 test` — never leave a COM test run open-ended; fail fast if PowerPoint stalls instead of hanging
 the whole session.
 
+### Scope Test Runs To What You Actually Changed
+
+When you add a handful of new `[Fact]`/`[Theory]` methods to an **existing** test class, do NOT
+rerun the whole `Feature=`-filtered class just to check the new ones — each test in a Core class
+launches its own PowerPoint COM session (or shares one via `IClassFixture`), so a full-class rerun
+can take many minutes for what should be a 30-second check. Instead, filter by name to run only
+the new tests first:
+
+```powershell
+# Only the tests you just added (fast feedback loop)
+dotnet test tests\PowerPointMcp.Core.Tests --filter "FullyQualifiedName~PresentationCommandsTests&(FullyQualifiedName~DocumentProperty|FullyQualifiedName~CustomProperty)"
+```
+
+Once the new tests pass in isolation, run the full `Feature=`-filtered class exactly once, right
+before committing, to confirm no regression across the whole domain — don't repeat that full run
+after every small edit.
+
 ## MCP-Layer Testing Strategy (Differs From Core)
 
 - **Protocol-level tests** (`McpProtocolTests`) use the MCP SDK's in-memory pipe transport

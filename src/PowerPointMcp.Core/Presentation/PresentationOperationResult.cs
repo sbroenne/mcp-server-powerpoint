@@ -25,4 +25,16 @@ public sealed class PresentationOperationResult
     /// Null for operations that don't touch theming.
     /// </summary>
     public string? ThemeName { get; init; }
+
+    /// <summary>
+    /// The document property name acted on by the document-property/custom-property commands.
+    /// Null for operations that don't touch document properties.
+    /// </summary>
+    public string? PropertyName { get; init; }
+
+    /// <summary>
+    /// The document property value read or written by the document-property/custom-property
+    /// commands. Null for operations that don't touch document properties.
+    /// </summary>
+    public string? PropertyValue { get; init; }
 }

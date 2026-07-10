@@ -40,10 +40,12 @@ Every editing operation requires an open session:
 ## Two Tool Families, Two Calling Conventions
 
 - **Session-lifecycle tools** (`create_presentation`, `open_presentation`, `save_presentation`,
-  `close_presentation`, `list_sessions`, `apply_template`, `get_theme_name`) are one-tool-per-verb
-  and use camelCase arguments, e.g. `open_presentation(filePath: "C:\\Decks\\q4.pptx")`.
+  `close_presentation`, `list_sessions`, `apply_template`, `get_theme_name`,
+  `set_document_property`, `get_document_property`, `set_custom_property`, `get_custom_property`,
+  `remove_custom_property`) are one-tool-per-verb and use camelCase arguments, e.g.
+  `open_presentation(filePath: "C:\\Decks\\q4.pptx")`.
 - **Domain tools** (`slide`, `shape`, `textframe`, `table`, `chart`, `image`, `notes`, `layout`,
-  `master`, `animation`, `export`) are action-dispatch: one tool per domain, and every call passes an `action` (kebab-case)
+  `master`, `smartart`, `animation`, `export`) are action-dispatch: one tool per domain, and every call passes an `action` (kebab-case)
   plus `session_id` and only the snake_case parameters relevant to that action, e.g.
   `shape(action: "add-rectangle", session_id: ..., slide_index: 1, left: 50, top: 80, width: 100,
   height: 60)`.
