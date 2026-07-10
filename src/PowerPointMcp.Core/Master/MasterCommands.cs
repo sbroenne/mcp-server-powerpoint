@@ -9,6 +9,23 @@ public sealed class MasterCommands : IMasterCommands
     private const int MsoTrue = -1;
     private const int MsoFalse = 0;
 
+    // MsoGradientStyle member name -> value, for SetGradientBackground/GetGradientBackground —
+    // same table/verified behavior as SlideCommands.GradientStyles (FillFormat.TwoColorGradient
+    // must be called BEFORE setting ForeColor/BackColor.RGB).
+    private static readonly Dictionary<string, int> GradientStyles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["msoGradientHorizontal"] = 1,
+        ["msoGradientVertical"] = 2,
+        ["msoGradientDiagonalUp"] = 3,
+        ["msoGradientDiagonalDown"] = 4,
+        ["msoGradientFromCorner"] = 5,
+        ["msoGradientFromTitle"] = 6,
+        ["msoGradientFromCenter"] = 7,
+    };
+
+    private static readonly Dictionary<int, string> GradientStylesByValue =
+        GradientStyles.ToDictionary(kv => kv.Value, kv => kv.Key);
+
     /// <inheritdoc/>
     public MasterOperationResult GetTitleFont(IPresentationBatch batch)
     {
@@ -121,6 +138,84 @@ public sealed class MasterCommands : IMasterCommands
             master.Background.Fill.ForeColor.RGB = rgb;
 
             return new MasterOperationResult { Success = true, ColorRgb = rgb };
+        });
+    }
+
+    /// <inheritdoc/>
+    public MasterOperationResult SetGradientBackground(
+        IPresentationBatch batch,
+        byte red1, byte green1, byte blue1,
+        byte red2, byte green2, byte blue2,
+        string gradientStyle = "msoGradientHorizontal",
+        int gradientVariant = 1)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        if (!GradientStyles.TryGetValue(gradientStyle, out int styleValue))
+        {
+            return new MasterOperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Unrecognized gradientStyle '{gradientStyle}'. Valid values: {string.Join(", ", GradientStyles.Keys)}."
+            };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            int rgb1 = red1 + (green1 << 8) + (blue1 << 16);
+            int rgb2 = red2 + (green2 << 8) + (blue2 << 16);
+
+            dynamic master = ctx.Presentation.SlideMaster;
+            // TwoColorGradient() must be called BEFORE setting ForeColor/BackColor — it resets
+            // both colors to PowerPoint's defaults as a side effect (verified via diagnostic spike).
+            master.Background.Fill.TwoColorGradient(styleValue, gradientVariant);
+            master.Background.Fill.ForeColor.RGB = rgb1;
+            master.Background.Fill.BackColor.RGB = rgb2;
+
+            return new MasterOperationResult
+            {
+                Success = true,
+                ColorRgb = rgb1,
+                ColorRgb2 = rgb2,
+                GradientStyleName = gradientStyle,
+                GradientVariant = gradientVariant
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public MasterOperationResult GetGradientBackground(IPresentationBatch batch)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            dynamic master = ctx.Presentation.SlideMaster;
+            int fillType = (int)master.Background.Fill.Type;
+            const int MsoFillGradient = 3;
+            if (fillType != MsoFillGradient)
+            {
+                return new MasterOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"The slide master's background fill is not a gradient (fill type = {fillType})."
+                };
+            }
+
+            int rgb1 = (int)master.Background.Fill.ForeColor.RGB;
+            int rgb2 = (int)master.Background.Fill.BackColor.RGB;
+            int styleValue = (int)master.Background.Fill.GradientStyle;
+            int variant = (int)master.Background.Fill.GradientVariant;
+            string? styleName = GradientStylesByValue.GetValueOrDefault(styleValue);
+
+            return new MasterOperationResult
+            {
+                Success = true,
+                ColorRgb = rgb1,
+                ColorRgb2 = rgb2,
+                GradientStyleName = styleName,
+                GradientVariant = variant
+            };
         });
     }
 

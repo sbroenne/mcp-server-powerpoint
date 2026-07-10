@@ -54,6 +54,29 @@ public interface ISlideCommands
     SlideOperationResult GetBackgroundColor(IPresentationBatch batch, int slideIndex);
 
     /// <summary>
+    /// Sets a two-color gradient background for a single slide, overriding the slide master's
+    /// background for that slide only (sets <c>FollowMasterBackground = False</c>).
+    /// <paramref name="gradientStyle"/> is an <c>MsoGradientStyle</c> member name (e.g.
+    /// "msoGradientHorizontal", "msoGradientVertical", "msoGradientDiagonalUp",
+    /// "msoGradientDiagonalDown", "msoGradientFromCorner", "msoGradientFromTitle",
+    /// "msoGradientFromCenter"; defaults to "msoGradientHorizontal"). <paramref name="gradientVariant"/>
+    /// selects one of PowerPoint's 1-4 preset variants for that style (defaults to 1).
+    /// </summary>
+    SlideOperationResult SetGradientBackground(
+        IPresentationBatch batch,
+        int slideIndex,
+        byte red1, byte green1, byte blue1,
+        byte red2, byte green2, byte blue2,
+        string gradientStyle = "msoGradientHorizontal",
+        int gradientVariant = 1);
+
+    /// <summary>
+    /// Gets a slide's gradient background: both stop colors, the <c>MsoGradientStyle</c> member
+    /// name, and the variant. Fails if the slide's background is not currently a gradient fill.
+    /// </summary>
+    SlideOperationResult GetGradientBackground(IPresentationBatch batch, int slideIndex);
+
+    /// <summary>
     /// Adds a new section before the given 1-based <paramref name="sectionIndex"/>. Pass
     /// <c>sectionCount + 1</c> to append a section at the end. Returns the new section's
     /// <c>sectionIndex</c> and the new total <c>sectionCount</c>.

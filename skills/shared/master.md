@@ -16,6 +16,8 @@ via `textframe`/`layout`.
 | `master` | `set-body-font` | `session_id`, `font_name?`, `font_size?`, `bold?`, `red?`, `green?`, `blue?` | Same shape as `set-title-font`, for the body placeholder. |
 | `master` | `get-background-color` | `session_id` | Returns `color_rgb` for the master's background fill. |
 | `master` | `set-background-color` | `session_id`, `red`, `green`, `blue` | All three color channels are required (0-255 each); sets a solid background fill. |
+| `master` | `get-gradient-background` | `session_id` | Returns `color_rgb`, `color_rgb2`, `gradient_style_name`, `gradient_variant`. Fails if the master's current background fill is solid (not a gradient). |
+| `master` | `set-gradient-background` | `session_id`, `red1`, `green1`, `blue1`, `red2`, `green2`, `blue2`, `gradient_style?`, `gradient_variant?` | Sets a two-color gradient fill. `gradient_style` is one of `msoGradientHorizontal` (default), `msoGradientVertical`, `msoGradientDiagonalUp`, `msoGradientDiagonalDown`, `msoGradientFromCorner`, `msoGradientFromTitle`, `msoGradientFromCenter`. `gradient_variant` is `1`-`4` (default `1`), selecting one of PowerPoint's preset variants for that style. |
 
 ## What This Does — and Does Not — Cover
 

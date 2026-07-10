@@ -24,6 +24,15 @@ public sealed class SlideOperationResult
     /// <summary>Background solid fill color, packed as 0x00BBGGRR (matches VBA's RGB()).</summary>
     public int? ColorRgb { get; init; }
 
+    /// <summary>Second gradient stop color (0x00BBGGRR), for Set/GetGradientBackground.</summary>
+    public int? ColorRgb2 { get; init; }
+
+    /// <summary>MsoGradientStyle member name (e.g. "msoGradientHorizontal"), for Set/GetGradientBackground.</summary>
+    public string? GradientStyleName { get; init; }
+
+    /// <summary>Gradient variant (1-4), for Set/GetGradientBackground.</summary>
+    public int? GradientVariant { get; init; }
+
     /// <summary>Whether the slide currently follows the slide master's background.</summary>
     public bool? FollowsMasterBackground { get; init; }
 

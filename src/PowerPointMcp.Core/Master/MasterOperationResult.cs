@@ -25,4 +25,13 @@ public sealed class MasterOperationResult
 
     /// <summary>Font or background color as an RGB integer (0xBBGGRR, PowerPoint's native color order), if applicable.</summary>
     public int? ColorRgb { get; init; }
+
+    /// <summary>Second gradient stop color (0xBBGGRR), for Set/GetGradientBackground.</summary>
+    public int? ColorRgb2 { get; init; }
+
+    /// <summary>MsoGradientStyle member name (e.g. "msoGradientHorizontal"), for Set/GetGradientBackground.</summary>
+    public string? GradientStyleName { get; init; }
+
+    /// <summary>Gradient variant (1-4), for Set/GetGradientBackground.</summary>
+    public int? GradientVariant { get; init; }
 }
