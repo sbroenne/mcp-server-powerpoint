@@ -532,4 +532,82 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
     }
+
+    [Fact]
+    public void SetHyperlink_AndGetHyperlink_RoundTripsAddress()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var setResult = _commands.SetHyperlink(batch, 1, 1, "https://example.com");
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.True(setResult.HasHyperlink);
+        Assert.Equal("https://example.com/", setResult.HyperlinkAddress);
+
+        var getResult = _commands.GetHyperlink(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.True(getResult.HasHyperlink);
+        Assert.Equal("https://example.com/", getResult.HyperlinkAddress);
+    }
+
+    [Fact]
+    public void SetHyperlink_WithScreenTip_RoundTripsScreenTip()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var setResult = _commands.SetHyperlink(batch, 1, 1, "https://example.com", screenTip: "Visit Example");
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal("Visit Example", setResult.HyperlinkScreenTip);
+
+        var getResult = _commands.GetHyperlink(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal("Visit Example", getResult.HyperlinkScreenTip);
+    }
+
+    [Fact]
+    public void GetHyperlink_OnShapeWithoutHyperlink_ReturnsHasHyperlinkFalse()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+
+        var result = _commands.GetHyperlink(batch, 1, 1);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.False(result.HasHyperlink);
+        Assert.Null(result.HyperlinkAddress);
+    }
+
+    [Fact]
+    public void RemoveHyperlink_ClearsPreviouslySetHyperlink()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+        _commands.SetHyperlink(batch, 1, 1, "https://example.com");
+
+        var removeResult = _commands.RemoveHyperlink(batch, 1, 1);
+        Assert.True(removeResult.Success, removeResult.ErrorMessage);
+        Assert.False(removeResult.HasHyperlink);
+
+        var getResult = _commands.GetHyperlink(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.False(getResult.HasHyperlink);
+        Assert.Null(getResult.HyperlinkAddress);
+    }
+
+    [Fact]
+    public void SetHyperlink_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.SetHyperlink(batch, 1, 99, "https://example.com");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
 }

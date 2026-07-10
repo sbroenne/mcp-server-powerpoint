@@ -122,4 +122,22 @@ public interface IShapeCommands
 
     /// <summary>Gets a shape's alternative text (accessibility description).</summary>
     ShapeOperationResult GetAltText(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Sets a shape's mouse-click hyperlink to <paramref name="address"/> (a URL, e.g.
+    /// <c>"https://example.com"</c>, or a local file path). Optionally sets the hyperlink's
+    /// screen tip text shown on hover. Clicking the shape at presentation time navigates to
+    /// <paramref name="address"/>.
+    /// </summary>
+    ShapeOperationResult SetHyperlink(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, string address, string? screenTip = null);
+
+    /// <summary>
+    /// Gets a shape's mouse-click hyperlink, if any. Returns <c>HasHyperlink = false</c> (with
+    /// null <c>HyperlinkAddress</c>/<c>HyperlinkScreenTip</c>) when the shape has no hyperlink
+    /// action assigned.
+    /// </summary>
+    ShapeOperationResult GetHyperlink(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>Removes a shape's mouse-click hyperlink, if any (idempotent — no-op if none is set).</summary>
+    ShapeOperationResult RemoveHyperlink(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
 }
