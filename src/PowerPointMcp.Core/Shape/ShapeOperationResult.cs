@@ -80,4 +80,13 @@ public sealed class ShapeOperationResult
 
     /// <summary>Shape alternative text (accessibility description), if applicable.</summary>
     public string? AltText { get; init; }
+
+    /// <summary>Whether the shape has a mouse-click hyperlink assigned, if applicable.</summary>
+    public bool? HasHyperlink { get; init; }
+
+    /// <summary>The shape's hyperlink target address (URL or file path), if applicable.</summary>
+    public string? HyperlinkAddress { get; init; }
+
+    /// <summary>The shape's hyperlink hover screen tip text, if applicable.</summary>
+    public string? HyperlinkScreenTip { get; init; }
 }

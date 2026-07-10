@@ -4,7 +4,7 @@ Reference for the `slide` tool (`add-blank`, `get-count`, `delete`, `duplicate`,
 `set-background-color`, `get-background-color`, section management) and the `shape` tool
 (`add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`,
 `delete`, `set-position`, `set-size`, plus the fill/line/rotation/flip/z-order/shadow/group/
-name/alt-text formatting actions below).
+name/alt-text/hyperlink formatting actions below).
 
 ## Slide Actions
 
@@ -79,6 +79,9 @@ All position/size values are **points** (see `deck-builder.md` for the 960×540p
 | `shape` | `get-name` | `session_id`, `slide_index`, `shape_index` | Returns the shape's current name. |
 | `shape` | `set-alt-text` | `session_id`, `slide_index`, `shape_index`, `alt_text` | Sets the shape's alternative text (accessibility description). Returns `altText`. |
 | `shape` | `get-alt-text` | `session_id`, `slide_index`, `shape_index` | Returns the shape's current alternative text. |
+| `shape` | `set-hyperlink` | `session_id`, `slide_index`, `shape_index`, `address`, `screen_tip` (optional) | Sets the shape's mouse-click hyperlink to `address` (URL or file path). `screen_tip` sets hover tooltip text. Returns `hasHyperlink`, `hyperlinkAddress`, `hyperlinkScreenTip`. |
+| `shape` | `get-hyperlink` | `session_id`, `slide_index`, `shape_index` | Returns `hasHyperlink` and, if present, `hyperlinkAddress`/`hyperlinkScreenTip`. |
+| `shape` | `remove-hyperlink` | `session_id`, `slide_index`, `shape_index` | Removes the shape's mouse-click hyperlink, if any (no-op if none is set). Returns `hasHyperlink: false`. |
 
 **Finding a just-grouped shape's index**: `group` does not return the new group shape's own
 `shapeIndex` — reading `.Index` off a freshly-created COM group object is unreliable in this
@@ -87,6 +90,28 @@ the slide (highest indices, nothing added after them), the resulting group occup
 smaller `shapeCount` as its index (since grouping N shapes always removes N-1 from the slide's
 shape list). Otherwise, call `shape(action: "get-count", ...)` before and after grouping and
 inspect via a follow-up read if you need to confirm which index now holds the group.
+
+### Hyperlinks
+
+`set-hyperlink`/`get-hyperlink`/`remove-hyperlink` manage a shape's **mouse-click** action —
+clicking the shape at presentation time navigates to `address` (an absolute URL like
+`"https://example.com"`, or a local file path). There is no separate mouse-hover hyperlink action,
+and no text-run-level hyperlink (a whole-shape hyperlink is the only granularity this tool
+surface exposes) — to make specific words within a text box clickable, put that text in its own
+shape.
+
+`address` is normalized by PowerPoint itself (e.g. `"https://example.com"` round-trips as
+`"https://example.com/"` with a trailing slash) — compare against the returned `hyperlinkAddress`
+rather than assuming an exact byte-for-byte match of what you passed in.
+
+```
+shape(action: "set-hyperlink", session_id: ..., slide_index: ..., shape_index: ...,
+  address: "https://example.com", screen_tip: "Visit our site")
+shape(action: "get-hyperlink", session_id: ..., slide_index: ..., shape_index: ...)
+  → hasHyperlink: true, hyperlinkAddress: "https://example.com/", hyperlinkScreenTip: "Visit our site"
+shape(action: "remove-hyperlink", session_id: ..., slide_index: ..., shape_index: ...)
+  → hasHyperlink: false
+```
 
 ### Dash Styles (`dash_style` for `set-line`)
 

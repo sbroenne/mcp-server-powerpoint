@@ -15,6 +15,13 @@ public sealed class ShapeCommands : IShapeCommands
     private const int MsoTrue = -1;
     private const int MsoFalse = 0;
 
+    // PowerPoint.PpActionSetting.ppMouseClick / Office.MsoPresentationTarget-related action
+    // constants — office.dll types, so used as raw ints per the project's dynamic-COM
+    // convention (see MsoShapeRectangle above). Verified live via ActionSettings(ppMouseClick).
+    private const int MsoMouseClick = 1; // PpActionSetting.ppMouseClick
+    private const int PpActionNone = 0; // PpActionType.ppActionNone
+    private const int PpActionHyperlink = 7; // PpActionType.ppActionHyperlink
+
     // MsoAutoShapeType member name -> value, for AddAutoShape. A curated subset of the full
     // enum covering the shapes authors most commonly need beyond a plain rectangle (arrows,
     // ovals, basic flowchart/callout shapes) — verified against the published MsoAutoShapeType
@@ -772,6 +779,100 @@ public sealed class ShapeCommands : IShapeCommands
             dynamic shape = slide.Shapes[shapeIndex];
 
             return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, AltText = (string)shape.AlternativeText };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult SetHyperlink(IPresentationBatch batch, int slideIndex, int shapeIndex, string address, string? screenTip = null)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(address);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            // ActionSettings(ppMouseClick).Hyperlink.Address — verified live: setting Address
+            // automatically flips the action setting's Action to ppActionHyperlink; no separate
+            // "enable hyperlink" step is needed.
+            dynamic actionSetting = shape.ActionSettings[MsoMouseClick];
+            actionSetting.Hyperlink.Address = address;
+            if (screenTip is not null)
+            {
+                actionSetting.Hyperlink.ScreenTip = screenTip;
+            }
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                HasHyperlink = true,
+                HyperlinkAddress = (string)actionSetting.Hyperlink.Address,
+                HyperlinkScreenTip = (string)actionSetting.Hyperlink.ScreenTip
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult GetHyperlink(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            dynamic actionSetting = shape.ActionSettings[MsoMouseClick];
+            int action = (int)actionSetting.Action;
+            bool hasHyperlink = action == PpActionHyperlink;
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                HasHyperlink = hasHyperlink,
+                HyperlinkAddress = hasHyperlink ? (string)actionSetting.Hyperlink.Address : null,
+                HyperlinkScreenTip = hasHyperlink ? (string)actionSetting.Hyperlink.ScreenTip : null
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult RemoveHyperlink(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            var slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            dynamic shape = slide.Shapes[shapeIndex];
+            dynamic actionSetting = shape.ActionSettings[MsoMouseClick];
+            actionSetting.Action = PpActionNone;
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                HasHyperlink = false
+            };
         });
     }
 
