@@ -13,6 +13,7 @@ using Sbroenne.PowerPointMcp.Core.Notes;
 using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Shape;
 using Sbroenne.PowerPointMcp.Core.Slide;
+using Sbroenne.PowerPointMcp.Core.SmartArt;
 using Sbroenne.PowerPointMcp.Core.Table;
 using Sbroenne.PowerPointMcp.Core.TextFrame;
 using Sbroenne.PowerPointMcp.Generated;
@@ -58,6 +59,7 @@ public sealed class PowerPointMcpService : IDisposable
     private readonly LayoutCommands _layoutCommands = new();
     private readonly MasterCommands _masterCommands = new();
     private readonly AnimationCommands _animationCommands = new();
+    private readonly SmartArtCommands _smartArtCommands = new();
 
     /// <summary>Gets the UTC time this daemon instance started.</summary>
     public DateTime StartTime => _startTime;
@@ -264,6 +266,9 @@ public sealed class PowerPointMcpService : IDisposable
                 "animation" => DispatchSimple<AnimationAction>(action, request,
                     ServiceRegistry.Animation.TryParseAction,
                     (a, batch) => ServiceRegistry.Animation.DispatchToCore(_animationCommands, a, batch, request.Args)),
+                "smartart" => DispatchSimple<SmartArtAction>(action, request,
+                    ServiceRegistry.SmartArt.TryParseAction,
+                    (a, batch) => ServiceRegistry.SmartArt.DispatchToCore(_smartArtCommands, a, batch, request.Args)),
                 _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
             };
 

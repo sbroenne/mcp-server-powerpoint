@@ -63,6 +63,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         "layout",
         "master",
         "animation",
+        "smartart",
         "image",
         "chart",
         "export"
