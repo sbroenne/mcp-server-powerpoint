@@ -1,12 +1,17 @@
 # Images
 
-Reference for `image(action: "add-picture", ...)` — embeds a local image file into a slide.
+Reference for `image(action: "add-picture", ...)` — embeds a local image file into a slide — plus
+picture-effect actions for adjusting brightness/contrast and recoloring an inserted picture.
 
-## Action
+## Actions
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
 | `image` | `add-picture` | `session_id`, `slide_index`, `image_path`, `left`, `top`, `width`, `height` | Embeds (not links) the file into the presentation. |
+| `image` | `set-brightness-contrast` | `session_id`, `slide_index`, `shape_index`, `brightness`, `contrast` | `brightness`/`contrast` are floats in `[0, 1]` (PowerPoint default is `0.5` for both). |
+| `image` | `get-brightness-contrast` | `session_id`, `slide_index`, `shape_index` | Returns current `brightness`/`contrast`. |
+| `image` | `set-recolor` | `session_id`, `slide_index`, `shape_index`, `color_type` | `color_type` is one of `msoPictureAutomatic` (default/no recolor), `msoPictureGrayscale`, `msoPictureBlackAndWhite`, `msoPictureWatermark`. Unrecognized names fail with `Success=false`. |
+| `image` | `get-recolor` | `session_id`, `slide_index`, `shape_index` | Returns current `color_type`. |
 
 ## Requirements
 
@@ -35,9 +40,9 @@ Always `export(action: "export-slide-to-image", ...)` after `image(action: "add-
 to confirm: the image loaded (not a broken placeholder), the aspect ratio looks correct, and it
 doesn't overlap other shapes on the slide (see `export-and-verify.md`).
 
-## No Editing After Insert
+## Limited Editing After Insert
 
-There is no crop/rotate/effects action in this surface. If the image needs cropping or rotation,
-prepare the final image file before calling `add-picture` — the only post-insert adjustments
-available are `shape(action: "set-position", ...)` and `shape(action: "set-size", ...)` (see
-`slides-and-shapes.md`).
+There is no crop/rotate action in this surface. If the image needs cropping or rotation, prepare
+the final image file before calling `add-picture`. Post-insert adjustments available: `shape(action:
+"set-position", ...)`, `shape(action: "set-size", ...)` (see `slides-and-shapes.md`), and the
+`set-brightness-contrast`/`set-recolor` actions above.

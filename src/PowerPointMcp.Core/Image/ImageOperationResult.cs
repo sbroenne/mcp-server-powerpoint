@@ -19,4 +19,13 @@ public sealed class ImageOperationResult
 
     /// <summary>Total shape count on the slide after the operation.</summary>
     public int? ShapeCount { get; init; }
+
+    /// <summary>Picture brightness (0-1), if applicable.</summary>
+    public float? Brightness { get; init; }
+
+    /// <summary>Picture contrast (0-1), if applicable.</summary>
+    public float? Contrast { get; init; }
+
+    /// <summary>The MsoPictureColorType name of the picture's recolor mode, if applicable.</summary>
+    public string? ColorTypeName { get; init; }
 }
