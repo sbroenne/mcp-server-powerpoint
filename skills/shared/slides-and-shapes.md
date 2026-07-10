@@ -3,8 +3,8 @@
 Reference for the `slide` tool (`add-blank`, `get-count`, `delete`, `duplicate`, `move-to`,
 `set-background-color`, `get-background-color`, section management) and the `shape` tool
 (`add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`,
-`delete`, `set-position`, `set-size`, plus the fill/line/rotation/flip/z-order/shadow/group/
-name/alt-text/hyperlink formatting actions below).
+`delete`, `set-position`, `set-size`, plus the fill/line/rotation/flip/z-order/shadow/glow/
+reflection/soft-edge/bevel/group/name/alt-text/hyperlink formatting actions below).
 
 ## Slide Actions
 
@@ -71,8 +71,16 @@ All position/size values are **points** (see `deck-builder.md` for the 960×540p
 | `shape` | `get-rotation` | `session_id`, `slide_index`, `shape_index` | Returns the current rotation in degrees. |
 | `shape` | `flip` | `session_id`, `slide_index`, `shape_index`, `direction` (`horizontal` or `vertical`) | Flips the shape in place. Returns `flipDirection`. |
 | `shape` | `set-z-order` | `session_id`, `slide_index`, `shape_index`, `z_order_command` | Moves the shape's stacking position. `z_order_command` is one of `bring-to-front`, `send-to-back`, `bring-forward`, `send-backward`. Returns `zOrderCommand`. |
-| `shape` | `set-shadow` | `session_id`, `slide_index`, `shape_index`, `visible` | Turns the shape's default drop shadow on/off. Returns `visible`. |
-| `shape` | `get-shadow` | `session_id`, `slide_index`, `shape_index` | Returns whether the shadow is visible. |
+| `shape` | `set-shadow` | `session_id`, `slide_index`, `shape_index`, `visible`, plus optional `red`/`green`/`blue`, `transparency` (0-1), `blur`, `offset_x`, `offset_y` (points) | Turns the shape's drop shadow on/off. When `visible` is true, the optional color/formatting parameters set an "offset" style shadow — any omitted parameter uses PowerPoint's default. Returns `visible` and, when visible, `colorRgb`, `transparency`, `blur`, `offsetX`, `offsetY`. |
+| `shape` | `get-shadow` | `session_id`, `slide_index`, `shape_index` | Returns `visible` and, if visible, `colorRgb`/`transparency`/`blur`/`offsetX`/`offsetY`. |
+| `shape` | `set-glow` | `session_id`, `slide_index`, `shape_index`, `red`, `green`, `blue`, `radius`, `transparency` (optional, 0-1) | Applies a glow effect. A `radius` of 0 removes the glow. Returns `colorRgb`, `glowRadius`, `transparency`. |
+| `shape` | `get-glow` | `session_id`, `slide_index`, `shape_index` | Returns the shape's current glow `colorRgb`, `glowRadius`, `transparency`. |
+| `shape` | `set-reflection` | `session_id`, `slide_index`, `shape_index`, `visible`, plus optional `transparency` (0-1), `size` (% of shape height), `blur` | Turns a reflection effect on/off. Returns `visible` and, when visible, `transparency`, `reflectionSize`, `blur`. |
+| `shape` | `get-reflection` | `session_id`, `slide_index`, `shape_index` | Returns `visible` and, if visible, `transparency`/`reflectionSize`/`blur`. |
+| `shape` | `set-soft-edge` | `session_id`, `slide_index`, `shape_index`, `radius` | Sets the soft edge (feathered edge) radius in points. A `radius` of 0 removes it. Returns `softEdgeRadius`. |
+| `shape` | `get-soft-edge` | `session_id`, `slide_index`, `shape_index` | Returns the shape's current soft edge `softEdgeRadius`. |
+| `shape` | `set-bevel` | `session_id`, `slide_index`, `shape_index`, `bevel_type`, plus optional `depth`, `inset` (points) | Applies a 3D bevel to the shape's top edge. `bevel_type` is an `MsoBevelType` name (e.g. `msoBevelCircle`, `msoBevelSoftRound`, `msoBevelRelaxedInset`, or `msoBevelNone` to remove). Returns `bevelTypeName`, `bevelDepth`, `bevelInset`. |
+| `shape` | `get-bevel` | `session_id`, `slide_index`, `shape_index` | Returns the shape's current `bevelTypeName`, `bevelDepth`, `bevelInset`. |
 | `shape` | `group` | `session_id`, `slide_index`, `shape_indexes` (JSON array of 1-based indices, at least 2) | Groups multiple shapes into one. Returns the new total `shapeCount` on the slide — **not** the grouped shape's index (see NoPIA note below). |
 | `shape` | `ungroup` | `session_id`, `slide_index`, `shape_index` | Splits a group back into its member shapes. Returns `ungroupedShapeCount` (members produced) and the new total `shapeCount`. |
 | `shape` | `set-name` | `session_id`, `slide_index`, `shape_index`, `name` | Sets the shape's name (as shown in PowerPoint's Selection Pane). Returns `name`. |

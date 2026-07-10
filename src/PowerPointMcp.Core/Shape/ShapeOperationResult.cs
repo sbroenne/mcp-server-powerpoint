@@ -89,4 +89,34 @@ public sealed class ShapeOperationResult
 
     /// <summary>The shape's hyperlink hover screen tip text, if applicable.</summary>
     public string? HyperlinkScreenTip { get; init; }
+
+    /// <summary>Effect transparency (shadow, glow, or reflection), 0-1, if applicable.</summary>
+    public float? Transparency { get; init; }
+
+    /// <summary>Effect blur radius in points (shadow or reflection), if applicable.</summary>
+    public float? Blur { get; init; }
+
+    /// <summary>Shadow horizontal offset in points, if applicable.</summary>
+    public float? OffsetX { get; init; }
+
+    /// <summary>Shadow vertical offset in points, if applicable.</summary>
+    public float? OffsetY { get; init; }
+
+    /// <summary>Glow radius in points, if applicable.</summary>
+    public float? GlowRadius { get; init; }
+
+    /// <summary>Reflection size as a percentage of shape height (0-100), if applicable.</summary>
+    public float? ReflectionSize { get; init; }
+
+    /// <summary>Soft edge (feathered edge) radius in points, if applicable.</summary>
+    public float? SoftEdgeRadius { get; init; }
+
+    /// <summary>The MsoBevelType name of the shape's top bevel, if applicable.</summary>
+    public string? BevelTypeName { get; init; }
+
+    /// <summary>Bevel depth in points, if applicable.</summary>
+    public float? BevelDepth { get; init; }
+
+    /// <summary>Bevel inset in points, if applicable.</summary>
+    public float? BevelInset { get; init; }
 }
