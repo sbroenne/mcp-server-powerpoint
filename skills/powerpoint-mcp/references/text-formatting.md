@@ -2,8 +2,8 @@
 
 Reference for the `textframe` tool's actions — `set-text`, `get-text`, `set-font-size`,
 `set-bold`, `set-font-color`, `set-italic`/`get-italic`, `set-underline`/`get-underline`,
-`set-font-name`/`get-font-name`, `set-alignment`/`get-alignment`, `set-bullet`/`get-bullet` — all
-operate on a shape's text frame.
+`set-font-name`/`get-font-name`, `set-alignment`/`get-alignment`, `set-bullet`/`get-bullet`,
+`set-autosize`/`get-autosize` — all operate on a shape's text frame.
 
 ## Actions
 
@@ -24,6 +24,8 @@ operate on a shape's text frame.
 | `textframe` | `get-alignment` | `session_id`, `slide_index`, `shape_index` | Returns `alignment`. Fails if paragraphs within the text range have mixed alignment. |
 | `textframe` | `set-bullet` | `session_id`, `slide_index`, `shape_index`, `enabled` (bool), optional `character` (single character) | Turns bullets on/off for every paragraph in the text range. When enabling, `character` sets the bullet glyph (e.g. `"-"`, `"•"`); omit to keep the theme's default bullet. |
 | `textframe` | `get-bullet` | `session_id`, `slide_index`, `shape_index` | Returns `bulletEnabled` and `bulletCharacter` (null when bullets are off). |
+| `textframe` | `set-autosize` | `session_id`, `slide_index`, `shape_index`, `auto_size` | Sets the text frame's auto-fit behavior. `auto_size` is a `PpAutoSize` name (see below). |
+| `textframe` | `get-autosize` | `session_id`, `slide_index`, `shape_index` | Returns `autoSize`. Fails if the value is mixed across multiple shapes. |
 
 ## Paragraph Alignment Names
 
@@ -31,6 +33,25 @@ operate on a shape's text frame.
 `ppAlignLeft`, `ppAlignCenter`, `ppAlignRight`, `ppAlignJustify`, `ppAlignDistribute`,
 `ppAlignThaiDistribute`, `ppAlignJustifyLow`. Passing an unrecognized string returns
 `success: false`.
+
+## Auto-Fit / Auto-Size
+
+`auto_size` for `set-autosize` must match a real `PpAutoSize` enum member name exactly:
+
+| `auto_size` | Behavior |
+|-------------|----------|
+| `ppAutoSizeNone` | No auto-fit — text can overflow the shape's bounds (the default for most shapes). |
+| `ppAutoSizeShapeToFitText` | The **shape grows/shrinks** to fit its text; text stays at its set font size. |
+| `ppAutoSizeTextToFitShape` | The **text shrinks** (font scales down) to fit inside a fixed-size shape — PowerPoint's "Shrink text on overflow". |
+
+Passing an unrecognized string returns `success: false`. Set this **after** `set-text` and any
+font-size changes — `ppAutoSizeTextToFitShape` computes the shrink factor from whatever text is in
+the frame at the moment PowerPoint next reflows it.
+
+```
+textframe(action: "set-text", session_id: ..., slide_index: ..., shape_index: ..., text: "A long paragraph that might overflow the box...")
+textframe(action: "set-autosize", session_id: ..., slide_index: ..., shape_index: ..., auto_size: "ppAutoSizeTextToFitShape")
+```
 
 ## Whole-Range Formatting Only
 
@@ -98,7 +119,10 @@ textframe(action: "set-text", session_id: ..., slide_index: ..., shape_index: ..
 ## Verify Text Fit
 
 After setting text and font size, export the slide (see `export-and-verify.md`) to confirm the
-text fits inside the shape's `width`/`height` without visually overflowing — there is no
-auto-shrink-to-fit in this tool surface. If text overflows: shorten the text, reduce
-`font_size`, or grow the shape with `shape(action: "set-size", ...)`.
+text fits inside the shape's `width`/`height` without visually overflowing. Use
+`set-autosize` (see "Auto-Fit / Auto-Size" above) to have PowerPoint handle overflow
+automatically instead of manually tuning size — `ppAutoSizeTextToFitShape` shrinks the font to
+fit a fixed box, `ppAutoSizeShapeToFitText` grows the box to fit the text. Without auto-size set
+(`ppAutoSizeNone`, the default), text can overflow: shorten the text, reduce `font_size`, or grow
+the shape with `shape(action: "set-size", ...)`.
 

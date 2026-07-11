@@ -66,4 +66,14 @@ public interface ITextFrameCommands
 
     /// <summary>Gets whether a shape's text range has bullets enabled, and the bullet character if so.</summary>
     TextFrameOperationResult GetBullet(IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Sets how a shape's text frame automatically resizes text/shape, identified by its
+    /// <c>PpAutoSize</c> enum member name (<c>"ppAutoSizeNone"</c>, <c>"ppAutoSizeShapeToFitText"</c>,
+    /// or <c>"ppAutoSizeTextToFitShape"</c>).
+    /// </summary>
+    TextFrameOperationResult SetAutoSize(IPresentationBatch batch, int slideIndex, int shapeIndex, string autoSize);
+
+    /// <summary>Gets a shape's text frame auto-size mode as a <c>PpAutoSize</c> enum member name.</summary>
+    TextFrameOperationResult GetAutoSize(IPresentationBatch batch, int slideIndex, int shapeIndex);
 }

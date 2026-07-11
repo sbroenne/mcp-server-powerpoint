@@ -262,4 +262,42 @@ public class TextFrameCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
     }
+
+    [Fact]
+    public void SetAutoSize_AndGetAutoSize_RoundTrips()
+    {
+        var batch = SetUpPresentationWithShape();
+        _commands.SetText(batch, 1, 1, "Auto-fit Text");
+
+        var setResult = _commands.SetAutoSize(batch, 1, 1, "ppAutoSizeShapeToFitText");
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal("ppAutoSizeShapeToFitText", setResult.AutoSize);
+
+        var getResult = _commands.GetAutoSize(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal("ppAutoSizeShapeToFitText", getResult.AutoSize);
+    }
+
+    [Fact]
+    public void SetAutoSize_WithUnrecognizedName_ReturnsFailure_NotException()
+    {
+        var batch = SetUpPresentationWithShape();
+        _commands.SetText(batch, 1, 1, "Text");
+
+        var result = _commands.SetAutoSize(batch, 1, 1, "ppAutoSizeDoesNotExist");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetAutoSize_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        var batch = SetUpPresentationWithShape();
+
+        var result = _commands.SetAutoSize(batch, 1, 99, "ppAutoSizeNone");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
 }

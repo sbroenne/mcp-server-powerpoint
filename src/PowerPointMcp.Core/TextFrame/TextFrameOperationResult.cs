@@ -43,4 +43,7 @@ public sealed class TextFrameOperationResult
 
     /// <summary>The bullet glyph character, if bullets are enabled and applicable.</summary>
     public string? BulletCharacter { get; init; }
+
+    /// <summary>The PpAutoSize name of the text frame's auto-size mode, if applicable.</summary>
+    public string? AutoSize { get; init; }
 }

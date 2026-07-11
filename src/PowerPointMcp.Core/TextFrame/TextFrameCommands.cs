@@ -30,6 +30,19 @@ public sealed class TextFrameCommands : ITextFrameCommands
     private static readonly Dictionary<int, string> ParagraphAlignmentsByValue =
         ParagraphAlignments.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
+    // PpAutoSize, verified against learn.microsoft.com/office/vba/api/powerpoint.ppautosize.
+    // ppAutoSizeMixed (-2) is intentionally excluded from the settable dictionary (it's a
+    // read-only "mixed state across shapes" indicator, not a value you can set).
+    private static readonly Dictionary<string, int> AutoSizeModes = new()
+    {
+        ["ppAutoSizeNone"] = 0,
+        ["ppAutoSizeShapeToFitText"] = 1,
+        ["ppAutoSizeTextToFitShape"] = 2,
+    };
+
+    private static readonly Dictionary<int, string> AutoSizeModesByValue =
+        AutoSizeModes.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
+
     /// <inheritdoc/>
     public TextFrameOperationResult SetText(IPresentationBatch batch, int slideIndex, int shapeIndex, string text)
     {
@@ -336,6 +349,59 @@ public sealed class TextFrameCommands : ITextFrameCommands
                 BulletEnabled = enabled,
                 BulletCharacter = enabled ? char.ConvertFromUtf32((int)bullet.Character) : null
             };
+        });
+    }
+
+    /// <inheritdoc/>
+    public TextFrameOperationResult SetAutoSize(IPresentationBatch batch, int slideIndex, int shapeIndex, string autoSize)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(autoSize);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
+            if (validation is not null) return validation;
+
+            if (!AutoSizeModes.TryGetValue(autoSize, out var autoSizeValue))
+            {
+                return new TextFrameOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"'{autoSize}' is not a recognized PpAutoSize name (must be 'ppAutoSizeNone', 'ppAutoSizeShapeToFitText', or 'ppAutoSizeTextToFitShape')."
+                };
+            }
+
+            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            shape.TextFrame.AutoSize = autoSizeValue;
+
+            return new TextFrameOperationResult { Success = true, AutoSize = autoSize };
+        });
+    }
+
+    /// <inheritdoc/>
+    public TextFrameOperationResult GetAutoSize(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
+            if (validation is not null) return validation;
+
+            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            int autoSizeValue = (int)shape.TextFrame.AutoSize;
+
+            if (!AutoSizeModesByValue.TryGetValue(autoSizeValue, out var autoSizeName))
+            {
+                return new TextFrameOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"The auto-size value {autoSizeValue} is not one of the recognized PpAutoSize names (it may be mixed across multiple shapes)."
+                };
+            }
+
+            return new TextFrameOperationResult { Success = true, AutoSize = autoSizeName };
         });
     }
 
