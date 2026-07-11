@@ -15,9 +15,13 @@
     3. Release build     - dotnet build Sbroenne.PowerPointMcp.slnx -c Release, 0 warnings/errors
     4. Core tests        - surgical Feature=-filtered real-COM integration tests, scoped to the
                             Core domains touched by this commit (skipped if no Core changes)
-    5. MCP protocol tests - dotnet test tests\PowerPointMcp.McpServer.Tests (in-memory transport,
-                            fast, no PowerPoint launch required for most cases; skipped for
-                            docs/changeset-only commits)
+    5. MCP protocol tests - dotnet test tests\PowerPointMcp.McpServer.Tests. Fully skipped for
+                            docs/changeset-only commits. For docs/tooling changes that touch
+                            non-.cs files (gh-pages, scripts, workflows, .gitignore) only the
+                            fast in-memory protocol tests run — the PowerPoint-dependent COM
+                            session-lifecycle tests (RequiresPowerPoint=true) are excluded. The
+                            full suite runs only when compiled runtime code (src/tests *.cs,
+                            *.csproj, *.slnx, Directory.Build/Packages, global.json) changes.
     6. TODO/FIXME/HACK scan - blocks unresolved markers in staged files
 
     NOTE: Unlike mcp-server-excel, this repo does not yet have companion scripts
@@ -50,6 +54,13 @@ $docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^\.github/(ISSUE_TEMPLATE|P
 $allStagedFilesForGate = git diff --cached --name-only 2>&1 | Where-Object { $_ }
 $codeChangedFilesForGate = $allStagedFilesForGate | Where-Object { $_ -notmatch $docOnlyPattern }
 $hasCodeChanges = @($codeChangedFilesForGate).Count -gt 0
+
+# Distinguish compiled runtime-code changes (which can alter MCP/COM behavior and therefore
+# warrant the real-COM session-lifecycle tests) from docs/tooling changes (gh-pages, scripts,
+# workflows, .gitignore) which cannot. The PowerPoint-dependent MCP tests are marked with the
+# [Trait("RequiresPowerPoint","true")] attribute and are excluded unless runtime code changed.
+$runtimeCodePattern = '(^src[/\\].*\.cs$)|(^tests[/\\].*\.cs$)|(\.csproj$)|(\.slnx$)|(^Directory\.(Build|Packages)\.)|(^global\.json$)|(^NuGet\.Config$)'
+$runtimeCodeChanged = @($allStagedFilesForGate | Where-Object { $_ -match $runtimeCodePattern }).Count -gt 0
 
 # --- 1. Branch guard (never commit directly to main) ---------------------------------------
 Write-Step "Checking current branch..."
@@ -169,8 +180,11 @@ else {
 }
 
 # --- 5. MCP protocol tests (fast, in-memory transport) ---------------------------------------
-if ($hasCodeChanges) {
-    Write-Step "Running MCP Server tests..."
+if (-not $hasCodeChanges) {
+    Write-Step "Skipping MCP Server tests (no code changes detected - docs/changeset only)"
+}
+elseif ($runtimeCodeChanged) {
+    Write-Step "Running full MCP Server test suite (runtime code changed - includes real-COM session tests)..."
 
     & dotnet test (Join-Path $rootDir "tests\PowerPointMcp.McpServer.Tests") --nologo
     if ($LASTEXITCODE -ne 0) {
@@ -180,8 +194,18 @@ if ($hasCodeChanges) {
     }
 
     Write-Host "MCP Server tests passed" -ForegroundColor Green
-} else {
-    Write-Step "Skipping MCP Server tests (no code changes detected - docs/changeset only)"
+}
+else {
+    Write-Step "Running MCP Server protocol tests only (docs/tooling change - skipping PowerPoint-dependent COM session tests)..."
+
+    & dotnet test (Join-Path $rootDir "tests\PowerPointMcp.McpServer.Tests") --filter "RequiresPowerPoint!=true" --nologo
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "BLOCKED: MCP Server protocol tests failed." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "MCP Server protocol tests passed (COM session tests skipped for docs/tooling change)" -ForegroundColor Green
 }
 
 # --- 6. TODO/FIXME/HACK scan ------------------------------------------------------------------
@@ -194,6 +218,10 @@ foreach ($file in $allStagedFiles) {
     $fullPath = Join-Path $rootDir $file
     if (-not (Test-Path $fullPath)) { continue }
     if ($file -notmatch "\.(cs|md|ps1)$") { continue }
+
+    # The pre-commit script itself necessarily contains the marker literals in its own scan
+    # pattern and messages; skip it to avoid self-matching false positives.
+    if ($file -match "scripts[/\\]pre-commit\.ps1$") { continue }
 
     $matches = Select-String -Path $fullPath -Pattern "TODO|FIXME|HACK" -SimpleMatch -ErrorAction SilentlyContinue
     if ($matches) {

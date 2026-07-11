@@ -153,3 +153,9 @@ based on your use case:
 | **MCP Server** (`mcp-powerpoint`) | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent session. Better for interactive, exploratory workflows. |
 
 [MCP Server docs](mcp-server.md){ .md-button } [CLI docs](cli.md){ .md-button }
+
+## GitHub star history
+
+![GitHub stars over time for PowerPointMcp](assets/images/star-history.svg){ loading=lazy }
+
+Updated daily from GitHub's stargazer data.

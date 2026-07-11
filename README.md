@@ -194,6 +194,12 @@ PowerPoint instance, and they do **not** share live sessions with each other.
   file parsing
 - ✅ **Export-to-verify** — close the loop on every visual change with a real rendered image
 
+## ⭐ GitHub Star History
+
+[![GitHub stars over time for PowerPointMcp](https://powerpointmcpserver.dev/assets/images/star-history.svg)](https://github.com/sbroenne/mcp-server-powerpoint/stargazers)
+
+Updated daily from GitHub's stargazer data.
+
 ## 📋 Additional Information
 
 📚 **[MCP Server Guide →](src/PowerPointMcp.McpServer/README.md)** | **[CLI Guide →](src/PowerPointMcp.CLI/README.md)** | **[Agent Skills →](skills/README.md)**
