@@ -325,7 +325,10 @@ jobs:
       run: |
         $version = $env:VERSION
         cd vscode-extension
-        npm version "$version" --no-git-tag-version
+        # --allow-same-version: this ephemeral bump is never committed back to the repo (the
+        # extension's package.json baseline stays fixed), so a future release version can
+        # coincidentally match it — npm version would otherwise fail with "Version not changed".
+        npm version "$version" --no-git-tag-version --allow-same-version
       shell: pwsh
 
     - name: Sync Extension Changelog
