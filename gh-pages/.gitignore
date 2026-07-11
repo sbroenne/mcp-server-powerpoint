@@ -4,6 +4,9 @@ _site/
 # Generated documentation pages (produced by hooks.py from canonical repo docs)
 docs/_generated/
 
+# Generated star history chart (produced in CI by scripts/Update-StarHistory.ps1)
+docs/assets/images/star-history.svg
+
 # Python
 __pycache__/
 .venv/
