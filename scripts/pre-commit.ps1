@@ -12,16 +12,20 @@
     1. Branch guard      - never commit directly to 'main'
     2. Success flag scan - flags any 'Success = true' followed nearby by a non-null ErrorMessage
                             assignment in touched Core files (Rule 1)
-    3. Release build     - dotnet build Sbroenne.PowerPointMcp.slnx -c Release, 0 warnings/errors
+    3. Release build     - dotnet build Sbroenne.PowerPointMcp.slnx -c Release, 0 warnings/errors.
+                            Fully SKIPPED for docs-only commits (.md, .changeset/, docs/, gh-pages/,
+                            issue/PR templates) — there is no compiled surface to validate.
     4. Core tests        - surgical Feature=-filtered real-COM integration tests, scoped to the
-                            Core domains touched by this commit (skipped if no Core changes)
+                            Core domains touched by this commit. Skipped if no Core .cs changes,
+                            and fully skipped (block not entered) for docs-only commits.
     5. MCP protocol tests - dotnet test tests\PowerPointMcp.McpServer.Tests. Fully skipped for
-                            docs/changeset-only commits. For docs/tooling changes that touch
-                            non-.cs files (gh-pages, scripts, workflows, .gitignore) only the
-                            fast in-memory protocol tests run — the PowerPoint-dependent COM
-                            session-lifecycle tests (RequiresPowerPoint=true) are excluded. The
-                            full suite runs only when compiled runtime code (src/tests *.cs,
-                            *.csproj, *.slnx, Directory.Build/Packages, global.json) changes.
+                            docs/changeset-only commits (including gh-pages/ website changes). For
+                            docs/tooling changes that touch non-.cs files (scripts, workflows,
+                            .gitignore) only the fast in-memory protocol tests run — the
+                            PowerPoint-dependent COM session-lifecycle tests
+                            (RequiresPowerPoint=true) are excluded. The full suite runs only when
+                            compiled runtime code (src/tests *.cs, *.csproj, *.slnx,
+                            Directory.Build/Packages, global.json) changes.
     6. TODO/FIXME/HACK scan - blocks unresolved markers in staged files
 
     NOTE: Unlike mcp-server-excel, this repo does not yet have companion scripts
@@ -48,9 +52,12 @@ function Stop-DotNetBuildServers {
 }
 
 # Determine whether this commit touches actual code (as opposed to docs/changeset-only
-# changes). The MCP protocol test suite launches real processes and is unnecessary for
-# pure documentation changes.
-$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))'
+# changes). The Release build, Core tests and MCP protocol test suite all exercise
+# compiled binaries or launch real processes and are unnecessary for pure documentation
+# changes, including edits to the gh-pages documentation website (its MkDocs config,
+# hooks, templates and image assets are all part of the docs site, not the shipped
+# product).
+$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))'
 $allStagedFilesForGate = git diff --cached --name-only 2>&1 | Where-Object { $_ }
 $codeChangedFilesForGate = $allStagedFilesForGate | Where-Object { $_ -notmatch $docOnlyPattern }
 $hasCodeChanges = @($codeChangedFilesForGate).Count -gt 0
@@ -140,43 +147,57 @@ if ($successFlagViolations.Count -gt 0) {
 Write-Host "Success flag check passed" -ForegroundColor Green
 
 # --- 3. Release build ------------------------------------------------------------------------
-Write-Step "Building Release solution..."
-
-$slnPath = Join-Path $rootDir "Sbroenne.PowerPointMcp.slnx"
-& dotnet build $slnPath -c Release --nologo
-if ($LASTEXITCODE -ne 0) {
-    Write-Host ""
-    Write-Host "BLOCKED: Release build failed." -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "Release build passed (0 warnings, 0 errors expected)" -ForegroundColor Green
-
-# --- 4. Surgical Core tests, scoped to touched domains ---------------------------------------
-Write-Step "Checking for touched Core domains..."
-
-$touchedFeatures = @()
-foreach ($file in $stagedCsFiles) {
-    if ($file -match "PowerPointMcp\.Core[/\\](?<domain>[A-Za-z]+)[/\\]") {
-        $touchedFeatures += $Matches.domain
-    }
-}
-$touchedFeatures = $touchedFeatures | Select-Object -Unique
-
-if ($touchedFeatures.Count -eq 0) {
-    Write-Host "   No Core domain changes detected - skipping real-COM integration tests" -ForegroundColor Gray
+# Skipped entirely for docs-only commits (including gh-pages) - there is no compiled
+# surface to validate, so the build gate adds minutes of cost for zero value.
+if (-not $hasCodeChanges) {
+    Write-Step "Skipping Release build (no code changes detected - docs/changeset only)"
 }
 else {
-    foreach ($feature in $touchedFeatures) {
-        Write-Step "Running real-COM tests for Feature=$feature (this launches PowerPoint)..."
-        & dotnet test (Join-Path $rootDir "tests\PowerPointMcp.Core.Tests") --filter "Feature=$feature" --nologo
-        if ($LASTEXITCODE -ne 0) {
-            Write-Host ""
-            Write-Host "BLOCKED: Core tests failed for Feature=$feature." -ForegroundColor Red
-            exit 1
+    Write-Step "Building Release solution..."
+
+    $slnPath = Join-Path $rootDir "Sbroenne.PowerPointMcp.slnx"
+    & dotnet build $slnPath -c Release --nologo
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "BLOCKED: Release build failed." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "Release build passed (0 warnings, 0 errors expected)" -ForegroundColor Green
+}
+
+# --- 4. Surgical Core tests, scoped to touched domains ---------------------------------------
+# Skipped entirely for docs-only commits (including gh-pages) - real-COM tests only make
+# sense when Core source files actually changed.
+if (-not $hasCodeChanges) {
+    Write-Step "Skipping Core tests (no code changes detected - docs/changeset only)"
+}
+else {
+    Write-Step "Checking for touched Core domains..."
+
+    $touchedFeatures = @()
+    foreach ($file in $stagedCsFiles) {
+        if ($file -match "PowerPointMcp\.Core[/\\](?<domain>[A-Za-z]+)[/\\]") {
+            $touchedFeatures += $Matches.domain
         }
     }
-    Write-Host "Core domain tests passed for: $($touchedFeatures -join ', ')" -ForegroundColor Green
+    $touchedFeatures = $touchedFeatures | Select-Object -Unique
+
+    if ($touchedFeatures.Count -eq 0) {
+        Write-Host "   No Core domain changes detected - skipping real-COM integration tests" -ForegroundColor Gray
+    }
+    else {
+        foreach ($feature in $touchedFeatures) {
+            Write-Step "Running real-COM tests for Feature=$feature (this launches PowerPoint)..."
+            & dotnet test (Join-Path $rootDir "tests\PowerPointMcp.Core.Tests") --filter "Feature=$feature" --nologo
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host ""
+                Write-Host "BLOCKED: Core tests failed for Feature=$feature." -ForegroundColor Red
+                exit 1
+            }
+        }
+        Write-Host "Core domain tests passed for: $($touchedFeatures -join ', ')" -ForegroundColor Green
+    }
 }
 
 # --- 5. MCP protocol tests (fast, in-memory transport) ---------------------------------------
