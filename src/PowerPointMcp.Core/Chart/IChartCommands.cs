@@ -60,6 +60,21 @@ public interface IChartCommands
     /// <summary>Shows or hides the chart's legend.</summary>
     ChartOperationResult SetLegendVisibility(IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible);
 
-    /// <summary>Gets whether the chart's legend is currently visible.</summary>
-    ChartOperationResult GetLegendVisibility(IPresentationBatch batch, int slideIndex, int shapeIndex);
+    /// <summary>
+    /// Replaces ALL of an existing chart's data (categories and every series) in one call — the
+    /// chart's previous categories and series are discarded and replaced wholesale. Unlike
+    /// <see cref="AddSeries"/> (which appends one series to the existing categories),
+    /// <paramref name="categories"/> here can also change the category count/labels.
+    /// <paramref name="seriesValues"/> is a single flat list laid out series-major: all values
+    /// for <c>seriesNames[0]</c> (one per category, in category order), then all values for
+    /// <c>seriesNames[1]</c>, and so on. Its length must equal
+    /// <c>categories.Count * seriesNames.Count</c>.
+    /// </summary>
+    ChartOperationResult ReplaceChartData(
+        IPresentationBatch batch,
+        int slideIndex,
+        int shapeIndex,
+        IReadOnlyList<string> categories,
+        IReadOnlyList<string> seriesNames,
+        IReadOnlyList<double> seriesValues);
 }

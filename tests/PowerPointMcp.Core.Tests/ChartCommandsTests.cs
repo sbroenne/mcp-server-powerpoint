@@ -115,6 +115,70 @@ public class ChartCommandsTests : IClassFixture<SharedPresentationFixture>
     }
 
     [Fact]
+    public void ReplaceChartData_WithNewCategoriesAndMultipleSeries_ReplacesAllData()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        string[] initialCategories = ["Q1", "Q2", "Q3"];
+        double[] initialValues = [10d, 20d, 30d];
+        var addResult = _commands.AddChart(batch, 1, "bar", 50f, 50f, 400f, 300f, initialCategories, "Revenue", initialValues);
+        int shapeIndex = addResult.ShapeIndex!.Value;
+
+        // Replace with a different category count and two series (series-major flat layout:
+        // all 4 "Revenue" values, then all 4 "Costs" values).
+        string[] newCategories = ["Jan", "Feb", "Mar", "Apr"];
+        string[] seriesNames = ["Revenue", "Costs"];
+        double[] seriesValues = [100d, 200d, 300d, 400d, 50d, 60d, 70d, 80d];
+
+        var replaceResult = _commands.ReplaceChartData(batch, 1, shapeIndex, newCategories, seriesNames, seriesValues);
+
+        Assert.True(replaceResult.Success, replaceResult.ErrorMessage);
+        Assert.Equal(4, replaceResult.CategoryCount);
+        Assert.Equal(2, replaceResult.SeriesCount);
+
+        var dataResult = _commands.GetChartData(batch, 1, shapeIndex);
+        Assert.True(dataResult.Success, dataResult.ErrorMessage);
+        Assert.Equal(4, dataResult.CategoryCount);
+        Assert.Equal(2, dataResult.SeriesCount);
+    }
+
+    [Fact]
+    public void ReplaceChartData_WithMismatchedValueCount_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        string[] categories = ["Q1", "Q2", "Q3"];
+        double[] values = [10d, 20d, 30d];
+        var addResult = _commands.AddChart(batch, 1, "bar", 50f, 50f, 400f, 300f, categories, "Revenue", values);
+        int shapeIndex = addResult.ShapeIndex!.Value;
+
+        // 2 categories * 2 series = 4 values expected, only 3 given.
+        var result = _commands.ReplaceChartData(batch, 1, shapeIndex, ["A", "B"], ["S1", "S2"], [1d, 2d, 3d]);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void ReplaceChartData_OnShapeWithoutChart_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        batch.Execute((ctx, ct) =>
+        {
+            dynamic slide = ctx.Presentation.Slides[1];
+            slide.Shapes.AddShape(1 /* msoShapeRectangle */, 0f, 0f, 50f, 50f);
+            return 0;
+        });
+
+        var result = _commands.ReplaceChartData(batch, 1, 1, ["A"], ["S1"], [1d]);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
     public void SetChartTitle_ThenGetChartTitle_RoundTrips()
     {
         _fixture.CreateFreshPresentation();
