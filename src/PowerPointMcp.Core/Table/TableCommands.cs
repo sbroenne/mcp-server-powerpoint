@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Table;
 
@@ -9,14 +10,14 @@ public sealed class TableCommands : ITableCommands
     private const int MsoFalse = 0;
 
     // PpBorderType, verified against learn.microsoft.com/office/vba/api/powerpoint.ppbordertype.
-    private static readonly Dictionary<string, int> BorderTypes = new()
+    private static readonly Dictionary<string, PowerPoint.PpBorderType> BorderTypes = new()
     {
-        ["ppBorderTop"] = 1,
-        ["ppBorderLeft"] = 2,
-        ["ppBorderBottom"] = 3,
-        ["ppBorderRight"] = 4,
-        ["ppBorderDiagonalDown"] = 5,
-        ["ppBorderDiagonalUp"] = 6,
+        ["ppBorderTop"] = PowerPoint.PpBorderType.ppBorderTop,
+        ["ppBorderLeft"] = PowerPoint.PpBorderType.ppBorderLeft,
+        ["ppBorderBottom"] = PowerPoint.PpBorderType.ppBorderBottom,
+        ["ppBorderRight"] = PowerPoint.PpBorderType.ppBorderRight,
+        ["ppBorderDiagonalDown"] = PowerPoint.PpBorderType.ppBorderDiagonalDown,
+        ["ppBorderDiagonalUp"] = PowerPoint.PpBorderType.ppBorderDiagonalUp,
     };
 
     // MsoLineDashStyle, verified against learn.microsoft.com/office/vba/api/office.msolinedashstyle
@@ -53,12 +54,12 @@ public sealed class TableCommands : ITableCommands
                 };
             }
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             // Shapes.AddTable(NumRows, NumColumns, Left, Top, Width, Height) — all parameters
             // are plain ints/floats defined on the PowerPoint interop's own Shapes interface,
             // no office.dll-typed enum involved (unlike AddShape/AddTextbox).
             slide.Shapes.AddTable(rows, columns, left, top, width, height);
-            int newShapeIndex = (int)slide.Shapes.Count; // always appended — see Shape domain notes
+            int newShapeIndex = slide.Shapes.Count; // always appended — see Shape domain notes
 
             return new TableOperationResult
             {
@@ -78,7 +79,7 @@ public sealed class TableCommands : ITableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out dynamic? table);
+            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out PowerPoint.Table? table);
             if (validation is not null) return validation;
 
             table!.Cell(row, column).Shape.TextFrame.TextRange.Text = text;
@@ -94,7 +95,7 @@ public sealed class TableCommands : ITableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out dynamic? table);
+            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out PowerPoint.Table? table);
             if (validation is not null) return validation;
 
             string text = (string)table!.Cell(row, column).Shape.TextFrame.TextRange.Text;
@@ -104,13 +105,13 @@ public sealed class TableCommands : ITableCommands
     }
 
     private static TableOperationResult? ValidateTableShape(
-        PresentationContext ctx, int slideIndex, int shapeIndex, int row, int column, out dynamic? table)
+        PresentationContext ctx, int slideIndex, int shapeIndex, int row, int column, out PowerPoint.Table? table)
     {
         var validation = ValidateTableShapeOnly(ctx, slideIndex, shapeIndex, out table);
         if (validation is not null) return validation;
 
-        int rowCount = (int)table!.Rows.Count;
-        int colCount = (int)table.Columns.Count;
+        int rowCount = table!.Rows.Count;
+        int colCount = table.Columns.Count;
         if (row < 1 || row > rowCount)
         {
             return new TableOperationResult
@@ -132,7 +133,7 @@ public sealed class TableCommands : ITableCommands
     }
 
     private static TableOperationResult? ValidateTableShapeOnly(
-        PresentationContext ctx, int slideIndex, int shapeIndex, out dynamic? table)
+        PresentationContext ctx, int slideIndex, int shapeIndex, out PowerPoint.Table? table)
     {
         table = null;
 
@@ -146,7 +147,7 @@ public sealed class TableCommands : ITableCommands
             };
         }
 
-        dynamic slide = ctx.Presentation.Slides[slideIndex];
+        PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
         int shapeCount = slide.Shapes.Count;
         if (shapeIndex < 1 || shapeIndex > shapeCount)
         {
@@ -158,7 +159,7 @@ public sealed class TableCommands : ITableCommands
         }
 
         dynamic shape = slide.Shapes[shapeIndex];
-        bool hasTable = (int)shape.HasTable != 0; // HasTable is MsoTriState-like tri-state int
+        bool hasTable = (int)shape.HasTable == MsoTrue;
         if (!hasTable)
         {
             return new TableOperationResult
@@ -168,7 +169,7 @@ public sealed class TableCommands : ITableCommands
             };
         }
 
-        table = shape.Table;
+        table = (PowerPoint.Table)shape.Table;
         return null;
     }
 
@@ -179,10 +180,10 @@ public sealed class TableCommands : ITableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var validation = ValidateTableShapeOnly(ctx, slideIndex, shapeIndex, out dynamic? table);
+            var validation = ValidateTableShapeOnly(ctx, slideIndex, shapeIndex, out PowerPoint.Table? table);
             if (validation is not null) return validation;
 
-            int rowCount = (int)table!.Rows.Count;
+            int rowCount = table!.Rows.Count;
             if (beforeRow is not null && (beforeRow < 1 || beforeRow > rowCount))
             {
                 return new TableOperationResult
@@ -201,7 +202,7 @@ public sealed class TableCommands : ITableCommands
                 table.Rows.Add(beforeRow.Value);
             }
 
-            return new TableOperationResult { Success = true, ShapeIndex = shapeIndex, RowCount = (int)table.Rows.Count, ColumnCount = (int)table.Columns.Count };
+            return new TableOperationResult { Success = true, ShapeIndex = shapeIndex, RowCount = table.Rows.Count, ColumnCount = table.Columns.Count };
         });
     }
 
@@ -212,10 +213,10 @@ public sealed class TableCommands : ITableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var validation = ValidateTableShapeOnly(ctx, slideIndex, shapeIndex, out dynamic? table);
+            var validation = ValidateTableShapeOnly(ctx, slideIndex, shapeIndex, out PowerPoint.Table? table);
             if (validation is not null) return validation;
 
-            int rowCount = (int)table!.Rows.Count;
+            int rowCount = table!.Rows.Count;
             if (row < 1 || row > rowCount)
             {
                 return new TableOperationResult
@@ -227,7 +228,7 @@ public sealed class TableCommands : ITableCommands
 
             table.Rows[row].Delete();
 
-            return new TableOperationResult { Success = true, ShapeIndex = shapeIndex, RowCount = (int)table.Rows.Count, ColumnCount = (int)table.Columns.Count };
+            return new TableOperationResult { Success = true, ShapeIndex = shapeIndex, RowCount = table.Rows.Count, ColumnCount = table.Columns.Count };
         });
     }
 
@@ -238,10 +239,10 @@ public sealed class TableCommands : ITableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var validation = ValidateTableShapeOnly(ctx, slideIndex, shapeIndex, out dynamic? table);
+            var validation = ValidateTableShapeOnly(ctx, slideIndex, shapeIndex, out PowerPoint.Table? table);
             if (validation is not null) return validation;
 
-            int colCount = (int)table!.Columns.Count;
+            int colCount = table!.Columns.Count;
             if (beforeColumn is not null && (beforeColumn < 1 || beforeColumn > colCount))
             {
                 return new TableOperationResult
@@ -260,7 +261,7 @@ public sealed class TableCommands : ITableCommands
                 table.Columns.Add(beforeColumn.Value);
             }
 
-            return new TableOperationResult { Success = true, ShapeIndex = shapeIndex, RowCount = (int)table.Rows.Count, ColumnCount = (int)table.Columns.Count };
+            return new TableOperationResult { Success = true, ShapeIndex = shapeIndex, RowCount = table.Rows.Count, ColumnCount = table.Columns.Count };
         });
     }
 
@@ -271,10 +272,10 @@ public sealed class TableCommands : ITableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var validation = ValidateTableShapeOnly(ctx, slideIndex, shapeIndex, out dynamic? table);
+            var validation = ValidateTableShapeOnly(ctx, slideIndex, shapeIndex, out PowerPoint.Table? table);
             if (validation is not null) return validation;
 
-            int colCount = (int)table!.Columns.Count;
+            int colCount = table!.Columns.Count;
             if (column < 1 || column > colCount)
             {
                 return new TableOperationResult
@@ -286,7 +287,7 @@ public sealed class TableCommands : ITableCommands
 
             table.Columns[column].Delete();
 
-            return new TableOperationResult { Success = true, ShapeIndex = shapeIndex, RowCount = (int)table.Rows.Count, ColumnCount = (int)table.Columns.Count };
+            return new TableOperationResult { Success = true, ShapeIndex = shapeIndex, RowCount = table.Rows.Count, ColumnCount = table.Columns.Count };
         });
     }
 
@@ -297,11 +298,11 @@ public sealed class TableCommands : ITableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out dynamic? table);
+            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out PowerPoint.Table? table);
             if (validation is not null) return validation;
 
             int rgb = red + (green << 8) + (blue << 16);
-            dynamic cellShape = table!.Cell(row, column).Shape;
+            PowerPoint.Shape cellShape = table!.Cell(row, column).Shape;
             cellShape.Fill.Solid();
             cellShape.Fill.ForeColor.RGB = rgb;
 
@@ -316,11 +317,11 @@ public sealed class TableCommands : ITableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out dynamic? table);
+            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out PowerPoint.Table? table);
             if (validation is not null) return validation;
 
-            dynamic cellShape = table!.Cell(row, column).Shape;
-            int rgb = (int)cellShape.Fill.ForeColor.RGB;
+            PowerPoint.Shape cellShape = table!.Cell(row, column).Shape;
+            int rgb = cellShape.Fill.ForeColor.RGB;
 
             return new TableOperationResult { Success = true, ShapeIndex = shapeIndex, ColorRgb = rgb };
         });
@@ -346,7 +347,7 @@ public sealed class TableCommands : ITableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out dynamic? table);
+            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out PowerPoint.Table? table);
             if (validation is not null) return validation;
 
             if (!BorderTypes.TryGetValue(borderType, out var borderTypeValue))
@@ -372,7 +373,7 @@ public sealed class TableCommands : ITableCommands
                 dashStyleValue = resolvedDashStyle;
             }
 
-            dynamic border = table!.Cell(row, column).Borders[borderTypeValue];
+            PowerPoint.LineFormat border = table!.Cell(row, column).Borders[borderTypeValue];
 
             if (red is not null || green is not null || blue is not null)
             {
@@ -387,12 +388,14 @@ public sealed class TableCommands : ITableCommands
 
             if (dashStyleValue is not null)
             {
-                border.DashStyle = dashStyleValue.Value;
+                dynamic dynBorder = border;
+                dynBorder.DashStyle = dashStyleValue.Value;
             }
 
             if (visible is not null)
             {
-                border.Visible = visible.Value ? MsoTrue : MsoFalse;
+                dynamic dynBorder = border;
+                dynBorder.Visible = visible.Value ? MsoTrue : MsoFalse;
             }
 
             return ReadBorder(border, shapeIndex, borderType);
@@ -407,7 +410,7 @@ public sealed class TableCommands : ITableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out dynamic? table);
+            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out PowerPoint.Table? table);
             if (validation is not null) return validation;
 
             if (!BorderTypes.TryGetValue(borderType, out var borderTypeValue))
@@ -419,7 +422,7 @@ public sealed class TableCommands : ITableCommands
                 };
             }
 
-            dynamic border = table!.Cell(row, column).Borders[borderTypeValue];
+            PowerPoint.LineFormat border = table!.Cell(row, column).Borders[borderTypeValue];
             return ReadBorder(border, shapeIndex, borderType);
         });
     }
@@ -431,11 +434,11 @@ public sealed class TableCommands : ITableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out dynamic? table);
+            var validation = ValidateTableShape(ctx, slideIndex, shapeIndex, row, column, out PowerPoint.Table? table);
             if (validation is not null) return validation;
 
-            int rowCount = (int)table!.Rows.Count;
-            int colCount = (int)table.Columns.Count;
+            int rowCount = table!.Rows.Count;
+            int colCount = table.Columns.Count;
             if (mergeToRow < 1 || mergeToRow > rowCount)
             {
                 return new TableOperationResult
@@ -459,12 +462,13 @@ public sealed class TableCommands : ITableCommands
         });
     }
 
-    private static TableOperationResult ReadBorder(dynamic border, int shapeIndex, string borderType)
+    private static TableOperationResult ReadBorder(PowerPoint.LineFormat border, int shapeIndex, string borderType)
     {
-        int rgb = (int)border.ForeColor.RGB;
-        float weight = (float)border.Weight;
-        int dashStyleValue = (int)border.DashStyle;
-        bool visible = (int)border.Visible == MsoTrue;
+        int rgb = border.ForeColor.RGB;
+        float weight = border.Weight;
+        dynamic dynBorder = border;
+        int dashStyleValue = (int)dynBorder.DashStyle;
+        bool visible = (int)dynBorder.Visible == MsoTrue;
 
         LineDashStylesByValue.TryGetValue(dashStyleValue, out var dashStyleName);
 
@@ -480,4 +484,3 @@ public sealed class TableCommands : ITableCommands
         };
     }
 }
-

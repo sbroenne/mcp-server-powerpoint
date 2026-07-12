@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Runtime.InteropServices;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Chart;
 
@@ -16,7 +17,7 @@ public sealed class ChartCommands : IChartCommands
     private const int XlColumnClustered = 51; // bar/column chart
     private const int XlLine = 4;
     private const int XlPie = 5;
-    private const int MsoTrue = -1; // MsoTriState.msoTrue — AddChart2's NewLayout param is MsoTriState, not bool.
+    private const int MsoTrue = -1; // MsoTriState.msoTrue for Office.Core-backed tri-state members (for example Shape.HasChart).
 
     /// <inheritdoc/>
     public ChartOperationResult AddChart(IPresentationBatch batch, int slideIndex, string chartType, float left, float top, float width, float height, IReadOnlyList<string> categories, string seriesName, IReadOnlyList<double> values)
@@ -58,22 +59,22 @@ public sealed class ChartCommands : IChartCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
 
             // Shapes.AddChart2(Style, XlChartType, Left, Top, Width, Height, NewLayout) -> Shape
-            dynamic chartShape = slide.Shapes.AddChart2(-1, xlChartType.Value, left, top, width, height, MsoTrue);
-            dynamic chart = chartShape.Chart;
+            dynamic chartShape = ((dynamic)slide.Shapes).AddChart2(-1, xlChartType.Value, left, top, width, height, true);
+            PowerPoint.Chart chart = chartShape.Chart;
 
             WriteChartData(chart, categories, seriesName, values);
 
             // Same NoPIA .Index late-binding quirk as Shape domain — use Shapes.Count instead.
-            int newIndex = (int)slide.Shapes.Count;
+            int newIndex = slide.Shapes.Count;
 
             return new ChartOperationResult
             {
                 Success = true,
                 ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count
+                ShapeCount = slide.Shapes.Count
             };
         });
     }
@@ -88,13 +89,13 @@ public sealed class ChartCommands : IChartCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             // NOTE: HasChart is MsoTriState (an int), not a C# bool — msoTrue = -1.
-            if ((int)shape.HasChart != -1)
+            if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
                 {
@@ -103,15 +104,14 @@ public sealed class ChartCommands : IChartCommands
                 };
             }
 
-            dynamic chart = shape.Chart;
+            PowerPoint.Chart chart = shape.Chart;
             dynamic seriesCollection = chart.SeriesCollection();
             int seriesCount = (int)seriesCollection.Count;
             int categoryCount = 0;
             if (seriesCount > 0)
             {
                 dynamic firstSeries = seriesCollection.Item(1);
-                dynamic xValues = firstSeries.XValues;
-                categoryCount = (int)((Array)xValues).Length;
+                categoryCount = ReadNonEmptyXValues(firstSeries).Length;
             }
 
             return new ChartOperationResult
@@ -136,12 +136,12 @@ public sealed class ChartCommands : IChartCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            if ((int)shape.HasChart != MsoTrue)
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
                 {
@@ -150,7 +150,7 @@ public sealed class ChartCommands : IChartCommands
                 };
             }
 
-            dynamic chart = shape.Chart;
+            PowerPoint.Chart chart = shape.Chart;
             dynamic seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
             int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
 
@@ -164,8 +164,8 @@ public sealed class ChartCommands : IChartCommands
             }
 
             dynamic firstSeries = RetryTransientChartRead(() => seriesCollection.Item(1));
-            dynamic existingXValues = RetryTransientChartRead(() => firstSeries.XValues);
-            int categoryCount = (int)((Array)existingXValues).Length;
+            Array existingXValues = ReadNonEmptyXValues(firstSeries);
+            int categoryCount = existingXValues.Length;
 
             if (values.Count != categoryCount)
             {
@@ -176,13 +176,8 @@ public sealed class ChartCommands : IChartCommands
                 };
             }
 
-            // NOTE (discovered via real integration test, not assumed): re-entering the chart's
-            // embedded data workbook (Chart.ChartData.Activate()/.Workbook) a second time, after
-            // AddChart already Activate()d/Quit()'d it once via WriteChartData, deterministically
-            // throws COMException(0xB0D7019E) — not a transient race (10x200ms and 30x500ms
-            // retries both still failed every time). SeriesCollection.NewSeries() sets series
-            // data directly via the chart's COM object model instead, without touching the
-            // embedded workbook at all, avoiding that failure mode entirely.
+            // SeriesCollection is backed by Excel interop types that are not present in the
+            // embedded PowerPoint PIA. Keep this boundary narrowly late-bound.
             dynamic newSeries = seriesCollection.NewSeries();
             newSeries.Values = values.ToArray();
             newSeries.XValues = existingXValues;
@@ -238,12 +233,12 @@ public sealed class ChartCommands : IChartCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            if ((int)shape.HasChart != MsoTrue)
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
                 {
@@ -252,14 +247,10 @@ public sealed class ChartCommands : IChartCommands
                 };
             }
 
-            dynamic chart = shape.Chart;
+            PowerPoint.Chart chart = shape.Chart;
 
-            // NOTE (discovered via real integration test, not assumed): re-entering the chart's
-            // embedded data workbook (Chart.ChartData.Activate()/.Workbook) a second time, after
-            // AddChart already Activate()d/Quit()'d it once via WriteChartData, deterministically
-            // throws COMException(0xB0D7019E) — not a transient race. As with AddSeries above, we
-            // avoid the embedded workbook entirely and manipulate SeriesCollection directly:
-            // delete all existing series, then add fresh series with the new categories/values.
+            // Avoid the embedded Excel workbook and update its late-bound SeriesCollection
+            // directly, because Excel interop types are not part of the embedded PowerPoint PIA.
             dynamic seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
             int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
             for (int i = existingSeriesCount; i >= 1; i--)
@@ -306,12 +297,12 @@ public sealed class ChartCommands : IChartCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            if ((int)shape.HasChart != MsoTrue)
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
                 {
@@ -320,7 +311,7 @@ public sealed class ChartCommands : IChartCommands
                 };
             }
 
-            dynamic chart = shape.Chart;
+            PowerPoint.Chart chart = shape.Chart;
             chart.HasTitle = true;
             chart.ChartTitle.Text = title;
 
@@ -344,12 +335,12 @@ public sealed class ChartCommands : IChartCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            if ((int)shape.HasChart != MsoTrue)
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
                 {
@@ -358,7 +349,7 @@ public sealed class ChartCommands : IChartCommands
                 };
             }
 
-            dynamic chart = shape.Chart;
+            PowerPoint.Chart chart = shape.Chart;
             bool hasTitle = (bool)chart.HasTitle;
             string? title = hasTitle ? (string)chart.ChartTitle.Text : null;
 
@@ -379,7 +370,7 @@ public sealed class ChartCommands : IChartCommands
         ArgumentNullException.ThrowIfNull(axisType);
         ArgumentNullException.ThrowIfNull(title);
 
-        int? xlAxisType = ResolveAxisType(axisType);
+        PowerPoint.XlAxisType? xlAxisType = ResolveAxisType(axisType);
         if (xlAxisType is null)
         {
             return new ChartOperationResult
@@ -394,12 +385,12 @@ public sealed class ChartCommands : IChartCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            if ((int)shape.HasChart != MsoTrue)
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
                 {
@@ -408,7 +399,7 @@ public sealed class ChartCommands : IChartCommands
                 };
             }
 
-            dynamic chart = shape.Chart;
+            PowerPoint.Chart chart = shape.Chart;
             dynamic axis = chart.Axes(xlAxisType.Value);
             axis.HasTitle = true;
             axis.AxisTitle.Text = title;
@@ -430,7 +421,7 @@ public sealed class ChartCommands : IChartCommands
         ArgumentNullException.ThrowIfNull(batch);
         ArgumentNullException.ThrowIfNull(axisType);
 
-        int? xlAxisType = ResolveAxisType(axisType);
+        PowerPoint.XlAxisType? xlAxisType = ResolveAxisType(axisType);
         if (xlAxisType is null)
         {
             return new ChartOperationResult
@@ -445,12 +436,12 @@ public sealed class ChartCommands : IChartCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            if ((int)shape.HasChart != MsoTrue)
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
                 {
@@ -459,7 +450,7 @@ public sealed class ChartCommands : IChartCommands
                 };
             }
 
-            dynamic chart = shape.Chart;
+            PowerPoint.Chart chart = shape.Chart;
             dynamic axis = chart.Axes(xlAxisType.Value);
             bool hasTitle = (bool)axis.HasTitle;
             string? title = hasTitle ? (string)axis.AxisTitle.Text : null;
@@ -485,12 +476,12 @@ public sealed class ChartCommands : IChartCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            if ((int)shape.HasChart != MsoTrue)
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
                 {
@@ -499,7 +490,7 @@ public sealed class ChartCommands : IChartCommands
                 };
             }
 
-            dynamic chart = shape.Chart;
+            PowerPoint.Chart chart = shape.Chart;
             chart.HasLegend = visible;
 
             return new ChartOperationResult
@@ -512,6 +503,10 @@ public sealed class ChartCommands : IChartCommands
     }
 
     /// <inheritdoc/>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Performance",
+        "CA1822:Mark members as static",
+        Justification = "Kept as an instance command method for command-class consistency.")]
     public ChartOperationResult GetLegendVisibility(IPresentationBatch batch, int slideIndex, int shapeIndex)
     {
         ArgumentNullException.ThrowIfNull(batch);
@@ -521,12 +516,12 @@ public sealed class ChartCommands : IChartCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            if ((int)shape.HasChart != MsoTrue)
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
                 {
@@ -535,7 +530,7 @@ public sealed class ChartCommands : IChartCommands
                 };
             }
 
-            dynamic chart = shape.Chart;
+            PowerPoint.Chart chart = shape.Chart;
             bool visible = (bool)chart.HasLegend;
 
             return new ChartOperationResult
@@ -547,175 +542,32 @@ public sealed class ChartCommands : IChartCommands
         });
     }
 
-    private const int XlCategory = 1; // XlAxisType.xlCategory
-    private const int XlValue = 2; // XlAxisType.xlValue
-
-    private static int? ResolveAxisType(string axisType) => axisType.ToLowerInvariant() switch
+    private static PowerPoint.XlAxisType? ResolveAxisType(string axisType) => axisType.ToLowerInvariant() switch
     {
-        "category" => XlCategory,
-        "value" => XlValue,
+        "category" => PowerPoint.XlAxisType.xlCategory,
+        "value" => PowerPoint.XlAxisType.xlValue,
         _ => null
     };
 
-    private static void WriteChartData(dynamic chart, IReadOnlyList<string> categories, string seriesName, IReadOnlyList<double> values)
+    private static void WriteChartData(PowerPoint.Chart chart, IReadOnlyList<string> categories, string seriesName, IReadOnlyList<double> values)
     {
-        // Modern (AddChart2) charts store their data in an embedded mini Excel workbook,
-        // reachable via Chart.ChartData.Workbook. We write cells late-bound via dynamic to
-        // avoid any dependency on the Excel interop assembly.
-        dynamic chartData = chart.ChartData;
-        chartData.Activate();
-
-        // NOTE (discovered via real integration test, not assumed): immediately after
-        // ChartData.Activate(), the embedded mini-Excel process that hosts the chart's data
-        // workbook is still starting up out-of-process; accessing ChartData.Workbook right away
-        // intermittently throws a generic COMException(0x80004005). Retry briefly until the
-        // out-of-process workbook is ready.
-        dynamic? workbook = null;
-        Exception? lastError = null;
-        for (int attempt = 0; attempt < 10 && workbook is null; attempt++)
+        // SeriesCollection is backed by Excel types that are not present in the embedded
+        // PowerPoint PIA, so this is a deliberately narrow late-bound boundary.
+        dynamic seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
+        int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
+        for (int i = existingSeriesCount; i >= 1; i--)
         {
-            try
-            {
-                workbook = chartData.Workbook;
-            }
-            catch (Exception ex)
-            {
-                lastError = ex;
-                System.Threading.Thread.Sleep(200);
-            }
-        }
-        if (workbook is null)
-        {
-            throw new InvalidOperationException("Timed out waiting for the chart's embedded data workbook to become available.", lastError);
+            dynamic existingSeries = seriesCollection.Item(i);
+            existingSeries.Delete();
         }
 
-        dynamic worksheet = workbook.Worksheets[1];
-
-        // NOTE (discovered via real integration test, not assumed): during a sustained
-        // multi-hour PowerPoint session, the embedded chart-data workbook's out-of-process
-        // Excel host can transiently drop its RPC connection mid-call, surfacing as
-        // COMException(0x80010108 RPC_E_DISCONNECTED, "the object invoked has disconnected
-        // from its clients") on the very NEXT dynamic dispatch (e.g. a Cells[...].Value2
-        // write or a UsedRange access), even though Workbook itself resolved fine moments
-        // earlier. This is transient — retrying the same call shortly after succeeds. Only
-        // this specific HResult is retried; any other exception (bad argument, logic error)
-        // propagates immediately without a retry.
-        RetryOnDisconnect(() =>
-        {
-            worksheet.Cells[1, 1].Value2 = "Category";
-            worksheet.Cells[1, 2].Value2 = seriesName;
-
-            for (int i = 0; i < categories.Count; i++)
-            {
-                worksheet.Cells[i + 2, 1].Value2 = categories[i];
-                worksheet.Cells[i + 2, 2].Value2 = values[i];
-            }
-        });
-
-        // Clear any leftover default sample rows below our data.
-        dynamic usedRange = null!;
-        int usedRowCount = 0;
-        RetryOnDisconnect(() =>
-        {
-            usedRange = worksheet.UsedRange;
-            usedRowCount = (int)usedRange.Rows.Count;
-        });
-        int dataRowCount = categories.Count + 1; // + header row
-        if (usedRowCount > dataRowCount)
-        {
-            // NOTE: build the range from an A1-style string address rather than
-            // worksheet.Range[cellA, cellB] (two-Cells-object indexer) — the latter
-            // intermittently throws ArgumentException ("Could not convert argument 0") when
-            // both operands are themselves dynamic COM proxies from the embedded chart-data
-            // workbook. A plain string address avoids the ambiguous dynamic-to-dynamic
-            // indexer dispatch entirely.
-            RetryOnDisconnect(() =>
-            {
-                dynamic extraRange = worksheet.Range[$"A{dataRowCount + 1}:B{usedRowCount}"];
-                extraRange.ClearContents();
-            });
-        }
-
-        // NOTE (discovered via real integration test, not assumed): calling
-        // chart.SetSourceData(...) with a Range *object* (whether via `dynamic` DLR binding or
-        // Type.InvokeMember) fails against the modern (AddChart2) chart engine — the Range lives
-        // in the embedded chart-data workbook's process and PowerPoint's chart engine cannot
-        // resolve it as a valid Source argument here (DISP_E_TYPEMISMATCH / "Could not convert
-        // argument 0"). The modern chart engine instead expects Source as a plain sheet-qualified
-        // A1-style STRING reference (e.g. "Sheet1!$A$1:$B$4"), which SetSourceData resolves
-        // against the chart's own ChartData.Workbook internally. Using a string avoids passing a
-        // cross-process COM object entirely.
-        string worksheetName = worksheet.Name;
-        string sourceAddress = $"{worksheetName}!$A$1:$B${dataRowCount}";
-        object chartObj = chart;
-        chartObj.GetType().InvokeMember(
-            "SetSourceData",
-            System.Reflection.BindingFlags.InvokeMethod,
-            null,
-            chartObj,
-            [sourceAddress],
-            System.Globalization.CultureInfo.InvariantCulture);
-
-        // NOTE (discovered via real integration test, not assumed): Chart.SetSourceData commits
-        // the chart data and often auto-closes the embedded chart-data Excel workbook/process as
-        // part of that commit. A subsequent explicit Quit() on an already-closed workbook then
-        // throws COMException(0x80010108 RPC_E_DISCONNECTED, "the object invoked has
-        // disconnected from its clients"). Quit() is still attempted (some PowerPoint/Office
-        // versions do NOT auto-close it), but failures are expected/best-effort here.
-        try
-        {
-            workbook.Application.Quit();
-        }
-        catch (COMException)
-        {
-            // Embedded workbook was already closed by SetSourceData — nothing to do.
-        }
+        dynamic newSeries = seriesCollection.NewSeries();
+        newSeries.Values = values.ToArray();
+        newSeries.XValues = categories.ToArray();
+        newSeries.Name = seriesName;
     }
 
-    // RPC_E_DISCONNECTED — thrown when a late-bound COM call reaches an object whose
-    // out-of-process server (here, the embedded chart-data mini-Excel host) has dropped the
-    // RPC connection. Bounded, fast-fail retry: a handful of short-backoff attempts is enough
-    // to ride out a transient disconnect, while a genuinely broken COM state still fails
-    // quickly instead of hanging.
-    private const int RpcEDisconnected = unchecked((int)0x80010108);
-    private const int DisconnectRetryAttempts = 4;
-    private const int DisconnectRetryDelayMs = 150;
-
-    /// <summary>
-    /// Runs <paramref name="action"/>, retrying only on COMException(RPC_E_DISCONNECTED)
-    /// (see <see cref="RpcEDisconnected"/>). Any other exception — including a bad argument
-    /// or logic error — propagates immediately without a retry, since only the transient
-    /// disconnect is safe to silently retry.
-    /// </summary>
-    private static void RetryOnDisconnect(Action action)
-    {
-        for (int attempt = 1; attempt <= DisconnectRetryAttempts; attempt++)
-        {
-            try
-            {
-                action();
-                return;
-            }
-            catch (COMException ex) when (ex.HResult == RpcEDisconnected)
-            {
-                if (attempt == DisconnectRetryAttempts)
-                {
-                    throw new InvalidOperationException(
-                        $"The chart's embedded data workbook disconnected from its COM client (RPC_E_DISCONNECTED) after {DisconnectRetryAttempts} attempts while writing chart data.",
-                        ex);
-                }
-                System.Threading.Thread.Sleep(DisconnectRetryDelayMs);
-            }
-        }
-    }
-
-    // NOTE (discovered via real integration test, not assumed): accessing chart properties
-    // (e.g. Chart.SeriesCollection()) immediately after AddChart's WriteChartData has just
-    // Activate()d/written to/Quit()'d the embedded chart-data workbook is intermittently
-    // unstable — the chart engine can still be settling, surfacing generic COMExceptions with
-    // varying HResults (observed: 0x800706BA "RPC server is unavailable", 0x800706BE "the
-    // remote procedure call failed") rather than the specific RPC_E_DISCONNECTED handled by
-    // RetryOnDisconnect above. A short bounded retry rides out this settling window.
+    // Chart writes can settle asynchronously; a short bounded retry handles transient reads.
     private const int TransientReadRetryAttempts = 10;
     private const int TransientReadRetryDelayMs = 300;
 
@@ -747,6 +599,23 @@ public sealed class ChartCommands : IChartCommands
             }
         }
         throw new InvalidOperationException("Unreachable.", lastError);
+    }
+
+    private static Array ReadNonEmptyXValues(dynamic series)
+    {
+        Array xValues = Array.Empty<object>();
+        for (int attempt = 1; attempt <= TransientReadRetryAttempts; attempt++)
+        {
+            xValues = RetryTransientChartRead(() => (Array)series.XValues);
+            if (xValues.Length > 0 || attempt == TransientReadRetryAttempts)
+            {
+                return xValues;
+            }
+
+            Thread.Sleep(TransientReadRetryDelayMs);
+        }
+
+        return xValues;
     }
 
     private static ChartOperationResult? ValidateSlideIndex(int slideCount, int slideIndex)

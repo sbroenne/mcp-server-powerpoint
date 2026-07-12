@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Shape;
 
@@ -18,9 +19,9 @@ public sealed class ShapeCommands : IShapeCommands
     // PowerPoint.PpActionSetting.ppMouseClick / Office.MsoPresentationTarget-related action
     // constants — office.dll types, so used as raw ints per the project's dynamic-COM
     // convention (see MsoShapeRectangle above). Verified live via ActionSettings(ppMouseClick).
-    private const int MsoMouseClick = 1; // PpActionSetting.ppMouseClick
-    private const int PpActionNone = 0; // PpActionType.ppActionNone
-    private const int PpActionHyperlink = 7; // PpActionType.ppActionHyperlink
+    private const PowerPoint.PpMouseActivation MouseClickActivation = PowerPoint.PpMouseActivation.ppMouseClick;
+    private const PowerPoint.PpActionType PpActionNone = PowerPoint.PpActionType.ppActionNone;
+    private const PowerPoint.PpActionType PpActionHyperlink = PowerPoint.PpActionType.ppActionHyperlink;
 
     // MsoShadowStyle constant for SetShadow — verified live via ShapeEffectsDiagTests (a
     // temporary diagnostic spike, since removed): shape.Shadow.Type = 20 ("offset" style shadow)
@@ -149,20 +150,21 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            slide.Shapes.AddShape(MsoShapeRectangle, left, top, width, height);
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            dynamic dynShapes = slide.Shapes;
+            dynShapes.AddShape(MsoShapeRectangle, left, top, width, height);
             // NOTE: discovered via integration test — accessing the newly-added shape's
             // .Index property dynamically threw a RuntimeBinderException ("'System.__ComObject'
             // does not contain a definition for 'Index'"), a NoPIA/late-binding quirk on the
             // COM object returned from AddShape. Sidestepped entirely: since shapes are always
             // appended, the new shape's 1-based index is simply the new Shapes.Count.
-            int newIndex = (int)slide.Shapes.Count;
+            int newIndex = slide.Shapes.Count;
 
             return new ShapeOperationResult
             {
                 Success = true,
                 ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count
+                ShapeCount = slide.Shapes.Count
             };
         });
     }
@@ -178,17 +180,18 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            dynamic shape = slide.Shapes.AddTextbox(MsoTextOrientationHorizontal, left, top, width, height);
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            dynamic dynShapes = slide.Shapes;
+            PowerPoint.Shape shape = dynShapes.AddTextbox(MsoTextOrientationHorizontal, left, top, width, height);
             shape.TextFrame.TextRange.Text = text;
             // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
-            int newIndex = (int)slide.Shapes.Count;
+            int newIndex = slide.Shapes.Count;
 
             return new ShapeOperationResult
             {
                 Success = true,
                 ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count
+                ShapeCount = slide.Shapes.Count
             };
         });
     }
@@ -213,16 +216,17 @@ public sealed class ShapeCommands : IShapeCommands
                 };
             }
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            slide.Shapes.AddShape(typeValue, left, top, width, height);
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            dynamic dynShapes = slide.Shapes;
+            dynShapes.AddShape(typeValue, left, top, width, height);
             // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
-            int newIndex = (int)slide.Shapes.Count;
+            int newIndex = slide.Shapes.Count;
 
             return new ShapeOperationResult
             {
                 Success = true,
                 ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count,
+                ShapeCount = slide.Shapes.Count,
                 ShapeTypeName = shapeType
             };
         });
@@ -238,16 +242,16 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             slide.Shapes.AddLine(beginX, beginY, endX, endY);
             // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
-            int newIndex = (int)slide.Shapes.Count;
+            int newIndex = slide.Shapes.Count;
 
             return new ShapeOperationResult
             {
                 Success = true,
                 ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count,
+                ShapeCount = slide.Shapes.Count,
                 BeginX = beginX,
                 BeginY = beginY,
                 EndX = endX,
@@ -276,16 +280,17 @@ public sealed class ShapeCommands : IShapeCommands
                 };
             }
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            slide.Shapes.AddConnector(typeValue, beginX, beginY, endX, endY);
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            dynamic dynShapes = slide.Shapes;
+            dynShapes.AddConnector(typeValue, beginX, beginY, endX, endY);
             // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
-            int newIndex = (int)slide.Shapes.Count;
+            int newIndex = slide.Shapes.Count;
 
             return new ShapeOperationResult
             {
                 Success = true,
                 ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count,
+                ShapeCount = slide.Shapes.Count,
                 ConnectorTypeName = connectorType,
                 BeginX = beginX,
                 BeginY = beginY,
@@ -408,7 +413,7 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             int rgb = red + (green << 8) + (blue << 16);
             shape.Fill.Solid();
             shape.Fill.ForeColor.RGB = rgb;
@@ -431,8 +436,8 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            int rgb = (int)shape.Fill.ForeColor.RGB;
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            int rgb = shape.Fill.ForeColor.RGB;
 
             return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ColorRgb = rgb };
         });
@@ -475,27 +480,28 @@ public sealed class ShapeCommands : IShapeCommands
                 dashStyleValue = resolvedDashStyle;
             }
 
-            dynamic shape = slide.Shapes[shapeIndex];
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            dynamic line = shape.Line;
 
             if (red is not null || green is not null || blue is not null)
             {
                 int rgb = (red ?? 0) + ((green ?? 0) << 8) + ((blue ?? 0) << 16);
-                shape.Line.ForeColor.RGB = rgb;
+                line.ForeColor.RGB = rgb;
             }
 
             if (weight is not null)
             {
-                shape.Line.Weight = weight.Value;
+                line.Weight = weight.Value;
             }
 
             if (dashStyleValue is not null)
             {
-                shape.Line.DashStyle = dashStyleValue.Value;
+                line.DashStyle = dashStyleValue.Value;
             }
 
             if (visible is not null)
             {
-                shape.Line.Visible = visible.Value ? MsoTrue : MsoFalse;
+                line.Visible = visible.Value ? MsoTrue : MsoFalse;
             }
 
             return ReadLine(shape, shapeIndex);
@@ -516,7 +522,7 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             return ReadLine(shape, shapeIndex);
         });
     }
@@ -968,8 +974,8 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            int shapeCount = (int)slide.Shapes.Count;
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            int shapeCount = slide.Shapes.Count;
 
             if (shapeIndexes.Count < 2)
             {
@@ -987,10 +993,10 @@ public sealed class ShapeCommands : IShapeCommands
             }
 
             object[] indexArray = shapeIndexes.Select(i => (object)i).ToArray();
-            dynamic range = slide.Shapes.Range(indexArray);
+            PowerPoint.ShapeRange range = slide.Shapes.Range(indexArray);
             range.Group();
 
-            return new ShapeOperationResult { Success = true, ShapeCount = (int)slide.Shapes.Count };
+            return new ShapeOperationResult { Success = true, ShapeCount = slide.Shapes.Count };
         });
     }
 
@@ -1004,19 +1010,19 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic ungrouped = shape.Ungroup();
-            int ungroupedCount = (int)ungrouped.Count;
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            PowerPoint.ShapeRange ungrouped = shape.Ungroup();
+            int ungroupedCount = ungrouped.Count;
 
             return new ShapeOperationResult
             {
                 Success = true,
                 UngroupedShapeCount = ungroupedCount,
-                ShapeCount = (int)slide.Shapes.Count
+                ShapeCount = slide.Shapes.Count
             };
         });
     }
@@ -1078,10 +1084,10 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             shape.AlternativeText = altText;
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, AltText = (string)shape.AlternativeText };
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, AltText = shape.AlternativeText };
         });
     }
 
@@ -1099,9 +1105,9 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, AltText = (string)shape.AlternativeText };
+            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, AltText = shape.AlternativeText };
         });
     }
 
@@ -1120,11 +1126,11 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             // ActionSettings(ppMouseClick).Hyperlink.Address — verified live: setting Address
             // automatically flips the action setting's Action to ppActionHyperlink; no separate
             // "enable hyperlink" step is needed.
-            dynamic actionSetting = shape.ActionSettings[MsoMouseClick];
+            PowerPoint.ActionSetting actionSetting = shape.ActionSettings[MouseClickActivation];
             actionSetting.Hyperlink.Address = address;
             if (screenTip is not null)
             {
@@ -1136,8 +1142,8 @@ public sealed class ShapeCommands : IShapeCommands
                 Success = true,
                 ShapeIndex = shapeIndex,
                 HasHyperlink = true,
-                HyperlinkAddress = (string)actionSetting.Hyperlink.Address,
-                HyperlinkScreenTip = (string)actionSetting.Hyperlink.ScreenTip
+                HyperlinkAddress = actionSetting.Hyperlink.Address,
+                HyperlinkScreenTip = actionSetting.Hyperlink.ScreenTip
             };
         });
     }
@@ -1156,9 +1162,9 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic actionSetting = shape.ActionSettings[MsoMouseClick];
-            int action = (int)actionSetting.Action;
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            PowerPoint.ActionSetting actionSetting = shape.ActionSettings[MouseClickActivation];
+            PowerPoint.PpActionType action = actionSetting.Action;
             bool hasHyperlink = action == PpActionHyperlink;
 
             return new ShapeOperationResult
@@ -1166,8 +1172,8 @@ public sealed class ShapeCommands : IShapeCommands
                 Success = true,
                 ShapeIndex = shapeIndex,
                 HasHyperlink = hasHyperlink,
-                HyperlinkAddress = hasHyperlink ? (string)actionSetting.Hyperlink.Address : null,
-                HyperlinkScreenTip = hasHyperlink ? (string)actionSetting.Hyperlink.ScreenTip : null
+                HyperlinkAddress = hasHyperlink ? actionSetting.Hyperlink.Address : null,
+                HyperlinkScreenTip = hasHyperlink ? actionSetting.Hyperlink.ScreenTip : null
             };
         });
     }
@@ -1186,8 +1192,8 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic actionSetting = shape.ActionSettings[MsoMouseClick];
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            PowerPoint.ActionSetting actionSetting = shape.ActionSettings[MouseClickActivation];
             actionSetting.Action = PpActionNone;
 
             return new ShapeOperationResult
@@ -1199,15 +1205,16 @@ public sealed class ShapeCommands : IShapeCommands
         });
     }
 
-    private static ShapeOperationResult ReadLine(dynamic shape, int shapeIndex)
+    private static ShapeOperationResult ReadLine(PowerPoint.Shape shape, int shapeIndex)
     {
-        int rgb = (int)shape.Line.ForeColor.RGB;
-        float weight = (float)shape.Line.Weight;
-        int dashStyleValue = (int)shape.Line.DashStyle;
+        dynamic line = shape.Line;
+        int rgb = (int)line.ForeColor.RGB;
+        float weight = (float)line.Weight;
+        int dashStyleValue = (int)line.DashStyle;
         string dashStyleName = LineDashStylesByValue.TryGetValue(dashStyleValue, out var name)
             ? name
             : $"unknown ({dashStyleValue})";
-        bool visible = (int)shape.Line.Visible == MsoTrue;
+        bool visible = (int)line.Visible == MsoTrue;
 
         return new ShapeOperationResult
         {

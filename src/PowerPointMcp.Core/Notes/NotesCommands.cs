@@ -1,10 +1,13 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Notes;
 
 /// <inheritdoc cref="INotesCommands"/>
 public sealed class NotesCommands : INotesCommands
 {
+    private const int MsoShapePlaceholder = 14;
+
     /// <inheritdoc/>
     public NotesOperationResult SetNotesText(IPresentationBatch batch, int slideIndex, string text)
     {
@@ -16,7 +19,7 @@ public sealed class NotesCommands : INotesCommands
             var validation = ValidateSlideIndex(ctx, slideIndex);
             if (validation is not null) return validation;
 
-            dynamic notesTextShape = FindNotesTextShape(ctx, slideIndex);
+            PowerPoint.Shape notesTextShape = FindNotesTextShape(ctx, slideIndex);
             notesTextShape.TextFrame.TextRange.Text = text;
 
             return new NotesOperationResult { Success = true, NotesText = text };
@@ -33,7 +36,7 @@ public sealed class NotesCommands : INotesCommands
             var validation = ValidateSlideIndex(ctx, slideIndex);
             if (validation is not null) return validation;
 
-            dynamic notesTextShape = FindNotesTextShape(ctx, slideIndex);
+            PowerPoint.Shape notesTextShape = FindNotesTextShape(ctx, slideIndex);
             string text = (string)notesTextShape.TextFrame.TextRange.Text;
 
             return new NotesOperationResult { Success = true, NotesText = text };
@@ -50,7 +53,7 @@ public sealed class NotesCommands : INotesCommands
     /// is ppPlaceholderBody rather than hard-coding index 2, in case a custom notes master
     /// reorders placeholders.
     /// </remarks>
-    private static dynamic FindNotesTextShape(PresentationContext ctx, int slideIndex)
+    private static PowerPoint.Shape FindNotesTextShape(PresentationContext ctx, int slideIndex)
     {
         dynamic notesPage = ctx.Presentation.Slides[slideIndex].NotesPage;
         dynamic shapes = notesPage.Shapes;
@@ -59,13 +62,14 @@ public sealed class NotesCommands : INotesCommands
         for (int i = 1; i <= count; i++)
         {
             dynamic shape = shapes[i];
-            bool isPlaceholder = (int)shape.Type == 14; // msoPlaceholder
+            bool isPlaceholder = (int)shape.Type == MsoShapePlaceholder;
             if (!isPlaceholder) continue;
 
-            int placeholderType = (int)shape.PlaceholderFormat.Type;
-            if (placeholderType == 2) // PpPlaceholderType.ppPlaceholderBody
+            PowerPoint.PpPlaceholderType placeholderType =
+                (PowerPoint.PpPlaceholderType)shape.PlaceholderFormat.Type;
+            if (placeholderType == PowerPoint.PpPlaceholderType.ppPlaceholderBody)
             {
-                return shape;
+                return (PowerPoint.Shape)shape;
             }
         }
 

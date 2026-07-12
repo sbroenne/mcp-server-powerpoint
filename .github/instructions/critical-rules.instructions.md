@@ -73,6 +73,21 @@ surface, and tests — matching PowerPoint's native COM object model. Never intr
 indexing in new code; a 0 or negative index is an expected validation failure
 (`Success=false`), not something to special-case as valid.
 
+## Rule: PIA-First COM Access
+
+**Always use strongly typed members from the embedded `Microsoft.Office.Interop.PowerPoint` PIA
+for PowerPoint COM access.** Use the corresponding typed Office/PowerPoint enum instead of raw
+integer constants whenever the referenced PIA exposes it.
+
+`dynamic`, reflection, raw dispatch, or numeric COM enum values are allowed only when the actual
+restored PIA does not expose the required member or type. Every exception must:
+
+1. Be confirmed against the restored interop metadata, not assumed from a web example.
+2. Include a concise code comment explaining the missing PIA surface.
+3. Have real-COM test coverage for the late-bound behavior.
+
+Convenience or shorter syntax is never sufficient justification for bypassing the PIA.
+
 ## Rule: Session Lifecycle Discipline
 
 - Every session (`PresentationSessionRegistry` entry) MUST be reachable from
@@ -100,6 +115,7 @@ Never commit, push, or merge without explicit user approval. No background or si
 | Success flag | NEVER `Success=true` with `ErrorMessage` | Confuses callers, silent failures |
 | No exception wrapping | Never catch-and-return-error inside Core | Preserves stack context, avoids double-wrapping |
 | 1-based indexing | Never introduce 0-based indices | Matches COM object model, avoids silent bugs |
+| PIA-first COM | Use typed PIA members/enums; late-bind only when the restored PIA lacks the API | Preserves compile-time safety and discoverability |
 
 **When Writing Code:**
 | Rule | Action | Why Critical |

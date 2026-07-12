@@ -193,13 +193,15 @@ internal sealed class PresentationBatch : IPresentationBatch
             OleMessageFilter.Register();
             DisableDesignerAutomationHang();
 
-            Type? appType = Type.GetTypeFromProgID("PowerPoint.Application");
-            if (appType == null)
+            PowerPoint.Application tempApp;
+            try
             {
-                throw new InvalidOperationException("Microsoft PowerPoint is not installed on this system.");
+                tempApp = new PowerPoint.Application();
             }
-
-            var tempApp = (PowerPoint.Application)Activator.CreateInstance(appType)!;
+            catch (COMException ex) when ((uint)ex.HResult == 0x80040154) // REGDB_E_CLASSNOTREG
+            {
+                throw new InvalidOperationException("Microsoft PowerPoint is not installed on this system.", ex);
+            }
             startupApp = tempApp;
 
             // NOTE: PowerPoint.Application.Visible and Presentations.Add/Open all take
@@ -246,7 +248,7 @@ internal sealed class PresentationBatch : IPresentationBatch
             }
 
             string fullPath = Path.GetFullPath(_presentationPath);
-            PowerPoint.Presentation presentation = OpenOrCreatePresentationCom(dynApp, fullPath, _createNewFile);
+            PowerPoint.Presentation presentation = OpenOrCreatePresentationCom(tempApp, fullPath, _createNewFile);
 
             startupPresentation = presentation;
             _app = tempApp;
@@ -285,10 +287,11 @@ internal sealed class PresentationBatch : IPresentationBatch
     /// within an already-running Application instance (e.g. shared test fixtures) without
     /// re-launching PowerPoint.
     /// </summary>
-    private static PowerPoint.Presentation OpenOrCreatePresentationCom(dynamic dynApp, string fullPath, bool createNewFile)
+    private static PowerPoint.Presentation OpenOrCreatePresentationCom(PowerPoint.Application app, string fullPath, bool createNewFile)
     {
         const int msoTrue = -1;
         const int msoFalse = 0;
+        dynamic dynPresentations = app.Presentations;
 
         PowerPoint.Presentation presentation;
 
@@ -302,16 +305,17 @@ internal sealed class PresentationBatch : IPresentationBatch
 
             // See RunStaThread's original NOTE: WithWindow must be msoTrue (chart in-place
             // activation needs a real document window), independent of Application.Visible.
-            presentation = (PowerPoint.Presentation)dynApp.Presentations.Add(msoTrue);
+            presentation = (PowerPoint.Presentation)dynPresentations.Add(msoTrue);
 
             // Presentations.Add() creates a presentation with ZERO slides — add one blank
             // slide so "create a new presentation" is immediately useful.
             presentation.Slides.Add(1, PowerPoint.PpSlideLayout.ppLayoutBlank);
 
-            int formatCode = string.Equals(Path.GetExtension(fullPath), ".pptm", StringComparison.OrdinalIgnoreCase)
+            PowerPoint.PpSaveAsFileType formatCode = string.Equals(Path.GetExtension(fullPath), ".pptm", StringComparison.OrdinalIgnoreCase)
                 ? ComInteropConstants.PpSaveAsOpenXmlPresentationMacroEnabled
                 : ComInteropConstants.PpSaveAsOpenXmlPresentation;
-            ((dynamic)presentation).SaveAs(fullPath, formatCode);
+            dynamic dynPresentation = presentation;
+            dynPresentation.SaveAs(fullPath, formatCode);
         }
         else
         {
@@ -320,7 +324,7 @@ internal sealed class PresentationBatch : IPresentationBatch
                 throw new FileNotFoundException($"PowerPoint file not found: {fullPath}.", fullPath);
             }
 
-            presentation = (PowerPoint.Presentation)dynApp.Presentations.Open(
+            presentation = (PowerPoint.Presentation)dynPresentations.Open(
                 fullPath,
                 msoFalse, // ReadOnly = false — we need to be able to Save()
                 msoFalse, // Untitled = false — see RunStaThread's original NOTE.
@@ -527,8 +531,7 @@ internal sealed class PresentationBatch : IPresentationBatch
                 ComUtilities.Release(ref oldPresentation);
             }
 
-            dynamic dynApp = _app!;
-            PowerPoint.Presentation newPresentation = OpenOrCreatePresentationCom(dynApp, fullPath, createNewFile);
+            PowerPoint.Presentation newPresentation = OpenOrCreatePresentationCom(_app!, fullPath, createNewFile);
             _presentation = newPresentation;
             _presentationPath = fullPath;
             _context = new PresentationContext(fullPath, _app!, newPresentation);

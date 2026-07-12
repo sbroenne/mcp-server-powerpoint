@@ -30,7 +30,7 @@ Session-lifecycle tools (`create_presentation`, `open_presentation`, `save_prese
 |------|------|--------|------|
 | 1. Create (optional) | `create_presentation` | New file on disk, no session | Only for brand-new files |
 | 2. Open | `open_presentation` | Start a session, get `sessionId` | Always, before any edit |
-| 3. Build | `slide(action: "add-blank")`, `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector")`, `table(action: "add-table")`, `chart(action: "add-chart")`, `image(action: "add-picture")` | Add structure and content | As needed |
+| 3. Build | `slide(action: "add-blank")`, `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector")`, `table(action: "add-table")`, `chart(action: "add-chart")`, `image(action: "add-picture"/"set-brightness-contrast"/"get-brightness-contrast"/"set-recolor"/"get-recolor"/"set-crop"/"get-crop")` | Add structure and content | As needed |
 | 4. Format | `textframe(action: "set-font-size"/"set-bold"/"set-font-color")`, `layout(action: "set-layout")` | Apply formatting | After adding content |
 | 5. Animate (optional) | `animation(action: "add-effect"/"set-transition")` | Add entrance/emphasis/exit effects or slide transitions | After content/layout are final |
 | 6. Annotate | `notes(action: "set-notes-text")` | Add speaker notes | After each slide's content is final |
@@ -106,7 +106,7 @@ saved.
 | Tables | `table(action: "add-table"/"set-cell-text"/"get-cell-text"/"insert-row"/"delete-row"/"insert-column"/"delete-column"/"set-cell-fill"/"get-cell-fill"/"set-cell-border"/"get-cell-border"/"merge-cells")` |
 | Native charts | `chart(action: "add-chart"/"get-chart-data"/"add-series"/"set-chart-title"/"get-chart-title"/"set-axis-title"/"get-axis-title"/"set-legend-visibility"/"get-legend-visibility")` |
 | SmartArt diagrams | `smartart(action: "add-smart-art"/"add-node"/"add-child-node"/"set-node-text"/"get-node-text"/"delete-node"/"get-node-count")` |
-| Images | `image(action: "add-picture")` |
+| Images | `image(action: "add-picture"/"set-brightness-contrast"/"get-brightness-contrast"/"set-recolor"/"get-recolor"/"set-crop"/"get-crop")` |
 | Speaker notes | `notes(action: "set-notes-text"/"get-notes-text")` |
 | Slide layouts | `layout(action: "set-layout"/"get-layout")` |
 | Slide master title/body font, background color | `master(action: "get-title-font"/"set-title-font"/"get-body-font"/"set-body-font"/"get-background-color"/"set-background-color")` |
@@ -125,7 +125,7 @@ See `references/` for detailed guidance:
 - [Tables — add-table, cell text, row/column edits, fill/border formatting, merge](./references/tables.md)
 - [Charts — add-chart/add-series categories/series/values, titles, legend](./references/charts.md)
 - [SmartArt — add-smart-art layouts, node addressing, hierarchy diagrams](./references/smart-art.md)
-- [Images — add-picture](./references/images.md)
+- [Images — picture insertion and picture-format adjustments](./references/images.md)
 - [Speaker notes — set/get notes](./references/speaker-notes.md)
 - [Layouts — set/get slide layout](./references/layouts.md)
 - [Slide master — title/body font and background color](./references/master.md)

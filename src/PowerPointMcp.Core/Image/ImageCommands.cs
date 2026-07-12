@@ -1,22 +1,31 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Image;
 
 /// <inheritdoc cref="IImageCommands"/>
 public sealed class ImageCommands : IImageCommands
 {
-    private const int MsoFalse = 0;
-    private const int MsoTrue = -1;
+    // MsoTriState values from Microsoft.Office.Core — office.dll is not referenced/embedded,
+    // so passed as raw ints via dynamic late binding (same pattern as ShapeCommands.cs).
+    private const int MsoFalse = 0;   // MsoTriState.msoFalse
+    private const int MsoTrue  = -1;  // MsoTriState.msoTrue
+
+    // MsoShapeType values for picture-shape validation.
+    // Shape.Type is Microsoft.Office.Core.MsoShapeType (Office.Core — not embedded);
+    // read via (int)((dynamic)shape).Type and compared against these named constants.
+    private const int MsoPicture       = 13; // MsoShapeType.msoPicture
+    private const int MsoLinkedPicture = 11; // MsoShapeType.msoLinkedPicture
 
     // MsoPictureColorType member name -> value, for SetRecolor/GetRecolor
     // (learn.microsoft.com/office/vba/api/office.msopicturecolortype) — verified live via
     // PictureEffectsDiagTests (a temporary diagnostic spike, since removed).
     private static readonly Dictionary<string, int> PictureColorTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["msoPictureAutomatic"] = 1,
-        ["msoPictureGrayscale"] = 2,
+        ["msoPictureAutomatic"]     = 1,
+        ["msoPictureGrayscale"]     = 2,
         ["msoPictureBlackAndWhite"] = 3,
-        ["msoPictureWatermark"] = 4,
+        ["msoPictureWatermark"]     = 4,
     };
 
     private static readonly Dictionary<int, string> PictureColorTypesByValue =
@@ -53,19 +62,19 @@ public sealed class ImageCommands : IImageCommands
             }
 
             // Shapes.AddPicture(FileName, LinkToFile, SaveWithDocument, Left, Top, Width, Height)
-            // — LinkToFile/SaveWithDocument are Microsoft.Office.Core.MsoTriState (office.dll)
-            // typed, so called late-bound via dynamic with the raw int constants, same pattern
-            // as elsewhere in this project. LinkToFile=False, SaveWithDocument=True embeds the
-            // image directly in the .pptx rather than linking to the external file.
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            slide.Shapes.AddPicture(fullImagePath, MsoFalse, MsoTrue, left, top, width, height);
-            int newIndex = (int)slide.Shapes.Count; // always appended
+            // — LinkToFile/SaveWithDocument are Microsoft.Office.Core.MsoTriState (office.dll),
+            // so called late-bound via dynamic with the raw int constants (same pattern as
+            // ShapeCommands.cs). LinkToFile=False, SaveWithDocument=True embeds the image
+            // directly in the .pptx rather than linking to the external file.
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            ((dynamic)slide.Shapes).AddPicture(fullImagePath, MsoFalse, MsoTrue, left, top, width, height);
+            int newIndex = slide.Shapes.Count; // always appended
 
             return new ImageOperationResult
             {
                 Success = true,
                 ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count
+                ShapeCount = slide.Shapes.Count
             };
         });
     }
@@ -75,17 +84,24 @@ public sealed class ImageCommands : IImageCommands
     {
         ArgumentNullException.ThrowIfNull(batch);
 
+        // Pre-COM range validation (Rule 1b: checked before touching COM, not catch-and-return).
+        var rangeValidation = ValidateBrightnessContrastRange(brightness, contrast);
+        if (rangeValidation is not null) return rangeValidation;
+
         return batch.Execute((ctx, ct) =>
         {
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic pictureFormat = shape.PictureFormat;
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            var typeValidation = ValidatePictureShape(shape, slideIndex, shapeIndex);
+            if (typeValidation is not null) return typeValidation;
+
+            PowerPoint.PictureFormat pictureFormat = shape.PictureFormat;
             pictureFormat.Brightness = brightness;
             pictureFormat.Contrast = contrast;
 
@@ -109,19 +125,22 @@ public sealed class ImageCommands : IImageCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic pictureFormat = shape.PictureFormat;
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            var typeValidation = ValidatePictureShape(shape, slideIndex, shapeIndex);
+            if (typeValidation is not null) return typeValidation;
+
+            PowerPoint.PictureFormat pictureFormat = shape.PictureFormat;
 
             return new ImageOperationResult
             {
                 Success = true,
                 ShapeIndex = shapeIndex,
-                Brightness = (float)pictureFormat.Brightness,
-                Contrast = (float)pictureFormat.Contrast,
+                Brightness = pictureFormat.Brightness,
+                Contrast = pictureFormat.Contrast,
             };
         });
     }
@@ -146,13 +165,17 @@ public sealed class ImageCommands : IImageCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic pictureFormat = shape.PictureFormat;
-            pictureFormat.ColorType = typeValue;
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            var typeValidation = ValidatePictureShape(shape, slideIndex, shapeIndex);
+            if (typeValidation is not null) return typeValidation;
+
+            // PictureFormat.ColorType is MsoPictureColorType (Microsoft.Office.Core — not embedded);
+            // assigned via dynamic late binding with the pre-validated integer value.
+            ((dynamic)shape.PictureFormat).ColorType = typeValue;
 
             return new ImageOperationResult
             {
@@ -173,14 +196,18 @@ public sealed class ImageCommands : IImageCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic pictureFormat = shape.PictureFormat;
-            int typeValue = (int)pictureFormat.ColorType;
-            string typeName = PictureColorTypesByValue.TryGetValue(typeValue, out var name) ? name : $"unknown({typeValue})";
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            var typeValidation = ValidatePictureShape(shape, slideIndex, shapeIndex);
+            if (typeValidation is not null) return typeValidation;
+
+            // PictureFormat.ColorType is MsoPictureColorType (Microsoft.Office.Core — not embedded);
+            // read via dynamic late binding.
+            int rawColorType = (int)((dynamic)shape.PictureFormat).ColorType;
+            string typeName = PictureColorTypesByValue.TryGetValue(rawColorType, out var name) ? name : $"unknown({rawColorType})";
 
             return new ImageOperationResult
             {
@@ -189,6 +216,122 @@ public sealed class ImageCommands : IImageCommands
                 ColorTypeName = typeName,
             };
         });
+    }
+
+    /// <inheritdoc/>
+    public ImageOperationResult SetCrop(IPresentationBatch batch, int slideIndex, int shapeIndex,
+        float cropLeft, float cropTop, float cropRight, float cropBottom)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            var typeValidation = ValidatePictureShape(shape, slideIndex, shapeIndex);
+            if (typeValidation is not null) return typeValidation;
+
+            // CropLeft/Top/Right/Bottom are typed float properties on the embedded PIA.
+            // Negative values are valid (expand visible area beyond image boundary); no clamping.
+            PowerPoint.PictureFormat pictureFormat = shape.PictureFormat;
+            pictureFormat.CropLeft   = cropLeft;
+            pictureFormat.CropTop    = cropTop;
+            pictureFormat.CropRight  = cropRight;
+            pictureFormat.CropBottom = cropBottom;
+
+            return new ImageOperationResult
+            {
+                Success    = true,
+                ShapeIndex = shapeIndex,
+                CropLeft   = pictureFormat.CropLeft,
+                CropTop    = pictureFormat.CropTop,
+                CropRight  = pictureFormat.CropRight,
+                CropBottom = pictureFormat.CropBottom,
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ImageOperationResult GetCrop(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            var typeValidation = ValidatePictureShape(shape, slideIndex, shapeIndex);
+            if (typeValidation is not null) return typeValidation;
+
+            PowerPoint.PictureFormat pictureFormat = shape.PictureFormat;
+
+            return new ImageOperationResult
+            {
+                Success    = true,
+                ShapeIndex = shapeIndex,
+                CropLeft   = pictureFormat.CropLeft,
+                CropTop    = pictureFormat.CropTop,
+                CropRight  = pictureFormat.CropRight,
+                CropBottom = pictureFormat.CropBottom,
+            };
+        });
+    }
+
+    /// <summary>
+    /// Validates that brightness and contrast are each in [0, 1].
+    /// Called before <c>batch.Execute</c> so range errors are caught without touching COM.
+    /// </summary>
+    private static ImageOperationResult? ValidateBrightnessContrastRange(float brightness, float contrast)
+    {
+        if (brightness < 0f || brightness > 1f)
+        {
+            return new ImageOperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Brightness {brightness} is out of range; must be between 0 and 1 (inclusive)."
+            };
+        }
+        if (contrast < 0f || contrast > 1f)
+        {
+            return new ImageOperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Contrast {contrast} is out of range; must be between 0 and 1 (inclusive)."
+            };
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Validates that <paramref name="shape"/> is a picture or linked picture (required before
+    /// accessing <c>PictureFormat</c> members). <c>Shape.Type</c> is
+    /// <c>Microsoft.Office.Core.MsoShapeType</c> (Office.Core — not embedded), so the check
+    /// uses dynamic late binding with named integer constants.
+    /// </summary>
+    private static ImageOperationResult? ValidatePictureShape(PowerPoint.Shape shape, int slideIndex, int shapeIndex)
+    {
+        int shapeType = (int)((dynamic)shape).Type;
+        if (shapeType != MsoPicture && shapeType != MsoLinkedPicture)
+        {
+            return new ImageOperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Shape {shapeIndex} on slide {slideIndex} is not a picture (shape type={shapeType}). PictureFormat operations require a picture or linked picture shape."
+            };
+        }
+        return null;
     }
 
     private static ImageOperationResult? ValidateSlideIndex(int slideCount, int slideIndex)

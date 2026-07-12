@@ -116,8 +116,8 @@ public sealed class SlideCommands : ISlideCommands
 
             // Duplicate() returns a SlideRange containing the single new slide, inserted
             // immediately after the source slide.
-            dynamic duplicateRange = ctx.Presentation.Slides[slideIndex].Duplicate();
-            int newSlideIndex = (int)duplicateRange[1].SlideIndex;
+            PowerPoint.SlideRange duplicateRange = ctx.Presentation.Slides[slideIndex].Duplicate();
+            int newSlideIndex = duplicateRange[1].SlideIndex;
 
             return new SlideOperationResult
             {
@@ -185,8 +185,9 @@ public sealed class SlideCommands : ISlideCommands
                 };
             }
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            slide.FollowMasterBackground = MsoFalse;
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            dynamic dynSlide = slide;
+            dynSlide.FollowMasterBackground = MsoFalse;
             int rgb = red + (green << 8) + (blue << 16);
             slide.Background.Fill.Solid();
             slide.Background.Fill.ForeColor.RGB = rgb;
@@ -219,9 +220,10 @@ public sealed class SlideCommands : ISlideCommands
                 };
             }
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            bool followsMaster = (int)slide.FollowMasterBackground == MsoTrue;
-            int rgb = (int)slide.Background.Fill.ForeColor.RGB;
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            dynamic dynSlide = slide;
+            bool followsMaster = (int)dynSlide.FollowMasterBackground == MsoTrue;
+            int rgb = slide.Background.Fill.ForeColor.RGB;
 
             return new SlideOperationResult
             {
@@ -269,13 +271,15 @@ public sealed class SlideCommands : ISlideCommands
             int rgb1 = red1 + (green1 << 8) + (blue1 << 16);
             int rgb2 = red2 + (green2 << 8) + (blue2 << 16);
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            slide.FollowMasterBackground = MsoFalse;
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            dynamic dynSlide = slide;
+            dynSlide.FollowMasterBackground = MsoFalse;
             // TwoColorGradient() must be called BEFORE setting ForeColor/BackColor — it resets
             // both colors to PowerPoint's defaults as a side effect (verified via diagnostic spike).
-            slide.Background.Fill.TwoColorGradient(styleValue, gradientVariant);
-            slide.Background.Fill.ForeColor.RGB = rgb1;
-            slide.Background.Fill.BackColor.RGB = rgb2;
+            dynamic fill = slide.Background.Fill;
+            fill.TwoColorGradient(styleValue, gradientVariant);
+            fill.ForeColor.RGB = rgb1;
+            fill.BackColor.RGB = rgb2;
 
             return new SlideOperationResult
             {
@@ -308,8 +312,9 @@ public sealed class SlideCommands : ISlideCommands
                 };
             }
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            int fillType = (int)slide.Background.Fill.Type;
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            dynamic fill = slide.Background.Fill;
+            int fillType = (int)fill.Type;
             const int MsoFillGradient = 3;
             if (fillType != MsoFillGradient)
             {
@@ -321,10 +326,10 @@ public sealed class SlideCommands : ISlideCommands
                 };
             }
 
-            int rgb1 = (int)slide.Background.Fill.ForeColor.RGB;
-            int rgb2 = (int)slide.Background.Fill.BackColor.RGB;
-            int styleValue = (int)slide.Background.Fill.GradientStyle;
-            int variant = (int)slide.Background.Fill.GradientVariant;
+            int rgb1 = (int)fill.ForeColor.RGB;
+            int rgb2 = (int)fill.BackColor.RGB;
+            int styleValue = (int)fill.GradientStyle;
+            int variant = (int)fill.GradientVariant;
             string? styleName = GradientStylesByValue.GetValueOrDefault(styleValue);
 
             return new SlideOperationResult
@@ -347,8 +352,8 @@ public sealed class SlideCommands : ISlideCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic sectionProperties = ctx.Presentation.SectionProperties;
-            int currentCount = (int)sectionProperties.Count;
+            PowerPoint.SectionProperties sectionProperties = ctx.Presentation.SectionProperties;
+            int currentCount = sectionProperties.Count;
 
             if (sectionIndex < 1 || sectionIndex > currentCount + 1)
             {
@@ -361,14 +366,14 @@ public sealed class SlideCommands : ISlideCommands
             }
 
             int newSectionIndex = sectionName is null
-                ? (int)sectionProperties.AddSection(sectionIndex)
-                : (int)sectionProperties.AddSection(sectionIndex, sectionName);
+                ? sectionProperties.AddSection(sectionIndex)
+                : sectionProperties.AddSection(sectionIndex, sectionName);
 
             return new SlideOperationResult
             {
                 Success = true,
                 SectionIndex = newSectionIndex,
-                SectionCount = (int)sectionProperties.Count
+                SectionCount = sectionProperties.Count
             };
         });
     }
@@ -381,8 +386,8 @@ public sealed class SlideCommands : ISlideCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic sectionProperties = ctx.Presentation.SectionProperties;
-            int currentCount = (int)sectionProperties.Count;
+            PowerPoint.SectionProperties sectionProperties = ctx.Presentation.SectionProperties;
+            int currentCount = sectionProperties.Count;
 
             if (sectionIndex < 1 || sectionIndex > currentCount)
             {
@@ -413,8 +418,8 @@ public sealed class SlideCommands : ISlideCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic sectionProperties = ctx.Presentation.SectionProperties;
-            int currentCount = (int)sectionProperties.Count;
+            PowerPoint.SectionProperties sectionProperties = ctx.Presentation.SectionProperties;
+            int currentCount = sectionProperties.Count;
 
             if (sectionIndex < 1 || sectionIndex > currentCount)
             {
@@ -435,7 +440,7 @@ public sealed class SlideCommands : ISlideCommands
             {
                 Success = true,
                 SectionIndex = sectionIndex,
-                SectionCount = (int)sectionProperties.Count
+                SectionCount = sectionProperties.Count
             };
         });
     }
@@ -447,11 +452,11 @@ public sealed class SlideCommands : ISlideCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic sectionProperties = ctx.Presentation.SectionProperties;
+            PowerPoint.SectionProperties sectionProperties = ctx.Presentation.SectionProperties;
             return new SlideOperationResult
             {
                 Success = true,
-                SectionCount = (int)sectionProperties.Count
+                SectionCount = sectionProperties.Count
             };
         });
     }
@@ -463,8 +468,8 @@ public sealed class SlideCommands : ISlideCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic sectionProperties = ctx.Presentation.SectionProperties;
-            int currentCount = (int)sectionProperties.Count;
+            PowerPoint.SectionProperties sectionProperties = ctx.Presentation.SectionProperties;
+            int currentCount = sectionProperties.Count;
 
             if (sectionIndex < 1 || sectionIndex > currentCount)
             {
@@ -476,7 +481,7 @@ public sealed class SlideCommands : ISlideCommands
                 };
             }
 
-            string name = (string)sectionProperties.Name(sectionIndex);
+            string name = sectionProperties.Name(sectionIndex);
 
             return new SlideOperationResult
             {

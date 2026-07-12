@@ -148,6 +148,17 @@ a backstop in `Main`'s `finally`. Never let a PowerPoint process leak past MCP h
 surface, matching PowerPoint's native COM object model (`Slides(1)` is the first slide). Do not
 introduce 0-based indexing anywhere in Core, the MCP tools, or tests.
 
+## PIA-First COM Access (CRITICAL)
+
+All PowerPoint COM operations must use strongly typed members from the embedded
+`Microsoft.Office.Interop.PowerPoint` PIA whenever the restored PIA exposes the required API.
+Use typed Office/PowerPoint enums instead of raw integer constants.
+
+Only use `dynamic`, reflection, raw dispatch, or numeric COM enum values after confirming from the
+restored interop metadata that no typed PIA member/type exists. Keep such exceptions narrowly
+scoped, document the missing PIA surface in code, and cover the behavior with a real-COM
+integration test. Convenience is never a reason to bypass the PIA.
+
 ## Rule 1 / 1b — Success/ErrorMessage Invariant (CRITICAL)
 
 Core commands return `{Domain}OperationResult` with `Success`/`ErrorMessage`:
