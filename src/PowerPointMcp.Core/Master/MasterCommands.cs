@@ -115,8 +115,8 @@ public sealed class MasterCommands : IMasterCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic master = ctx.Presentation.SlideMaster;
-            int rgb = (int)master.Background.Fill.ForeColor.RGB;
+            PowerPoint.Master master = GetSlideMaster(ctx);
+            int rgb = master.Background.Fill.ForeColor.RGB;
 
             return new MasterOperationResult { Success = true, ColorRgb = rgb };
         });
@@ -133,7 +133,7 @@ public sealed class MasterCommands : IMasterCommands
             // function), not the more common 0x00RRGGBB.
             int rgb = red + (green << 8) + (blue << 16);
 
-            dynamic master = ctx.Presentation.SlideMaster;
+            PowerPoint.Master master = GetSlideMaster(ctx);
             master.Background.Fill.Solid();
             master.Background.Fill.ForeColor.RGB = rgb;
 
@@ -165,12 +165,13 @@ public sealed class MasterCommands : IMasterCommands
             int rgb1 = red1 + (green1 << 8) + (blue1 << 16);
             int rgb2 = red2 + (green2 << 8) + (blue2 << 16);
 
-            dynamic master = ctx.Presentation.SlideMaster;
+            PowerPoint.Master master = GetSlideMaster(ctx);
             // TwoColorGradient() must be called BEFORE setting ForeColor/BackColor — it resets
             // both colors to PowerPoint's defaults as a side effect (verified via diagnostic spike).
-            master.Background.Fill.TwoColorGradient(styleValue, gradientVariant);
-            master.Background.Fill.ForeColor.RGB = rgb1;
-            master.Background.Fill.BackColor.RGB = rgb2;
+            dynamic fill = master.Background.Fill;
+            fill.TwoColorGradient(styleValue, gradientVariant);
+            fill.ForeColor.RGB = rgb1;
+            fill.BackColor.RGB = rgb2;
 
             return new MasterOperationResult
             {
@@ -190,8 +191,9 @@ public sealed class MasterCommands : IMasterCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic master = ctx.Presentation.SlideMaster;
-            int fillType = (int)master.Background.Fill.Type;
+            PowerPoint.Master master = GetSlideMaster(ctx);
+            dynamic fill = master.Background.Fill;
+            int fillType = (int)fill.Type;
             const int MsoFillGradient = 3;
             if (fillType != MsoFillGradient)
             {
@@ -202,10 +204,10 @@ public sealed class MasterCommands : IMasterCommands
                 };
             }
 
-            int rgb1 = (int)master.Background.Fill.ForeColor.RGB;
-            int rgb2 = (int)master.Background.Fill.BackColor.RGB;
-            int styleValue = (int)master.Background.Fill.GradientStyle;
-            int variant = (int)master.Background.Fill.GradientVariant;
+            int rgb1 = (int)fill.ForeColor.RGB;
+            int rgb2 = (int)fill.BackColor.RGB;
+            int styleValue = (int)fill.GradientStyle;
+            int variant = (int)fill.GradientVariant;
             string? styleName = GradientStylesByValue.GetValueOrDefault(styleValue);
 
             return new MasterOperationResult
@@ -226,21 +228,21 @@ public sealed class MasterCommands : IMasterCommands
     /// condition for masters built from unusual/blank layouts, handled by callers as a validation
     /// failure (Rule 1b).
     /// </summary>
-    private static dynamic? FindPlaceholder(PresentationContext ctx, PowerPoint.PpPlaceholderType type)
+    private static PowerPoint.Shape? FindPlaceholder(PresentationContext ctx, PowerPoint.PpPlaceholderType type)
     {
-        dynamic master = ctx.Presentation.SlideMaster;
-        int shapeCount = (int)master.Shapes.Count;
+        PowerPoint.Master master = GetSlideMaster(ctx);
+        int shapeCount = master.Shapes.Count;
 
         for (int i = 1; i <= shapeCount; i++)
         {
-            dynamic shape = master.Shapes[i];
-            bool hasPlaceholder = (int)shape.Type == 14 /* msoPlaceholder */;
+            PowerPoint.Shape shape = master.Shapes[i];
+            bool hasPlaceholder = (int)((dynamic)shape).Type == 14 /* msoPlaceholder */;
             if (!hasPlaceholder)
             {
                 continue;
             }
 
-            var placeholderType = (PowerPoint.PpPlaceholderType)shape.PlaceholderFormat.Type;
+            PowerPoint.PpPlaceholderType placeholderType = shape.PlaceholderFormat.Type;
             if (placeholderType == type)
             {
                 return shape;
@@ -250,12 +252,21 @@ public sealed class MasterCommands : IMasterCommands
         return null;
     }
 
-    private static MasterOperationResult ReadFont(dynamic placeholder)
+    private static PowerPoint.Master GetSlideMaster(PresentationContext ctx)
     {
-        string fontName = (string)placeholder.TextFrame.TextRange.Font.Name;
-        float fontSize = (float)placeholder.TextFrame.TextRange.Font.Size;
-        bool bold = (int)placeholder.TextFrame.TextRange.Font.Bold == MsoTrue;
-        int colorRgb = (int)placeholder.TextFrame.TextRange.Font.Color.RGB;
+        // The embedded NoPIA getter for Presentation.SlideMaster hangs indefinitely in live
+        // PowerPoint. Dispatch only that getter through IDispatch, then return to typed PIA access.
+        dynamic presentation = ctx.Presentation;
+        return (PowerPoint.Master)presentation.SlideMaster;
+    }
+
+    private static MasterOperationResult ReadFont(PowerPoint.Shape placeholder)
+    {
+        dynamic font = placeholder.TextFrame.TextRange.Font;
+        string fontName = (string)font.Name;
+        float fontSize = (float)font.Size;
+        bool bold = (int)font.Bold == MsoTrue;
+        int colorRgb = (int)font.Color.RGB;
 
         return new MasterOperationResult
         {
@@ -268,7 +279,7 @@ public sealed class MasterCommands : IMasterCommands
     }
 
     private static MasterOperationResult ApplyFont(
-        dynamic placeholder,
+        PowerPoint.Shape placeholder,
         string? fontName,
         float? fontSize,
         bool? bold,
@@ -276,19 +287,21 @@ public sealed class MasterCommands : IMasterCommands
         byte? green,
         byte? blue)
     {
+        dynamic font = placeholder.TextFrame.TextRange.Font;
+
         if (fontName is not null)
         {
-            placeholder.TextFrame.TextRange.Font.Name = fontName;
+            font.Name = fontName;
         }
 
         if (fontSize is not null)
         {
-            placeholder.TextFrame.TextRange.Font.Size = fontSize.Value;
+            font.Size = fontSize.Value;
         }
 
         if (bold is not null)
         {
-            placeholder.TextFrame.TextRange.Font.Bold = bold.Value ? MsoTrue : MsoFalse;
+            font.Bold = bold.Value ? MsoTrue : MsoFalse;
         }
 
         if (red is not null || green is not null || blue is not null)
@@ -296,7 +309,7 @@ public sealed class MasterCommands : IMasterCommands
             // Missing channels default to 0 — callers are expected to pass all three together
             // when setting color (mirrors TextFrameCommands.SetFontColor's all-or-nothing shape).
             int rgb = (red ?? 0) + ((green ?? 0) << 8) + ((blue ?? 0) << 16);
-            placeholder.TextFrame.TextRange.Font.Color.RGB = rgb;
+            font.Color.RGB = rgb;
         }
 
         // Re-read from the placeholder so the result reflects the values actually applied

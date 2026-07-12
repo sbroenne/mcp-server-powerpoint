@@ -77,19 +77,27 @@ already-open session.
 
 ### image
 
-Image commands: embed a picture file into a slide. Operates within an already-open session,
-targeting a specific slide by its 1-based index.
+Image commands: insert pictures and adjust picture formatting. Operates within an already-open
+session, targeting a specific slide and picture shape by their 1-based indices.
 
-**Actions:** `add-picture`
+**Actions:** `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`, `set-recolor`, `get-recolor`, `set-crop`, `get-crop`
 
 | Parameter | Description |
 |-----------|-------------|
 | `--slide-index` | (required) |
-| `--image-path` | (required) |
-| `--left` | (required) |
-| `--top` | (required) |
-| `--width` | (required) |
-| `--height` | (required) |
+| `--shape-index` | (required for: set-brightness-contrast, get-brightness-contrast, set-recolor, get-recolor, set-crop, get-crop) |
+| `--image-path` | (required for: add-picture) |
+| `--left` | (required for: add-picture) |
+| `--top` | (required for: add-picture) |
+| `--width` | (required for: add-picture) |
+| `--height` | (required for: add-picture) |
+| `--brightness` | (required for: set-brightness-contrast) |
+| `--contrast` | (required for: set-brightness-contrast) |
+| `--color-type` | (required for: set-recolor) |
+| `--crop-left` | (required for: set-crop) |
+| `--crop-top` | (required for: set-crop) |
+| `--crop-right` | (required for: set-crop) |
+| `--crop-bottom` | (required for: set-crop) |
 
 ### layout
 

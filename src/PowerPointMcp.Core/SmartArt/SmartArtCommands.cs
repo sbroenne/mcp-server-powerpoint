@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.SmartArt;
 
@@ -36,10 +37,11 @@ public sealed class SmartArtCommands : ISmartArtCommands
                 };
             }
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            slide.Shapes.AddSmartArt(layout, left, top, width, height);
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            dynamic dynShapes = slide.Shapes;
+            dynShapes.AddSmartArt(layout, left, top, width, height);
             // Same NoPIA late-binding quirk as ShapeCommands.AddRectangle — avoid shape.Index, use Count.
-            int newIndex = (int)slide.Shapes.Count;
+            int newIndex = slide.Shapes.Count;
             dynamic newShape = slide.Shapes[newIndex];
             int nodeCount = (int)newShape.SmartArt.AllNodes.Count;
 
@@ -47,7 +49,7 @@ public sealed class SmartArtCommands : ISmartArtCommands
             {
                 Success = true,
                 ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count,
+                ShapeCount = slide.Shapes.Count,
                 LayoutName = layoutName,
                 NodeCount = nodeCount
             };
@@ -337,13 +339,13 @@ public sealed class SmartArtCommands : ISmartArtCommands
         var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
         if (slideValidation is not null) return slideValidation;
 
-        dynamic slide = ctx.Presentation.Slides[slideIndex];
-        int shapeCount = (int)slide.Shapes.Count;
+        PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+        int shapeCount = slide.Shapes.Count;
         var shapeValidation = ValidateShapeIndex(shapeCount, shapeIndex);
         if (shapeValidation is not null) return shapeValidation;
 
-        dynamic shape = slide.Shapes[shapeIndex];
-        bool hasSmartArt = (int)shape.HasSmartArt == MsoTrue;
+        PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+        bool hasSmartArt = (int)((dynamic)shape).HasSmartArt == MsoTrue;
         if (!hasSmartArt)
         {
             return new SmartArtOperationResult
@@ -353,7 +355,7 @@ public sealed class SmartArtCommands : ISmartArtCommands
             };
         }
 
-        smartArt = shape.SmartArt;
+        smartArt = ((dynamic)shape).SmartArt;
         return null;
     }
 

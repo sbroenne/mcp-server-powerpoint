@@ -1,5 +1,6 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using System.Linq;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.TextFrame;
 
@@ -10,37 +11,37 @@ public sealed class TextFrameCommands : ITextFrameCommands
     private const int MsoFalse = 0;
 
     // PpBulletType (curated: only the members meaningful for a simple on/off toggle).
-    private const int PpBulletNone = 0;
-    private const int PpBulletUnnumbered = 1;
+    private const PowerPoint.PpBulletType PpBulletNone = PowerPoint.PpBulletType.ppBulletNone;
+    private const PowerPoint.PpBulletType PpBulletUnnumbered = PowerPoint.PpBulletType.ppBulletUnnumbered;
 
     // PpParagraphAlignment, verified against learn.microsoft.com/office/vba/api/powerpoint.ppparagraphalignment.
     // ppAlignmentMixed (-2) is intentionally excluded from the settable dictionary (it's a
     // read-only "mixed state across paragraphs" indicator, not a value you can set).
-    private static readonly Dictionary<string, int> ParagraphAlignments = new()
+    private static readonly Dictionary<string, PowerPoint.PpParagraphAlignment> ParagraphAlignments = new()
     {
-        ["ppAlignLeft"] = 1,
-        ["ppAlignCenter"] = 2,
-        ["ppAlignRight"] = 3,
-        ["ppAlignJustify"] = 4,
-        ["ppAlignDistribute"] = 5,
-        ["ppAlignThaiDistribute"] = 6,
-        ["ppAlignJustifyLow"] = 7,
+        ["ppAlignLeft"] = PowerPoint.PpParagraphAlignment.ppAlignLeft,
+        ["ppAlignCenter"] = PowerPoint.PpParagraphAlignment.ppAlignCenter,
+        ["ppAlignRight"] = PowerPoint.PpParagraphAlignment.ppAlignRight,
+        ["ppAlignJustify"] = PowerPoint.PpParagraphAlignment.ppAlignJustify,
+        ["ppAlignDistribute"] = PowerPoint.PpParagraphAlignment.ppAlignDistribute,
+        ["ppAlignThaiDistribute"] = PowerPoint.PpParagraphAlignment.ppAlignThaiDistribute,
+        ["ppAlignJustifyLow"] = PowerPoint.PpParagraphAlignment.ppAlignJustifyLow,
     };
 
-    private static readonly Dictionary<int, string> ParagraphAlignmentsByValue =
+    private static readonly Dictionary<PowerPoint.PpParagraphAlignment, string> ParagraphAlignmentsByValue =
         ParagraphAlignments.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
     // PpAutoSize, verified against learn.microsoft.com/office/vba/api/powerpoint.ppautosize.
     // ppAutoSizeMixed (-2) is intentionally excluded from the settable dictionary (it's a
     // read-only "mixed state across shapes" indicator, not a value you can set).
-    private static readonly Dictionary<string, int> AutoSizeModes = new()
+    private static readonly Dictionary<string, PowerPoint.PpAutoSize> AutoSizeModes = new()
     {
-        ["ppAutoSizeNone"] = 0,
-        ["ppAutoSizeShapeToFitText"] = 1,
-        ["ppAutoSizeTextToFitShape"] = 2,
+        ["ppAutoSizeNone"] = PowerPoint.PpAutoSize.ppAutoSizeNone,
+        ["ppAutoSizeShapeToFitText"] = PowerPoint.PpAutoSize.ppAutoSizeShapeToFitText,
+        ["ppAutoSizeTextToFitShape"] = (PowerPoint.PpAutoSize)2,
     };
 
-    private static readonly Dictionary<int, string> AutoSizeModesByValue =
+    private static readonly Dictionary<PowerPoint.PpAutoSize, string> AutoSizeModesByValue =
         AutoSizeModes.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
     /// <inheritdoc/>
@@ -54,7 +55,7 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
             shape.TextFrame.TextRange.Text = text;
 
             return new TextFrameOperationResult { Success = true, Text = text };
@@ -71,7 +72,7 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
             string text = (string)shape.TextFrame.TextRange.Text;
 
             return new TextFrameOperationResult { Success = true, Text = text };
@@ -88,7 +89,7 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
             shape.TextFrame.TextRange.Font.Size = fontSize;
 
             return new TextFrameOperationResult { Success = true, FontSize = fontSize };
@@ -105,10 +106,10 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            // Font.Bold is typed as Microsoft.Office.Core.MsoTriState (office.dll) — set via
-            // dynamic with the raw int constant, same pattern as elsewhere in this project.
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            shape.TextFrame.TextRange.Font.Bold = bold ? MsoTrue : MsoFalse;
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            // Font tri-state properties are Microsoft.Office.Core-typed; keep the property write late-bound.
+            dynamic font = shape.TextFrame.TextRange.Font;
+            font.Bold = bold ? MsoTrue : MsoFalse;
 
             return new TextFrameOperationResult { Success = true, Bold = bold };
         });
@@ -128,7 +129,7 @@ public sealed class TextFrameCommands : ITextFrameCommands
             // function), not the more common 0x00RRGGBB.
             int rgb = red + (green << 8) + (blue << 16);
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
             shape.TextFrame.TextRange.Font.Color.RGB = rgb;
 
             return new TextFrameOperationResult { Success = true, ColorRgb = rgb };
@@ -145,8 +146,9 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            shape.TextFrame.TextRange.Font.Italic = italic ? MsoTrue : MsoFalse;
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            dynamic font = shape.TextFrame.TextRange.Font;
+            font.Italic = italic ? MsoTrue : MsoFalse;
 
             return new TextFrameOperationResult { Success = true, Italic = italic };
         });
@@ -162,8 +164,9 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            bool italic = (int)shape.TextFrame.TextRange.Font.Italic == MsoTrue;
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            dynamic font = shape.TextFrame.TextRange.Font;
+            bool italic = (int)font.Italic == MsoTrue;
 
             return new TextFrameOperationResult { Success = true, Italic = italic };
         });
@@ -179,8 +182,9 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            shape.TextFrame.TextRange.Font.Underline = underline ? MsoTrue : MsoFalse;
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            dynamic font = shape.TextFrame.TextRange.Font;
+            font.Underline = underline ? MsoTrue : MsoFalse;
 
             return new TextFrameOperationResult { Success = true, Underline = underline };
         });
@@ -196,8 +200,9 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            bool underline = (int)shape.TextFrame.TextRange.Font.Underline == MsoTrue;
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            dynamic font = shape.TextFrame.TextRange.Font;
+            bool underline = (int)font.Underline == MsoTrue;
 
             return new TextFrameOperationResult { Success = true, Underline = underline };
         });
@@ -214,7 +219,7 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
             shape.TextFrame.TextRange.Font.Name = fontName;
 
             return new TextFrameOperationResult { Success = true, FontName = fontName };
@@ -231,7 +236,7 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
             string fontName = (string)shape.TextFrame.TextRange.Font.Name;
 
             return new TextFrameOperationResult { Success = true, FontName = fontName };
@@ -258,7 +263,7 @@ public sealed class TextFrameCommands : ITextFrameCommands
                 };
             }
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
             shape.TextFrame.TextRange.ParagraphFormat.Alignment = alignmentValue;
 
             return new TextFrameOperationResult { Success = true, Alignment = alignment };
@@ -275,8 +280,8 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            int alignmentValue = (int)shape.TextFrame.TextRange.ParagraphFormat.Alignment;
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            PowerPoint.PpParagraphAlignment alignmentValue = shape.TextFrame.TextRange.ParagraphFormat.Alignment;
 
             if (!ParagraphAlignmentsByValue.TryGetValue(alignmentValue, out var alignmentName))
             {
@@ -310,8 +315,11 @@ public sealed class TextFrameCommands : ITextFrameCommands
                 };
             }
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            dynamic bullet = shape.TextFrame.TextRange.ParagraphFormat.Bullet;
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            // ParagraphFormat.Bullet's embedded signature references Office.MsoTriState from
+            // office.dll, which this project deliberately does not load. Keep only this boundary
+            // late-bound; the containing PowerPoint shape and PpBulletType values remain typed.
+            dynamic bullet = ((dynamic)shape.TextFrame.TextRange.ParagraphFormat).Bullet;
 
             bullet.Type = enabled ? PpBulletUnnumbered : PpBulletNone;
             if (enabled && character is not null)
@@ -338,10 +346,10 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            dynamic bullet = shape.TextFrame.TextRange.ParagraphFormat.Bullet;
-            int bulletType = (int)bullet.Type;
-            bool enabled = bulletType != PpBulletNone;
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            // See SetBullet: the Bullet getter depends on Office.MsoTriState from office.dll.
+            dynamic bullet = ((dynamic)shape.TextFrame.TextRange.ParagraphFormat).Bullet;
+            bool enabled = (int)bullet.Type != (int)PpBulletNone;
 
             return new TextFrameOperationResult
             {
@@ -372,7 +380,7 @@ public sealed class TextFrameCommands : ITextFrameCommands
                 };
             }
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
             shape.TextFrame.AutoSize = autoSizeValue;
 
             return new TextFrameOperationResult { Success = true, AutoSize = autoSize };
@@ -389,8 +397,8 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            int autoSizeValue = (int)shape.TextFrame.AutoSize;
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            PowerPoint.PpAutoSize autoSizeValue = shape.TextFrame.AutoSize;
 
             if (!AutoSizeModesByValue.TryGetValue(autoSizeValue, out var autoSizeName))
             {
@@ -417,7 +425,8 @@ public sealed class TextFrameCommands : ITextFrameCommands
             };
         }
 
-        int shapeCount = ctx.Presentation.Slides[slideIndex].Shapes.Count;
+        PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+        int shapeCount = slide.Shapes.Count;
         if (shapeIndex < 1 || shapeIndex > shapeCount)
         {
             return new TextFrameOperationResult

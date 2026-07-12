@@ -1,3 +1,5 @@
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
+
 namespace Sbroenne.PowerPointMcp.ComInterop;
 
 /// <summary>
@@ -66,19 +68,22 @@ public static class ComInteropConstants
     /// PowerPoint Open XML Presentation format code (.pptx).
     /// PpSaveAsFileType.ppSaveAsOpenXMLPresentation = 24
     /// </summary>
-    public const int PpSaveAsOpenXmlPresentation = 24;
+    public const PowerPoint.PpSaveAsFileType PpSaveAsOpenXmlPresentation =
+        PowerPoint.PpSaveAsFileType.ppSaveAsOpenXMLPresentation;
 
     /// <summary>
     /// PowerPoint Open XML Macro-Enabled Presentation format code (.pptm).
     /// PpSaveAsFileType.ppSaveAsOpenXMLPresentationMacroEnabled = 25
     /// </summary>
-    public const int PpSaveAsOpenXmlPresentationMacroEnabled = 25;
+    public const PowerPoint.PpSaveAsFileType PpSaveAsOpenXmlPresentationMacroEnabled =
+        PowerPoint.PpSaveAsFileType.ppSaveAsOpenXMLPresentationMacroEnabled;
 
     /// <summary>
     /// PowerPoint Open XML Template format code (.potx).
     /// PpSaveAsFileType.ppSaveAsOpenXMLTemplate = 26
     /// </summary>
-    public const int PpSaveAsOpenXmlTemplate = 26;
+    public const PowerPoint.PpSaveAsFileType PpSaveAsOpenXmlTemplate =
+        PowerPoint.PpSaveAsFileType.ppSaveAsOpenXMLTemplate;
 
     #endregion
 }

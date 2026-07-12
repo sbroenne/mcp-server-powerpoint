@@ -89,6 +89,22 @@ the `PresentationBatch`'s dedicated STA thread — never access
 COM references in a `finally` block if the Core command holds intermediate `dynamic`/typed COM
 objects beyond what the PIA's NoPIA embedding already manages for you.
 
+### PIA-First Interop (MANDATORY)
+
+Use strongly typed `Microsoft.Office.Interop.PowerPoint` PIA objects, properties, methods, and
+enums throughout ComInterop and Core. Do not use `dynamic`, reflection, raw `IDispatch`, or integer
+enum constants when the restored PIA exposes a typed equivalent.
+
+Late binding is an exception, not a compatibility default. Before using it:
+
+1. Inspect the restored interop assembly metadata and confirm the required member/type is absent.
+2. Keep the late-bound call as narrow as possible inside the STA `batch.Execute` callback.
+3. Add a concise comment naming the missing PIA surface and why late binding is required.
+4. Prove the behavior with a real-PowerPoint COM integration test.
+
+If a typed Office enum is unavailable because only the PowerPoint PIA is embedded, prefer adding
+the appropriate PIA/reference support over replacing the enum with an unexplained integer.
+
 ## Exception Propagation Pattern (CRITICAL)
 
 **Core Commands: let exceptions propagate naturally** — do not suppress with a catch block that

@@ -60,6 +60,9 @@ public interface IChartCommands
     /// <summary>Shows or hides the chart's legend.</summary>
     ChartOperationResult SetLegendVisibility(IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible);
 
+    /// <summary>Gets whether the chart's legend is visible.</summary>
+    ChartOperationResult GetLegendVisibility(IPresentationBatch batch, int slideIndex, int shapeIndex);
+
     /// <summary>
     /// Replaces ALL of an existing chart's data (categories and every series) in one call — the
     /// chart's previous categories and series are discarded and replaced wholesale. Unlike
