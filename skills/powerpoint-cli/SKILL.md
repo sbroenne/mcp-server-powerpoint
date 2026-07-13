@@ -119,7 +119,7 @@ of one flat tool per verb.
 
 Available command groups (in addition to `session` and `service`):
 
-`animation`, `chart`, `export`, `image`, `layout`, `master`, `notes`, `presentation`, `shape`, `slide`, `smartart`, `table`, `textframe`
+`animation`, `chart`, `export`, `image`, `layout`, `master`, `notes`, `shape`, `slide`, `smartart`, `table`, `textframe`
 
 Run `pptcli <command> --help` for the live, authoritative list of actions and flags for that
 command — the table below is a summary generated from the same Core interfaces as the MCP tool
@@ -244,19 +244,6 @@ Actions: `set-notes-text`, `get-notes-text`
 |------|-------------|
 | `--slide-index` | (required) |
 | `--text` | (required for: set-notes-text) |
-
-
-### `presentation` — Presentation lifecycle commands: create, close, save.
-
-Actions: `create`, `open`, `save`, `apply-template`, `get-theme-name`, `set-document-property`, `get-document-property`, `set-custom-property`, `get-custom-property`, `remove-custom-property`
-
-| Flag | Description |
-|------|-------------|
-| `--file-path` | (required for: create, open) |
-| `--is-macro-enabled` |  |
-| `--template-path` | Full path to a .potx/.potm/.pot template file (a .pptx/.pptm presentation may also be used as a template source, matching PowerPoint's own behavior). (required for: apply-template) |
-| `--property-name` | One of the supported built-in property names (case-insensitive). (required for: set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property) |
-| `--value` | The new value for the property. (required for: set-document-property, set-custom-property) |
 
 
 ### `shape` — Shape commands: add rectangles/text boxes, count, delete, reposition/resize. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
