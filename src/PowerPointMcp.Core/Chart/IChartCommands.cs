@@ -60,7 +60,7 @@ public interface IChartCommands
     /// <summary>Shows or hides the chart's legend.</summary>
     ChartOperationResult SetLegendVisibility(IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible);
 
-    /// <summary>Gets whether the chart's legend is currently visible (<c>legendVisible</c>).</summary>
+    /// <summary>Gets whether the chart's legend is visible.</summary>
     ChartOperationResult GetLegendVisibility(IPresentationBatch batch, int slideIndex, int shapeIndex);
 
     /// <summary>

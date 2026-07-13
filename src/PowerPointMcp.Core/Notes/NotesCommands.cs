@@ -1,11 +1,14 @@
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Notes;
 
 /// <inheritdoc cref="INotesCommands"/>
 public sealed class NotesCommands : INotesCommands
 {
+    private const int MsoShapePlaceholder = 14;
+
     /// <inheritdoc/>
     public NotesOperationResult SetNotesText(IPresentationBatch batch, int slideIndex, string text)
     {
@@ -17,21 +20,10 @@ public sealed class NotesCommands : INotesCommands
             var validation = ValidateSlideIndex(ctx, slideIndex);
             if (validation is not null) return validation;
 
-            dynamic? notesTextShape = null;
-            try
-            {
-                notesTextShape = FindNotesTextShape(ctx, slideIndex);
-                notesTextShape.TextFrame.TextRange.Text = text;
+            PowerPoint.Shape notesTextShape = FindNotesTextShape(ctx, slideIndex);
+            notesTextShape.TextFrame.TextRange.Text = text;
 
-                return new NotesOperationResult { Success = true, NotesText = text };
-            }
-            finally
-            {
-                if (notesTextShape != null)
-                {
-                    ComUtilities.Release(ref notesTextShape!);
-                }
-            }
+            return new NotesOperationResult { Success = true, NotesText = text };
         });
     }
 
@@ -45,21 +37,10 @@ public sealed class NotesCommands : INotesCommands
             var validation = ValidateSlideIndex(ctx, slideIndex);
             if (validation is not null) return validation;
 
-            dynamic? notesTextShape = null;
-            try
-            {
-                notesTextShape = FindNotesTextShape(ctx, slideIndex);
-                string text = (string)notesTextShape.TextFrame.TextRange.Text;
+            PowerPoint.Shape notesTextShape = FindNotesTextShape(ctx, slideIndex);
+            string text = (string)notesTextShape.TextFrame.TextRange.Text;
 
-                return new NotesOperationResult { Success = true, NotesText = text };
-            }
-            finally
-            {
-                if (notesTextShape != null)
-                {
-                    ComUtilities.Release(ref notesTextShape!);
-                }
-            }
+            return new NotesOperationResult { Success = true, NotesText = text };
         });
     }
 
@@ -73,7 +54,7 @@ public sealed class NotesCommands : INotesCommands
     /// is ppPlaceholderBody rather than hard-coding index 2, in case a custom notes master
     /// reorders placeholders.
     /// </remarks>
-    private static dynamic FindNotesTextShape(PresentationContext ctx, int slideIndex)
+    private static PowerPoint.Shape FindNotesTextShape(PresentationContext ctx, int slideIndex)
     {
         dynamic? notesPage = null;
         dynamic? shapes = null;
@@ -86,23 +67,25 @@ public sealed class NotesCommands : INotesCommands
             for (int i = 1; i <= count; i++)
             {
                 dynamic? shape = null;
+                bool matched = false;
                 try
                 {
                     shape = shapes[i];
-                    bool isPlaceholder = (int)shape.Type == 14; // msoPlaceholder
+                    bool isPlaceholder = (int)shape.Type == MsoShapePlaceholder;
                     if (!isPlaceholder) continue;
 
-                    int placeholderType = (int)shape.PlaceholderFormat.Type;
-                    if (placeholderType == 2) // PpPlaceholderType.ppPlaceholderBody
+                    PowerPoint.PpPlaceholderType placeholderType =
+                        (PowerPoint.PpPlaceholderType)shape.PlaceholderFormat.Type;
+                    if (placeholderType == PowerPoint.PpPlaceholderType.ppPlaceholderBody)
                     {
-                        dynamic matchedShape = shape;
-                        shape = null;
-                        return matchedShape;
+                        matched = true;
+                        return (PowerPoint.Shape)shape;
                     }
                 }
                 finally
                 {
-                    if (shape != null)
+                    // Only release non-matching shapes — the matched shape is returned to the caller.
+                    if (shape != null && !matched)
                     {
                         ComUtilities.Release(ref shape!);
                     }
@@ -114,15 +97,8 @@ public sealed class NotesCommands : INotesCommands
         }
         finally
         {
-            if (shapes != null)
-            {
-                ComUtilities.Release(ref shapes!);
-            }
-
-            if (notesPage != null)
-            {
-                ComUtilities.Release(ref notesPage!);
-            }
+            if (shapes != null) ComUtilities.Release(ref shapes!);
+            if (notesPage != null) ComUtilities.Release(ref notesPage!);
         }
     }
 

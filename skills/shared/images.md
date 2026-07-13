@@ -1,7 +1,8 @@
 # Images
 
-Reference for `image(action: "add-picture", ...)` — embeds a local image file into a slide — plus
-picture-effect actions for adjusting brightness/contrast and recoloring an inserted picture.
+Reference for the image domain: `image(action: "add-picture", ...)` inserts a picture into a slide.
+The image domain provides 7 total actions: 1 insertion action (`add-picture`) plus 6 appearance actions: `set-brightness-contrast`, `get-brightness-contrast`,
+`set-recolor`, `get-recolor`, `set-crop`, and `get-crop`.
 
 ## Actions
 
@@ -12,6 +13,47 @@ picture-effect actions for adjusting brightness/contrast and recoloring an inser
 | `image` | `get-brightness-contrast` | `session_id`, `slide_index`, `shape_index` | Returns current `brightness`/`contrast`. |
 | `image` | `set-recolor` | `session_id`, `slide_index`, `shape_index`, `color_type` | `color_type` is one of `msoPictureAutomatic` (default/no recolor), `msoPictureGrayscale`, `msoPictureBlackAndWhite`, `msoPictureWatermark`. Unrecognized names fail with `Success=false`. |
 | `image` | `get-recolor` | `session_id`, `slide_index`, `shape_index` | Returns current `color_type`. |
+| `image` | `set-crop` | `session_id`, `slide_index`, `shape_index`, `crop_left`, `crop_top`, `crop_right`, `crop_bottom` | Crop edges in points from the picture's edges (L-T-R-B order). Negative values expand the displayed image. Requires a properly sized source image for meaningful geometry. |
+| `image` | `get-crop` | `session_id`, `slide_index`, `shape_index` | Returns current crop offsets in points (L-T-R-B). A fresh picture with no crop applied returns 0.0 for all four values. |
+
+## Crop Behavior
+
+When using `set-crop`, all four values are relative crop distances in points from the picture's
+edges. A positive value crops inward (hides content); a negative value expands the visible area
+outward (revealing areas beyond the original picture bounds in PowerPoint's rendering). PowerPoint
+allows negative crop values as a valid expansion mechanism.
+
+**Important:** Meaningful crop geometry requires a properly sized source image. The legacy test anomaly
+of a 1×1 pixel image should **never** be treated as normal user behavior — it is a degenerate case
+used only for testing framework integration and produces unintuitive crop results. Always use real,
+properly sized source images (e.g., 100×100 pixels minimum) when working with crop operations.
+
+Results from `get-crop` expose `cropLeft`, `cropTop`, `cropRight`, `cropBottom` as numeric
+floats (in points). A fresh picture with no crop applied returns 0.0 for all four values.
+These result fields are absent (null in JSON) only when the result comes from a non-crop operation
+(e.g., `get-recolor`) — they are never null simply because no crop has been applied.
+
+## PictureFormat Coverage
+
+The image domain exposes these `Microsoft.Office.Interop.PowerPoint.PictureFormat` properties and methods:
+
+| Member | Type | Status | Action | Notes |
+|--------|------|--------|--------|-------|
+| `Brightness` | Property | ✓ Exposed | `set-brightness-contrast`, `get-brightness-contrast` | Float [0, 1] scale. Default 0.5. |
+| `Contrast` | Property | ✓ Exposed | `set-brightness-contrast`, `get-brightness-contrast` | Float [0, 1] scale. Default 0.5. |
+| `ColorType` | Property | ✓ Exposed | `set-recolor`, `get-recolor` | MsoPictureColorType enum. |
+| `CropLeft` | Property | ✓ Exposed | `set-crop`, `get-crop` | Direct scalar property, in points from left edge. |
+| `CropTop` | Property | ✓ Exposed | `set-crop`, `get-crop` | Direct scalar property, in points from top edge. |
+| `CropRight` | Property | ✓ Exposed | `set-crop`, `get-crop` | Direct scalar property, in points from right edge. |
+| `CropBottom` | Property | ✓ Exposed | `set-crop`, `get-crop` | Direct scalar property, in points from bottom edge. |
+| `Crop` | Object | ⊘ Not exposed | — | Separate Office.Core Crop subobject with natural-image/display scaling semantics. Deliberately unexposed; direct scalar crop properties subsume its interface. |
+| `IncrementBrightness` | Method | ⊘ Not exposed | — | Already covered by idempotent absolute setter; live COM confirms increments clamp to [0, 1]. |
+| `IncrementContrast` | Method | ⊘ Not exposed | — | Already covered by idempotent absolute setter; live COM confirms increments clamp to [0, 1]. |
+| `TransparencyColor` | Property | ⊘ Not exposed | — | Live COM proved set/read/persistence on BMP, but deliberately unexposed: BMP defaults to msoTrue, no-key uses int.MinValue sentinel, exact color-key knowledge required, JPEG unsuitable, PNG supports alpha natively. |
+| `TransparentBackground` | Property | ⊘ Not exposed | — | Live COM proved set/read/persistence on BMP, but deliberately unexposed: defaults are format-dependent (BMP: msoTrue), exact behavior requires format-specific tuning. |
+| `Application` | Property | ⊘ Not exposed | — | Read-only, non-actionable object reference. |
+| `Creator` | Property | ⊘ Not exposed | — | Read-only, non-actionable object reference. |
+| `Parent` | Property | ⊘ Not exposed | — | Read-only, non-actionable object reference. |
 
 ## Requirements
 
@@ -30,6 +72,7 @@ picture-effect actions for adjusting brightness/contrast and recoloring an inser
 - Logos: small, corner-anchored, e.g. `width=80, height=80` near `left=20, top=20` (top-left) or
   `left=860, top=460` (bottom-right on a 960×540pt slide).
 - Full-slide product shots/photos: leave a title band at the top (`top ≥ 80`) unless the image is
+
   intentionally full-bleed.
 - Diagrams/screenshots next to explanatory text: place the image in one half of the slide
   (`width ≈ 420` on a 960pt-wide slide) with a text box in the other half.
@@ -42,7 +85,6 @@ doesn't overlap other shapes on the slide (see `export-and-verify.md`).
 
 ## Limited Editing After Insert
 
-There is no crop/rotate action in this surface. If the image needs cropping or rotation, prepare
-the final image file before calling `add-picture`. Post-insert adjustments available: `shape(action:
-"set-position", ...)`, `shape(action: "set-size", ...)` (see `slides-and-shapes.md`), and the
-`set-brightness-contrast`/`set-recolor` actions above.
+Post-insert adjustments available: `shape(action: "set-position", ...)`, `shape(action:
+"set-size", ...)` (see `slides-and-shapes.md`), and `set-brightness-contrast`, `set-recolor`,
+and `set-crop` actions (see above).

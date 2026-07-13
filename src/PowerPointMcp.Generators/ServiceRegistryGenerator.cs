@@ -962,7 +962,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
             // Description from interface XML doc
             var description = (cat.XmlDocSummary ?? "")
-                .Replace("\\", "\\\\") // Escape backslashes first (e.g. Windows paths in XML docs)
+                .Replace("\\", "\\\\")
                 .Replace("\"", "\\\"\"")
                 .Replace("\r", "")
                 .Replace("\n", " ")
@@ -1026,7 +1026,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 }
 
                 var paramDescription = baseDescription
-                    .Replace("\\", "\\\\")     // Escape backslashes first (e.g. Windows paths in XML docs)
+                    .Replace("\\", "\\\\")
                     .Replace("\"", "\\\"\"");  // Escape quotes for JSON in verbatim string
 
                 sb.AppendLine("        {");

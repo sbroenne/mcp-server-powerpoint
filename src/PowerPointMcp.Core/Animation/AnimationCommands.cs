@@ -1,5 +1,6 @@
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Animation;
 
@@ -9,90 +10,91 @@ public sealed class AnimationCommands : IAnimationCommands
     private const int MsoTrue = -1;
     private const int MsoFalse = 0;
 
-    // MsoAnimTriggerType member -> value (learn.microsoft.com/office/vba/api/powerpoint.msoanimtriggertype).
-    private static readonly Dictionary<string, int> TriggerTypes = new(StringComparer.OrdinalIgnoreCase)
+    // MsoAnimTriggerType (PowerPoint namespace, embeddable without office.dll).
+    private static readonly Dictionary<string, PowerPoint.MsoAnimTriggerType> TriggerTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["on-click"] = 1,   // msoAnimTriggerOnPageClick
-        ["with-previous"] = 2,   // msoAnimTriggerWithPrevious
-        ["after-previous"] = 3,   // msoAnimTriggerAfterPrevious
+        ["on-click"] = PowerPoint.MsoAnimTriggerType.msoAnimTriggerOnPageClick,
+        ["with-previous"] = PowerPoint.MsoAnimTriggerType.msoAnimTriggerWithPrevious,
+        ["after-previous"] = PowerPoint.MsoAnimTriggerType.msoAnimTriggerAfterPrevious,
     };
 
-    // MsoAnimEffect member name -> value, a curated subset of the full (150+) enum covering the
+    // MsoAnimEffect (PowerPoint namespace, embeddable without office.dll). Curated subset of the
+    // full (150+) enum covering the
     // classic entrance/emphasis/exit effects authors most commonly need — verified against
     // learn.microsoft.com/office/vba/api/powerpoint.msoanimeffect. Extend this table (never guess
     // a value) if more effects are needed later.
-    private static readonly Dictionary<string, int> AnimEffects = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, PowerPoint.MsoAnimEffect> AnimEffects = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["msoAnimEffectAppear"] = 1,
-        ["msoAnimEffectFly"] = 2,
-        ["msoAnimEffectBlinds"] = 3,
-        ["msoAnimEffectBox"] = 4,
-        ["msoAnimEffectCheckerboard"] = 5,
-        ["msoAnimEffectCircle"] = 6,
-        ["msoAnimEffectDiamond"] = 8,
-        ["msoAnimEffectDissolve"] = 9,
-        ["msoAnimEffectFade"] = 10,
-        ["msoAnimEffectFlashOnce"] = 11,
-        ["msoAnimEffectPeek"] = 12,
-        ["msoAnimEffectPlus"] = 13,
-        ["msoAnimEffectRandomBars"] = 14,
-        ["msoAnimEffectSpiral"] = 15,
-        ["msoAnimEffectSplit"] = 16,
-        ["msoAnimEffectStretch"] = 17,
-        ["msoAnimEffectStrips"] = 18,
-        ["msoAnimEffectSwivel"] = 19,
-        ["msoAnimEffectWedge"] = 20,
-        ["msoAnimEffectWheel"] = 21,
-        ["msoAnimEffectWipe"] = 22,
-        ["msoAnimEffectZoom"] = 23,
-        ["msoAnimEffectBounce"] = 26,
-        ["msoAnimEffectCredits"] = 28,
-        ["msoAnimEffectGrowShrink"] = 59,
-        ["msoAnimEffectSpin"] = 61,
-        ["msoAnimEffectTransparency"] = 62,
-        ["msoAnimEffectChangeFillColor"] = 54,
-        ["msoAnimEffectChangeFontColor"] = 56,
+        ["msoAnimEffectAppear"] = PowerPoint.MsoAnimEffect.msoAnimEffectAppear,
+        ["msoAnimEffectFly"] = PowerPoint.MsoAnimEffect.msoAnimEffectFly,
+        ["msoAnimEffectBlinds"] = PowerPoint.MsoAnimEffect.msoAnimEffectBlinds,
+        ["msoAnimEffectBox"] = PowerPoint.MsoAnimEffect.msoAnimEffectBox,
+        ["msoAnimEffectCheckerboard"] = PowerPoint.MsoAnimEffect.msoAnimEffectCheckerboard,
+        ["msoAnimEffectCircle"] = PowerPoint.MsoAnimEffect.msoAnimEffectCircle,
+        ["msoAnimEffectDiamond"] = PowerPoint.MsoAnimEffect.msoAnimEffectDiamond,
+        ["msoAnimEffectDissolve"] = PowerPoint.MsoAnimEffect.msoAnimEffectDissolve,
+        ["msoAnimEffectFade"] = PowerPoint.MsoAnimEffect.msoAnimEffectFade,
+        ["msoAnimEffectFlashOnce"] = PowerPoint.MsoAnimEffect.msoAnimEffectFlashOnce,
+        ["msoAnimEffectPeek"] = PowerPoint.MsoAnimEffect.msoAnimEffectPeek,
+        ["msoAnimEffectPlus"] = PowerPoint.MsoAnimEffect.msoAnimEffectPlus,
+        ["msoAnimEffectRandomBars"] = PowerPoint.MsoAnimEffect.msoAnimEffectRandomBars,
+        ["msoAnimEffectSpiral"] = PowerPoint.MsoAnimEffect.msoAnimEffectSpiral,
+        ["msoAnimEffectSplit"] = PowerPoint.MsoAnimEffect.msoAnimEffectSplit,
+        ["msoAnimEffectStretch"] = PowerPoint.MsoAnimEffect.msoAnimEffectStretch,
+        ["msoAnimEffectStrips"] = PowerPoint.MsoAnimEffect.msoAnimEffectStrips,
+        ["msoAnimEffectSwivel"] = PowerPoint.MsoAnimEffect.msoAnimEffectSwivel,
+        ["msoAnimEffectWedge"] = PowerPoint.MsoAnimEffect.msoAnimEffectWedge,
+        ["msoAnimEffectWheel"] = PowerPoint.MsoAnimEffect.msoAnimEffectWheel,
+        ["msoAnimEffectWipe"] = PowerPoint.MsoAnimEffect.msoAnimEffectWipe,
+        ["msoAnimEffectZoom"] = PowerPoint.MsoAnimEffect.msoAnimEffectZoom,
+        ["msoAnimEffectBounce"] = PowerPoint.MsoAnimEffect.msoAnimEffectBounce,
+        ["msoAnimEffectCredits"] = PowerPoint.MsoAnimEffect.msoAnimEffectCredits,
+        ["msoAnimEffectGrowShrink"] = PowerPoint.MsoAnimEffect.msoAnimEffectGrowShrink,
+        ["msoAnimEffectSpin"] = PowerPoint.MsoAnimEffect.msoAnimEffectSpin,
+        ["msoAnimEffectTransparency"] = PowerPoint.MsoAnimEffect.msoAnimEffectTransparency,
+        ["msoAnimEffectChangeFillColor"] = PowerPoint.MsoAnimEffect.msoAnimEffectChangeFillColor,
+        ["msoAnimEffectChangeFontColor"] = PowerPoint.MsoAnimEffect.msoAnimEffectChangeFontColor,
     };
 
     // PpEntryEffect member name -> value, a curated subset of the full (150+) enum covering the
     // most common slide transitions — verified against
     // learn.microsoft.com/office/vba/api/powerpoint.ppentryeffect. Extend this table (never guess
     // a value) if more transitions are needed later.
-    private static readonly Dictionary<string, int> EntryEffects = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, PowerPoint.PpEntryEffect> EntryEffects = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["ppEffectNone"] = 0,
-        ["ppEffectCut"] = 257,
-        ["ppEffectCutThroughBlack"] = 258,
-        ["ppEffectRandom"] = 513,
-        ["ppEffectBlindsHorizontal"] = 769,
-        ["ppEffectBlindsVertical"] = 770,
-        ["ppEffectCheckerboardAcross"] = 1025,
-        ["ppEffectCheckerboardDown"] = 1026,
-        ["ppEffectCoverLeft"] = 1281,
-        ["ppEffectCoverUp"] = 1282,
-        ["ppEffectCoverRight"] = 1283,
-        ["ppEffectCoverDown"] = 1284,
-        ["ppEffectDissolve"] = 1537,
-        ["ppEffectFade"] = 1793,
-        ["ppEffectRandomBarsHorizontal"] = 2305,
-        ["ppEffectRandomBarsVertical"] = 2306,
-        ["ppEffectUncoverLeft"] = 2049,
-        ["ppEffectUncoverUp"] = 2050,
-        ["ppEffectUncoverRight"] = 2051,
-        ["ppEffectUncoverDown"] = 2052,
-        ["ppEffectWedge"] = 3856,
-        ["ppEffectCircleOut"] = 3845,
-        ["ppEffectDiamondOut"] = 3846,
-        ["ppEffectPlusOut"] = 3851,
-        ["ppEffectPushLeft"] = 3853,
-        ["ppEffectPushRight"] = 3854,
-        ["ppEffectPushUp"] = 3852,
-        ["ppEffectPushDown"] = 3855,
-        ["ppEffectNewsflash"] = 3850,
-        ["ppEffectFadeSmoothly"] = 3849,
+        ["ppEffectNone"] = PowerPoint.PpEntryEffect.ppEffectNone,
+        ["ppEffectCut"] = PowerPoint.PpEntryEffect.ppEffectCut,
+        ["ppEffectCutThroughBlack"] = PowerPoint.PpEntryEffect.ppEffectCutThroughBlack,
+        ["ppEffectRandom"] = PowerPoint.PpEntryEffect.ppEffectRandom,
+        ["ppEffectBlindsHorizontal"] = PowerPoint.PpEntryEffect.ppEffectBlindsHorizontal,
+        ["ppEffectBlindsVertical"] = PowerPoint.PpEntryEffect.ppEffectBlindsVertical,
+        ["ppEffectCheckerboardAcross"] = PowerPoint.PpEntryEffect.ppEffectCheckerboardAcross,
+        ["ppEffectCheckerboardDown"] = PowerPoint.PpEntryEffect.ppEffectCheckerboardDown,
+        ["ppEffectCoverLeft"] = PowerPoint.PpEntryEffect.ppEffectCoverLeft,
+        ["ppEffectCoverUp"] = PowerPoint.PpEntryEffect.ppEffectCoverUp,
+        ["ppEffectCoverRight"] = PowerPoint.PpEntryEffect.ppEffectCoverRight,
+        ["ppEffectCoverDown"] = PowerPoint.PpEntryEffect.ppEffectCoverDown,
+        ["ppEffectDissolve"] = PowerPoint.PpEntryEffect.ppEffectDissolve,
+        ["ppEffectFade"] = PowerPoint.PpEntryEffect.ppEffectFade,
+        ["ppEffectRandomBarsHorizontal"] = PowerPoint.PpEntryEffect.ppEffectRandomBarsHorizontal,
+        ["ppEffectRandomBarsVertical"] = PowerPoint.PpEntryEffect.ppEffectRandomBarsVertical,
+        ["ppEffectUncoverLeft"] = PowerPoint.PpEntryEffect.ppEffectUncoverLeft,
+        ["ppEffectUncoverUp"] = PowerPoint.PpEntryEffect.ppEffectUncoverUp,
+        ["ppEffectUncoverRight"] = PowerPoint.PpEntryEffect.ppEffectUncoverRight,
+        ["ppEffectUncoverDown"] = PowerPoint.PpEntryEffect.ppEffectUncoverDown,
+        ["ppEffectWedge"] = PowerPoint.PpEntryEffect.ppEffectWedge,
+        ["ppEffectCircleOut"] = PowerPoint.PpEntryEffect.ppEffectCircleOut,
+        ["ppEffectDiamondOut"] = PowerPoint.PpEntryEffect.ppEffectDiamondOut,
+        ["ppEffectPlusOut"] = PowerPoint.PpEntryEffect.ppEffectPlusOut,
+        ["ppEffectPushLeft"] = PowerPoint.PpEntryEffect.ppEffectPushLeft,
+        ["ppEffectPushRight"] = PowerPoint.PpEntryEffect.ppEffectPushRight,
+        ["ppEffectPushUp"] = PowerPoint.PpEntryEffect.ppEffectPushUp,
+        ["ppEffectPushDown"] = PowerPoint.PpEntryEffect.ppEffectPushDown,
+        ["ppEffectNewsflash"] = PowerPoint.PpEntryEffect.ppEffectNewsflash,
+        ["ppEffectFadeSmoothly"] = PowerPoint.PpEntryEffect.ppEffectFadeSmoothly,
     };
 
-    private static readonly Dictionary<int, string> EntryEffectsByValue =
+    private static readonly Dictionary<PowerPoint.PpEntryEffect, string> EntryEffectsByValue =
         EntryEffects.GroupBy(kvp => kvp.Value).ToDictionary(g => g.Key, g => g.First().Key);
 
     /// <inheritdoc/>
@@ -113,49 +115,53 @@ public sealed class AnimationCommands : IAnimationCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic? slide = null;
-            dynamic? shape = null;
-            dynamic? sequence = null;
-            dynamic? effect = null;
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
+
+            if (!AnimEffects.TryGetValue(effectName, out var effectValue))
+            {
+                return new AnimationOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"'{effectName}' is not a recognized MsoAnimEffect name (e.g. 'msoAnimEffectFade', 'msoAnimEffectFly', 'msoAnimEffectZoom')."
+                };
+            }
+
+            if (!TriggerTypes.TryGetValue(trigger, out var triggerValue))
+            {
+                return new AnimationOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"'{trigger}' is not a recognized trigger (must be 'on-click', 'with-previous', or 'after-previous')."
+                };
+            }
+
+            PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            PowerPoint.Sequence sequence = slide.TimeLine.MainSequence;
+            // Pre-capture append position: Count+1 before the call equals Count after (the new
+            // effect's 1-based index). Passing 0 explicitly sends an integer-out-of-range COM
+            // error — the VBA "default=0 means append" only works via COM's missing-arg protocol,
+            // not from an explicit .NET value. Any index > Count is documented to append.
+            int newIndex = sequence.Count + 1;
+            PowerPoint.Effect effect = sequence.AddEffect(
+                shape,
+                effectValue,
+                PowerPoint.MsoAnimateByLevel.msoAnimateLevelNone,
+                triggerValue,
+                newIndex);
+            dynamic? dynEffect = null;
             try
             {
-                slide = ctx.Presentation.Slides[slideIndex];
-                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
-                if (shapeValidation is not null) return shapeValidation;
-
-                if (!AnimEffects.TryGetValue(effectName, out var effectValue))
-                {
-                    return new AnimationOperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"'{effectName}' is not a recognized MsoAnimEffect name (e.g. 'msoAnimEffectFade', 'msoAnimEffectFly', 'msoAnimEffectZoom')."
-                    };
-                }
-
-                if (!TriggerTypes.TryGetValue(trigger, out var triggerValue))
-                {
-                    return new AnimationOperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"'{trigger}' is not a recognized trigger (must be 'on-click', 'with-previous', or 'after-previous')."
-                    };
-                }
-
-                shape = slide.Shapes[shapeIndex];
-                sequence = slide.TimeLine.MainSequence;
-                effect = sequence.AddEffect(shape, effectValue);
-                effect.Exit = isExit ? MsoTrue : MsoFalse;
+                dynEffect = effect;
+                dynEffect.Exit = isExit ? MsoTrue : MsoFalse;
                 effect.Timing.TriggerType = triggerValue;
-
-                // Same NoPIA late-binding quirk documented in ShapeCommands — the newly-added effect
-                // is always appended, so its 1-based index is simply the new sequence Count.
-                int newIndex = (int)sequence.Count;
 
                 return new AnimationOperationResult
                 {
                     Success = true,
                     EffectIndex = newIndex,
-                    EffectCount = (int)sequence.Count,
+                    EffectCount = sequence.Count,
                     EffectName = effectName,
                     IsExit = isExit,
                     Trigger = trigger
@@ -163,10 +169,10 @@ public sealed class AnimationCommands : IAnimationCommands
             }
             finally
             {
-                if (effect != null) ComUtilities.Release(ref effect);
-                if (sequence != null) ComUtilities.Release(ref sequence);
-                if (shape != null) ComUtilities.Release(ref shape);
-                if (slide != null) ComUtilities.Release(ref slide);
+                if (dynEffect != null)
+                {
+                    ComUtilities.Release(ref dynEffect!);
+                }
             }
         });
     }
@@ -181,20 +187,10 @@ public sealed class AnimationCommands : IAnimationCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic? slide = null;
-            dynamic? sequence = null;
-            try
-            {
-                slide = ctx.Presentation.Slides[slideIndex];
-                sequence = slide.TimeLine.MainSequence;
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Sequence sequence = slide.TimeLine.MainSequence;
 
-                return new AnimationOperationResult { Success = true, EffectCount = (int)sequence.Count };
-            }
-            finally
-            {
-                if (sequence != null) ComUtilities.Release(ref sequence);
-                if (slide != null) ComUtilities.Release(ref slide);
-            }
+            return new AnimationOperationResult { Success = true, EffectCount = sequence.Count };
         });
     }
 
@@ -208,40 +204,28 @@ public sealed class AnimationCommands : IAnimationCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic? slide = null;
-            dynamic? sequence = null;
-            dynamic? effect = null;
-            try
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.Sequence sequence = slide.TimeLine.MainSequence;
+            int effectCount = sequence.Count;
+
+            if (effectIndex < 1 || effectIndex > effectCount)
             {
-                slide = ctx.Presentation.Slides[slideIndex];
-                sequence = slide.TimeLine.MainSequence;
-                int effectCount = (int)sequence.Count;
-
-                if (effectIndex < 1 || effectIndex > effectCount)
-                {
-                    return new AnimationOperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Effect index {effectIndex} is out of range. The slide has {effectCount} effect(s) (valid range: 1-{effectCount})."
-                    };
-                }
-
-                effect = sequence[effectIndex];
-                effect.Delete();
-
                 return new AnimationOperationResult
                 {
-                    Success = true,
-                    EffectIndex = effectIndex,
-                    EffectCount = (int)sequence.Count
+                    Success = false,
+                    ErrorMessage = $"Effect index {effectIndex} is out of range. The slide has {effectCount} effect(s) (valid range: 1-{effectCount})."
                 };
             }
-            finally
+
+            PowerPoint.Effect effect = sequence[effectIndex];
+            effect.Delete();
+
+            return new AnimationOperationResult
             {
-                if (effect != null) ComUtilities.Release(ref effect);
-                if (sequence != null) ComUtilities.Release(ref sequence);
-                if (slide != null) ComUtilities.Release(ref slide);
-            }
+                Success = true,
+                EffectIndex = effectIndex,
+                EffectCount = sequence.Count
+            };
         });
     }
 
@@ -255,16 +239,8 @@ public sealed class AnimationCommands : IAnimationCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic? slide = null;
-            try
-            {
-                slide = ctx.Presentation.Slides[slideIndex];
-                return ReadTransition(slide);
-            }
-            finally
-            {
-                if (slide != null) ComUtilities.Release(ref slide);
-            }
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            return ReadTransition(slide);
         });
     }
 
@@ -295,12 +271,11 @@ public sealed class AnimationCommands : IAnimationCommands
                 };
             }
 
-            dynamic? slide = null;
-            dynamic? transition = null;
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.SlideShowTransition transition = slide.SlideShowTransition;
+            dynamic? dynTransition = null;
             try
             {
-                slide = ctx.Presentation.Slides[slideIndex];
-                transition = slide.SlideShowTransition;
                 transition.EntryEffect = transitionValue;
 
                 if (durationSeconds is not null)
@@ -310,12 +285,14 @@ public sealed class AnimationCommands : IAnimationCommands
 
                 if (advanceOnClick is not null)
                 {
-                    transition.AdvanceOnClick = advanceOnClick.Value ? MsoTrue : MsoFalse;
+                    dynTransition = transition;
+                    dynTransition.AdvanceOnClick = advanceOnClick.Value ? MsoTrue : MsoFalse;
                 }
 
                 if (advanceOnTime is not null)
                 {
-                    transition.AdvanceOnTime = advanceOnTime.Value ? MsoTrue : MsoFalse;
+                    dynTransition ??= transition;
+                    dynTransition.AdvanceOnTime = advanceOnTime.Value ? MsoTrue : MsoFalse;
                 }
 
                 if (advanceTimeSeconds is not null)
@@ -327,36 +304,42 @@ public sealed class AnimationCommands : IAnimationCommands
             }
             finally
             {
-                if (transition != null) ComUtilities.Release(ref transition);
-                if (slide != null) ComUtilities.Release(ref slide);
+                if (dynTransition != null)
+                {
+                    ComUtilities.Release(ref dynTransition!);
+                }
             }
         });
     }
 
-    private static AnimationOperationResult ReadTransition(dynamic slide)
+    private static AnimationOperationResult ReadTransition(PowerPoint.Slide slide)
     {
-        dynamic? transition = null;
+        PowerPoint.SlideShowTransition transition = slide.SlideShowTransition;
+        PowerPoint.PpEntryEffect entryEffectValue = transition.EntryEffect;
+        string transitionName = EntryEffectsByValue.TryGetValue(entryEffectValue, out var name)
+            ? name
+            : $"unknown ({(int)entryEffectValue})";
+        dynamic? dynTransition = null;
         try
         {
-            transition = slide.SlideShowTransition;
-            int entryEffectValue = (int)transition.EntryEffect;
-            string transitionName = EntryEffectsByValue.TryGetValue(entryEffectValue, out var name)
-                ? name
-                : $"unknown ({entryEffectValue})";
+            dynTransition = transition;
 
             return new AnimationOperationResult
             {
                 Success = true,
                 TransitionName = transitionName,
-                DurationSeconds = (float)transition.Duration,
-                AdvanceOnClick = (int)transition.AdvanceOnClick == MsoTrue,
-                AdvanceOnTime = (int)transition.AdvanceOnTime == MsoTrue,
-                AdvanceTimeSeconds = (float)transition.AdvanceTime
+                DurationSeconds = transition.Duration,
+                AdvanceOnClick = (int)dynTransition.AdvanceOnClick == MsoTrue,
+                AdvanceOnTime = (int)dynTransition.AdvanceOnTime == MsoTrue,
+                AdvanceTimeSeconds = transition.AdvanceTime
             };
         }
         finally
         {
-            if (transition != null) ComUtilities.Release(ref transition);
+            if (dynTransition != null)
+            {
+                ComUtilities.Release(ref dynTransition!);
+            }
         }
     }
 

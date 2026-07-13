@@ -9,12 +9,12 @@ namespace Sbroenne.PowerPointMcp.Core.Image;
 /// </summary>
 [ServiceCategory("image", "Image")]
 [McpTool("image", Title = "Image Operations", Destructive = true, Category = "content",
-    Description = "Embed a picture file into a slide in an open presentation session.")]
+    Description = "Insert pictures into slides and adjust picture appearance with brightness/contrast, recolor, and crop operations.")]
 public interface IImageCommands
 {
     /// <summary>
-    /// Adds a picture from a local file to the given slide, embedded (not linked) into
-    /// the presentation.
+    /// Adds a picture from a local file to the given slide as an embedded shape (not linked to the
+    /// source file).
     /// </summary>
     ImageOperationResult AddPicture(IPresentationBatch batch, int slideIndex, string imagePath, float left, float top, float width, float height);
 
@@ -33,4 +33,22 @@ public interface IImageCommands
 
     /// <summary>Gets a picture shape's current recolor mode as its <c>MsoPictureColorType</c> name.</summary>
     ImageOperationResult GetRecolor(IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Sets the crop offsets (in points) for all four sides of a picture shape.
+    /// <paramref name="cropLeft"/>, <paramref name="cropTop"/>, <paramref name="cropRight"/>, and
+    /// <paramref name="cropBottom"/> specify the amount to crop from each edge. Negative values are
+    /// valid and expand the visible area beyond the image boundary; no clamping is applied.
+    /// Units: points (1 pt = 1/72 inch). Applies to picture and linked-picture shapes only.
+    /// </summary>
+    ImageOperationResult SetCrop(IPresentationBatch batch, int slideIndex, int shapeIndex,
+        float cropLeft, float cropTop, float cropRight, float cropBottom);
+
+    /// <summary>
+    /// Gets the current crop offsets (in points) for all four sides of a picture shape.
+    /// Returns <see cref="ImageOperationResult.CropLeft"/>, <see cref="ImageOperationResult.CropTop"/>,
+    /// <see cref="ImageOperationResult.CropRight"/>, and <see cref="ImageOperationResult.CropBottom"/>.
+    /// Applies to picture and linked-picture shapes only.
+    /// </summary>
+    ImageOperationResult GetCrop(IPresentationBatch batch, int slideIndex, int shapeIndex);
 }

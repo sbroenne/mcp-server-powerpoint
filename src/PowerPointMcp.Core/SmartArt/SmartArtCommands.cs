@@ -1,5 +1,6 @@
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.SmartArt;
 
@@ -26,21 +27,14 @@ public sealed class SmartArtCommands : ISmartArtCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic? layouts = null;
+            // ctx.App is the shared, session-owned Application COM object - never release it here.
+            dynamic app = ctx.App;
             dynamic? layout = null;
-            dynamic? slide = null;
+            dynamic? dynShapes = null;
             dynamic? newShape = null;
             try
             {
-                // NOTE: ctx.App is the session-owned Application COM object (lives for the whole
-                // batch/session lifetime) - it must NEVER be released here. The local `app`
-                // variable below is only a dynamic-typed view (avoids a static office.dll PIA
-                // reference) over that same session-owned RCW, so it is intentionally excluded
-                // from the finally block. Only layouts/layout/slide/newShape are per-call objects
-                // acquired in this method and released below.
-                dynamic app = ctx.App;
-                layouts = app.SmartArtLayouts;
-                layout = RetryOnTransientAccessDenied(() => FindLayoutByName(layouts, layoutName));
+                layout = RetryOnTransientAccessDenied(() => FindLayoutByName(app.SmartArtLayouts, layoutName));
                 if (layout is null)
                 {
                     return new SmartArtOperationResult
@@ -50,10 +44,11 @@ public sealed class SmartArtCommands : ISmartArtCommands
                     };
                 }
 
-                slide = ctx.Presentation.Slides[slideIndex];
-                slide.Shapes.AddSmartArt(layout, left, top, width, height);
+                PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+                dynShapes = slide.Shapes;
+                dynShapes.AddSmartArt(layout, left, top, width, height);
                 // Same NoPIA late-binding quirk as ShapeCommands.AddRectangle — avoid shape.Index, use Count.
-                int newIndex = (int)slide.Shapes.Count;
+                int newIndex = slide.Shapes.Count;
                 newShape = slide.Shapes[newIndex];
                 int nodeCount = (int)newShape.SmartArt.AllNodes.Count;
 
@@ -61,17 +56,26 @@ public sealed class SmartArtCommands : ISmartArtCommands
                 {
                     Success = true,
                     ShapeIndex = newIndex,
-                    ShapeCount = (int)slide.Shapes.Count,
+                    ShapeCount = slide.Shapes.Count,
                     LayoutName = layoutName,
                     NodeCount = nodeCount
                 };
             }
             finally
             {
-                if (newShape != null) ComUtilities.Release(ref newShape);
-                if (slide != null) ComUtilities.Release(ref slide);
-                if (layout != null) ComUtilities.Release(ref layout);
-                if (layouts != null) ComUtilities.Release(ref layouts);
+                if (newShape != null)
+                {
+                    ComUtilities.Release(ref newShape!);
+                }
+                if (dynShapes != null)
+                {
+                    ComUtilities.Release(ref dynShapes!);
+                }
+                if (layout != null)
+                {
+                    ComUtilities.Release(ref layout!);
+                }
+                // app is an alias of ctx.App (shared, session-owned) - must NOT be released.
             }
         });
     }
@@ -114,9 +118,18 @@ public sealed class SmartArtCommands : ISmartArtCommands
             }
             finally
             {
-                if (newNode != null) ComUtilities.Release(ref newNode);
-                if (nodes != null) ComUtilities.Release(ref nodes);
-                if (smartArt != null) ComUtilities.Release(ref smartArt);
+                if (newNode != null)
+                {
+                    ComUtilities.Release(ref newNode!);
+                }
+                if (nodes != null)
+                {
+                    ComUtilities.Release(ref nodes!);
+                }
+                if (smartArt != null)
+                {
+                    ComUtilities.Release(ref smartArt!);
+                }
             }
         });
     }
@@ -165,10 +178,22 @@ public sealed class SmartArtCommands : ISmartArtCommands
             }
             finally
             {
-                if (newNode != null) ComUtilities.Release(ref newNode);
-                if (parentNode != null) ComUtilities.Release(ref parentNode);
-                if (allNodes != null) ComUtilities.Release(ref allNodes);
-                if (smartArt != null) ComUtilities.Release(ref smartArt);
+                if (newNode != null)
+                {
+                    ComUtilities.Release(ref newNode!);
+                }
+                if (parentNode != null)
+                {
+                    ComUtilities.Release(ref parentNode!);
+                }
+                if (allNodes != null)
+                {
+                    ComUtilities.Release(ref allNodes!);
+                }
+                if (smartArt != null)
+                {
+                    ComUtilities.Release(ref smartArt!);
+                }
             }
         });
     }
@@ -206,9 +231,18 @@ public sealed class SmartArtCommands : ISmartArtCommands
             }
             finally
             {
-                if (node != null) ComUtilities.Release(ref node);
-                if (allNodes != null) ComUtilities.Release(ref allNodes);
-                if (smartArt != null) ComUtilities.Release(ref smartArt);
+                if (node != null)
+                {
+                    ComUtilities.Release(ref node!);
+                }
+                if (allNodes != null)
+                {
+                    ComUtilities.Release(ref allNodes!);
+                }
+                if (smartArt != null)
+                {
+                    ComUtilities.Release(ref smartArt!);
+                }
             }
         });
     }
@@ -245,9 +279,18 @@ public sealed class SmartArtCommands : ISmartArtCommands
             }
             finally
             {
-                if (node != null) ComUtilities.Release(ref node);
-                if (allNodes != null) ComUtilities.Release(ref allNodes);
-                if (smartArt != null) ComUtilities.Release(ref smartArt);
+                if (node != null)
+                {
+                    ComUtilities.Release(ref node!);
+                }
+                if (allNodes != null)
+                {
+                    ComUtilities.Release(ref allNodes!);
+                }
+                if (smartArt != null)
+                {
+                    ComUtilities.Release(ref smartArt!);
+                }
             }
         });
     }
@@ -278,14 +321,23 @@ public sealed class SmartArtCommands : ISmartArtCommands
                     Success = true,
                     ShapeIndex = shapeIndex,
                     NodeIndex = nodeIndex,
-                    NodeCount = (int)smartArt.AllNodes.Count
+                    NodeCount = (int)allNodes.Count
                 };
             }
             finally
             {
-                if (node != null) ComUtilities.Release(ref node);
-                if (allNodes != null) ComUtilities.Release(ref allNodes);
-                if (smartArt != null) ComUtilities.Release(ref smartArt);
+                if (node != null)
+                {
+                    ComUtilities.Release(ref node!);
+                }
+                if (allNodes != null)
+                {
+                    ComUtilities.Release(ref allNodes!);
+                }
+                if (smartArt != null)
+                {
+                    ComUtilities.Release(ref smartArt!);
+                }
             }
         });
     }
@@ -311,7 +363,10 @@ public sealed class SmartArtCommands : ISmartArtCommands
             }
             finally
             {
-                if (smartArt != null) ComUtilities.Release(ref smartArt);
+                if (smartArt != null)
+                {
+                    ComUtilities.Release(ref smartArt!);
+                }
             }
         });
     }
@@ -364,23 +419,24 @@ public sealed class SmartArtCommands : ISmartArtCommands
         for (int i = 1; i <= count; i++)
         {
             dynamic? candidate = null;
-            dynamic? match = null;
+            bool matched = false;
             try
             {
                 candidate = layouts.Item(i);
                 string name = (string)candidate.Name;
                 if (string.Equals(name, layoutName, StringComparison.OrdinalIgnoreCase))
                 {
-                    match = candidate;
-                    candidate = null;
+                    matched = true;
+                    return candidate;
                 }
             }
             finally
             {
-                if (candidate != null) ComUtilities.Release(ref candidate);
+                if (candidate != null && !matched)
+                {
+                    ComUtilities.Release(ref candidate!);
+                }
             }
-
-            if (match != null) return match;
         }
 
         return null;
@@ -419,7 +475,10 @@ public sealed class SmartArtCommands : ISmartArtCommands
             }
             finally
             {
-                if (candidate != null) ComUtilities.Release(ref candidate);
+                if (candidate != null)
+                {
+                    ComUtilities.Release(ref candidate!);
+                }
             }
         }
 
@@ -443,34 +502,28 @@ public sealed class SmartArtCommands : ISmartArtCommands
         var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
         if (slideValidation is not null) return slideValidation;
 
-        dynamic? slide = null;
-        dynamic? shape = null;
-        try
-        {
-            slide = ctx.Presentation.Slides[slideIndex];
-            int shapeCount = (int)slide.Shapes.Count;
-            var shapeValidation = ValidateShapeIndex(shapeCount, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
+        PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+        int shapeCount = slide.Shapes.Count;
+        var shapeValidation = ValidateShapeIndex(shapeCount, shapeIndex);
+        if (shapeValidation is not null) return shapeValidation;
 
-            shape = slide.Shapes[shapeIndex];
-            bool hasSmartArt = (int)shape.HasSmartArt == MsoTrue;
-            if (!hasSmartArt)
+        PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+        // Reason: HasSmartArt/SmartArt are Office.Core-backed members not on the strongly-typed
+        // PIA Shape interface, so they are read via dynamic late binding.
+        bool hasSmartArt = (int)((dynamic)shape).HasSmartArt == MsoTrue;
+        if (!hasSmartArt)
+        {
+            return new SmartArtOperationResult
             {
-                return new SmartArtOperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Shape {shapeIndex} on slide {slideIndex} is not a SmartArt diagram."
-                };
-            }
+                Success = false,
+                ErrorMessage = $"Shape {shapeIndex} on slide {slideIndex} is not a SmartArt diagram."
+            };
+        }
 
-            smartArt = shape.SmartArt;
-            return null;
-        }
-        finally
-        {
-            if (shape != null) ComUtilities.Release(ref shape);
-            if (slide != null) ComUtilities.Release(ref slide);
-        }
+        // Reason: SmartArt is an Office.Core-backed member not on the strongly-typed PIA Shape
+        // interface, so it is read via dynamic late binding.
+        smartArt = ((dynamic)shape).SmartArt;
+        return null;
     }
 
     private static SmartArtOperationResult? ValidateSlideIndex(int slideCount, int slideIndex)

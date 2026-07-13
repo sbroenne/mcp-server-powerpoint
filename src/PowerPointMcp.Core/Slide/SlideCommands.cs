@@ -117,26 +117,15 @@ public sealed class SlideCommands : ISlideCommands
 
             // Duplicate() returns a SlideRange containing the single new slide, inserted
             // immediately after the source slide.
-            dynamic? duplicateRange = null;
-            try
-            {
-                duplicateRange = ctx.Presentation.Slides[slideIndex].Duplicate();
-                int newSlideIndex = (int)duplicateRange[1].SlideIndex;
+            PowerPoint.SlideRange duplicateRange = ctx.Presentation.Slides[slideIndex].Duplicate();
+            int newSlideIndex = duplicateRange[1].SlideIndex;
 
-                return new SlideOperationResult
-                {
-                    Success = true,
-                    SlideIndex = newSlideIndex,
-                    SlideCount = ctx.Presentation.Slides.Count
-                };
-            }
-            finally
+            return new SlideOperationResult
             {
-                if (duplicateRange != null)
-                {
-                    ComUtilities.Release(ref duplicateRange!);
-                }
-            }
+                Success = true,
+                SlideIndex = newSlideIndex,
+                SlideCount = ctx.Presentation.Slides.Count
+            };
         });
     }
 
@@ -197,11 +186,12 @@ public sealed class SlideCommands : ISlideCommands
                 };
             }
 
-            dynamic? slide = null;
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            dynamic? dynSlide = null;
             try
             {
-                slide = ctx.Presentation.Slides[slideIndex];
-                slide.FollowMasterBackground = MsoFalse;
+                dynSlide = slide;
+                dynSlide.FollowMasterBackground = MsoFalse;
                 int rgb = red + (green << 8) + (blue << 16);
                 slide.Background.Fill.Solid();
                 slide.Background.Fill.ForeColor.RGB = rgb;
@@ -216,9 +206,9 @@ public sealed class SlideCommands : ISlideCommands
             }
             finally
             {
-                if (slide != null)
+                if (dynSlide != null)
                 {
-                    ComUtilities.Release(ref slide!);
+                    ComUtilities.Release(ref dynSlide!);
                 }
             }
         });
@@ -242,12 +232,13 @@ public sealed class SlideCommands : ISlideCommands
                 };
             }
 
-            dynamic? slide = null;
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            dynamic? dynSlide = null;
             try
             {
-                slide = ctx.Presentation.Slides[slideIndex];
-                bool followsMaster = (int)slide.FollowMasterBackground == MsoTrue;
-                int rgb = (int)slide.Background.Fill.ForeColor.RGB;
+                dynSlide = slide;
+                bool followsMaster = (int)dynSlide.FollowMasterBackground == MsoTrue;
+                int rgb = slide.Background.Fill.ForeColor.RGB;
 
                 return new SlideOperationResult
                 {
@@ -259,9 +250,9 @@ public sealed class SlideCommands : ISlideCommands
             }
             finally
             {
-                if (slide != null)
+                if (dynSlide != null)
                 {
-                    ComUtilities.Release(ref slide!);
+                    ComUtilities.Release(ref dynSlide!);
                 }
             }
         });
@@ -303,16 +294,19 @@ public sealed class SlideCommands : ISlideCommands
             int rgb1 = red1 + (green1 << 8) + (blue1 << 16);
             int rgb2 = red2 + (green2 << 8) + (blue2 << 16);
 
-            dynamic? slide = null;
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            dynamic? dynSlide = null;
+            dynamic? fill = null;
             try
             {
-                slide = ctx.Presentation.Slides[slideIndex];
-                slide.FollowMasterBackground = MsoFalse;
+                dynSlide = slide;
+                dynSlide.FollowMasterBackground = MsoFalse;
                 // TwoColorGradient() must be called BEFORE setting ForeColor/BackColor — it resets
                 // both colors to PowerPoint's defaults as a side effect (verified via diagnostic spike).
-                slide.Background.Fill.TwoColorGradient(styleValue, gradientVariant);
-                slide.Background.Fill.ForeColor.RGB = rgb1;
-                slide.Background.Fill.BackColor.RGB = rgb2;
+                fill = slide.Background.Fill;
+                fill.TwoColorGradient(styleValue, gradientVariant);
+                fill.ForeColor.RGB = rgb1;
+                fill.BackColor.RGB = rgb2;
 
                 return new SlideOperationResult
                 {
@@ -327,9 +321,14 @@ public sealed class SlideCommands : ISlideCommands
             }
             finally
             {
-                if (slide != null)
+                if (fill != null)
                 {
-                    ComUtilities.Release(ref slide!);
+                    ComUtilities.Release(ref fill!);
+                }
+
+                if (dynSlide != null)
+                {
+                    ComUtilities.Release(ref dynSlide!);
                 }
             }
         });
@@ -353,11 +352,12 @@ public sealed class SlideCommands : ISlideCommands
                 };
             }
 
-            dynamic? slide = null;
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            dynamic? fill = null;
             try
             {
-                slide = ctx.Presentation.Slides[slideIndex];
-                int fillType = (int)slide.Background.Fill.Type;
+                fill = slide.Background.Fill;
+                int fillType = (int)fill.Type;
                 const int MsoFillGradient = 3;
                 if (fillType != MsoFillGradient)
                 {
@@ -369,10 +369,10 @@ public sealed class SlideCommands : ISlideCommands
                     };
                 }
 
-                int rgb1 = (int)slide.Background.Fill.ForeColor.RGB;
-                int rgb2 = (int)slide.Background.Fill.BackColor.RGB;
-                int styleValue = (int)slide.Background.Fill.GradientStyle;
-                int variant = (int)slide.Background.Fill.GradientVariant;
+                int rgb1 = (int)fill.ForeColor.RGB;
+                int rgb2 = (int)fill.BackColor.RGB;
+                int styleValue = (int)fill.GradientStyle;
+                int variant = (int)fill.GradientVariant;
                 string? styleName = GradientStylesByValue.GetValueOrDefault(styleValue);
 
                 return new SlideOperationResult
@@ -388,9 +388,9 @@ public sealed class SlideCommands : ISlideCommands
             }
             finally
             {
-                if (slide != null)
+                if (fill != null)
                 {
-                    ComUtilities.Release(ref slide!);
+                    ComUtilities.Release(ref fill!);
                 }
             }
         });
@@ -403,40 +403,29 @@ public sealed class SlideCommands : ISlideCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sectionProperties = null;
-            try
+            PowerPoint.SectionProperties sectionProperties = ctx.Presentation.SectionProperties;
+            int currentCount = sectionProperties.Count;
+
+            if (sectionIndex < 1 || sectionIndex > currentCount + 1)
             {
-                sectionProperties = ctx.Presentation.SectionProperties;
-                int currentCount = (int)sectionProperties.Count;
-
-                if (sectionIndex < 1 || sectionIndex > currentCount + 1)
-                {
-                    return new SlideOperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Section index {sectionIndex} is out of range. The presentation has {currentCount} section(s) (valid range: 1-{currentCount + 1}).",
-                        SectionCount = currentCount
-                    };
-                }
-
-                int newSectionIndex = sectionName is null
-                    ? (int)sectionProperties.AddSection(sectionIndex)
-                    : (int)sectionProperties.AddSection(sectionIndex, sectionName);
-
                 return new SlideOperationResult
                 {
-                    Success = true,
-                    SectionIndex = newSectionIndex,
-                    SectionCount = (int)sectionProperties.Count
+                    Success = false,
+                    ErrorMessage = $"Section index {sectionIndex} is out of range. The presentation has {currentCount} section(s) (valid range: 1-{currentCount + 1}).",
+                    SectionCount = currentCount
                 };
             }
-            finally
+
+            int newSectionIndex = sectionName is null
+                ? sectionProperties.AddSection(sectionIndex)
+                : sectionProperties.AddSection(sectionIndex, sectionName);
+
+            return new SlideOperationResult
             {
-                if (sectionProperties != null)
-                {
-                    ComUtilities.Release(ref sectionProperties!);
-                }
-            }
+                Success = true,
+                SectionIndex = newSectionIndex,
+                SectionCount = sectionProperties.Count
+            };
         });
     }
 
@@ -448,39 +437,28 @@ public sealed class SlideCommands : ISlideCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sectionProperties = null;
-            try
+            PowerPoint.SectionProperties sectionProperties = ctx.Presentation.SectionProperties;
+            int currentCount = sectionProperties.Count;
+
+            if (sectionIndex < 1 || sectionIndex > currentCount)
             {
-                sectionProperties = ctx.Presentation.SectionProperties;
-                int currentCount = (int)sectionProperties.Count;
-
-                if (sectionIndex < 1 || sectionIndex > currentCount)
-                {
-                    return new SlideOperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Section index {sectionIndex} is out of range. The presentation has {currentCount} section(s) (valid range: 1-{currentCount}).",
-                        SectionCount = currentCount
-                    };
-                }
-
-                sectionProperties.Rename(sectionIndex, sectionName);
-
                 return new SlideOperationResult
                 {
-                    Success = true,
-                    SectionIndex = sectionIndex,
-                    SectionName = sectionName,
+                    Success = false,
+                    ErrorMessage = $"Section index {sectionIndex} is out of range. The presentation has {currentCount} section(s) (valid range: 1-{currentCount}).",
                     SectionCount = currentCount
                 };
             }
-            finally
+
+            sectionProperties.Rename(sectionIndex, sectionName);
+
+            return new SlideOperationResult
             {
-                if (sectionProperties != null)
-                {
-                    ComUtilities.Release(ref sectionProperties!);
-                }
-            }
+                Success = true,
+                SectionIndex = sectionIndex,
+                SectionName = sectionName,
+                SectionCount = currentCount
+            };
         });
     }
 
@@ -491,41 +469,30 @@ public sealed class SlideCommands : ISlideCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sectionProperties = null;
-            try
+            PowerPoint.SectionProperties sectionProperties = ctx.Presentation.SectionProperties;
+            int currentCount = sectionProperties.Count;
+
+            if (sectionIndex < 1 || sectionIndex > currentCount)
             {
-                sectionProperties = ctx.Presentation.SectionProperties;
-                int currentCount = (int)sectionProperties.Count;
-
-                if (sectionIndex < 1 || sectionIndex > currentCount)
-                {
-                    return new SlideOperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Section index {sectionIndex} is out of range. The presentation has {currentCount} section(s) (valid range: 1-{currentCount}).",
-                        SectionCount = currentCount
-                    };
-                }
-
-                // The Delete method's second parameter is a plain VARIANT_BOOL, not an MsoTriState —
-                // pass a real bool rather than the MsoTrue/MsoFalse Long constants used elsewhere.
-                // Note: PowerPoint disallows deleting section 1 unless deleteSlides is true.
-                sectionProperties.Delete(sectionIndex, deleteSlides);
-
                 return new SlideOperationResult
                 {
-                    Success = true,
-                    SectionIndex = sectionIndex,
-                    SectionCount = (int)sectionProperties.Count
+                    Success = false,
+                    ErrorMessage = $"Section index {sectionIndex} is out of range. The presentation has {currentCount} section(s) (valid range: 1-{currentCount}).",
+                    SectionCount = currentCount
                 };
             }
-            finally
+
+            // The Delete method's second parameter is a plain VARIANT_BOOL, not an MsoTriState —
+            // pass a real bool rather than the MsoTrue/MsoFalse Long constants used elsewhere.
+            // Note: PowerPoint disallows deleting section 1 unless deleteSlides is true.
+            sectionProperties.Delete(sectionIndex, deleteSlides);
+
+            return new SlideOperationResult
             {
-                if (sectionProperties != null)
-                {
-                    ComUtilities.Release(ref sectionProperties!);
-                }
-            }
+                Success = true,
+                SectionIndex = sectionIndex,
+                SectionCount = sectionProperties.Count
+            };
         });
     }
 
@@ -536,23 +503,12 @@ public sealed class SlideCommands : ISlideCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sectionProperties = null;
-            try
+            PowerPoint.SectionProperties sectionProperties = ctx.Presentation.SectionProperties;
+            return new SlideOperationResult
             {
-                sectionProperties = ctx.Presentation.SectionProperties;
-                return new SlideOperationResult
-                {
-                    Success = true,
-                    SectionCount = (int)sectionProperties.Count
-                };
-            }
-            finally
-            {
-                if (sectionProperties != null)
-                {
-                    ComUtilities.Release(ref sectionProperties!);
-                }
-            }
+                Success = true,
+                SectionCount = sectionProperties.Count
+            };
         });
     }
 
@@ -563,39 +519,28 @@ public sealed class SlideCommands : ISlideCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sectionProperties = null;
-            try
+            PowerPoint.SectionProperties sectionProperties = ctx.Presentation.SectionProperties;
+            int currentCount = sectionProperties.Count;
+
+            if (sectionIndex < 1 || sectionIndex > currentCount)
             {
-                sectionProperties = ctx.Presentation.SectionProperties;
-                int currentCount = (int)sectionProperties.Count;
-
-                if (sectionIndex < 1 || sectionIndex > currentCount)
-                {
-                    return new SlideOperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Section index {sectionIndex} is out of range. The presentation has {currentCount} section(s) (valid range: 1-{currentCount}).",
-                        SectionCount = currentCount
-                    };
-                }
-
-                string name = (string)sectionProperties.Name(sectionIndex);
-
                 return new SlideOperationResult
                 {
-                    Success = true,
-                    SectionIndex = sectionIndex,
-                    SectionName = name,
+                    Success = false,
+                    ErrorMessage = $"Section index {sectionIndex} is out of range. The presentation has {currentCount} section(s) (valid range: 1-{currentCount}).",
                     SectionCount = currentCount
                 };
             }
-            finally
+
+            string name = sectionProperties.Name(sectionIndex);
+
+            return new SlideOperationResult
             {
-                if (sectionProperties != null)
-                {
-                    ComUtilities.Release(ref sectionProperties!);
-                }
-            }
+                Success = true,
+                SectionIndex = sectionIndex,
+                SectionName = name,
+                SectionCount = currentCount
+            };
         });
     }
 }
