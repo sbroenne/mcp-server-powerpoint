@@ -1,0 +1,130 @@
+# CI Gate — the single authoritative status check for pull requests.
+#
+# This job ALWAYS runs on every PR to `main` (no path filters), so it can be
+# safely marked as a required status check without the "required check never
+# runs on path-filtered PRs" deadlock.
+#
+# It ports the PowerPoint-free pre-commit gates (scripts/pre-commit.ps1) into CI so
+# that the correctness checks are enforced server-side even if a contributor
+# bypasses the local hook (see Rule 31 in .github/copilot-instructions.md). The
+# PowerPoint-dependent gates — the Core Feature tests and the MCP Server's real-COM
+# session tests — are intentionally NOT run here: GitHub-hosted runners do not
+# have Microsoft PowerPoint installed, so those remain local-only (pre-commit) and
+# are covered by the integration test suite.
+#
+# Replaces the old, narrower "Build CLI" / "Build MCP Server" workflows (which only
+# ran on path-filtered pushes/PRs and could never be a reliable required check).
+
+name: CI Gate
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci-gate:
+    name: CI Gate
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore Sbroenne.PowerPointMcp.slnx
+
+      # Release build validates compilation and runs the source generators, so
+      # the audit scripts below see the generated CLI/MCP surface and skill
+      # manifest. Mirrors the pre-commit Release build gate.
+      - name: Build (Release)
+        run: dotnet build Sbroenne.PowerPointMcp.slnx --configuration Release --no-restore
+
+      # --- PowerPoint-free correctness gates (ported from scripts/pre-commit.ps1) ---
+
+      - name: Success flag check (Rule 1)
+        shell: pwsh
+        run: |
+          & scripts/check-success-flag.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Success flag violations detected (Success=true with an ErrorMessage set)." }
+
+      - name: COM object leak check (Rule 5)
+        shell: pwsh
+        run: |
+          & scripts/check-com-leaks.ps1
+          if ($LASTEXITCODE -ne 0) { throw "COM object leaks detected. All dynamic COM objects must be released in finally blocks." }
+
+      - name: Dynamic cast audit (documented ((dynamic)) casts)
+        shell: pwsh
+        run: |
+          & scripts/check-dynamic-casts.ps1
+          if ($LASTEXITCODE -ne 0) { throw "Undocumented ((dynamic)) casts detected. Each cast needs a justification comment." }
+
+      - name: Core interface completeness audit
+        shell: pwsh
+        run: |
+          & scripts/check-core-interface-completeness.ps1
+          if ($LASTEXITCODE -ne 0) { throw "A Core Commands method is implemented but not declared on its interface - it is invisible to the MCP/CLI generators." }
+
+      - name: Documentation tool/operation counts
+        shell: pwsh
+        run: |
+          & scripts/check-doc-counts.ps1
+          if ($LASTEXITCODE -ne 0) { throw "A doc advertises a tool/operation count that does not match the code-derived canonical count." }
+
+      # --- PowerPoint-free build smoke checks (absorbed from the old Build CLI /
+      #     Build MCP Server workflows) ---
+
+      - name: Verify CLI build + help (no PowerPoint required)
+        shell: pwsh
+        run: |
+          $exe = "src/PowerPointMcp.CLI/bin/Release/net10.0-windows/powerpointcli.exe"
+          if (-not (Test-Path $exe)) { throw "powerpointcli.exe not found at $exe" }
+          $help = & $exe --help 2>&1
+          if ($LASTEXITCODE -ne 0) { throw "powerpointcli --help failed with exit code $LASTEXITCODE" }
+          Write-Host "powerpointcli --help OK"
+
+      - name: Verify MCP Server build
+        shell: pwsh
+        run: |
+          $exe = "src/PowerPointMcp.McpServer/bin/Release/net10.0-windows/Sbroenne.PowerPointMcp.McpServer.exe"
+          if (-not (Test-Path $exe)) { throw "MCP Server exe not found at $exe" }
+          if (-not (Test-Path "src/PowerPointMcp.McpServer/bin/Release/net10.0-windows/.mcp/server.json")) {
+            Write-Warning "MCP server.json configuration not found"
+          }
+          Write-Host "MCP Server build OK"
+
+      - name: Integration tests note
+        shell: pwsh
+        run: |
+          Write-Host "Core Feature tests and the MCP Server's real-COM session tests require Microsoft PowerPoint and are NOT run in CI."
+          Write-Host "They run locally via scripts/pre-commit.ps1 and 'dotnet test' on a machine with PowerPoint."
+
+      - name: Upload CLI build artifacts
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: PowerPointMcp-CLI-${{ github.sha }}
+          path: src/PowerPointMcp.CLI/bin/Release/net10.0-windows/
+          if-no-files-found: error
+
+      - name: Upload MCP Server build artifacts
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: PowerPointMcp-MCP-Server-${{ github.sha }}
+          path: src/PowerPointMcp.McpServer/bin/Release/net10.0-windows/
+          if-no-files-found: error
