@@ -32,7 +32,7 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 
 ## Capabilities
 
-**13 tools with 132 operations across 13 domains:**
+**13 tools with 134 operations across 13 domains:**
 
 | Tool | Ops | Coverage |
 | --- | --- | --- |
@@ -45,7 +45,7 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 | `layout` | 2 | set/get slide layout |
 | `master` | 8 | title/body placeholder fonts, solid + gradient master backgrounds |
 | `animation` | 5 | shape effects, transition read/write |
-| `image` | 5 | add picture, brightness/contrast, recolor |
+| `image` | 7 | add picture, brightness/contrast, recolor, crop |
 | `chart` | 10 | charts, series, chart/axis titles, legend visibility, data replacement |
 | `smartart` | 7 | SmartArt insertion and node editing |
 | `export` | 2 | export a slide or every slide to images |

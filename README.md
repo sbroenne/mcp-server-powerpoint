@@ -3,8 +3,7 @@
 [![VS Code Marketplace](https://vsmarketplacebadges.dev/installs-short/sbroenne.powerpoint-mcp.svg?label=VS%20Code%20Installs)](https://marketplace.visualstudio.com/items?itemName=sbroenne.powerpoint-mcp)
 [![Downloads](https://img.shields.io/github/downloads/sbroenne/mcp-server-powerpoint/total?label=GitHub%20Downloads)](https://github.com/sbroenne/mcp-server-powerpoint/releases)
 
-[![Build MCP Server](https://github.com/sbroenne/mcp-server-powerpoint/actions/workflows/build-mcp-server.yml/badge.svg)](https://github.com/sbroenne/mcp-server-powerpoint/actions/workflows/build-mcp-server.yml)
-[![Build CLI](https://github.com/sbroenne/mcp-server-powerpoint/actions/workflows/build-cli.yml/badge.svg)](https://github.com/sbroenne/mcp-server-powerpoint/actions/workflows/build-cli.yml)
+[![CI Gate](https://github.com/sbroenne/mcp-server-powerpoint/actions/workflows/ci.yml/badge.svg)](https://github.com/sbroenne/mcp-server-powerpoint/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/sbroenne/mcp-server-powerpoint)](https://github.com/sbroenne/mcp-server-powerpoint/releases/latest)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -45,7 +44,7 @@ layout regressions that text-only automation simply cannot detect.
 
 ## 🎯 What You Can Do
 
-**13 MCP tools with 132 operations across 13 domains:**
+**13 MCP tools with 134 operations across 13 domains:**
 
 - 🗂️ **Presentation** (12 ops) — create, open, save, close, list sessions, apply a `.potx`/`.pptx`
   template's masters/theme/layouts, read the current theme name, read/write built-in and custom
@@ -59,7 +58,7 @@ layout regressions that text-only automation simply cannot detect.
 - 🖼️ **Layout** (2 ops) — set/get slide layout
 - 🎭 **Master** (8 ops) — slide master title/body placeholder fonts, background color
 - 🎬 **Animation** (5 ops) — shape entrance/emphasis/exit effects, slide transitions
-- 🖼️ **Image** (5 ops) — insert and adjust pictures (brightness, contrast, recolor)
+- 🖼️ **Image** (7 ops) — insert and adjust pictures (brightness, contrast, recolor, crop)
 - 📈 **Chart** (10 ops) — add chart, multi-series data, titles, axis titles, legend
 - 🔀 **SmartArt** (7 ops) — insert and edit SmartArt diagrams
 - 🖼️ **Export** (2 ops) — export a slide, or all slides, to images for visual verification

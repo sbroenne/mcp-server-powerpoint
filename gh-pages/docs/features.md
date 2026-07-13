@@ -1,12 +1,12 @@
 ---
 title: Complete Feature Reference
-description: 13 MCP tools with 132 operations across 13 domains for live PowerPoint automation through single action-dispatch tools.
+description: 13 MCP tools with 134 operations across 13 domains for live PowerPoint automation through single action-dispatch tools.
 keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **13 MCP tools with 132 operations across 13 domains**.
+PowerPoint MCP Server exposes **13 MCP tools with 134 operations across 13 domains**.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
 `chart(action="add-chart", session_id="...", slide_index=2, ...)`.
@@ -29,7 +29,7 @@ The CLI mirrors the same domain model:
 | `layout` | 2 | Slide layouts | `layout(action="...", session_id=..., ...)` | `pptcli layout <action> -s <SESSION_ID> ...` |
 | `master` | 8 | Slide master fonts and backgrounds | `master(action="...", session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
 | `animation` | 5 | Shape effects and slide transitions | `animation(action="...", session_id=..., ...)` | `pptcli animation <action> -s <SESSION_ID> ...` |
-| `image` | 5 | Picture insertion and picture adjustments | `image(action="...", session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
+| `image` | 7 | Picture insertion and picture adjustments (brightness/contrast, recolor, crop) | `image(action="...", session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
 | `chart` | 10 | Native charts, titles, axes, legend, data replacement | `chart(action="...", session_id=..., ...)` | `pptcli chart <action> -s <SESSION_ID> ...` |
 | `smartart` | 7 | SmartArt diagrams and node editing | `smartart(action="...", session_id=..., ...)` | `pptcli smartart <action> -s <SESSION_ID> ...` |
 | `export` | 2 | Export-to-verify image rendering | `export(action="...", session_id=..., ...)` | `pptcli export <action> -s <SESSION_ID> ...` |
@@ -134,12 +134,12 @@ Use `master` for deck-wide master placeholder fonts and master backgrounds.
 **Exact action order:** `add-effect`, `get-effect-count`, `delete-effect`, `get-transition`,
 `set-transition`
 
-### `image` tool (5 operations)
+### `image` tool (7 operations)
 
 Use `image` for inserting and adjusting pictures.
 
 **Exact action order:** `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`,
-`set-recolor`, `get-recolor`
+`set-recolor`, `get-recolor`, `set-crop`, `get-crop`
 
 ### `chart` tool (10 operations)
 

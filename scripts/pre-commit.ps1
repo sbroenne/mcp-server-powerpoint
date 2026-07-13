@@ -21,6 +21,10 @@
     3. Release build     - dotnet build Sbroenne.PowerPointMcp.slnx -c Release, 0 warnings/errors.
                             Fully SKIPPED for docs-only commits (.md, .changeset/, docs/, gh-pages/,
                             issue/PR templates) — there is no compiled surface to validate.
+    3b. Doc count check  - validates that every user-facing doc's advertised tool/operation count
+                            matches the code-derived canonical count (generated skill manifest +
+                            the hand-written presentation tool). Always runs, including docs-only
+                            commits, using whatever manifest is currently on disk.
     4. Core tests        - surgical Feature=-filtered real-COM integration tests, scoped to the
                             Core domains touched by this commit. Skipped if no Core .cs changes,
                             and fully skipped (block not entered) for docs-only commits.
@@ -242,6 +246,44 @@ else {
     }
 
     Write-Host "Release build passed (0 warnings, 0 errors expected)" -ForegroundColor Green
+}
+
+# --- 3b. Documentation tool/operation counts ------------------------------------------------
+# Always runs (even for docs-only commits) - validates the currently-generated manifest on disk
+# against every user-facing doc that advertises a tool/operation count. Requires a prior Release
+# build to have produced _SkillManifest.g.cs at least once. On a fresh clone (or after cleaning
+# obj/), a docs-only commit could otherwise be the FIRST commit ever run here, with no build
+# artifacts on disk yet - do a one-time Release build in that case so the gate reflects reality
+# instead of failing purely because nothing has been generated yet.
+$manifestExists = $null -ne (Get-ChildItem -Path (Join-Path $rootDir "src\PowerPointMcp.Core\obj") -Recurse -Filter "_SkillManifest.g.cs" -ErrorAction SilentlyContinue | Select-Object -First 1)
+if (-not $manifestExists) {
+    Write-Step "No generated skill manifest found yet - running a one-time Release build so the doc-count gate has ground truth..."
+
+    $slnPath = Join-Path $rootDir "Sbroenne.PowerPointMcp.slnx"
+    & dotnet build $slnPath -c Release --nologo
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "BLOCKED: Release build failed (needed to generate the skill manifest for the doc-count check)." -ForegroundColor Red
+        exit 1
+    }
+}
+
+Write-Step "Checking documentation tool/operation counts..."
+
+try {
+    $docCountsScript = Join-Path $rootDir "scripts\check-doc-counts.ps1"
+    & $docCountsScript
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "BLOCKED: A doc advertises a tool/operation count that does not match the code-derived canonical count." -ForegroundColor Red
+        exit 1
+    }
+}
+catch {
+    Write-Host ""
+    Write-Host "Error running documentation count check: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
 }
 
 # --- 4. Surgical Core tests, scoped to touched domains ---------------------------------------
