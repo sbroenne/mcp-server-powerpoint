@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
@@ -33,13 +34,24 @@ public sealed class MasterCommands : IMasterCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var placeholder = FindPlaceholder(ctx, PowerPoint.PpPlaceholderType.ppPlaceholderTitle);
-            if (placeholder is null)
+            dynamic? placeholder = null;
+            try
             {
-                return NotFound("title");
-            }
+                placeholder = FindPlaceholder(ctx, PowerPoint.PpPlaceholderType.ppPlaceholderTitle);
+                if (placeholder is null)
+                {
+                    return NotFound("title");
+                }
 
-            return ReadFont(placeholder);
+                return ReadFont(placeholder);
+            }
+            finally
+            {
+                if (placeholder != null)
+                {
+                    ComUtilities.Release(ref placeholder!);
+                }
+            }
         });
     }
 
@@ -57,13 +69,24 @@ public sealed class MasterCommands : IMasterCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var placeholder = FindPlaceholder(ctx, PowerPoint.PpPlaceholderType.ppPlaceholderTitle);
-            if (placeholder is null)
+            dynamic? placeholder = null;
+            try
             {
-                return NotFound("title");
-            }
+                placeholder = FindPlaceholder(ctx, PowerPoint.PpPlaceholderType.ppPlaceholderTitle);
+                if (placeholder is null)
+                {
+                    return NotFound("title");
+                }
 
-            return ApplyFont(placeholder, fontName, fontSize, bold, red, green, blue);
+                return ApplyFont(placeholder, fontName, fontSize, bold, red, green, blue);
+            }
+            finally
+            {
+                if (placeholder != null)
+                {
+                    ComUtilities.Release(ref placeholder!);
+                }
+            }
         });
     }
 
@@ -74,13 +97,24 @@ public sealed class MasterCommands : IMasterCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var placeholder = FindPlaceholder(ctx, PowerPoint.PpPlaceholderType.ppPlaceholderBody);
-            if (placeholder is null)
+            dynamic? placeholder = null;
+            try
             {
-                return NotFound("body");
-            }
+                placeholder = FindPlaceholder(ctx, PowerPoint.PpPlaceholderType.ppPlaceholderBody);
+                if (placeholder is null)
+                {
+                    return NotFound("body");
+                }
 
-            return ReadFont(placeholder);
+                return ReadFont(placeholder);
+            }
+            finally
+            {
+                if (placeholder != null)
+                {
+                    ComUtilities.Release(ref placeholder!);
+                }
+            }
         });
     }
 
@@ -98,13 +132,24 @@ public sealed class MasterCommands : IMasterCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var placeholder = FindPlaceholder(ctx, PowerPoint.PpPlaceholderType.ppPlaceholderBody);
-            if (placeholder is null)
+            dynamic? placeholder = null;
+            try
             {
-                return NotFound("body");
-            }
+                placeholder = FindPlaceholder(ctx, PowerPoint.PpPlaceholderType.ppPlaceholderBody);
+                if (placeholder is null)
+                {
+                    return NotFound("body");
+                }
 
-            return ApplyFont(placeholder, fontName, fontSize, bold, red, green, blue);
+                return ApplyFont(placeholder, fontName, fontSize, bold, red, green, blue);
+            }
+            finally
+            {
+                if (placeholder != null)
+                {
+                    ComUtilities.Release(ref placeholder!);
+                }
+            }
         });
     }
 
@@ -115,10 +160,21 @@ public sealed class MasterCommands : IMasterCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic master = ctx.Presentation.SlideMaster;
-            int rgb = (int)master.Background.Fill.ForeColor.RGB;
+            dynamic? master = null;
+            try
+            {
+                master = ctx.Presentation.SlideMaster;
+                int rgb = (int)master.Background.Fill.ForeColor.RGB;
 
-            return new MasterOperationResult { Success = true, ColorRgb = rgb };
+                return new MasterOperationResult { Success = true, ColorRgb = rgb };
+            }
+            finally
+            {
+                if (master != null)
+                {
+                    ComUtilities.Release(ref master!);
+                }
+            }
         });
     }
 
@@ -133,11 +189,22 @@ public sealed class MasterCommands : IMasterCommands
             // function), not the more common 0x00RRGGBB.
             int rgb = red + (green << 8) + (blue << 16);
 
-            dynamic master = ctx.Presentation.SlideMaster;
-            master.Background.Fill.Solid();
-            master.Background.Fill.ForeColor.RGB = rgb;
+            dynamic? master = null;
+            try
+            {
+                master = ctx.Presentation.SlideMaster;
+                master.Background.Fill.Solid();
+                master.Background.Fill.ForeColor.RGB = rgb;
 
-            return new MasterOperationResult { Success = true, ColorRgb = rgb };
+                return new MasterOperationResult { Success = true, ColorRgb = rgb };
+            }
+            finally
+            {
+                if (master != null)
+                {
+                    ComUtilities.Release(ref master!);
+                }
+            }
         });
     }
 
@@ -165,21 +232,32 @@ public sealed class MasterCommands : IMasterCommands
             int rgb1 = red1 + (green1 << 8) + (blue1 << 16);
             int rgb2 = red2 + (green2 << 8) + (blue2 << 16);
 
-            dynamic master = ctx.Presentation.SlideMaster;
-            // TwoColorGradient() must be called BEFORE setting ForeColor/BackColor — it resets
-            // both colors to PowerPoint's defaults as a side effect (verified via diagnostic spike).
-            master.Background.Fill.TwoColorGradient(styleValue, gradientVariant);
-            master.Background.Fill.ForeColor.RGB = rgb1;
-            master.Background.Fill.BackColor.RGB = rgb2;
-
-            return new MasterOperationResult
+            dynamic? master = null;
+            try
             {
-                Success = true,
-                ColorRgb = rgb1,
-                ColorRgb2 = rgb2,
-                GradientStyleName = gradientStyle,
-                GradientVariant = gradientVariant
-            };
+                master = ctx.Presentation.SlideMaster;
+                // TwoColorGradient() must be called BEFORE setting ForeColor/BackColor — it resets
+                // both colors to PowerPoint's defaults as a side effect (verified via diagnostic spike).
+                master.Background.Fill.TwoColorGradient(styleValue, gradientVariant);
+                master.Background.Fill.ForeColor.RGB = rgb1;
+                master.Background.Fill.BackColor.RGB = rgb2;
+
+                return new MasterOperationResult
+                {
+                    Success = true,
+                    ColorRgb = rgb1,
+                    ColorRgb2 = rgb2,
+                    GradientStyleName = gradientStyle,
+                    GradientVariant = gradientVariant
+                };
+            }
+            finally
+            {
+                if (master != null)
+                {
+                    ComUtilities.Release(ref master!);
+                }
+            }
         });
     }
 
@@ -190,32 +268,43 @@ public sealed class MasterCommands : IMasterCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic master = ctx.Presentation.SlideMaster;
-            int fillType = (int)master.Background.Fill.Type;
-            const int MsoFillGradient = 3;
-            if (fillType != MsoFillGradient)
+            dynamic? master = null;
+            try
             {
+                master = ctx.Presentation.SlideMaster;
+                int fillType = (int)master.Background.Fill.Type;
+                const int MsoFillGradient = 3;
+                if (fillType != MsoFillGradient)
+                {
+                    return new MasterOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"The slide master's background fill is not a gradient (fill type = {fillType})."
+                    };
+                }
+
+                int rgb1 = (int)master.Background.Fill.ForeColor.RGB;
+                int rgb2 = (int)master.Background.Fill.BackColor.RGB;
+                int styleValue = (int)master.Background.Fill.GradientStyle;
+                int variant = (int)master.Background.Fill.GradientVariant;
+                string? styleName = GradientStylesByValue.GetValueOrDefault(styleValue);
+
                 return new MasterOperationResult
                 {
-                    Success = false,
-                    ErrorMessage = $"The slide master's background fill is not a gradient (fill type = {fillType})."
+                    Success = true,
+                    ColorRgb = rgb1,
+                    ColorRgb2 = rgb2,
+                    GradientStyleName = styleName,
+                    GradientVariant = variant
                 };
             }
-
-            int rgb1 = (int)master.Background.Fill.ForeColor.RGB;
-            int rgb2 = (int)master.Background.Fill.BackColor.RGB;
-            int styleValue = (int)master.Background.Fill.GradientStyle;
-            int variant = (int)master.Background.Fill.GradientVariant;
-            string? styleName = GradientStylesByValue.GetValueOrDefault(styleValue);
-
-            return new MasterOperationResult
+            finally
             {
-                Success = true,
-                ColorRgb = rgb1,
-                ColorRgb2 = rgb2,
-                GradientStyleName = styleName,
-                GradientVariant = variant
-            };
+                if (master != null)
+                {
+                    ComUtilities.Release(ref master!);
+                }
+            }
         });
     }
 
@@ -228,26 +317,50 @@ public sealed class MasterCommands : IMasterCommands
     /// </summary>
     private static dynamic? FindPlaceholder(PresentationContext ctx, PowerPoint.PpPlaceholderType type)
     {
-        dynamic master = ctx.Presentation.SlideMaster;
-        int shapeCount = (int)master.Shapes.Count;
-
-        for (int i = 1; i <= shapeCount; i++)
+        dynamic? master = null;
+        try
         {
-            dynamic shape = master.Shapes[i];
-            bool hasPlaceholder = (int)shape.Type == 14 /* msoPlaceholder */;
-            if (!hasPlaceholder)
+            master = ctx.Presentation.SlideMaster;
+            int shapeCount = (int)master.Shapes.Count;
+
+            for (int i = 1; i <= shapeCount; i++)
             {
-                continue;
+                dynamic? shape = null;
+                try
+                {
+                    shape = master.Shapes[i];
+                    bool hasPlaceholder = (int)shape.Type == 14 /* msoPlaceholder */;
+                    if (!hasPlaceholder)
+                    {
+                        continue;
+                    }
+
+                    var placeholderType = (PowerPoint.PpPlaceholderType)shape.PlaceholderFormat.Type;
+                    if (placeholderType == type)
+                    {
+                        dynamic matchedShape = shape;
+                        shape = null;
+                        return matchedShape;
+                    }
+                }
+                finally
+                {
+                    if (shape != null)
+                    {
+                        ComUtilities.Release(ref shape!);
+                    }
+                }
             }
 
-            var placeholderType = (PowerPoint.PpPlaceholderType)shape.PlaceholderFormat.Type;
-            if (placeholderType == type)
+            return null;
+        }
+        finally
+        {
+            if (master != null)
             {
-                return shape;
+                ComUtilities.Release(ref master!);
             }
         }
-
-        return null;
     }
 
     private static MasterOperationResult ReadFont(dynamic placeholder)

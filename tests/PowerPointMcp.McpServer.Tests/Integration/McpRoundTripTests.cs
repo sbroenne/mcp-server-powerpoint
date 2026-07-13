@@ -103,8 +103,8 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
     [Fact]
     public async Task CreatePresentation_ViaMcpProtocol_WritesRealPptxFile()
     {
-        var result = await CallToolAsync("create_presentation", new Dictionary<string, object?>
-        {
+        var result = await CallToolAsync("presentation", new Dictionary<string, object?>
+        { ["action"] = "create",
             ["filePath"] = _testPresentationFile
         });
 
@@ -116,8 +116,8 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         Assert.False(string.IsNullOrEmpty(sessionId), $"Expected create_presentation to return an open sessionId: {result}");
 
         // create-and-keep-open: close the returned session so no PowerPoint instance leaks.
-        var closeResult = await CallToolAsync("close_presentation", new Dictionary<string, object?>
-        {
+        var closeResult = await CallToolAsync("presentation", new Dictionary<string, object?>
+        { ["action"] = "close",
             ["sessionId"] = sessionId
         });
         AssertSuccess(closeResult, "close_presentation");
@@ -133,8 +133,8 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
     public async Task FullSessionLifecycle_ViaMcpProtocol_OpenListSaveClose()
     {
         // 1. create_presentation returns an OPEN session (create-and-keep-open) → sessionId.
-        var createResult = await CallToolAsync("create_presentation", new Dictionary<string, object?>
-        {
+        var createResult = await CallToolAsync("presentation", new Dictionary<string, object?>
+        { ["action"] = "create",
             ["filePath"] = _testPresentationFile
         });
         AssertSuccess(createResult, "create_presentation");
@@ -144,7 +144,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         _output.WriteLine($"✓ Step 1: create_presentation returned open sessionId={sessionId}");
 
         // 2. list_sessions shows the open session.
-        var listResult = await CallToolAsync("list_sessions", new Dictionary<string, object?>());
+        var listResult = await CallToolAsync("presentation", new() { ["action"] = "list" });
         AssertSuccess(listResult, "list_sessions");
         using (var listJson = JsonDocument.Parse(listResult))
         {
@@ -156,16 +156,16 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         _output.WriteLine("✓ Step 2: list_sessions shows the open session");
 
         // 3. save_presentation.
-        var saveResult = await CallToolAsync("save_presentation", new Dictionary<string, object?>
-        {
+        var saveResult = await CallToolAsync("presentation", new Dictionary<string, object?>
+        { ["action"] = "save",
             ["sessionId"] = sessionId
         });
         AssertSuccess(saveResult, "save_presentation");
         _output.WriteLine("✓ Step 3: save_presentation succeeded");
 
         // 4. close_presentation — releases the PowerPoint process for this session.
-        var closeResult = await CallToolAsync("close_presentation", new Dictionary<string, object?>
-        {
+        var closeResult = await CallToolAsync("presentation", new Dictionary<string, object?>
+        { ["action"] = "close",
             ["sessionId"] = sessionId
         });
         AssertSuccess(closeResult, "close_presentation");
@@ -176,7 +176,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         _output.WriteLine("✓ Step 4: close_presentation succeeded");
 
         // 5. list_sessions no longer shows the closed session.
-        var listAfterCloseResult = await CallToolAsync("list_sessions", new Dictionary<string, object?>());
+        var listAfterCloseResult = await CallToolAsync("presentation", new() { ["action"] = "list" });
         AssertSuccess(listAfterCloseResult, "list_sessions (after close)");
         using (var listJson = JsonDocument.Parse(listAfterCloseResult))
         {

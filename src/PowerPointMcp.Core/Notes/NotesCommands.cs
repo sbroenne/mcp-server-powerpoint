@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 
 namespace Sbroenne.PowerPointMcp.Core.Notes;
@@ -16,10 +17,21 @@ public sealed class NotesCommands : INotesCommands
             var validation = ValidateSlideIndex(ctx, slideIndex);
             if (validation is not null) return validation;
 
-            dynamic notesTextShape = FindNotesTextShape(ctx, slideIndex);
-            notesTextShape.TextFrame.TextRange.Text = text;
+            dynamic? notesTextShape = null;
+            try
+            {
+                notesTextShape = FindNotesTextShape(ctx, slideIndex);
+                notesTextShape.TextFrame.TextRange.Text = text;
 
-            return new NotesOperationResult { Success = true, NotesText = text };
+                return new NotesOperationResult { Success = true, NotesText = text };
+            }
+            finally
+            {
+                if (notesTextShape != null)
+                {
+                    ComUtilities.Release(ref notesTextShape!);
+                }
+            }
         });
     }
 
@@ -33,10 +45,21 @@ public sealed class NotesCommands : INotesCommands
             var validation = ValidateSlideIndex(ctx, slideIndex);
             if (validation is not null) return validation;
 
-            dynamic notesTextShape = FindNotesTextShape(ctx, slideIndex);
-            string text = (string)notesTextShape.TextFrame.TextRange.Text;
+            dynamic? notesTextShape = null;
+            try
+            {
+                notesTextShape = FindNotesTextShape(ctx, slideIndex);
+                string text = (string)notesTextShape.TextFrame.TextRange.Text;
 
-            return new NotesOperationResult { Success = true, NotesText = text };
+                return new NotesOperationResult { Success = true, NotesText = text };
+            }
+            finally
+            {
+                if (notesTextShape != null)
+                {
+                    ComUtilities.Release(ref notesTextShape!);
+                }
+            }
         });
     }
 
@@ -52,25 +75,55 @@ public sealed class NotesCommands : INotesCommands
     /// </remarks>
     private static dynamic FindNotesTextShape(PresentationContext ctx, int slideIndex)
     {
-        dynamic notesPage = ctx.Presentation.Slides[slideIndex].NotesPage;
-        dynamic shapes = notesPage.Shapes;
-        int count = (int)shapes.Count;
-
-        for (int i = 1; i <= count; i++)
+        dynamic? notesPage = null;
+        dynamic? shapes = null;
+        try
         {
-            dynamic shape = shapes[i];
-            bool isPlaceholder = (int)shape.Type == 14; // msoPlaceholder
-            if (!isPlaceholder) continue;
+            notesPage = ctx.Presentation.Slides[slideIndex].NotesPage;
+            shapes = notesPage.Shapes;
+            int count = (int)shapes.Count;
 
-            int placeholderType = (int)shape.PlaceholderFormat.Type;
-            if (placeholderType == 2) // PpPlaceholderType.ppPlaceholderBody
+            for (int i = 1; i <= count; i++)
             {
-                return shape;
+                dynamic? shape = null;
+                try
+                {
+                    shape = shapes[i];
+                    bool isPlaceholder = (int)shape.Type == 14; // msoPlaceholder
+                    if (!isPlaceholder) continue;
+
+                    int placeholderType = (int)shape.PlaceholderFormat.Type;
+                    if (placeholderType == 2) // PpPlaceholderType.ppPlaceholderBody
+                    {
+                        dynamic matchedShape = shape;
+                        shape = null;
+                        return matchedShape;
+                    }
+                }
+                finally
+                {
+                    if (shape != null)
+                    {
+                        ComUtilities.Release(ref shape!);
+                    }
+                }
+            }
+
+            throw new InvalidOperationException(
+                $"Could not find the notes body text placeholder on slide {slideIndex}'s notes page.");
+        }
+        finally
+        {
+            if (shapes != null)
+            {
+                ComUtilities.Release(ref shapes!);
+            }
+
+            if (notesPage != null)
+            {
+                ComUtilities.Release(ref notesPage!);
             }
         }
-
-        throw new InvalidOperationException(
-            $"Could not find the notes body text placeholder on slide {slideIndex}'s notes page.");
     }
 
     private static NotesOperationResult? ValidateSlideIndex(PresentationContext ctx, int slideIndex)

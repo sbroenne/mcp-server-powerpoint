@@ -27,22 +27,20 @@ they cost tokens for no benefit.
 Most of the MCP tool surface is **generated**, not hand-written. Before editing anything under
 `Tools/`, know which kind you're touching:
 
-- **Hand-written** (`PresentationTools.cs` only): `create_presentation`, `open_presentation`,
-  `save_presentation`, `close_presentation`, `list_sessions`, `apply_template`, `get_theme_name` —
-  session lifecycle and template application don't fit the per-session action-dispatch shape, so
-  they stay hand-written following the pattern below.
+- **Hand-written** (`PresentationTools.cs` only): the single `presentation` MCP tool. It is
+  action-dispatch like Excel's file tool, but stays hand-written because create/open/list/close
+  need custom session-registry behavior and optional `sessionId`.
 - **Generated** (everything else — `slide`, `shape`, `textframe`, `table`, `notes`, `layout`,
-  `master`, `animation`, `image`, `chart`, `export`): one action-dispatch tool per
+  `master`, `animation`, `image`, `chart`, `smartart`, `export`): one action-dispatch tool per
   `[ServiceCategory]` Core domain, emitted by `PowerPointMcp.Generators.Mcp` from the Core
   interface's `[ServiceCategory]`/`[McpTool]` attributes and XML doc comments. **Never hand-write a
   new tool class for one of these domains** — add the operation to the Core interface (with XML
   docs) and the generator picks it up. See `architecture-patterns.instructions.md`'s Command
   Pattern section for the Core-side attribute shape.
 
-The rest of this guide (verb-per-tool pattern, manual `SerializeResult`, etc.) applies to the
-hand-written `PresentationTools.cs` tools only.
+The rest of this guide applies to the hand-written `presentation` tool only.
 
-## Implementation Pattern: One Verb Per Tool (Hand-Written Tools Only)
+## Implementation Pattern: Single Hand-Written Dispatch Tool
 
 ```csharp
 [McpServerToolType]
@@ -50,25 +48,28 @@ public static class PresentationTools
 {
     private static readonly PresentationCommands Commands = new();
 
-    [McpServerTool(Name = "create_presentation")]
-    [Description("Create a new, blank presentation and save it to disk.")]
-    public static string CreatePresentation(
-        [Description("Path to save the new presentation to.")] string filePath)
-        => PowerPointToolsBase.ExecuteToolAction("create_presentation", () =>
+    [McpServerTool(Name = "presentation")]
+    [Description("Presentation lifecycle, template, and document-property operations.")]
+    public static string Presentation(
+        PresentationToolAction action,
+        string? filePath = null,
+        string? sessionId = null,
+        PresentationSessionRegistry? registry = null)
+        => PowerPointToolsBase.ExecuteToolAction("presentation", action.ToActionString(), () =>
         {
-            return SerializeResult(Commands.Create(filePath));
+            return action switch
+            {
+                PresentationToolAction.Create => HandleCreate(filePath, false, registry!),
+                PresentationToolAction.Open => HandleOpen(filePath, registry!),
+                _ => PowerPointToolsBase.ValidationError($"Unknown action: {action}")
+            };
         });
-
-    private static string SerializeResult(PresentationOperationResult result) => /* ... */;
 }
 ```
 
-Every hand-written tool class follows this shape: a
-`private static readonly {Domain}Commands Commands = new();` field, one `[McpServerTool]` method
-per verb wrapped in `PowerPointToolsBase.ExecuteToolAction`, and a shared `SerializeResult` helper
-for the domain's `{Domain}OperationResult` shape. Keep new hand-written tools consistent with this
-pattern rather than inventing a new one — but remember: this only applies to
-`PresentationTools.cs`. A new Shape/Chart/etc. operation goes into Core, not here.
+`PresentationTools.cs` is a single hand-written dispatch tool, not one method-per-verb. Keep new
+presentation-lifecycle/template/property work inside that switch. A new Shape/Chart/etc.
+operation still goes into Core, not here.
 
 ## Error Handling (MANDATORY)
 
@@ -142,8 +143,8 @@ Image, Chart, Export) — the common case:**
    COM per `testing-strategy.instructions.md`), with an XML doc `<summary>` — the generator uses
    it as the operation's description.
 2. Nothing else to write by hand — `PowerPointMcp.Generators.Mcp` picks up the new interface
-   method automatically and adds it as a new `operation` value on that domain's action-dispatch
-   tool (e.g. `shape.add-oval`) the next time the project builds.
+   method automatically and adds it as a new `action` value on that domain's action-dispatch
+   tool (e.g. `shape(action: "add-oval", ...)`) the next time the project builds.
 3. Verify the new operation appears correctly in `tools/list`'s schema (protocol test in
    `tests/PowerPointMcp.McpServer.Tests`) and that `PowerPointMcp.Generators.Cli` emitted the
    matching `pptcli {category} {action}` command.
@@ -152,8 +153,7 @@ Image, Chart, Export) — the common case:**
 
 **For a hand-written tool (`PresentationTools.cs` only) — rare, session-lifecycle/template work:**
 1. Add the Core command first, same as above.
-2. Add the `[McpServerTool(Name = "snake_case_name")]` method to `PresentationTools.cs`, following
-   the pattern above.
-3. Verify the new tool appears correctly in `tools/list` with the expected parameter schema and no
+2. Add the new enum value + switch arm to `PresentationTools.cs`, following the pattern above.
+3. Verify the `presentation` tool appears correctly in `tools/list` with the expected action and no
    leaked `registry` parameter.
 4. Update `skills/shared/*.md` as above.

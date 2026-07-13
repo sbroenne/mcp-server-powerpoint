@@ -18,7 +18,7 @@ session without this step when the task involves visual output.
 2. export(action: "export-slide-to-image", session_id: ..., slide_index: ..., output_path: ...)  ← REQUIRED — never skip
 3. Inspect the returned image for overlap, overflow, or wrong placement
 4. If issues found → fix → export again → repeat until it looks right
-5. save_presentation(sessionId)
+5. presentation(action: "save", sessionId: ...)
 ```
 
 This rule applies even if the operation reported `success: true` — a successful COM call only
@@ -74,6 +74,7 @@ normal, not a sign something went wrong the first time.
 
 ## After the Full Deck
 
-Before the final `save_presentation` + `close_presentation`, run `export(action:
+Before the final `presentation(action: "save", sessionId: ...)` +
+`presentation(action: "close", sessionId: ...)`, run `export(action:
 "export-all-slides-to-images", ...)` once as a final pass over the whole deck, confirming no slide
 was missed and the deck reads coherently start to finish.

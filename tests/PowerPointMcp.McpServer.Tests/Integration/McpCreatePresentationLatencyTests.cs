@@ -113,8 +113,8 @@ public sealed class McpCreatePresentationLatencyTests : IAsyncLifetime, IAsyncDi
 
         var createResult = await McpToolCallHelper.CallToolAsync(
             _client!,
-            "create_presentation",
-            new Dictionary<string, object?> { ["filePath"] = _testPresentationFile },
+            "presentation",
+            new Dictionary<string, object?> { ["action"] = "create", ["filePath"] = _testPresentationFile },
             _cts.Token);
 
         stopwatch.Stop();
@@ -138,8 +138,8 @@ public sealed class McpCreatePresentationLatencyTests : IAsyncLifetime, IAsyncDi
         // the actual PowerPoint shutdown happens after this test returns, during host teardown.
         var closeResult = await McpToolCallHelper.CallToolAsync(
             _client!,
-            "close_presentation",
-            new Dictionary<string, object?> { ["sessionId"] = sessionId },
+            "presentation",
+            new Dictionary<string, object?> { ["action"] = "close", ["sessionId"] = sessionId },
             _cts.Token);
         McpToolCallHelper.AssertSuccess(closeResult, "close_presentation");
         _output.WriteLine("✓ close_presentation succeeded (background dispose started)");

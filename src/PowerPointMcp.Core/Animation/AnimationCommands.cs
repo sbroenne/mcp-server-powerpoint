@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 
 namespace Sbroenne.PowerPointMcp.Core.Animation;
@@ -112,47 +113,61 @@ public sealed class AnimationCommands : IAnimationCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            if (!AnimEffects.TryGetValue(effectName, out var effectValue))
+            dynamic? slide = null;
+            dynamic? shape = null;
+            dynamic? sequence = null;
+            dynamic? effect = null;
+            try
             {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                if (!AnimEffects.TryGetValue(effectName, out var effectValue))
+                {
+                    return new AnimationOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"'{effectName}' is not a recognized MsoAnimEffect name (e.g. 'msoAnimEffectFade', 'msoAnimEffectFly', 'msoAnimEffectZoom')."
+                    };
+                }
+
+                if (!TriggerTypes.TryGetValue(trigger, out var triggerValue))
+                {
+                    return new AnimationOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"'{trigger}' is not a recognized trigger (must be 'on-click', 'with-previous', or 'after-previous')."
+                    };
+                }
+
+                shape = slide.Shapes[shapeIndex];
+                sequence = slide.TimeLine.MainSequence;
+                effect = sequence.AddEffect(shape, effectValue);
+                effect.Exit = isExit ? MsoTrue : MsoFalse;
+                effect.Timing.TriggerType = triggerValue;
+
+                // Same NoPIA late-binding quirk documented in ShapeCommands — the newly-added effect
+                // is always appended, so its 1-based index is simply the new sequence Count.
+                int newIndex = (int)sequence.Count;
+
                 return new AnimationOperationResult
                 {
-                    Success = false,
-                    ErrorMessage = $"'{effectName}' is not a recognized MsoAnimEffect name (e.g. 'msoAnimEffectFade', 'msoAnimEffectFly', 'msoAnimEffectZoom')."
+                    Success = true,
+                    EffectIndex = newIndex,
+                    EffectCount = (int)sequence.Count,
+                    EffectName = effectName,
+                    IsExit = isExit,
+                    Trigger = trigger
                 };
             }
-
-            if (!TriggerTypes.TryGetValue(trigger, out var triggerValue))
+            finally
             {
-                return new AnimationOperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"'{trigger}' is not a recognized trigger (must be 'on-click', 'with-previous', or 'after-previous')."
-                };
+                if (effect != null) ComUtilities.Release(ref effect);
+                if (sequence != null) ComUtilities.Release(ref sequence);
+                if (shape != null) ComUtilities.Release(ref shape);
+                if (slide != null) ComUtilities.Release(ref slide);
             }
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic sequence = slide.TimeLine.MainSequence;
-            dynamic effect = sequence.AddEffect(shape, effectValue);
-            effect.Exit = isExit ? MsoTrue : MsoFalse;
-            effect.Timing.TriggerType = triggerValue;
-
-            // Same NoPIA late-binding quirk documented in ShapeCommands — the newly-added effect
-            // is always appended, so its 1-based index is simply the new sequence Count.
-            int newIndex = (int)sequence.Count;
-
-            return new AnimationOperationResult
-            {
-                Success = true,
-                EffectIndex = newIndex,
-                EffectCount = (int)sequence.Count,
-                EffectName = effectName,
-                IsExit = isExit,
-                Trigger = trigger
-            };
         });
     }
 
@@ -166,10 +181,20 @@ public sealed class AnimationCommands : IAnimationCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            dynamic sequence = slide.TimeLine.MainSequence;
+            dynamic? slide = null;
+            dynamic? sequence = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                sequence = slide.TimeLine.MainSequence;
 
-            return new AnimationOperationResult { Success = true, EffectCount = (int)sequence.Count };
+                return new AnimationOperationResult { Success = true, EffectCount = (int)sequence.Count };
+            }
+            finally
+            {
+                if (sequence != null) ComUtilities.Release(ref sequence);
+                if (slide != null) ComUtilities.Release(ref slide);
+            }
         });
     }
 
@@ -183,28 +208,40 @@ public sealed class AnimationCommands : IAnimationCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            dynamic sequence = slide.TimeLine.MainSequence;
-            int effectCount = (int)sequence.Count;
-
-            if (effectIndex < 1 || effectIndex > effectCount)
+            dynamic? slide = null;
+            dynamic? sequence = null;
+            dynamic? effect = null;
+            try
             {
+                slide = ctx.Presentation.Slides[slideIndex];
+                sequence = slide.TimeLine.MainSequence;
+                int effectCount = (int)sequence.Count;
+
+                if (effectIndex < 1 || effectIndex > effectCount)
+                {
+                    return new AnimationOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Effect index {effectIndex} is out of range. The slide has {effectCount} effect(s) (valid range: 1-{effectCount})."
+                    };
+                }
+
+                effect = sequence[effectIndex];
+                effect.Delete();
+
                 return new AnimationOperationResult
                 {
-                    Success = false,
-                    ErrorMessage = $"Effect index {effectIndex} is out of range. The slide has {effectCount} effect(s) (valid range: 1-{effectCount})."
+                    Success = true,
+                    EffectIndex = effectIndex,
+                    EffectCount = (int)sequence.Count
                 };
             }
-
-            dynamic effect = sequence[effectIndex];
-            effect.Delete();
-
-            return new AnimationOperationResult
+            finally
             {
-                Success = true,
-                EffectIndex = effectIndex,
-                EffectCount = (int)sequence.Count
-            };
+                if (effect != null) ComUtilities.Release(ref effect);
+                if (sequence != null) ComUtilities.Release(ref sequence);
+                if (slide != null) ComUtilities.Release(ref slide);
+            }
         });
     }
 
@@ -218,8 +255,16 @@ public sealed class AnimationCommands : IAnimationCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            return ReadTransition(slide);
+            dynamic? slide = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                return ReadTransition(slide);
+            }
+            finally
+            {
+                if (slide != null) ComUtilities.Release(ref slide);
+            }
         });
     }
 
@@ -250,51 +295,69 @@ public sealed class AnimationCommands : IAnimationCommands
                 };
             }
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            dynamic transition = slide.SlideShowTransition;
-            transition.EntryEffect = transitionValue;
-
-            if (durationSeconds is not null)
+            dynamic? slide = null;
+            dynamic? transition = null;
+            try
             {
-                transition.Duration = durationSeconds.Value;
-            }
+                slide = ctx.Presentation.Slides[slideIndex];
+                transition = slide.SlideShowTransition;
+                transition.EntryEffect = transitionValue;
 
-            if (advanceOnClick is not null)
+                if (durationSeconds is not null)
+                {
+                    transition.Duration = durationSeconds.Value;
+                }
+
+                if (advanceOnClick is not null)
+                {
+                    transition.AdvanceOnClick = advanceOnClick.Value ? MsoTrue : MsoFalse;
+                }
+
+                if (advanceOnTime is not null)
+                {
+                    transition.AdvanceOnTime = advanceOnTime.Value ? MsoTrue : MsoFalse;
+                }
+
+                if (advanceTimeSeconds is not null)
+                {
+                    transition.AdvanceTime = advanceTimeSeconds.Value;
+                }
+
+                return ReadTransition(slide);
+            }
+            finally
             {
-                transition.AdvanceOnClick = advanceOnClick.Value ? MsoTrue : MsoFalse;
+                if (transition != null) ComUtilities.Release(ref transition);
+                if (slide != null) ComUtilities.Release(ref slide);
             }
-
-            if (advanceOnTime is not null)
-            {
-                transition.AdvanceOnTime = advanceOnTime.Value ? MsoTrue : MsoFalse;
-            }
-
-            if (advanceTimeSeconds is not null)
-            {
-                transition.AdvanceTime = advanceTimeSeconds.Value;
-            }
-
-            return ReadTransition(slide);
         });
     }
 
     private static AnimationOperationResult ReadTransition(dynamic slide)
     {
-        dynamic transition = slide.SlideShowTransition;
-        int entryEffectValue = (int)transition.EntryEffect;
-        string transitionName = EntryEffectsByValue.TryGetValue(entryEffectValue, out var name)
-            ? name
-            : $"unknown ({entryEffectValue})";
-
-        return new AnimationOperationResult
+        dynamic? transition = null;
+        try
         {
-            Success = true,
-            TransitionName = transitionName,
-            DurationSeconds = (float)transition.Duration,
-            AdvanceOnClick = (int)transition.AdvanceOnClick == MsoTrue,
-            AdvanceOnTime = (int)transition.AdvanceOnTime == MsoTrue,
-            AdvanceTimeSeconds = (float)transition.AdvanceTime
-        };
+            transition = slide.SlideShowTransition;
+            int entryEffectValue = (int)transition.EntryEffect;
+            string transitionName = EntryEffectsByValue.TryGetValue(entryEffectValue, out var name)
+                ? name
+                : $"unknown ({entryEffectValue})";
+
+            return new AnimationOperationResult
+            {
+                Success = true,
+                TransitionName = transitionName,
+                DurationSeconds = (float)transition.Duration,
+                AdvanceOnClick = (int)transition.AdvanceOnClick == MsoTrue,
+                AdvanceOnTime = (int)transition.AdvanceOnTime == MsoTrue,
+                AdvanceTimeSeconds = (float)transition.AdvanceTime
+            };
+        }
+        finally
+        {
+            if (transition != null) ComUtilities.Release(ref transition);
+        }
     }
 
     private static AnimationOperationResult? ValidateSlideIndex(int slideCount, int slideIndex)

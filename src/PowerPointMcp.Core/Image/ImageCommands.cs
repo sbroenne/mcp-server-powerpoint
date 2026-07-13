@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 
 namespace Sbroenne.PowerPointMcp.Core.Image;
@@ -57,16 +58,27 @@ public sealed class ImageCommands : IImageCommands
             // typed, so called late-bound via dynamic with the raw int constants, same pattern
             // as elsewhere in this project. LinkToFile=False, SaveWithDocument=True embeds the
             // image directly in the .pptx rather than linking to the external file.
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            slide.Shapes.AddPicture(fullImagePath, MsoFalse, MsoTrue, left, top, width, height);
-            int newIndex = (int)slide.Shapes.Count; // always appended
-
-            return new ImageOperationResult
+            dynamic? slide = null;
+            try
             {
-                Success = true,
-                ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                slide.Shapes.AddPicture(fullImagePath, MsoFalse, MsoTrue, left, top, width, height);
+                int newIndex = (int)slide.Shapes.Count; // always appended
+
+                return new ImageOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = (int)slide.Shapes.Count
+                };
+            }
+            finally
+            {
+                if (slide != null)
+                {
+                    ComUtilities.Release(ref slide!);
+                }
+            }
         });
     }
 
@@ -84,18 +96,35 @@ public sealed class ImageCommands : IImageCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic pictureFormat = shape.PictureFormat;
-            pictureFormat.Brightness = brightness;
-            pictureFormat.Contrast = contrast;
-
-            return new ImageOperationResult
+            dynamic? shape = null;
+            dynamic? pictureFormat = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Brightness = brightness,
-                Contrast = contrast,
-            };
+                shape = slide.Shapes[shapeIndex];
+                pictureFormat = shape.PictureFormat;
+                pictureFormat.Brightness = brightness;
+                pictureFormat.Contrast = contrast;
+
+                return new ImageOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Brightness = brightness,
+                    Contrast = contrast,
+                };
+            }
+            finally
+            {
+                if (pictureFormat != null)
+                {
+                    ComUtilities.Release(ref pictureFormat!);
+                }
+
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -113,16 +142,33 @@ public sealed class ImageCommands : IImageCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic pictureFormat = shape.PictureFormat;
-
-            return new ImageOperationResult
+            dynamic? shape = null;
+            dynamic? pictureFormat = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Brightness = (float)pictureFormat.Brightness,
-                Contrast = (float)pictureFormat.Contrast,
-            };
+                shape = slide.Shapes[shapeIndex];
+                pictureFormat = shape.PictureFormat;
+
+                return new ImageOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Brightness = (float)pictureFormat.Brightness,
+                    Contrast = (float)pictureFormat.Contrast,
+                };
+            }
+            finally
+            {
+                if (pictureFormat != null)
+                {
+                    ComUtilities.Release(ref pictureFormat!);
+                }
+
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -150,16 +196,33 @@ public sealed class ImageCommands : IImageCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic pictureFormat = shape.PictureFormat;
-            pictureFormat.ColorType = typeValue;
-
-            return new ImageOperationResult
+            dynamic? shape = null;
+            dynamic? pictureFormat = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                ColorTypeName = colorType,
-            };
+                shape = slide.Shapes[shapeIndex];
+                pictureFormat = shape.PictureFormat;
+                pictureFormat.ColorType = typeValue;
+
+                return new ImageOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    ColorTypeName = colorType,
+                };
+            }
+            finally
+            {
+                if (pictureFormat != null)
+                {
+                    ComUtilities.Release(ref pictureFormat!);
+                }
+
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -177,17 +240,34 @@ public sealed class ImageCommands : IImageCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic pictureFormat = shape.PictureFormat;
-            int typeValue = (int)pictureFormat.ColorType;
-            string typeName = PictureColorTypesByValue.TryGetValue(typeValue, out var name) ? name : $"unknown({typeValue})";
-
-            return new ImageOperationResult
+            dynamic? shape = null;
+            dynamic? pictureFormat = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                ColorTypeName = typeName,
-            };
+                shape = slide.Shapes[shapeIndex];
+                pictureFormat = shape.PictureFormat;
+                int typeValue = (int)pictureFormat.ColorType;
+                string typeName = PictureColorTypesByValue.TryGetValue(typeValue, out var name) ? name : $"unknown({typeValue})";
+
+                return new ImageOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    ColorTypeName = typeName,
+                };
+            }
+            finally
+            {
+                if (pictureFormat != null)
+                {
+                    ComUtilities.Release(ref pictureFormat!);
+                }
+
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 

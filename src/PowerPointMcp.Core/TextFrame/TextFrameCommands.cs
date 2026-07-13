@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using System.Linq;
 
@@ -54,10 +55,18 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            shape.TextFrame.TextRange.Text = text;
+            dynamic? shape = null;
+            try
+            {
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                shape.TextFrame.TextRange.Text = text;
 
-            return new TextFrameOperationResult { Success = true, Text = text };
+                return new TextFrameOperationResult { Success = true, Text = text };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -71,10 +80,18 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            string text = (string)shape.TextFrame.TextRange.Text;
+            dynamic? shape = null;
+            try
+            {
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                string text = (string)shape.TextFrame.TextRange.Text;
 
-            return new TextFrameOperationResult { Success = true, Text = text };
+                return new TextFrameOperationResult { Success = true, Text = text };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -88,10 +105,18 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            shape.TextFrame.TextRange.Font.Size = fontSize;
+            dynamic? shape = null;
+            try
+            {
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                shape.TextFrame.TextRange.Font.Size = fontSize;
 
-            return new TextFrameOperationResult { Success = true, FontSize = fontSize };
+                return new TextFrameOperationResult { Success = true, FontSize = fontSize };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -107,10 +132,18 @@ public sealed class TextFrameCommands : ITextFrameCommands
 
             // Font.Bold is typed as Microsoft.Office.Core.MsoTriState (office.dll) — set via
             // dynamic with the raw int constant, same pattern as elsewhere in this project.
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            shape.TextFrame.TextRange.Font.Bold = bold ? MsoTrue : MsoFalse;
+            dynamic? shape = null;
+            try
+            {
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                shape.TextFrame.TextRange.Font.Bold = bold ? MsoTrue : MsoFalse;
 
-            return new TextFrameOperationResult { Success = true, Bold = bold };
+                return new TextFrameOperationResult { Success = true, Bold = bold };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -128,10 +161,18 @@ public sealed class TextFrameCommands : ITextFrameCommands
             // function), not the more common 0x00RRGGBB.
             int rgb = red + (green << 8) + (blue << 16);
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            shape.TextFrame.TextRange.Font.Color.RGB = rgb;
+            dynamic? shape = null;
+            try
+            {
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                shape.TextFrame.TextRange.Font.Color.RGB = rgb;
 
-            return new TextFrameOperationResult { Success = true, ColorRgb = rgb };
+                return new TextFrameOperationResult { Success = true, ColorRgb = rgb };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -145,10 +186,18 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            shape.TextFrame.TextRange.Font.Italic = italic ? MsoTrue : MsoFalse;
+            dynamic? shape = null;
+            try
+            {
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                shape.TextFrame.TextRange.Font.Italic = italic ? MsoTrue : MsoFalse;
 
-            return new TextFrameOperationResult { Success = true, Italic = italic };
+                return new TextFrameOperationResult { Success = true, Italic = italic };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -162,10 +211,18 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            bool italic = (int)shape.TextFrame.TextRange.Font.Italic == MsoTrue;
+            dynamic? shape = null;
+            try
+            {
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                bool italic = (int)shape.TextFrame.TextRange.Font.Italic == MsoTrue;
 
-            return new TextFrameOperationResult { Success = true, Italic = italic };
+                return new TextFrameOperationResult { Success = true, Italic = italic };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -179,10 +236,18 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            shape.TextFrame.TextRange.Font.Underline = underline ? MsoTrue : MsoFalse;
+            dynamic? shape = null;
+            try
+            {
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                shape.TextFrame.TextRange.Font.Underline = underline ? MsoTrue : MsoFalse;
 
-            return new TextFrameOperationResult { Success = true, Underline = underline };
+                return new TextFrameOperationResult { Success = true, Underline = underline };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -196,10 +261,18 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            bool underline = (int)shape.TextFrame.TextRange.Font.Underline == MsoTrue;
+            dynamic? shape = null;
+            try
+            {
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                bool underline = (int)shape.TextFrame.TextRange.Font.Underline == MsoTrue;
 
-            return new TextFrameOperationResult { Success = true, Underline = underline };
+                return new TextFrameOperationResult { Success = true, Underline = underline };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -214,10 +287,18 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            shape.TextFrame.TextRange.Font.Name = fontName;
+            dynamic? shape = null;
+            try
+            {
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                shape.TextFrame.TextRange.Font.Name = fontName;
 
-            return new TextFrameOperationResult { Success = true, FontName = fontName };
+                return new TextFrameOperationResult { Success = true, FontName = fontName };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -231,10 +312,18 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            string fontName = (string)shape.TextFrame.TextRange.Font.Name;
+            dynamic? shape = null;
+            try
+            {
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                string fontName = (string)shape.TextFrame.TextRange.Font.Name;
 
-            return new TextFrameOperationResult { Success = true, FontName = fontName };
+                return new TextFrameOperationResult { Success = true, FontName = fontName };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -258,10 +347,18 @@ public sealed class TextFrameCommands : ITextFrameCommands
                 };
             }
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            shape.TextFrame.TextRange.ParagraphFormat.Alignment = alignmentValue;
+            dynamic? shape = null;
+            try
+            {
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                shape.TextFrame.TextRange.ParagraphFormat.Alignment = alignmentValue;
 
-            return new TextFrameOperationResult { Success = true, Alignment = alignment };
+                return new TextFrameOperationResult { Success = true, Alignment = alignment };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -275,19 +372,27 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            int alignmentValue = (int)shape.TextFrame.TextRange.ParagraphFormat.Alignment;
-
-            if (!ParagraphAlignmentsByValue.TryGetValue(alignmentValue, out var alignmentName))
+            dynamic? shape = null;
+            try
             {
-                return new TextFrameOperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"The paragraph alignment value {alignmentValue} is not one of the recognized PpParagraphAlignment names (it may be mixed across multiple paragraphs)."
-                };
-            }
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                int alignmentValue = (int)shape.TextFrame.TextRange.ParagraphFormat.Alignment;
 
-            return new TextFrameOperationResult { Success = true, Alignment = alignmentName };
+                if (!ParagraphAlignmentsByValue.TryGetValue(alignmentValue, out var alignmentName))
+                {
+                    return new TextFrameOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"The paragraph alignment value {alignmentValue} is not one of the recognized PpParagraphAlignment names (it may be mixed across multiple paragraphs)."
+                    };
+                }
+
+                return new TextFrameOperationResult { Success = true, Alignment = alignmentName };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -310,21 +415,31 @@ public sealed class TextFrameCommands : ITextFrameCommands
                 };
             }
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            dynamic bullet = shape.TextFrame.TextRange.ParagraphFormat.Bullet;
-
-            bullet.Type = enabled ? PpBulletUnnumbered : PpBulletNone;
-            if (enabled && character is not null)
+            dynamic? shape = null;
+            dynamic? bullet = null;
+            try
             {
-                bullet.Character = (int)character[0];
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                bullet = shape.TextFrame.TextRange.ParagraphFormat.Bullet;
+
+                bullet.Type = enabled ? PpBulletUnnumbered : PpBulletNone;
+                if (enabled && character is not null)
+                {
+                    bullet.Character = (int)character[0];
+                }
+
+                return new TextFrameOperationResult
+                {
+                    Success = true,
+                    BulletEnabled = enabled,
+                    BulletCharacter = enabled ? (character ?? char.ConvertFromUtf32((int)bullet.Character)) : null
+                };
             }
-
-            return new TextFrameOperationResult
+            finally
             {
-                Success = true,
-                BulletEnabled = enabled,
-                BulletCharacter = enabled ? (character ?? char.ConvertFromUtf32((int)bullet.Character)) : null
-            };
+                if (bullet != null) ComUtilities.Release(ref bullet);
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -338,17 +453,27 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            dynamic bullet = shape.TextFrame.TextRange.ParagraphFormat.Bullet;
-            int bulletType = (int)bullet.Type;
-            bool enabled = bulletType != PpBulletNone;
-
-            return new TextFrameOperationResult
+            dynamic? shape = null;
+            dynamic? bullet = null;
+            try
             {
-                Success = true,
-                BulletEnabled = enabled,
-                BulletCharacter = enabled ? char.ConvertFromUtf32((int)bullet.Character) : null
-            };
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                bullet = shape.TextFrame.TextRange.ParagraphFormat.Bullet;
+                int bulletType = (int)bullet.Type;
+                bool enabled = bulletType != PpBulletNone;
+
+                return new TextFrameOperationResult
+                {
+                    Success = true,
+                    BulletEnabled = enabled,
+                    BulletCharacter = enabled ? char.ConvertFromUtf32((int)bullet.Character) : null
+                };
+            }
+            finally
+            {
+                if (bullet != null) ComUtilities.Release(ref bullet);
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -372,10 +497,18 @@ public sealed class TextFrameCommands : ITextFrameCommands
                 };
             }
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            shape.TextFrame.AutoSize = autoSizeValue;
+            dynamic? shape = null;
+            try
+            {
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                shape.TextFrame.AutoSize = autoSizeValue;
 
-            return new TextFrameOperationResult { Success = true, AutoSize = autoSize };
+                return new TextFrameOperationResult { Success = true, AutoSize = autoSize };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 
@@ -389,19 +522,27 @@ public sealed class TextFrameCommands : ITextFrameCommands
             var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
             if (validation is not null) return validation;
 
-            dynamic shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            int autoSizeValue = (int)shape.TextFrame.AutoSize;
-
-            if (!AutoSizeModesByValue.TryGetValue(autoSizeValue, out var autoSizeName))
+            dynamic? shape = null;
+            try
             {
-                return new TextFrameOperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"The auto-size value {autoSizeValue} is not one of the recognized PpAutoSize names (it may be mixed across multiple shapes)."
-                };
-            }
+                shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+                int autoSizeValue = (int)shape.TextFrame.AutoSize;
 
-            return new TextFrameOperationResult { Success = true, AutoSize = autoSizeName };
+                if (!AutoSizeModesByValue.TryGetValue(autoSizeValue, out var autoSizeName))
+                {
+                    return new TextFrameOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"The auto-size value {autoSizeValue} is not one of the recognized PpAutoSize names (it may be mixed across multiple shapes)."
+                    };
+                }
+
+                return new TextFrameOperationResult { Success = true, AutoSize = autoSizeName };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape);
+            }
         });
     }
 

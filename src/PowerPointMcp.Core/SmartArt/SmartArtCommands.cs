@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 
 namespace Sbroenne.PowerPointMcp.Core.SmartArt;
@@ -25,32 +26,53 @@ public sealed class SmartArtCommands : ISmartArtCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic app = ctx.App;
-            dynamic? layout = RetryOnTransientAccessDenied(() => FindLayoutByName(app.SmartArtLayouts, layoutName));
-            if (layout is null)
+            dynamic? layouts = null;
+            dynamic? layout = null;
+            dynamic? slide = null;
+            dynamic? newShape = null;
+            try
             {
+                // NOTE: ctx.App is the session-owned Application COM object (lives for the whole
+                // batch/session lifetime) - it must NEVER be released here. The local `app`
+                // variable below is only a dynamic-typed view (avoids a static office.dll PIA
+                // reference) over that same session-owned RCW, so it is intentionally excluded
+                // from the finally block. Only layouts/layout/slide/newShape are per-call objects
+                // acquired in this method and released below.
+                dynamic app = ctx.App;
+                layouts = app.SmartArtLayouts;
+                layout = RetryOnTransientAccessDenied(() => FindLayoutByName(layouts, layoutName));
+                if (layout is null)
+                {
+                    return new SmartArtOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"'{layoutName}' is not a recognized SmartArt layout name. Layout names come from PowerPoint's SmartArt gallery (e.g. 'Basic Process', 'Organization Chart', 'Basic Cycle', 'Basic Pyramid'). See smart-art.md for the full list."
+                    };
+                }
+
+                slide = ctx.Presentation.Slides[slideIndex];
+                slide.Shapes.AddSmartArt(layout, left, top, width, height);
+                // Same NoPIA late-binding quirk as ShapeCommands.AddRectangle — avoid shape.Index, use Count.
+                int newIndex = (int)slide.Shapes.Count;
+                newShape = slide.Shapes[newIndex];
+                int nodeCount = (int)newShape.SmartArt.AllNodes.Count;
+
                 return new SmartArtOperationResult
                 {
-                    Success = false,
-                    ErrorMessage = $"'{layoutName}' is not a recognized SmartArt layout name. Layout names come from PowerPoint's SmartArt gallery (e.g. 'Basic Process', 'Organization Chart', 'Basic Cycle', 'Basic Pyramid'). See smart-art.md for the full list."
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = (int)slide.Shapes.Count,
+                    LayoutName = layoutName,
+                    NodeCount = nodeCount
                 };
             }
-
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            slide.Shapes.AddSmartArt(layout, left, top, width, height);
-            // Same NoPIA late-binding quirk as ShapeCommands.AddRectangle — avoid shape.Index, use Count.
-            int newIndex = (int)slide.Shapes.Count;
-            dynamic newShape = slide.Shapes[newIndex];
-            int nodeCount = (int)newShape.SmartArt.AllNodes.Count;
-
-            return new SmartArtOperationResult
+            finally
             {
-                Success = true,
-                ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count,
-                LayoutName = layoutName,
-                NodeCount = nodeCount
-            };
+                if (newShape != null) ComUtilities.Release(ref newShape);
+                if (slide != null) ComUtilities.Release(ref slide);
+                if (layout != null) ComUtilities.Release(ref layout);
+                if (layouts != null) ComUtilities.Release(ref layouts);
+            }
         });
     }
 
@@ -65,26 +87,37 @@ public sealed class SmartArtCommands : ISmartArtCommands
             var validation = ValidateSmartArtShape(ctx, slideIndex, shapeIndex, out var smartArt);
             if (validation is not null) return validation;
 
-            dynamic nodes = smartArt!.Nodes;
-            dynamic newNode = nodes.Add();
-            newNode.TextFrame2.TextRange.Text = text;
-
-            // SmartArtNodes.Add() always appends "to the bottom of the data model at the top
-            // most level" (verified live + per Microsoft's SmartArtNodes.Add documentation) — a
-            // brand-new top-level node has no children yet and sits after every other top-level
-            // branch, so it is always the LAST entry in the flattened AllNodes collection. No
-            // search needed (SmartArtNode exposes no reliable, late-bindable unique identifier —
-            // see FindNodeIndexByLevelAndText's remarks for why).
-            int nodeIndex = (int)smartArt.AllNodes.Count;
-
-            return new SmartArtOperationResult
+            dynamic? nodes = null;
+            dynamic? newNode = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                NodeIndex = nodeIndex,
-                NodeCount = nodeIndex,
-                NodeText = text
-            };
+                nodes = smartArt!.Nodes;
+                newNode = nodes.Add();
+                newNode.TextFrame2.TextRange.Text = text;
+
+                // SmartArtNodes.Add() always appends "to the bottom of the data model at the top
+                // most level" (verified live + per Microsoft's SmartArtNodes.Add documentation) — a
+                // brand-new top-level node has no children yet and sits after every other top-level
+                // branch, so it is always the LAST entry in the flattened AllNodes collection. No
+                // search needed (SmartArtNode exposes no reliable, late-bindable unique identifier —
+                // see FindNodeIndexByLevelAndText's remarks for why).
+                int nodeIndex = (int)smartArt.AllNodes.Count;
+
+                return new SmartArtOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    NodeIndex = nodeIndex,
+                    NodeCount = nodeIndex,
+                    NodeText = text
+                };
+            }
+            finally
+            {
+                if (newNode != null) ComUtilities.Release(ref newNode);
+                if (nodes != null) ComUtilities.Release(ref nodes);
+                if (smartArt != null) ComUtilities.Release(ref smartArt);
+            }
         });
     }
 
@@ -99,31 +132,44 @@ public sealed class SmartArtCommands : ISmartArtCommands
             var validation = ValidateSmartArtShape(ctx, slideIndex, shapeIndex, out var smartArt);
             if (validation is not null) return validation;
 
-            dynamic allNodes = smartArt!.AllNodes;
-            var nodeValidation = ValidateNodeIndex((int)allNodes.Count, parentNodeIndex);
-            if (nodeValidation is not null) return nodeValidation;
-
-            dynamic parentNode = allNodes.Item(parentNodeIndex);
-            int parentLevel = (int)parentNode.Level;
-            // SmartArtNode.AddNode(Position, Type) is the documented way to add a node relative
-            // to an existing one (see Office.SmartArtNode.AddNode). msoSmartArtNodeBelow (5) with
-            // msoSmartArtNodeTypeDefault (1) makes the new node a child one level below the
-            // target — verified live against a real Organization Chart diagram. (The
-            // SmartArtNodes.Add(pTargetNode:=) overload some samples reference does not resolve
-            // via C#'s dynamic IDispatch binder — DISP_E_UNKNOWNNAME — so it is not used here.)
-            dynamic newNode = parentNode.AddNode(5 /* msoSmartArtNodeBelow */, 1 /* msoSmartArtNodeTypeDefault */);
-            newNode.TextFrame2.TextRange.Text = text;
-
-            int nodeIndex = FindNodeIndexByLevelAndText(smartArt.AllNodes, parentLevel + 1, text);
-
-            return new SmartArtOperationResult
+            dynamic? allNodes = null;
+            dynamic? parentNode = null;
+            dynamic? newNode = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                NodeIndex = nodeIndex,
-                NodeCount = (int)smartArt.AllNodes.Count,
-                NodeText = text
-            };
+                allNodes = smartArt!.AllNodes;
+                var nodeValidation = ValidateNodeIndex((int)allNodes.Count, parentNodeIndex);
+                if (nodeValidation is not null) return nodeValidation;
+
+                parentNode = allNodes.Item(parentNodeIndex);
+                int parentLevel = (int)parentNode.Level;
+                // SmartArtNode.AddNode(Position, Type) is the documented way to add a node relative
+                // to an existing one (see Office.SmartArtNode.AddNode). msoSmartArtNodeBelow (5) with
+                // msoSmartArtNodeTypeDefault (1) makes the new node a child one level below the
+                // target — verified live against a real Organization Chart diagram. (The
+                // SmartArtNodes.Add(pTargetNode:=) overload some samples reference does not resolve
+                // via C#'s dynamic IDispatch binder — DISP_E_UNKNOWNNAME — so it is not used here.)
+                newNode = parentNode.AddNode(5 /* msoSmartArtNodeBelow */, 1 /* msoSmartArtNodeTypeDefault */);
+                newNode.TextFrame2.TextRange.Text = text;
+
+                int nodeIndex = FindNodeIndexByLevelAndText(allNodes, parentLevel + 1, text);
+
+                return new SmartArtOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    NodeIndex = nodeIndex,
+                    NodeCount = (int)allNodes.Count,
+                    NodeText = text
+                };
+            }
+            finally
+            {
+                if (newNode != null) ComUtilities.Release(ref newNode);
+                if (parentNode != null) ComUtilities.Release(ref parentNode);
+                if (allNodes != null) ComUtilities.Release(ref allNodes);
+                if (smartArt != null) ComUtilities.Release(ref smartArt);
+            }
         });
     }
 
@@ -138,21 +184,32 @@ public sealed class SmartArtCommands : ISmartArtCommands
             var validation = ValidateSmartArtShape(ctx, slideIndex, shapeIndex, out var smartArt);
             if (validation is not null) return validation;
 
-            dynamic allNodes = smartArt!.AllNodes;
-            var nodeValidation = ValidateNodeIndex((int)allNodes.Count, nodeIndex);
-            if (nodeValidation is not null) return nodeValidation;
-
-            dynamic node = allNodes.Item(nodeIndex);
-            node.TextFrame2.TextRange.Text = text;
-
-            return new SmartArtOperationResult
+            dynamic? allNodes = null;
+            dynamic? node = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                NodeIndex = nodeIndex,
-                NodeCount = (int)allNodes.Count,
-                NodeText = text
-            };
+                allNodes = smartArt!.AllNodes;
+                var nodeValidation = ValidateNodeIndex((int)allNodes.Count, nodeIndex);
+                if (nodeValidation is not null) return nodeValidation;
+
+                node = allNodes.Item(nodeIndex);
+                node.TextFrame2.TextRange.Text = text;
+
+                return new SmartArtOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    NodeIndex = nodeIndex,
+                    NodeCount = (int)allNodes.Count,
+                    NodeText = text
+                };
+            }
+            finally
+            {
+                if (node != null) ComUtilities.Release(ref node);
+                if (allNodes != null) ComUtilities.Release(ref allNodes);
+                if (smartArt != null) ComUtilities.Release(ref smartArt);
+            }
         });
     }
 
@@ -166,21 +223,32 @@ public sealed class SmartArtCommands : ISmartArtCommands
             var validation = ValidateSmartArtShape(ctx, slideIndex, shapeIndex, out var smartArt);
             if (validation is not null) return validation;
 
-            dynamic allNodes = smartArt!.AllNodes;
-            var nodeValidation = ValidateNodeIndex((int)allNodes.Count, nodeIndex);
-            if (nodeValidation is not null) return nodeValidation;
-
-            dynamic node = allNodes.Item(nodeIndex);
-            string text = (string)node.TextFrame2.TextRange.Text;
-
-            return new SmartArtOperationResult
+            dynamic? allNodes = null;
+            dynamic? node = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                NodeIndex = nodeIndex,
-                NodeCount = (int)allNodes.Count,
-                NodeText = text
-            };
+                allNodes = smartArt!.AllNodes;
+                var nodeValidation = ValidateNodeIndex((int)allNodes.Count, nodeIndex);
+                if (nodeValidation is not null) return nodeValidation;
+
+                node = allNodes.Item(nodeIndex);
+                string text = (string)node.TextFrame2.TextRange.Text;
+
+                return new SmartArtOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    NodeIndex = nodeIndex,
+                    NodeCount = (int)allNodes.Count,
+                    NodeText = text
+                };
+            }
+            finally
+            {
+                if (node != null) ComUtilities.Release(ref node);
+                if (allNodes != null) ComUtilities.Release(ref allNodes);
+                if (smartArt != null) ComUtilities.Release(ref smartArt);
+            }
         });
     }
 
@@ -194,20 +262,31 @@ public sealed class SmartArtCommands : ISmartArtCommands
             var validation = ValidateSmartArtShape(ctx, slideIndex, shapeIndex, out var smartArt);
             if (validation is not null) return validation;
 
-            dynamic allNodes = smartArt!.AllNodes;
-            var nodeValidation = ValidateNodeIndex((int)allNodes.Count, nodeIndex);
-            if (nodeValidation is not null) return nodeValidation;
-
-            dynamic node = allNodes.Item(nodeIndex);
-            node.Delete();
-
-            return new SmartArtOperationResult
+            dynamic? allNodes = null;
+            dynamic? node = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                NodeIndex = nodeIndex,
-                NodeCount = (int)smartArt.AllNodes.Count
-            };
+                allNodes = smartArt!.AllNodes;
+                var nodeValidation = ValidateNodeIndex((int)allNodes.Count, nodeIndex);
+                if (nodeValidation is not null) return nodeValidation;
+
+                node = allNodes.Item(nodeIndex);
+                node.Delete();
+
+                return new SmartArtOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    NodeIndex = nodeIndex,
+                    NodeCount = (int)smartArt.AllNodes.Count
+                };
+            }
+            finally
+            {
+                if (node != null) ComUtilities.Release(ref node);
+                if (allNodes != null) ComUtilities.Release(ref allNodes);
+                if (smartArt != null) ComUtilities.Release(ref smartArt);
+            }
         });
     }
 
@@ -221,12 +300,19 @@ public sealed class SmartArtCommands : ISmartArtCommands
             var validation = ValidateSmartArtShape(ctx, slideIndex, shapeIndex, out var smartArt);
             if (validation is not null) return validation;
 
-            return new SmartArtOperationResult
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                NodeCount = (int)smartArt!.AllNodes.Count
-            };
+                return new SmartArtOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    NodeCount = (int)smartArt!.AllNodes.Count
+                };
+            }
+            finally
+            {
+                if (smartArt != null) ComUtilities.Release(ref smartArt);
+            }
         });
     }
 
@@ -277,12 +363,24 @@ public sealed class SmartArtCommands : ISmartArtCommands
         int count = (int)layouts.Count;
         for (int i = 1; i <= count; i++)
         {
-            dynamic candidate = layouts.Item(i);
-            string name = (string)candidate.Name;
-            if (string.Equals(name, layoutName, StringComparison.OrdinalIgnoreCase))
+            dynamic? candidate = null;
+            dynamic? match = null;
+            try
             {
-                return candidate;
+                candidate = layouts.Item(i);
+                string name = (string)candidate.Name;
+                if (string.Equals(name, layoutName, StringComparison.OrdinalIgnoreCase))
+                {
+                    match = candidate;
+                    candidate = null;
+                }
             }
+            finally
+            {
+                if (candidate != null) ComUtilities.Release(ref candidate);
+            }
+
+            if (match != null) return match;
         }
 
         return null;
@@ -310,10 +408,18 @@ public sealed class SmartArtCommands : ISmartArtCommands
         int count = (int)allNodes.Count;
         for (int i = count; i >= 1; i--)
         {
-            dynamic candidate = allNodes.Item(i);
-            if ((int)candidate.Level == level && string.Equals((string)candidate.TextFrame2.TextRange.Text, text, StringComparison.Ordinal))
+            dynamic? candidate = null;
+            try
             {
-                return i;
+                candidate = allNodes.Item(i);
+                if ((int)candidate.Level == level && string.Equals((string)candidate.TextFrame2.TextRange.Text, text, StringComparison.Ordinal))
+                {
+                    return i;
+                }
+            }
+            finally
+            {
+                if (candidate != null) ComUtilities.Release(ref candidate);
             }
         }
 
@@ -337,24 +443,34 @@ public sealed class SmartArtCommands : ISmartArtCommands
         var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
         if (slideValidation is not null) return slideValidation;
 
-        dynamic slide = ctx.Presentation.Slides[slideIndex];
-        int shapeCount = (int)slide.Shapes.Count;
-        var shapeValidation = ValidateShapeIndex(shapeCount, shapeIndex);
-        if (shapeValidation is not null) return shapeValidation;
-
-        dynamic shape = slide.Shapes[shapeIndex];
-        bool hasSmartArt = (int)shape.HasSmartArt == MsoTrue;
-        if (!hasSmartArt)
+        dynamic? slide = null;
+        dynamic? shape = null;
+        try
         {
-            return new SmartArtOperationResult
-            {
-                Success = false,
-                ErrorMessage = $"Shape {shapeIndex} on slide {slideIndex} is not a SmartArt diagram."
-            };
-        }
+            slide = ctx.Presentation.Slides[slideIndex];
+            int shapeCount = (int)slide.Shapes.Count;
+            var shapeValidation = ValidateShapeIndex(shapeCount, shapeIndex);
+            if (shapeValidation is not null) return shapeValidation;
 
-        smartArt = shape.SmartArt;
-        return null;
+            shape = slide.Shapes[shapeIndex];
+            bool hasSmartArt = (int)shape.HasSmartArt == MsoTrue;
+            if (!hasSmartArt)
+            {
+                return new SmartArtOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Shape {shapeIndex} on slide {slideIndex} is not a SmartArt diagram."
+                };
+            }
+
+            smartArt = shape.SmartArt;
+            return null;
+        }
+        finally
+        {
+            if (shape != null) ComUtilities.Release(ref shape);
+            if (slide != null) ComUtilities.Release(ref slide);
+        }
     }
 
     private static SmartArtOperationResult? ValidateSlideIndex(int slideCount, int slideIndex)

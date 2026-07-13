@@ -88,7 +88,7 @@ Skills give AI assistants workflow guidance beyond raw tool schemas —
 strongly recommended, especially for the CLI, and useful even for the MCP
 server's richer tool discovery:
 
-```bash
+```powershell
 npx skills add sbroenne/mcp-server-powerpoint --skill powerpoint-mcp
 ```
 
@@ -104,9 +104,11 @@ Ask your AI assistant something like:
 > "Create a new PowerPoint presentation with a title slide, then export it
 > as an image so I can see it."
 
-If the assistant can call `create_presentation`, `add_slide`, `set_text` and
-`export_slide_to_image` and you get back a rendered PNG of a real PowerPoint
-slide, you're set up correctly.
+If the assistant can call `presentation(action="create", filePath=...)`,
+`slide(action="add-blank", session_id=...)`,
+`textframe(action="set-text", session_id=..., slide_index=..., shape_index=..., text=...)`, and
+`export(action="export-slide-to-image", session_id=..., slide_index=..., output_path=...)` and
+you get back a rendered PNG of a real PowerPoint slide, you're set up correctly.
 
 ## Troubleshooting
 
@@ -115,14 +117,14 @@ slide, you're set up correctly.
   installed and activated on the same Windows machine running the MCP
   server.
 - **Lingering `POWERPNT.EXE` processes** — sessions are cleaned up on
-  `close_presentation` and on MCP server shutdown; if a process lingers
+  `presentation(action="close", sessionId=...)` and on MCP server shutdown; if a process lingers
   after a crash, close it from Task Manager.
 - **.NET tool not found on PATH** — restart your terminal after
   `dotnet tool install --global` so the updated `PATH` is picked up.
 
 ## More information
 
-- [Complete Feature Reference](features.md) — all 18 tools (~98 operations) across 12 domains
+- [Complete Feature Reference](features.md) — all 13 tools (132 operations) across 13 domains
 - [MCP Server Documentation](mcp-server.md) — MCP tool reference
 - [CLI Documentation](cli.md) — CLI command reference
 - [Agent Skills](skills.md) — AI guidance for Claude Code, Cursor, Windsurf and more

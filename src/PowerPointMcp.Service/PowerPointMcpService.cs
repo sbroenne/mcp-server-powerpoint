@@ -230,9 +230,6 @@ public sealed class PowerPointMcpService : IDisposable
             {
                 "service" => HandleServiceCommand(action),
                 "session" => HandleSessionCommand(action, request),
-                "presentation" => DispatchSimple<PresentationAction>(action, request,
-                    ServiceRegistry.Presentation.TryParseAction,
-                    (a, batch) => ServiceRegistry.Presentation.DispatchToCore(_presentationCommands, a, batch, request.Args)),
                 "slide" => DispatchSimple<SlideAction>(action, request,
                     ServiceRegistry.Slide.TryParseAction,
                     (a, batch) => ServiceRegistry.Slide.DispatchToCore(_slideCommands, a, batch, request.Args)),
@@ -322,6 +319,13 @@ public sealed class PowerPointMcpService : IDisposable
             "close" => HandleSessionClose(request),
             "save" => HandleSessionSave(request),
             "list" => HandleSessionList(),
+            "apply-template" => HandleSessionApplyTemplate(request),
+            "get-theme-name" => HandleSessionGetThemeName(request),
+            "set-document-property" => HandleSessionSetDocumentProperty(request),
+            "get-document-property" => HandleSessionGetDocumentProperty(request),
+            "set-custom-property" => HandleSessionSetCustomProperty(request),
+            "get-custom-property" => HandleSessionGetCustomProperty(request),
+            "remove-custom-property" => HandleSessionRemoveCustomProperty(request),
             _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown session action: {action}" }
         };
     }
@@ -465,6 +469,165 @@ public sealed class PowerPointMcpService : IDisposable
         };
     }
 
+    private ServiceResponse HandleSessionApplyTemplate(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionApplyTemplateArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.TemplatePath))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "templatePath is required" };
+        }
+
+        return WrapPresentationResult(() => _presentationCommands.ApplyTemplate(batch!, args.TemplatePath), request);
+    }
+
+    private ServiceResponse HandleSessionGetThemeName(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        return WrapPresentationResult(() => _presentationCommands.GetThemeName(batch!), request);
+    }
+
+    private ServiceResponse HandleSessionSetDocumentProperty(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionPropertyArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.PropertyName))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "propertyName is required" };
+        }
+
+        return WrapPresentationResult(() => _presentationCommands.SetDocumentProperty(batch!, args.PropertyName, args.Value ?? string.Empty), request);
+    }
+
+    private ServiceResponse HandleSessionGetDocumentProperty(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionPropertyArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.PropertyName))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "propertyName is required" };
+        }
+
+        return WrapPresentationResult(() => _presentationCommands.GetDocumentProperty(batch!, args.PropertyName), request);
+    }
+
+    private ServiceResponse HandleSessionSetCustomProperty(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionPropertyArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.PropertyName))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "propertyName is required" };
+        }
+
+        return WrapPresentationResult(() => _presentationCommands.SetCustomProperty(batch!, args.PropertyName, args.Value ?? string.Empty), request);
+    }
+
+    private ServiceResponse HandleSessionGetCustomProperty(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionPropertyArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.PropertyName))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "propertyName is required" };
+        }
+
+        return WrapPresentationResult(() => _presentationCommands.GetCustomProperty(batch!, args.PropertyName), request);
+    }
+
+    private ServiceResponse HandleSessionRemoveCustomProperty(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionPropertyArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.PropertyName))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "propertyName is required" };
+        }
+
+        return WrapPresentationResult(() => _presentationCommands.RemoveCustomProperty(batch!, args.PropertyName), request);
+    }
+
+    /// <summary>
+    /// Resolves <paramref name="request"/>'s sessionId to a live batch, mirroring the
+    /// validation used by <see cref="DispatchSimple{TAction}"/> for the fully-generated
+    /// domains. Used by the hand-written presentation actions (apply-template, theme, and
+    /// document/custom property operations) that live under the "session" category.
+    /// </summary>
+    private bool TryGetBatch(ServiceRequest request, out IPresentationBatch? batch, out ServiceResponse? error)
+    {
+        batch = null;
+        if (string.IsNullOrWhiteSpace(request.SessionId))
+        {
+            error = new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" };
+            return false;
+        }
+
+        if (!_sessions.TryGet(request.SessionId, out batch))
+        {
+            error = new ServiceResponse { Success = false, ErrorMessage = $"Session '{request.SessionId}' not found" };
+            return false;
+        }
+
+        error = null;
+        return true;
+    }
+
+    /// <summary>
+    /// Invokes a hand-written <see cref="IPresentationCommands"/> operation and serializes its
+    /// <see cref="PresentationOperationResult"/> the same way as the MCP <c>presentation</c>
+    /// tool's <c>SerializeResult</c>, so CLI and MCP surfaces return identically-shaped JSON.
+    /// </summary>
+    private static ServiceResponse WrapPresentationResult(Func<PresentationOperationResult> invoke, ServiceRequest request)
+    {
+        try
+        {
+            var result = invoke();
+            var json = JsonSerializer.Serialize(new
+            {
+                success = result.Success,
+                errorMessage = result.ErrorMessage,
+                presentationPath = result.PresentationPath,
+                themeName = result.ThemeName,
+                propertyName = result.PropertyName,
+                propertyValue = result.PropertyValue
+            }, ServiceProtocol.JsonOptions);
+
+            return new ServiceResponse { Success = result.Success, Result = json, ErrorMessage = result.Success ? null : result.ErrorMessage };
+        }
+        catch (Exception ex)
+        {
+            return CreateErrorResponse(ex, request.Command, request.SessionId);
+        }
+    }
+
     // === GENERATED DISPATCH ===
 
     private delegate bool TryParseDelegate<TAction>(string action, out TAction result);
@@ -589,4 +752,21 @@ public sealed class SessionCloseArgs
 {
     /// <summary>Whether to save the presentation before closing it.</summary>
     public bool Save { get; set; }
+}
+
+/// <summary>Args for "session.apply-template".</summary>
+public sealed class SessionApplyTemplateArgs
+{
+    /// <summary>Full path to a .potx/.potm/.pot template file (or a .pptx/.pptm presentation used as a template source).</summary>
+    public string? TemplatePath { get; set; }
+}
+
+/// <summary>Args for "session.set/get-document-property" and "session.set/get/remove-custom-property".</summary>
+public sealed class SessionPropertyArgs
+{
+    /// <summary>Document property name (built-in or custom, depending on the action).</summary>
+    public string? PropertyName { get; set; }
+
+    /// <summary>The new property value. Used for set-document-property and set-custom-property.</summary>
+    public string? Value { get; set; }
 }

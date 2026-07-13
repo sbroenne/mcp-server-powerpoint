@@ -156,14 +156,14 @@ public class Program
                 options.ServerInstructions = """
                     PowerPointMCP automates Microsoft PowerPoint via COM interop (Windows only).
 
-                    SESSION LIFECYCLE:
-                    1. create_presentation(filePath) — create a new deck and open it; returns a sessionId.
-                    2. open_presentation(filePath) — open an existing deck; returns a sessionId.
+                    SESSION LIFECYCLE (all via the single "presentation" tool's action parameter):
+                    1. presentation(action=create, filePath) — create a new deck and open it; returns a sessionId.
+                    2. presentation(action=open, filePath) — open an existing deck; returns a sessionId.
                     3. Pass that sessionId to all subsequent tools.
-                    4. save_presentation(sessionId) — persist changes.
-                    5. close_presentation(sessionId) — release the PowerPoint process when done.
+                    4. presentation(action=save, sessionId) — persist changes.
+                    5. presentation(action=close, sessionId) — release the PowerPoint process when done.
 
-                    Use list_sessions to see which sessions are currently open.
+                    Use presentation(action=list) to see which sessions are currently open.
                     Always provide full Windows paths (e.g. C:\\Users\\me\\Documents\\deck.pptx).
                     """;
             })

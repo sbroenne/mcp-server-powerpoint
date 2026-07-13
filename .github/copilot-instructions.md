@@ -77,6 +77,28 @@ The Scribe will merge it into the shared decisions file.
 - Writing tests → [Testing Strategy](instructions/testing-strategy.instructions.md)
 - MCP Server tool work → [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
 
+## Sister Projects
+
+PowerPointMcp is one of a family of Windows-only, COM-interop MCP-server repos maintained by the
+same author (`sbroenne`). The family currently includes:
+
+- **`mcp-server-excel`** (`sbroenne/mcp-server-excel`) — **the authoritative architectural
+  template for this entire family.** Its layering (ComInterop → Core → Service → CLI/MCP Server),
+  Unified Service Architecture, generator design, hand-written vs. generated tool split, COM
+  cleanup discipline (Rule 22: every `dynamic` COM object released via `ComUtilities.Release` in a
+  `finally` block), support/audit scripts (`scripts/*.ps1`), and CI Gate workflow are the reference
+  design. When PowerPointMcp diverges from Excel, treat the divergence as a bug to fix **unless**
+  there is a concrete, documented reason the underlying Office object model differs (e.g. Excel's
+  `Application.ScreenUpdating` has no PowerPoint equivalent — that divergence is legitimate and
+  intentionally NOT ported).
+- **`mcp-server-powerpoint`** (this repo) — PowerPoint automation, structurally mirrors Excel's
+  10-project layout and Unified Service Architecture.
+- **`mcp-windows`** — a sister Windows-automation MCP server project.
+
+**When making architectural changes here, check whether Excel already solved the same problem —
+port its pattern rather than inventing a new one.** Likewise, if you fix a real bug or close a gap
+here that also exists in Excel or `mcp-windows`, flag it so the same fix can be ported there.
+
 ## What is PowerPointMcp?
 
 **PowerPointMcp** is a Windows-only toolset for programmatic PowerPoint automation via COM
@@ -98,21 +120,20 @@ Unified Service Architecture.
 3. **Generators** (`src/PowerPointMcp.Generators.Mcp`, `src/PowerPointMcp.Generators.Cli`,
    `src/PowerPointMcp.Generators.Shared`) - Roslyn source generators that read `[ServiceCategory]`
    Core interfaces and emit one **action-dispatch tool per domain** for the MCP surface (e.g.
-   `slide`, `shape`, `chart`, each taking an `operation` parameter like `"chart.add-chart"`) and
-   one `pptcli {category} {action}` command per operation for the CLI. `Presentation` (session
-   lifecycle) and its `ApplyTemplate`/`GetThemeName` methods stay hand-written
-   (`PresentationTools.cs`) since they don't fit the per-session action-dispatch shape.
+   `slide`, `shape`, `chart`, each taking an `action` parameter like `"add-chart"`) and one
+   `pptcli {category} {action}` command per operation for the CLI. `Presentation` is also a
+   hand-written action-dispatch tool (`PresentationTools.cs`) so session lifecycle, template work,
+   and document properties live under the single `presentation` MCP tool.
 4. **Service** (`src/PowerPointMcp.Service`) - `PowerPointMcpService`: the shared session registry
    + dispatch layer both entry points call into. **McpServer** hosts it **in-process** (no pipe,
    via `ServiceBridge.ForwardToService`); **CLI** (`pptcli`) talks to it via a **separate
    background daemon process** over a named pipe (`ServiceClient`/`IPowerPointDaemonRpc`,
    auto-started on first `session open`/`session create`), so sessions persist across CLI
    invocations without paying PowerPoint's ~90-150s launch cost every command.
-5. **McpServer** (`src/PowerPointMcp.McpServer`) - Model Context Protocol stdio host. 18 tools
-   total: 7 hand-written session-lifecycle/template tools
-   (`create_presentation`/`open_presentation`/`save_presentation`/`close_presentation`/
-   `list_sessions`/`apply_template`/`get_theme_name`) + 11 generated action-dispatch tools (one per
-   remaining Core domain), covering ~98 operations. See
+5. **McpServer** (`src/PowerPointMcp.McpServer`) - Model Context Protocol stdio host. 13 tools
+   total: one hand-written `presentation` action-dispatch tool plus 12 generated action-dispatch
+   tools (`slide`, `shape`, `textframe`, `table`, `notes`, `layout`, `master`, `animation`,
+   `image`, `chart`, `smartart`, `export`), covering 132 operations across 13 domains. See
    `tests/PowerPointMcp.McpServer.Tests/Integration/McpProtocolTests.cs`'s `ExpectedToolNames` for
    the ground-truth tool list.
 6. **CLI** (`src/PowerPointMcp.CLI`) - `pptcli`, built on the same generators as the MCP surface
@@ -125,18 +146,16 @@ do **not** share live sessions with each other, only the same `Core`/`Service` c
 ## Session Model (MCP Server)
 
 ```
-open_presentation(filePath) → sessionId (registry.Open)
-... all other tools take sessionId, resolve batch via registry.TryGet ...
-save_presentation(sessionId) → Core Commands.Save(batch)
-close_presentation(sessionId) → registry.Close(sessionId) — removes from registry immediately,
-                                  disposes the batch (and its PowerPoint process) on a background
-                                  task. Does NOT block the caller.
+presentation(action="create", filePath) OR presentation(action="open", filePath) → sessionId
+... other domain tools take session_id; presentation lifecycle/property actions take sessionId ...
+presentation(action="save", sessionId) → Core Commands.Save(batch)
+presentation(action="close", sessionId) → registry.Close(sessionId) — removes from registry
+                                           immediately, disposes the batch (and its PowerPoint
+                                           process) on a background task. Does NOT block the caller.
 ```
 
-`create_presentation` is intentionally a **standalone** call: it creates + saves + closes a new
-file on disk via Core directly, with NO session left open. Callers must `open_presentation`
-afterward to edit it. This is a deliberate two-call flow (see `.squad/decisions.md`,
-2026-07-01T12:00:00+02:00), not a bug — do not "fix" it into an implicit open.
+`presentation(action="create", ...)` creates + saves the file and leaves the new session open.
+Callers should reuse the returned `sessionId` instead of opening the same file again.
 
 Host shutdown (`Ctrl+C`, stdin EOF, or normal exit) MUST dispose every open batch via
 `PresentationSessionRegistry.DisposeAll()` — two-layered: an `IHostedService` on `StopAsync`, plus
@@ -193,9 +212,9 @@ first, watch it fail, implement, watch it pass.
   envelope) WITHOUT launching PowerPoint; only the session-lifecycle round-trip tests touch real
   COM. Do not re-test Core COM behavior at the MCP layer — MCP tests assert wiring + serialization
   + session mapping only.
-- Office's own post-Quit cleanup can take up to ~90-200+ seconds after `close_presentation` /
-  session disposal — this is documented, benign Office behavior. Do NOT add force-kill on the
-  happy path.
+- Office's own post-Quit cleanup can take up to ~90-200+ seconds after
+  `presentation(action="close", sessionId=...)` / session disposal — this is documented, benign
+  Office behavior. Do NOT add force-kill on the happy path.
 
 ### Test Commands
 

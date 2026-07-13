@@ -1,52 +1,48 @@
 # Behavioral Rules for PowerPoint MCP Operations
 
 These rules ensure efficient, reliable PowerPoint automation via a live PowerPoint desktop
-instance (COM). AI assistants should follow these guidelines when using the 18 PowerPoint MCP
-tools (7 session-lifecycle tools + 11 domain action-dispatch tools).
+instance (COM). AI assistants should follow these guidelines when using the **13 PowerPoint MCP
+tools across 13 domains**.
 
 ## Core Execution Rules
 
 - **Execute tasks immediately without asking for confirmation.** Make reasonable assumptions
   (slide count, positions, colors) and proceed.
-- **Never ask clarifying questions for standard operations.** Use `list_sessions` to discover
-  open sessions, `slide(action: "get-count", session_id: ...)` to discover slide range,
-  `shape(action: "get-count", session_id: ..., slide_index: ...)` to discover shapes on a slide —
-  don't ask the user for information you can look up yourself.
+- **Never ask clarifying questions for standard operations.** Use `presentation(action: "list")`
+  to discover open sessions, `slide(action: "get-count", session_id: ...)` to discover slide
+  range, `shape(action: "get-count", session_id: ..., slide_index: ...)` to discover shapes on a
+  slide — do not ask the user for information you can look up yourself.
 - **Always end with a text summary.** Never end a turn with only a tool call. After finishing,
   state what was created/changed, the file path, and the slide count.
 
 ## Session Model (CRITICAL)
 
-Every editing operation requires an open session:
+Every editing workflow starts by establishing a session:
 
 ```
-1. open_presentation(filePath)        → returns sessionId
-2. ... all domain tools take session_id ...
-3. save_presentation(sessionId)        → persists changes to disk
-4. close_presentation(sessionId)       → releases the PowerPoint process
+1. presentation(action: "create", filePath: ...) OR presentation(action: "open", filePath: ...) → returns sessionId
+2. ... all other domain tools take session_id; presentation lifecycle/property actions take sessionId ...
+3. presentation(action: "save", sessionId: ...)   → persists changes to disk
+4. presentation(action: "close", sessionId: ...)  → releases the session; PowerPoint shuts down in background
 ```
 
-- `create_presentation` creates a new file **on disk and does NOT open a session** — it calls
-  Create, saves, and closes internally. You MUST call `open_presentation` afterward to add
-  slides/content to a freshly created file. This is a deliberate two-call flow, not a bug.
+- `presentation(action: "create", ...)` creates a new file **and leaves the session open**. Do
+  **not** follow it with a second open call on the same file unless you intentionally want another
+  session.
 - `sessionId` is opaque — do not try to construct or guess one. Always use the value returned by
-  `open_presentation`.
+  `presentation(action: "create"/"open", ...)`.
 - Unknown/expired `sessionId` values return `success: false` with `errorMessage: "Unknown
-  sessionId: ..."` — re-open the file to get a fresh session, don't retry the same id.
-- `list_sessions` shows every open session (`sessionId`, `presentationPath`,
-  `isPowerPointProcessAlive`) — use it to check state instead of asking the user "which
-  presentation?".
+  sessionId: ..."` — reopen the file to get a fresh session, do not retry the same id.
+- `presentation(action: "list")` shows every open session (`sessionId`, `presentationPath`,
+  `isPowerPointProcessAlive`) — use it to check state instead of asking the user which
+  presentation is open.
 
-## Two Tool Families, Two Calling Conventions
+## Tool Conventions
 
-- **Session-lifecycle tools** (`create_presentation`, `open_presentation`, `save_presentation`,
-  `close_presentation`, `list_sessions`, `apply_template`, `get_theme_name`,
-  `set_document_property`, `get_document_property`, `set_custom_property`, `get_custom_property`,
-  `remove_custom_property`) are one-tool-per-verb and use camelCase arguments, e.g.
-  `open_presentation(filePath: "C:\\Decks\\q4.pptx")`.
-- **Domain tools** (`slide`, `shape`, `textframe`, `table`, `chart`, `image`, `notes`, `layout`,
-  `master`, `smartart`, `animation`, `export`) are action-dispatch: one tool per domain, and every call passes an `action` (kebab-case)
-  plus `session_id` and only the snake_case parameters relevant to that action, e.g.
+- **All 13 MCP tools are action-dispatch tools.** Every call includes an `action` parameter.
+- **`presentation` uses camelCase lifecycle/property parameters** — `filePath`, `sessionId`,
+  `templatePath`, `propertyName`, `value`.
+- **The other 12 domain tools use `session_id` plus snake_case action parameters**, e.g.
   `shape(action: "add-rectangle", session_id: ..., slide_index: 1, left: 50, top: 80, width: 100,
   height: 60)`.
 
@@ -61,35 +57,34 @@ Every editing operation requires an open session:
 
 This differs from most programming languages (0-based arrays) and from some other Office MCP
 servers. Passing `0` or a negative index returns `success: false`, never an exception — check the
-`errorMessage` and correct the index, don't blindly retry.
+`errorMessage` and correct the index instead of blindly retrying.
 
 ## Explicit Save Is Required
 
 Domain tool actions (`slide(action: "add-blank", ...)`, `textframe(action: "set-text", ...)`,
 `chart(action: "add-chart", ...)`, etc.) modify the **in-memory** presentation only. Nothing is
-written to disk until you call `save_presentation(sessionId)`. If you close a session without
-saving first, all changes since the last save are lost.
+written to disk until you call `presentation(action: "save", sessionId: ...)`. If you close a
+session without saving first, all changes since the last save are lost.
 
 ```
-1. slide(action: "add-blank", session_id: ...)                                    → slide added in memory
-2. textframe(action: "set-text", session_id: ..., slide_index: ..., shape_index: ..., text: ...) → text set in memory
-3. save_presentation(sessionId)                                                    → NOW persisted to disk
-4. close_presentation(sessionId)                                                   → safe to close, nothing pending
+1. slide(action: "add-blank", session_id: ...)                                      → slide added in memory
+2. textframe(action: "set-text", session_id: ..., slide_index: ..., shape_index: ...) → text set in memory
+3. presentation(action: "save", sessionId: ...)                                     → NOW persisted to disk
+4. presentation(action: "close", sessionId: ...)                                    → safe to close
 ```
 
 ## Close Is Asynchronous (Do NOT Wait For It)
 
-`close_presentation` returns as soon as the session is removed from the registry — it does
-**not** wait for the underlying PowerPoint process to fully exit. Office's own post-Quit cleanup
-can legitimately take up to a few minutes; this is normal COM/Office behavior, not a hung call or
-a leaked process.
+`presentation(action: "close", sessionId: ...)` returns as soon as the session is removed from the
+registry — it **does not** wait for the underlying PowerPoint process to fully exit. Office's own
+post-Quit cleanup can legitimately take up to a few minutes; this is normal COM/Office behavior,
+not a hung call or a leaked process.
 
-- Do NOT poll `list_sessions` waiting for the process to disappear — the session itself is
-  already gone from the list immediately.
-- Do NOT treat a slow-to-exit `POWERPNT.exe` in Task Manager as a bug.
-- If you need to open the SAME file again immediately after closing it, a brief delay may be
-  needed for the OS file lock to clear; prefer opening a different file or waiting briefly if you
-  see a file-lock error.
+- Do not poll `presentation(action: "list")` waiting for the process to disappear — the session
+  itself is already gone from the list immediately.
+- Do not treat a slow-to-exit `POWERPNT.exe` in Task Manager as a bug.
+- If you need to open the same file again immediately after closing it, a brief delay may be
+  needed for the OS file lock to clear.
 
 ## Verify Visually (Our Differentiator)
 

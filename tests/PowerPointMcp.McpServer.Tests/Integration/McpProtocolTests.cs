@@ -34,31 +34,21 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     private Task? _serverTask;
 
     /// <summary>
-    /// The MCP tool surface: 7 hand-written session-lifecycle tools (Presentation) plus one
-    /// generated action-dispatch tool per remaining Core domain (Slide, Shape, TextFrame, Table,
-    /// Notes, Layout, Master, Animation, Image, Chart, Export) — enumerated directly from every
-    /// <c>[McpServerTool]</c> in <c>src/PowerPointMcp.McpServer/Tools/*.cs</c> (hand-written) and
-    /// the generated <c>PowerPointMcp.Generators.Mcp</c> output (one action-dispatch tool per
-    /// domain, matching mcp-server-excel's/this repo's own CLI's action-dispatch shape). If this
-    /// set changes, update it deliberately alongside the tool surface (see .squad/decisions.md
-    /// for the 31→16 tool-count change that replaced 31 per-verb hand-written domain tools with 9
-    /// generated action-dispatch tools).
+    /// The MCP tool surface: one hand-written action-dispatch tool (Presentation — session
+    /// lifecycle + template + document properties) plus one generated action-dispatch tool per
+    /// remaining Core domain (Slide, Shape, TextFrame, Table, Notes, Layout, Master, Animation,
+    /// SmartArt, Image, Chart, Export) — enumerated directly from every <c>[McpServerTool]</c> in
+    /// <c>src/PowerPointMcp.McpServer/Tools/*.cs</c> (hand-written) and the generated
+    /// <c>PowerPointMcp.Generators.Mcp</c> output (one action-dispatch tool per domain, matching
+    /// mcp-server-excel's architecture: a single tool per domain with an action enum, instead of
+    /// one tool per verb). If this set changes, update it deliberately alongside the tool surface
+    /// (see .squad/decisions.md for the tool-count history).
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
-        // PresentationTools.cs (12, hand-written — session lifecycle + document properties)
-        "create_presentation",
-        "open_presentation",
-        "save_presentation",
-        "close_presentation",
-        "list_sessions",
-        "apply_template",
-        "get_theme_name",
-        "set_document_property",
-        "get_document_property",
-        "set_custom_property",
-        "get_custom_property",
-        "remove_custom_property",
+        // PresentationTools.cs (1, hand-written action-dispatch tool — session lifecycle,
+        // template, and document properties; 12 actions)
+        "presentation",
         // Generated action-dispatch tools (12, one per remaining Core domain)
         "slide",
         "shape",
@@ -195,6 +185,6 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         Assert.NotNull(serverInfo);
         Assert.Equal("powerpoint-mcp", serverInfo.Name);
         Assert.NotNull(_client.ServerInstructions);
-        Assert.Contains("create_presentation", _client.ServerInstructions, StringComparison.Ordinal);
+        Assert.Contains("presentation(action=create", _client.ServerInstructions, StringComparison.Ordinal);
     }
 }

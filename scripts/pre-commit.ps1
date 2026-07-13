@@ -1,8 +1,9 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Git pre-commit hook for PowerPointMcp: branch guard, Success-flag audit, build, targeted
-    real-COM Core tests, MCP protocol tests, and a TODO/FIXME scan.
+    Git pre-commit hook for PowerPointMcp: branch guard, Success-flag audit, COM leak audit,
+    dynamic cast audit, Core interface completeness audit, build, targeted real-COM Core tests,
+    MCP protocol tests, and a TODO/FIXME scan.
 
 .DESCRIPTION
     Runs checks before allowing commits (ported and adapted from mcp-server-excel's
@@ -12,6 +13,11 @@
     1. Branch guard      - never commit directly to 'main'
     2. Success flag scan - flags any 'Success = true' followed nearby by a non-null ErrorMessage
                             assignment in touched Core files (Rule 1)
+    2b. COM leak audit   - every 'dynamic' COM object in src/*.cs is released in a finally block
+    2c. Dynamic cast audit - every '((dynamic))' cast has a justification comment
+    2d. Core interface completeness - every implemented Core Commands method is declared on its
+                            I*Commands interface (PowerPoint's action enums are generator-derived
+                            FROM the interface, so an undeclared method is silently unreachable)
     3. Release build     - dotnet build Sbroenne.PowerPointMcp.slnx -c Release, 0 warnings/errors.
                             Fully SKIPPED for docs-only commits (.md, .changeset/, docs/, gh-pages/,
                             issue/PR templates) — there is no compiled surface to validate.
@@ -28,9 +34,9 @@
                             Directory.Build/Packages, global.json) changes.
     6. TODO/FIXME/HACK scan - blocks unresolved markers in staged files
 
-    NOTE: Unlike mcp-server-excel, this repo does not yet have companion scripts
-    (check-com-leaks.ps1, audit-core-coverage.ps1, release-packaging checks, etc.) because the
-    CLI/Generators/Service/packaging surfaces haven't been built yet. Add those gates here as the
+    NOTE: mcp-server-excel has additional release-packaging gates (NuGet pack, standalone ZIP,
+    VS Code extension, MCPB bundle, Agent Skills ZIP) that do not yet apply here because
+    PowerPoint's CLI/packaging surfaces are still maturing. Add those gates here as the
     corresponding deliverables land — see .squad/decisions.md for the release-deliverables roadmap.
 
 .NOTES
@@ -118,33 +124,105 @@ Write-Host "Process cleanup done" -ForegroundColor Green
 Write-Step "Checking Success flag violations (Rule 1)..."
 
 $stagedCsFiles = git diff --cached --name-only --diff-filter=ACM | Where-Object { $_ -like "src/*.cs" -or $_ -like "src\*.cs" }
-$successFlagViolations = @()
 
-foreach ($file in $stagedCsFiles) {
-    $fullPath = Join-Path $rootDir $file
-    if (-not (Test-Path $fullPath)) { continue }
+try {
+    $successFlagScript = Join-Path $rootDir "scripts\check-success-flag.ps1"
+    & $successFlagScript
 
-    $lines = Get-Content $fullPath
-    for ($i = 0; $i -lt $lines.Count; $i++) {
-        if ($lines[$i] -match "Success\s*=\s*true") {
-            # Look a few lines ahead within the same object initializer for a non-null ErrorMessage
-            $window = $lines[$i..[Math]::Min($i + 5, $lines.Count - 1)] -join "`n"
-            if ($window -match "ErrorMessage\s*=\s*[^n][^u][^l][^l]") {
-                $successFlagViolations += "$file`:$($i + 1)"
-            }
-        }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "BLOCKED: Success flag violations detected!" -ForegroundColor Red
+        Write-Host "   Rule 1: Success==true must imply ErrorMessage==null. Fix before committing." -ForegroundColor Yellow
+        exit 1
     }
-}
 
-if ($successFlagViolations.Count -gt 0) {
+    Write-Host "Success flag check passed" -ForegroundColor Green
+}
+catch {
     Write-Host ""
-    Write-Host "BLOCKED: Possible Success=true + non-null ErrorMessage violation(s):" -ForegroundColor Red
-    $successFlagViolations | ForEach-Object { Write-Host "   $_" -ForegroundColor Red }
-    Write-Host "   Rule 1: Success==true must imply ErrorMessage==null. Fix before committing." -ForegroundColor Yellow
+    Write-Host "Error running success flag check: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "Success flag check passed" -ForegroundColor Green
+# --- 2b. COM object leak audit (every 'dynamic' COM object released in a finally block) -----
+if (-not $hasCodeChanges) {
+    Write-Step "Skipping COM leak check (no code changes detected - docs/changeset only)"
+}
+else {
+    Write-Step "Checking for COM object leaks..."
+
+    try {
+        $leakCheckScript = Join-Path $rootDir "scripts\check-com-leaks.ps1"
+        & $leakCheckScript
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host ""
+            Write-Host "BLOCKED: COM object leaks detected! Fix them before committing." -ForegroundColor Red
+            exit 1
+        }
+
+        Write-Host "COM leak check passed" -ForegroundColor Green
+    }
+    catch {
+        Write-Host ""
+        Write-Host "Error running COM leak check: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+}
+
+# --- 2c. Dynamic cast audit (every '((dynamic))' cast has a justification comment) ----------
+if (-not $hasCodeChanges) {
+    Write-Step "Skipping dynamic cast audit (no code changes detected - docs/changeset only)"
+}
+else {
+    Write-Step "Checking dynamic cast justifications..."
+
+    try {
+        $dynamicCastScript = Join-Path $rootDir "scripts\check-dynamic-casts.ps1"
+        & $dynamicCastScript
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host ""
+            Write-Host "BLOCKED: Undocumented dynamic casts detected! Add a justification comment before committing." -ForegroundColor Red
+            exit 1
+        }
+
+        Write-Host "Dynamic cast audit passed" -ForegroundColor Green
+    }
+    catch {
+        Write-Host ""
+        Write-Host "Error running dynamic cast audit: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+}
+
+# --- 2d. Core interface completeness audit (every implemented method is interface-declared) --
+if (-not $hasCodeChanges) {
+    Write-Step "Skipping Core interface completeness audit (no code changes detected - docs/changeset only)"
+}
+else {
+    Write-Step "Checking Core interface completeness..."
+
+    try {
+        $interfaceScript = Join-Path $rootDir "scripts\check-core-interface-completeness.ps1"
+        & $interfaceScript
+
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host ""
+            Write-Host "BLOCKED: Core Commands methods not declared on their interface detected!" -ForegroundColor Red
+            Write-Host "   PowerPoint's action enums are generated FROM the I*Commands interface -" -ForegroundColor Yellow
+            Write-Host "   an implemented-but-undeclared method is silently unreachable via MCP/CLI." -ForegroundColor Yellow
+            exit 1
+        }
+
+        Write-Host "Core interface completeness audit passed" -ForegroundColor Green
+    }
+    catch {
+        Write-Host ""
+        Write-Host "Error running Core interface completeness audit: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+}
 
 # --- 3. Release build ------------------------------------------------------------------------
 # Skipped entirely for docs-only commits (including gh-pages) - there is no compiled

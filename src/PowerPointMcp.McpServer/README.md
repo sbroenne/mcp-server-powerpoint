@@ -32,27 +32,30 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 
 ## Capabilities
 
-18 tools with ~98 operations across 12 domains:
+**13 tools with 132 operations across 13 domains:**
 
-| Domain | Tools |
-| --- | --- |
-| Presentation | create, open, save, close, list sessions |
-| Template | apply template, get theme name |
-| Slide | add, count, delete, duplicate, move, sections, background color |
-| Shape | add rectangle / text box / auto shape / line / connector, position, size, fill, line, rotation, flip, z-order, shadow, group, name, alt text |
-| TextFrame | set/get text, font size, bold, color, italic, underline, font name, alignment, bullets |
-| Table | add table, set/get cell text, insert/delete rows and columns, cell fill, cell border, merge cells |
-| Notes | set/get speaker notes |
-| Layout | set/get slide layout |
-| Master | title/body placeholder font, background color |
-| Animation | add/delete shape effects, get transition, set transition |
-| Image | add picture |
-| Chart | add chart, get chart data, add series, chart/axis title, legend visibility |
-| Export | export a slide / all slides to images (visual verification) |
+| Tool | Ops | Coverage |
+| --- | --- | --- |
+| `presentation` | 12 | create, open, save, close, list, apply-template, get-theme-name, built-in/custom document properties |
+| `slide` | 14 | slide lifecycle, solid + gradient backgrounds, sections |
+| `shape` | 36 | shape creation, geometry, styling, effects, grouping, naming, hyperlinks |
+| `textframe` | 17 | text content, font formatting, alignment, bullets, auto-size |
+| `table` | 12 | tables, cell text, row/column edits, cell fill/border, merge |
+| `notes` | 2 | set/get speaker notes |
+| `layout` | 2 | set/get slide layout |
+| `master` | 8 | title/body placeholder fonts, solid + gradient master backgrounds |
+| `animation` | 5 | shape effects, transition read/write |
+| `image` | 5 | add picture, brightness/contrast, recolor |
+| `chart` | 10 | charts, series, chart/axis titles, legend visibility, data replacement |
+| `smartart` | 7 | SmartArt insertion and node editing |
+| `export` | 2 | export a slide or every slide to images |
 
-Most domains are exposed as a single **action-dispatch tool** (e.g. `shape`, `table`) taking an
-`operation` parameter, keeping the tool list small for AI assistants while still exposing every
-operation above. `Presentation` and `Template` remain individual, hand-written tools.
+Every domain is exposed as a single **action-dispatch tool** taking an `action`
+parameter — including `presentation`. Example MCP calls:
+
+- `presentation(action="create", filePath="C:\\Decks\\demo.pptx")`
+- `presentation(action="apply-template", sessionId="...", templatePath="C:\\Templates\\brand.potx")`
+- `chart(action="add-chart", session_id="...", slide_index=2, ...)`
 
 ## How it works
 

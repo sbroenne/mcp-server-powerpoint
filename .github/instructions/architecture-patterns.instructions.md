@@ -60,14 +60,12 @@ Core/Shape/
 ### MCP Tool Routing (generated action-dispatch, one tool per domain)
 
 Matching `mcp-server-excel`'s pattern, each `[ServiceCategory]` Core domain is exposed as a
-**single generated action-dispatch MCP tool** (e.g. `shape`) taking an `operation` parameter (e.g.
-`"shape.add-rectangle"`) rather than one hand-written `[McpServerTool]` method per verb. Do not
+**single generated action-dispatch MCP tool** (e.g. `shape`) taking an `action` parameter (e.g.
+`"add-rectangle"`) rather than one hand-written `[McpServerTool]` method per verb. Do not
 hand-write a new per-verb tool class for a Core domain — add the domain's
 `[ServiceCategory]`/`[McpTool]` attributes and the generators emit the dispatch tool and its
-`pptcli` commands automatically. `Presentation` (session lifecycle) and its
-`ApplyTemplate`/`GetThemeName` methods are the deliberate exception and stay hand-written in
-`PresentationTools.cs`, since session create/open/save/close doesn't fit the per-session
-action-dispatch shape.
+`pptcli` commands automatically. `Presentation` remains hand-written in `PresentationTools.cs`,
+but now follows the same single-tool action-dispatch shape.
 
 ```csharp
 // Core: attribute-driven, discovered by the generators — no hand-written tool class needed.

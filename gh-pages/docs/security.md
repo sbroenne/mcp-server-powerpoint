@@ -39,8 +39,8 @@ We aim to acknowledge reports within a few business days.
 - **No macros executed by default.** Tools do not execute arbitrary VBA or
   external code; they call discrete, typed automation operations (add
   shape, set text, export image, etc.).
-- **Export-to-verify.** Visual verification via `export_slide_to_image` /
-  `export_all_slides_to_images` writes image files only to paths you
+- **Export-to-verify.** Visual verification via `export(action="export-slide-to-image", ...)` /
+  `export(action="export-all-slides-to-images", ...)` writes image files only to paths you
   specify.
 
 See also the [Privacy Policy](privacy.md) for how data is (not) collected or

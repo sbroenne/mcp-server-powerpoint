@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 
 namespace Sbroenne.PowerPointMcp.Core.Shape;
@@ -149,21 +150,29 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            slide.Shapes.AddShape(MsoShapeRectangle, left, top, width, height);
-            // NOTE: discovered via integration test — accessing the newly-added shape's
-            // .Index property dynamically threw a RuntimeBinderException ("'System.__ComObject'
-            // does not contain a definition for 'Index'"), a NoPIA/late-binding quirk on the
-            // COM object returned from AddShape. Sidestepped entirely: since shapes are always
-            // appended, the new shape's 1-based index is simply the new Shapes.Count.
-            int newIndex = (int)slide.Shapes.Count;
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            try
             {
-                Success = true,
-                ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                slide.Shapes.AddShape(MsoShapeRectangle, left, top, width, height);
+                // NOTE: discovered via integration test — accessing the newly-added shape's
+                // .Index property dynamically threw a RuntimeBinderException ("'System.__ComObject'
+                // does not contain a definition for 'Index'"), a NoPIA/late-binding quirk on the
+                // COM object returned from AddShape. Sidestepped entirely: since shapes are always
+                // appended, the new shape's 1-based index is simply the new Shapes.Count.
+                int newIndex = (int)slide.Shapes.Count;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = (int)slide.Shapes.Count
+                };
+            }
+            finally
+            {
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -178,18 +187,28 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            dynamic shape = slide.Shapes.AddTextbox(MsoTextOrientationHorizontal, left, top, width, height);
-            shape.TextFrame.TextRange.Text = text;
-            // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
-            int newIndex = (int)slide.Shapes.Count;
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
             {
-                Success = true,
-                ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                shape = slide.Shapes.AddTextbox(MsoTextOrientationHorizontal, left, top, width, height);
+                shape.TextFrame.TextRange.Text = text;
+                // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
+                int newIndex = (int)slide.Shapes.Count;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = (int)slide.Shapes.Count
+                };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -213,18 +232,26 @@ public sealed class ShapeCommands : IShapeCommands
                 };
             }
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            slide.Shapes.AddShape(typeValue, left, top, width, height);
-            // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
-            int newIndex = (int)slide.Shapes.Count;
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            try
             {
-                Success = true,
-                ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count,
-                ShapeTypeName = shapeType
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                slide.Shapes.AddShape(typeValue, left, top, width, height);
+                // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
+                int newIndex = (int)slide.Shapes.Count;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = (int)slide.Shapes.Count,
+                    ShapeTypeName = shapeType
+                };
+            }
+            finally
+            {
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -238,21 +265,29 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            slide.Shapes.AddLine(beginX, beginY, endX, endY);
-            // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
-            int newIndex = (int)slide.Shapes.Count;
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            try
             {
-                Success = true,
-                ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count,
-                BeginX = beginX,
-                BeginY = beginY,
-                EndX = endX,
-                EndY = endY
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                slide.Shapes.AddLine(beginX, beginY, endX, endY);
+                // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
+                int newIndex = (int)slide.Shapes.Count;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = (int)slide.Shapes.Count,
+                    BeginX = beginX,
+                    BeginY = beginY,
+                    EndX = endX,
+                    EndY = endY
+                };
+            }
+            finally
+            {
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -276,22 +311,30 @@ public sealed class ShapeCommands : IShapeCommands
                 };
             }
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            slide.Shapes.AddConnector(typeValue, beginX, beginY, endX, endY);
-            // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
-            int newIndex = (int)slide.Shapes.Count;
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            try
             {
-                Success = true,
-                ShapeIndex = newIndex,
-                ShapeCount = (int)slide.Shapes.Count,
-                ConnectorTypeName = connectorType,
-                BeginX = beginX,
-                BeginY = beginY,
-                EndX = endX,
-                EndY = endY
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                slide.Shapes.AddConnector(typeValue, beginX, beginY, endX, endY);
+                // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
+                int newIndex = (int)slide.Shapes.Count;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = (int)slide.Shapes.Count,
+                    ConnectorTypeName = connectorType,
+                    BeginX = beginX,
+                    BeginY = beginY,
+                    EndX = endX,
+                    EndY = endY
+                };
+            }
+            finally
+            {
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -305,11 +348,20 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            try
             {
-                Success = true,
-                ShapeCount = ctx.Presentation.Slides[slideIndex].Shapes.Count
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeCount = (int)slide.Shapes.Count
+                };
+            }
+            finally
+            {
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -323,18 +375,29 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            slide.Shapes[shapeIndex].Delete();
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                ShapeCount = slide.Shapes.Count
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                shape.Delete();
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    ShapeCount = (int)slide.Shapes.Count
+                };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -348,21 +411,31 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            var shape = slide.Shapes[shapeIndex];
-            shape.Left = left;
-            shape.Top = top;
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Left = shape.Left,
-                Top = shape.Top
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                shape.Left = left;
+                shape.Top = top;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Left = (float)shape.Left,
+                    Top = (float)shape.Top
+                };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -376,21 +449,31 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            var shape = slide.Shapes[shapeIndex];
-            shape.Width = width;
-            shape.Height = height;
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Width = shape.Width,
-                Height = shape.Height
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                shape.Width = width;
+                shape.Height = height;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Width = (float)shape.Width,
+                    Height = (float)shape.Height
+                };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -404,16 +487,26 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            int rgb = red + (green << 8) + (blue << 16);
-            shape.Fill.Solid();
-            shape.Fill.ForeColor.RGB = rgb;
+                shape = slide.Shapes[shapeIndex];
+                int rgb = red + (green << 8) + (blue << 16);
+                shape.Fill.Solid();
+                shape.Fill.ForeColor.RGB = rgb;
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ColorRgb = rgb };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ColorRgb = rgb };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -427,14 +520,24 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            int rgb = (int)shape.Fill.ForeColor.RGB;
+                shape = slide.Shapes[shapeIndex];
+                int rgb = (int)shape.Fill.ForeColor.RGB;
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ColorRgb = rgb };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ColorRgb = rgb };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -457,48 +560,58 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            int? dashStyleValue = null;
-            if (dashStyle is not null)
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
             {
-                if (!LineDashStyles.TryGetValue(dashStyle, out var resolvedDashStyle))
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                int? dashStyleValue = null;
+                if (dashStyle is not null)
                 {
-                    return new ShapeOperationResult
+                    if (!LineDashStyles.TryGetValue(dashStyle, out var resolvedDashStyle))
                     {
-                        Success = false,
-                        ErrorMessage = $"'{dashStyle}' is not a recognized MsoLineDashStyle name (e.g. 'msoLineSolid', 'msoLineDash', 'msoLineDashDot')."
-                    };
+                        return new ShapeOperationResult
+                        {
+                            Success = false,
+                            ErrorMessage = $"'{dashStyle}' is not a recognized MsoLineDashStyle name (e.g. 'msoLineSolid', 'msoLineDash', 'msoLineDashDot')."
+                        };
+                    }
+                    dashStyleValue = resolvedDashStyle;
                 }
-                dashStyleValue = resolvedDashStyle;
+
+                shape = slide.Shapes[shapeIndex];
+
+                if (red is not null || green is not null || blue is not null)
+                {
+                    int rgb = (red ?? 0) + ((green ?? 0) << 8) + ((blue ?? 0) << 16);
+                    shape.Line.ForeColor.RGB = rgb;
+                }
+
+                if (weight is not null)
+                {
+                    shape.Line.Weight = weight.Value;
+                }
+
+                if (dashStyleValue is not null)
+                {
+                    shape.Line.DashStyle = dashStyleValue.Value;
+                }
+
+                if (visible is not null)
+                {
+                    shape.Line.Visible = visible.Value ? MsoTrue : MsoFalse;
+                }
+
+                return ReadLine(shape, shapeIndex);
             }
-
-            dynamic shape = slide.Shapes[shapeIndex];
-
-            if (red is not null || green is not null || blue is not null)
+            finally
             {
-                int rgb = (red ?? 0) + ((green ?? 0) << 8) + ((blue ?? 0) << 16);
-                shape.Line.ForeColor.RGB = rgb;
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
             }
-
-            if (weight is not null)
-            {
-                shape.Line.Weight = weight.Value;
-            }
-
-            if (dashStyleValue is not null)
-            {
-                shape.Line.DashStyle = dashStyleValue.Value;
-            }
-
-            if (visible is not null)
-            {
-                shape.Line.Visible = visible.Value ? MsoTrue : MsoFalse;
-            }
-
-            return ReadLine(shape, shapeIndex);
         });
     }
 
@@ -512,12 +625,22 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            return ReadLine(shape, shapeIndex);
+                shape = slide.Shapes[shapeIndex];
+                return ReadLine(shape, shapeIndex);
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -531,14 +654,24 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
 
-            var shape = slide.Shapes[shapeIndex];
-            shape.Rotation = degrees;
+                shape = slide.Shapes[shapeIndex];
+                shape.Rotation = degrees;
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Rotation = shape.Rotation };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Rotation = (float)shape.Rotation };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -552,13 +685,23 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
 
-            var shape = slide.Shapes[shapeIndex];
+                shape = slide.Shapes[shapeIndex];
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Rotation = shape.Rotation };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Rotation = (float)shape.Rotation };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -573,23 +716,33 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            if (!FlipDirections.TryGetValue(direction, out var directionValue))
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
             {
-                return new ShapeOperationResult
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                if (!FlipDirections.TryGetValue(direction, out var directionValue))
                 {
-                    Success = false,
-                    ErrorMessage = $"'{direction}' is not a recognized flip direction (must be 'horizontal' or 'vertical')."
-                };
+                    return new ShapeOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"'{direction}' is not a recognized flip direction (must be 'horizontal' or 'vertical')."
+                    };
+                }
+
+                shape = slide.Shapes[shapeIndex];
+                shape.Flip(directionValue);
+
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, FlipDirection = direction };
             }
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            shape.Flip(directionValue);
-
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, FlipDirection = direction };
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -604,23 +757,33 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            if (!ZOrderCommands.TryGetValue(zOrderCommand, out var commandValue))
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
             {
-                return new ShapeOperationResult
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                if (!ZOrderCommands.TryGetValue(zOrderCommand, out var commandValue))
                 {
-                    Success = false,
-                    ErrorMessage = $"'{zOrderCommand}' is not a recognized z-order command (must be 'bring-to-front', 'send-to-back', 'bring-forward', or 'send-backward')."
-                };
+                    return new ShapeOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"'{zOrderCommand}' is not a recognized z-order command (must be 'bring-to-front', 'send-to-back', 'bring-forward', or 'send-backward')."
+                    };
+                }
+
+                shape = slide.Shapes[shapeIndex];
+                shape.ZOrder(commandValue);
+
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ZOrderCommand = zOrderCommand };
             }
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            shape.ZOrder(commandValue);
-
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ZOrderCommand = zOrderCommand };
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -637,38 +800,50 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic shadow = shape.Shadow;
-            shadow.Visible = visible ? MsoTrue : MsoFalse;
-
-            if (!visible)
+            dynamic? slide = null;
+            dynamic? shape = null;
+            dynamic? shadow = null;
+            try
             {
-                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                shadow = shape.Shadow;
+                shadow.Visible = visible ? MsoTrue : MsoFalse;
+
+                if (!visible)
+                {
+                    return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                }
+
+                int rgb = red + (green << 8) + (blue << 16);
+                shadow.Type = MsoShadow20; // offset shadow — verified live via ShapeEffectsDiagTests
+                shadow.ForeColor.RGB = rgb;
+                shadow.Transparency = transparency;
+                shadow.Blur = blur;
+                shadow.OffsetX = offsetX;
+                shadow.OffsetY = offsetY;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Visible = true,
+                    ColorRgb = rgb,
+                    Transparency = transparency,
+                    Blur = blur,
+                    OffsetX = offsetX,
+                    OffsetY = offsetY,
+                };
             }
-
-            int rgb = red + (green << 8) + (blue << 16);
-            shadow.Type = MsoShadow20; // offset shadow — verified live via ShapeEffectsDiagTests
-            shadow.ForeColor.RGB = rgb;
-            shadow.Transparency = transparency;
-            shadow.Blur = blur;
-            shadow.OffsetX = offsetX;
-            shadow.OffsetY = offsetY;
-
-            return new ShapeOperationResult
+            finally
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Visible = true,
-                ColorRgb = rgb,
-                Transparency = transparency,
-                Blur = blur,
-                OffsetX = offsetX,
-                OffsetY = offsetY,
-            };
+                if (shadow != null) ComUtilities.Release(ref shadow!);
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -682,31 +857,43 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic shadow = shape.Shadow;
-            bool visible = (int)shadow.Visible == MsoTrue;
-
-            if (!visible)
+            dynamic? slide = null;
+            dynamic? shape = null;
+            dynamic? shadow = null;
+            try
             {
-                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                shadow = shape.Shadow;
+                bool visible = (int)shadow.Visible == MsoTrue;
+
+                if (!visible)
+                {
+                    return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                }
+
+                int rgb = (int)shadow.ForeColor.RGB;
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Visible = true,
+                    ColorRgb = rgb,
+                    Transparency = (float)shadow.Transparency,
+                    Blur = (float)shadow.Blur,
+                    OffsetX = (float)shadow.OffsetX,
+                    OffsetY = (float)shadow.OffsetY,
+                };
             }
-
-            int rgb = (int)shadow.ForeColor.RGB;
-            return new ShapeOperationResult
+            finally
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Visible = true,
-                ColorRgb = rgb,
-                Transparency = (float)shadow.Transparency,
-                Blur = (float)shadow.Blur,
-                OffsetX = (float)shadow.OffsetX,
-                OffsetY = (float)shadow.OffsetY,
-            };
+                if (shadow != null) ComUtilities.Release(ref shadow!);
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -720,25 +907,37 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic glow = shape.Glow;
-            int rgb = red + (green << 8) + (blue << 16);
-            glow.Radius = radius;
-            glow.Color.RGB = rgb;
-            glow.Transparency = transparency;
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            dynamic? shape = null;
+            dynamic? glow = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                ColorRgb = rgb,
-                GlowRadius = radius,
-                Transparency = transparency,
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                glow = shape.Glow;
+                int rgb = red + (green << 8) + (blue << 16);
+                glow.Radius = radius;
+                glow.Color.RGB = rgb;
+                glow.Transparency = transparency;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    ColorRgb = rgb,
+                    GlowRadius = radius,
+                    Transparency = transparency,
+                };
+            }
+            finally
+            {
+                if (glow != null) ComUtilities.Release(ref glow!);
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -752,21 +951,33 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic glow = shape.Glow;
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            dynamic? shape = null;
+            dynamic? glow = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                ColorRgb = (int)glow.Color.RGB,
-                GlowRadius = (float)glow.Radius,
-                Transparency = (float)glow.Transparency,
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                glow = shape.Glow;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    ColorRgb = (int)glow.Color.RGB,
+                    GlowRadius = (float)glow.Radius,
+                    Transparency = (float)glow.Transparency,
+                };
+            }
+            finally
+            {
+                if (glow != null) ComUtilities.Release(ref glow!);
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -780,33 +991,45 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic reflection = shape.Reflection;
-
-            if (!visible)
+            dynamic? slide = null;
+            dynamic? shape = null;
+            dynamic? reflection = null;
+            try
             {
-                reflection.Type = MsoReflectionTypeNone;
-                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                reflection = shape.Reflection;
+
+                if (!visible)
+                {
+                    reflection.Type = MsoReflectionTypeNone;
+                    return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                }
+
+                reflection.Type = MsoReflectionType9; // full touching — verified live via ShapeEffectsDiagTests
+                reflection.Transparency = transparency;
+                reflection.Size = size;
+                reflection.Blur = blur;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Visible = true,
+                    Transparency = transparency,
+                    ReflectionSize = size,
+                    Blur = blur,
+                };
             }
-
-            reflection.Type = MsoReflectionType9; // full touching — verified live via ShapeEffectsDiagTests
-            reflection.Transparency = transparency;
-            reflection.Size = size;
-            reflection.Blur = blur;
-
-            return new ShapeOperationResult
+            finally
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Visible = true,
-                Transparency = transparency,
-                ReflectionSize = size,
-                Blur = blur,
-            };
+                if (reflection != null) ComUtilities.Release(ref reflection!);
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -820,28 +1043,40 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic reflection = shape.Reflection;
-            bool visible = (int)reflection.Type != MsoReflectionTypeNone;
-
-            if (!visible)
+            dynamic? slide = null;
+            dynamic? shape = null;
+            dynamic? reflection = null;
+            try
             {
-                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                reflection = shape.Reflection;
+                bool visible = (int)reflection.Type != MsoReflectionTypeNone;
+
+                if (!visible)
+                {
+                    return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                }
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Visible = true,
+                    Transparency = (float)reflection.Transparency,
+                    ReflectionSize = (float)reflection.Size,
+                    Blur = (float)reflection.Blur,
+                };
             }
-
-            return new ShapeOperationResult
+            finally
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Visible = true,
-                Transparency = (float)reflection.Transparency,
-                ReflectionSize = (float)reflection.Size,
-                Blur = (float)reflection.Blur,
-            };
+                if (reflection != null) ComUtilities.Release(ref reflection!);
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -855,14 +1090,24 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            shape.SoftEdge.Radius = radius;
+                shape = slide.Shapes[shapeIndex];
+                shape.SoftEdge.Radius = radius;
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, SoftEdgeRadius = radius };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, SoftEdgeRadius = radius };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -876,14 +1121,24 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            float radius = (float)shape.SoftEdge.Radius;
+                shape = slide.Shapes[shapeIndex];
+                float radius = (float)shape.SoftEdge.Radius;
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, SoftEdgeRadius = radius };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, SoftEdgeRadius = radius };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -906,24 +1161,36 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic threeD = shape.ThreeD;
-            threeD.BevelTopType = typeValue;
-            threeD.BevelTopDepth = depth;
-            threeD.BevelTopInset = inset;
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            dynamic? shape = null;
+            dynamic? threeD = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                BevelTypeName = bevelType,
-                BevelDepth = depth,
-                BevelInset = inset,
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                threeD = shape.ThreeD;
+                threeD.BevelTopType = typeValue;
+                threeD.BevelTopDepth = depth;
+                threeD.BevelTopInset = inset;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    BevelTypeName = bevelType,
+                    BevelDepth = depth,
+                    BevelInset = inset,
+                };
+            }
+            finally
+            {
+                if (threeD != null) ComUtilities.Release(ref threeD!);
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -937,23 +1204,35 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic threeD = shape.ThreeD;
-            int typeValue = (int)threeD.BevelTopType;
-            string typeName = BevelTypesByValue.TryGetValue(typeValue, out var name) ? name : $"unknown({typeValue})";
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            dynamic? shape = null;
+            dynamic? threeD = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                BevelTypeName = typeName,
-                BevelDepth = (float)threeD.BevelTopDepth,
-                BevelInset = (float)threeD.BevelTopInset,
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                threeD = shape.ThreeD;
+                int typeValue = (int)threeD.BevelTopType;
+                string typeName = BevelTypesByValue.TryGetValue(typeValue, out var name) ? name : $"unknown({typeValue})";
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    BevelTypeName = typeName,
+                    BevelDepth = (float)threeD.BevelTopDepth,
+                    BevelInset = (float)threeD.BevelTopInset,
+                };
+            }
+            finally
+            {
+                if (threeD != null) ComUtilities.Release(ref threeD!);
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -968,29 +1247,39 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            int shapeCount = (int)slide.Shapes.Count;
-
-            if (shapeIndexes.Count < 2)
+            dynamic? slide = null;
+            dynamic? range = null;
+            try
             {
-                return new ShapeOperationResult
+                slide = ctx.Presentation.Slides[slideIndex];
+                int shapeCount = (int)slide.Shapes.Count;
+
+                if (shapeIndexes.Count < 2)
                 {
-                    Success = false,
-                    ErrorMessage = $"At least 2 shape indexes are required to group (got {shapeIndexes.Count})."
-                };
-            }
+                    return new ShapeOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"At least 2 shape indexes are required to group (got {shapeIndexes.Count})."
+                    };
+                }
 
-            foreach (var index in shapeIndexes)
+                foreach (var index in shapeIndexes)
+                {
+                    var validation = ValidateShapeIndex(shapeCount, index);
+                    if (validation is not null) return validation;
+                }
+
+                object[] indexArray = shapeIndexes.Select(i => (object)i).ToArray();
+                range = slide.Shapes.Range(indexArray);
+                range.Group();
+
+                return new ShapeOperationResult { Success = true, ShapeCount = (int)slide.Shapes.Count };
+            }
+            finally
             {
-                var validation = ValidateShapeIndex(shapeCount, index);
-                if (validation is not null) return validation;
+                if (range != null) ComUtilities.Release(ref range!);
+                if (slide != null) ComUtilities.Release(ref slide!);
             }
-
-            object[] indexArray = shapeIndexes.Select(i => (object)i).ToArray();
-            dynamic range = slide.Shapes.Range(indexArray);
-            range.Group();
-
-            return new ShapeOperationResult { Success = true, ShapeCount = (int)slide.Shapes.Count };
         });
     }
 
@@ -1004,20 +1293,32 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            dynamic slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic ungrouped = shape.Ungroup();
-            int ungroupedCount = (int)ungrouped.Count;
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            dynamic? shape = null;
+            dynamic? ungrouped = null;
+            try
             {
-                Success = true,
-                UngroupedShapeCount = ungroupedCount,
-                ShapeCount = (int)slide.Shapes.Count
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                ungrouped = shape.Ungroup();
+                int ungroupedCount = (int)ungrouped.Count;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    UngroupedShapeCount = ungroupedCount,
+                    ShapeCount = (int)slide.Shapes.Count
+                };
+            }
+            finally
+            {
+                if (ungrouped != null) ComUtilities.Release(ref ungrouped!);
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -1032,14 +1333,24 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
 
-            var shape = slide.Shapes[shapeIndex];
-            shape.Name = name;
+                shape = slide.Shapes[shapeIndex];
+                shape.Name = name;
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Name = shape.Name };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Name = (string)shape.Name };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -1053,13 +1364,23 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
 
-            var shape = slide.Shapes[shapeIndex];
+                shape = slide.Shapes[shapeIndex];
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Name = shape.Name };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Name = (string)shape.Name };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -1074,14 +1395,24 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            shape.AlternativeText = altText;
+                shape = slide.Shapes[shapeIndex];
+                shape.AlternativeText = altText;
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, AltText = (string)shape.AlternativeText };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, AltText = (string)shape.AlternativeText };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -1095,13 +1426,23 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
+            dynamic? slide = null;
+            dynamic? shape = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
+                shape = slide.Shapes[shapeIndex];
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, AltText = (string)shape.AlternativeText };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, AltText = (string)shape.AlternativeText };
+            }
+            finally
+            {
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -1116,29 +1457,41 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            // ActionSettings(ppMouseClick).Hyperlink.Address — verified live: setting Address
-            // automatically flips the action setting's Action to ppActionHyperlink; no separate
-            // "enable hyperlink" step is needed.
-            dynamic actionSetting = shape.ActionSettings[MsoMouseClick];
-            actionSetting.Hyperlink.Address = address;
-            if (screenTip is not null)
+            dynamic? slide = null;
+            dynamic? shape = null;
+            dynamic? actionSetting = null;
+            try
             {
-                actionSetting.Hyperlink.ScreenTip = screenTip;
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                // ActionSettings(ppMouseClick).Hyperlink.Address — verified live: setting Address
+                // automatically flips the action setting's Action to ppActionHyperlink; no separate
+                // "enable hyperlink" step is needed.
+                actionSetting = shape.ActionSettings[MsoMouseClick];
+                actionSetting.Hyperlink.Address = address;
+                if (screenTip is not null)
+                {
+                    actionSetting.Hyperlink.ScreenTip = screenTip;
+                }
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    HasHyperlink = true,
+                    HyperlinkAddress = (string)actionSetting.Hyperlink.Address,
+                    HyperlinkScreenTip = (string)actionSetting.Hyperlink.ScreenTip
+                };
             }
-
-            return new ShapeOperationResult
+            finally
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                HasHyperlink = true,
-                HyperlinkAddress = (string)actionSetting.Hyperlink.Address,
-                HyperlinkScreenTip = (string)actionSetting.Hyperlink.ScreenTip
-            };
+                if (actionSetting != null) ComUtilities.Release(ref actionSetting!);
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -1152,23 +1505,35 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic actionSetting = shape.ActionSettings[MsoMouseClick];
-            int action = (int)actionSetting.Action;
-            bool hasHyperlink = action == PpActionHyperlink;
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            dynamic? shape = null;
+            dynamic? actionSetting = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                HasHyperlink = hasHyperlink,
-                HyperlinkAddress = hasHyperlink ? (string)actionSetting.Hyperlink.Address : null,
-                HyperlinkScreenTip = hasHyperlink ? (string)actionSetting.Hyperlink.ScreenTip : null
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                actionSetting = shape.ActionSettings[MsoMouseClick];
+                int action = (int)actionSetting.Action;
+                bool hasHyperlink = action == PpActionHyperlink;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    HasHyperlink = hasHyperlink,
+                    HyperlinkAddress = hasHyperlink ? (string)actionSetting.Hyperlink.Address : null,
+                    HyperlinkScreenTip = hasHyperlink ? (string)actionSetting.Hyperlink.ScreenTip : null
+                };
+            }
+            finally
+            {
+                if (actionSetting != null) ComUtilities.Release(ref actionSetting!);
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
@@ -1182,20 +1547,32 @@ public sealed class ShapeCommands : IShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            var slide = ctx.Presentation.Slides[slideIndex];
-            var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
-            if (shapeValidation is not null) return shapeValidation;
-
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic actionSetting = shape.ActionSettings[MsoMouseClick];
-            actionSetting.Action = PpActionNone;
-
-            return new ShapeOperationResult
+            dynamic? slide = null;
+            dynamic? shape = null;
+            dynamic? actionSetting = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                HasHyperlink = false
-            };
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex((int)slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                actionSetting = shape.ActionSettings[MsoMouseClick];
+                actionSetting.Action = PpActionNone;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    HasHyperlink = false
+                };
+            }
+            finally
+            {
+                if (actionSetting != null) ComUtilities.Release(ref actionSetting!);
+                if (shape != null) ComUtilities.Release(ref shape!);
+                if (slide != null) ComUtilities.Release(ref slide!);
+            }
         });
     }
 
