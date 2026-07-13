@@ -48,10 +48,12 @@ each other.
 ## Sessions
 
 Every open presentation is a session identified by a `session_id`, obtained
-from `open_presentation`/`create_presentation` (MCP Server) or
-`session create`/`session open` (CLI). Tools and commands operate on a
-session until it is explicitly closed, and nothing is written to disk until
-`save_presentation`/`session save` is called.
+from `presentation(action="open", filePath=...)` /
+`presentation(action="create", filePath=...)` (MCP Server) or
+`pptcli session open <path>` / `pptcli session create <path>` (CLI). Tools and
+commands operate on a session until it is explicitly closed, and nothing is
+written to disk until `presentation(action="save", sessionId=...)` /
+`pptcli session save <id>` is called.
 
 Ready to install? See the [installation guide](installation.md), or dive into
 the [MCP Server](mcp-server.md) and [CLI](cli.md) references.

@@ -1,5 +1,4 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
-using Sbroenne.PowerPointMcp.Core.Attributes;
 
 namespace Sbroenne.PowerPointMcp.Core.Presentation;
 
@@ -10,10 +9,16 @@ namespace Sbroenne.PowerPointMcp.Core.Presentation;
 /// First Core command domain implemented, proving the ComInterop batch pattern end-to-end.
 /// Remaining domains from the plan (Slide, Shape, TextFrame, Table, Chart, Image, Notes,
 /// Layout/Master, Export/QA) are follow-up work — see plan.md continuation notes.
+///
+/// Deliberately carries NO <c>[ServiceCategory]</c>/<c>[McpTool]</c> attribute, unlike every
+/// other Core command domain — this mirrors mcp-server-excel's <c>IFileCommands</c> exactly.
+/// Session-establishing operations (<see cref="Create"/>, <see cref="Open"/>) can't fit the
+/// generic generators' fixed, non-nullable <c>session_id</c>/action-dispatch shape, so this
+/// whole domain is exposed via hand-written surfaces instead: the MCP <c>presentation</c> tool
+/// (<c>PresentationTools.cs</c>) and the CLI's hand-written <c>session</c> branch
+/// (<c>SessionCommands.cs</c> + <c>PowerPointMcpService.HandleSessionCommand</c>) — zero
+/// generator involvement, zero duplication, matching Excel's architecture 1:1.
 /// </remarks>
-[ServiceCategory("presentation", "Presentation")]
-[McpTool("presentation", Title = "Presentation Lifecycle Operations", Destructive = true, Category = "lifecycle",
-    Description = "Create, validate, and save PowerPoint presentation files.", SkipMcpToolGeneration = true)]
 public interface IPresentationCommands
 {
     /// <summary>

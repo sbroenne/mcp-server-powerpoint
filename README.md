@@ -29,7 +29,8 @@ true-fidelity rendering, compatibility with an already-open deck, and zero risk 
 `.pptx` that PowerPoint itself can't open, because PowerPoint is the one writing it.
 
 **🖼️ Export-to-verify** — the core differentiator. After any visual edit, export the slide (or the
-whole deck) to an image with `export_slide_to_image` / `export_all_slides_to_images` and let a
+whole deck) to an image with `export(action="export-slide-to-image", ...)` /
+`export(action="export-all-slides-to-images", ...)` and let a
 vision-capable AI assistant *see* the result — catching overlapping shapes, text overflow, and
 layout regressions that text-only automation simply cannot detect.
 
@@ -44,26 +45,28 @@ layout regressions that text-only automation simply cannot detect.
 
 ## 🎯 What You Can Do
 
-**18 MCP tools with ~98 operations across 12 domains:**
+**13 MCP tools with 132 operations across 13 domains:**
 
-- 🗂️ **Presentation** (5 ops) — create, open, save, close, list sessions
-- 🎨 **Template** (2 ops) — apply a `.potx`/`.pptx` template's masters/theme/layouts, read the current theme name
-- 📑 **Slide** (12 ops) — add, count, delete, duplicate, reorder, per-slide background color, sections
-- ▭ **Shape** (25 ops) — rectangles, text boxes, auto shapes, lines, connectors, fill/line/shadow,
+- 🗂️ **Presentation** (12 ops) — create, open, save, close, list sessions, apply a `.potx`/`.pptx`
+  template's masters/theme/layouts, read the current theme name, read/write built-in and custom
+  document properties
+- 📑 **Slide** (14 ops) — add, count, delete, duplicate, reorder, per-slide background color, sections
+- ▭ **Shape** (36 ops) — rectangles, text boxes, auto shapes, lines, connectors, fill/line/shadow,
   rotation, flip, z-order, grouping, naming, alt text
-- ✏️ **TextFrame** (15 ops) — text, font size/name/color, bold, italic, underline, alignment, bullets
+- ✏️ **TextFrame** (17 ops) — text, font size/name/color, bold, italic, underline, alignment, bullets
 - 📊 **Table** (12 ops) — add, cell text, insert/delete rows &amp; columns, cell fill/border, merge cells
 - 🗣️ **Notes** (2 ops) — set/get speaker notes
 - 🖼️ **Layout** (2 ops) — set/get slide layout
-- 🎭 **Master** (6 ops) — slide master title/body placeholder fonts, background color
+- 🎭 **Master** (8 ops) — slide master title/body placeholder fonts, background color
 - 🎬 **Animation** (5 ops) — shape entrance/emphasis/exit effects, slide transitions
-- 🖼️ **Image** (1 op) — insert pictures
-- 📈 **Chart** (9 ops) — add chart, multi-series data, titles, axis titles, legend
+- 🖼️ **Image** (5 ops) — insert and adjust pictures (brightness, contrast, recolor)
+- 📈 **Chart** (10 ops) — add chart, multi-series data, titles, axis titles, legend
+- 🔀 **SmartArt** (7 ops) — insert and edit SmartArt diagrams
 - 🖼️ **Export** (2 ops) — export a slide, or all slides, to images for visual verification
 
-Each domain other than Presentation/Template is exposed as a single **action-dispatch tool**
-(e.g. `shape`, `table`, `chart`) with an `operation` parameter selecting the specific action —
-keeping the tool list small for AI assistants while still exposing every operation.
+Every domain is exposed as a single **action-dispatch tool** (e.g. `shape`, `table`, `chart`,
+`presentation`) with an `action` parameter selecting the specific operation — keeping the tool
+list small for AI assistants while still exposing every operation.
 
 📚 **[Complete Feature Reference →](https://powerpointmcpserver.dev/features/)** — detailed
 documentation of every tool and operation
@@ -232,4 +235,3 @@ Other projects by the author:
   automation
 - [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering) — LLM-powered
   testing framework for AI agents
-

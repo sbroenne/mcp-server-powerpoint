@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
@@ -158,19 +159,30 @@ public sealed class TableCommands : ITableCommands
             };
         }
 
-        dynamic shape = slide.Shapes[shapeIndex];
-        bool hasTable = (int)shape.HasTable == MsoTrue;
-        if (!hasTable)
+        dynamic? shape = null;
+        try
         {
-            return new TableOperationResult
+            shape = slide.Shapes[shapeIndex];
+            bool hasTable = (int)shape.HasTable == MsoTrue;
+            if (!hasTable)
             {
-                Success = false,
-                ErrorMessage = $"Shape {shapeIndex} on slide {slideIndex} does not contain a table."
-            };
-        }
+                return new TableOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Shape {shapeIndex} on slide {slideIndex} does not contain a table."
+                };
+            }
 
-        table = (PowerPoint.Table)shape.Table;
-        return null;
+            table = (PowerPoint.Table)shape.Table;
+            return null;
+        }
+        finally
+        {
+            if (shape != null)
+            {
+                ComUtilities.Release(ref shape!);
+            }
+        }
     }
 
     /// <inheritdoc/>
@@ -386,19 +398,30 @@ public sealed class TableCommands : ITableCommands
                 border.Weight = weight.Value;
             }
 
-            if (dashStyleValue is not null)
+            dynamic? dynBorder = null;
+            try
             {
-                dynamic dynBorder = border;
-                dynBorder.DashStyle = dashStyleValue.Value;
-            }
+                if (dashStyleValue is not null)
+                {
+                    dynBorder = border;
+                    dynBorder.DashStyle = dashStyleValue.Value;
+                }
 
-            if (visible is not null)
+                if (visible is not null)
+                {
+                    dynBorder ??= border;
+                    dynBorder.Visible = visible.Value ? MsoTrue : MsoFalse;
+                }
+
+                return ReadBorder(border, shapeIndex, borderType);
+            }
+            finally
             {
-                dynamic dynBorder = border;
-                dynBorder.Visible = visible.Value ? MsoTrue : MsoFalse;
+                if (dynBorder != null)
+                {
+                    ComUtilities.Release(ref dynBorder!);
+                }
             }
-
-            return ReadBorder(border, shapeIndex, borderType);
         });
     }
 
@@ -466,21 +489,32 @@ public sealed class TableCommands : ITableCommands
     {
         int rgb = border.ForeColor.RGB;
         float weight = border.Weight;
-        dynamic dynBorder = border;
-        int dashStyleValue = (int)dynBorder.DashStyle;
-        bool visible = (int)dynBorder.Visible == MsoTrue;
-
-        LineDashStylesByValue.TryGetValue(dashStyleValue, out var dashStyleName);
-
-        return new TableOperationResult
+        dynamic? dynBorder = null;
+        try
         {
-            Success = true,
-            ShapeIndex = shapeIndex,
-            BorderType = borderType,
-            ColorRgb = rgb,
-            LineWeight = weight,
-            DashStyleName = dashStyleName,
-            Visible = visible
-        };
+            dynBorder = border;
+            int dashStyleValue = (int)dynBorder.DashStyle;
+            bool visible = (int)dynBorder.Visible == MsoTrue;
+
+            LineDashStylesByValue.TryGetValue(dashStyleValue, out var dashStyleName);
+
+            return new TableOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                BorderType = borderType,
+                ColorRgb = rgb,
+                LineWeight = weight,
+                DashStyleName = dashStyleName,
+                Visible = visible
+            };
+        }
+        finally
+        {
+            if (dynBorder != null)
+            {
+                ComUtilities.Release(ref dynBorder!);
+            }
+        }
     }
 }

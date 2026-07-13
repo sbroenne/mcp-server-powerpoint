@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 
 namespace Sbroenne.PowerPointMcp.Core.Presentation;
@@ -174,16 +175,27 @@ public sealed class PresentationCommands : IPresentationCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic property = ctx.Presentation.BuiltInDocumentProperties[matchedName];
-            property.Value = value;
-
-            return new PresentationOperationResult
+            dynamic? property = null;
+            try
             {
-                Success = true,
-                PresentationPath = batch.PresentationPath,
-                PropertyName = matchedName,
-                PropertyValue = (string)property.Value
-            };
+                property = ctx.Presentation.BuiltInDocumentProperties[matchedName];
+                property.Value = value;
+
+                return new PresentationOperationResult
+                {
+                    Success = true,
+                    PresentationPath = batch.PresentationPath,
+                    PropertyName = matchedName,
+                    PropertyValue = (string)property.Value
+                };
+            }
+            finally
+            {
+                if (property != null)
+                {
+                    ComUtilities.Release(ref property!);
+                }
+            }
         });
     }
 
@@ -200,15 +212,26 @@ public sealed class PresentationCommands : IPresentationCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic property = ctx.Presentation.BuiltInDocumentProperties[matchedName];
-
-            return new PresentationOperationResult
+            dynamic? property = null;
+            try
             {
-                Success = true,
-                PresentationPath = batch.PresentationPath,
-                PropertyName = matchedName,
-                PropertyValue = (string)property.Value
-            };
+                property = ctx.Presentation.BuiltInDocumentProperties[matchedName];
+
+                return new PresentationOperationResult
+                {
+                    Success = true,
+                    PresentationPath = batch.PresentationPath,
+                    PropertyName = matchedName,
+                    PropertyValue = (string)property.Value
+                };
+            }
+            finally
+            {
+                if (property != null)
+                {
+                    ComUtilities.Release(ref property!);
+                }
+            }
         });
     }
 
@@ -260,14 +283,25 @@ public sealed class PresentationCommands : IPresentationCommands
             // helper — an ArgumentException from the name-indexed lookup is the documented way
             // to detect "not present yet" (verified live via COM spike), so this upsert pattern
             // is a normal existence check, not suppression of an unexpected failure (Rule 1b).
+            dynamic? existing = null;
             try
             {
-                dynamic existing = custom[propertyName];
-                existing.Value = value;
+                try
+                {
+                    existing = custom[propertyName];
+                    existing.Value = value;
+                }
+                catch (ArgumentException)
+                {
+                    custom.Add(propertyName, false, MsoPropertyTypeString, value);
+                }
             }
-            catch (ArgumentException)
+            finally
             {
-                custom.Add(propertyName, false, MsoPropertyTypeString, value);
+                if (existing != null)
+                {
+                    ComUtilities.Release(ref existing!);
+                }
             }
 
             return new PresentationOperationResult
@@ -304,25 +338,36 @@ public sealed class PresentationCommands : IPresentationCommands
         {
             var custom = ctx.Presentation.CustomDocumentProperties;
 
+            dynamic? existing = null;
             try
             {
-                dynamic existing = custom[propertyName];
+                try
+                {
+                    existing = custom[propertyName];
 
-                return new PresentationOperationResult
+                    return new PresentationOperationResult
+                    {
+                        Success = true,
+                        PresentationPath = batch.PresentationPath,
+                        PropertyName = propertyName,
+                        PropertyValue = (string)existing.Value
+                    };
+                }
+                catch (ArgumentException)
                 {
-                    Success = true,
-                    PresentationPath = batch.PresentationPath,
-                    PropertyName = propertyName,
-                    PropertyValue = (string)existing.Value
-                };
+                    return new PresentationOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"No custom property named '{propertyName}' was found."
+                    };
+                }
             }
-            catch (ArgumentException)
+            finally
             {
-                return new PresentationOperationResult
+                if (existing != null)
                 {
-                    Success = false,
-                    ErrorMessage = $"No custom property named '{propertyName}' was found."
-                };
+                    ComUtilities.Release(ref existing!);
+                }
             }
         });
     }
@@ -345,25 +390,36 @@ public sealed class PresentationCommands : IPresentationCommands
         {
             var custom = ctx.Presentation.CustomDocumentProperties;
 
+            dynamic? existing = null;
             try
             {
-                dynamic existing = custom[propertyName];
-                existing.Delete();
+                try
+                {
+                    existing = custom[propertyName];
+                    existing.Delete();
 
-                return new PresentationOperationResult
+                    return new PresentationOperationResult
+                    {
+                        Success = true,
+                        PresentationPath = batch.PresentationPath,
+                        PropertyName = propertyName
+                    };
+                }
+                catch (ArgumentException)
                 {
-                    Success = true,
-                    PresentationPath = batch.PresentationPath,
-                    PropertyName = propertyName
-                };
+                    return new PresentationOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"No custom property named '{propertyName}' was found."
+                    };
+                }
             }
-            catch (ArgumentException)
+            finally
             {
-                return new PresentationOperationResult
+                if (existing != null)
                 {
-                    Success = false,
-                    ErrorMessage = $"No custom property named '{propertyName}' was found."
-                };
+                    ComUtilities.Release(ref existing!);
+                }
             }
         });
     }

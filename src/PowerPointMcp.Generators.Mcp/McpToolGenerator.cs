@@ -17,9 +17,10 @@ namespace Sbroenne.PowerPointMcp.Generators.Mcp;
 /// <c>CliSettingsGenerator</c>, since this generator runs inside the McpServer project which
 /// references Core as a compiled assembly, not as source. Categories whose
 /// <c>McpToolAttribute.SkipMcpToolGeneration</c> flag is set are skipped — used for Presentation,
-/// whose session-lifecycle MCP tools (create_presentation, open_presentation, ...) are
-/// intentionally hand-written (mirroring Excel's ExcelFileTool.cs) and have no CLI-parity
-/// "action dispatch" concept.
+/// whose session-lifecycle MCP tool (the single hand-written "presentation" action-dispatch
+/// tool, mirroring Excel's ExcelFileTool.cs) needs an OPTIONAL session_id (create/open establish
+/// a session rather than requiring one), which this generator's fixed, non-nullable session_id
+/// parameter shape does not support.
 ///
 /// PowerPoint Core has no enum/TimeSpan/FileOrValue/IProgress&lt;T&gt; parameters (only plain
 /// primitives plus IReadOnlyList&lt;string&gt;/IReadOnlyList&lt;double&gt; for Chart), so this
@@ -155,7 +156,7 @@ public sealed class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine($"    [Description(\"{toolDescription} Actions: {actionList}.\")]");
         sb.AppendLine($"    public static string PowerPoint{info.CategoryPascal}(");
         sb.AppendLine($"        [Description(\"The action to perform. One of: {actionList}.\")] {info.CategoryPascal}Action action,");
-        sb.AppendLine("        [Description(\"The session id returned by open_presentation or create_presentation.\")] string session_id,");
+        sb.AppendLine("        [Description(\"The session id returned by the presentation tool's action=open or action=create.\")] string session_id,");
 
         if (exposedParams.Count == 0)
         {

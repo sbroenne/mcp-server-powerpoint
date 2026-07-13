@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using System.Linq;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
@@ -107,11 +108,22 @@ public sealed class TextFrameCommands : ITextFrameCommands
             if (validation is not null) return validation;
 
             PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            // Font tri-state properties are Microsoft.Office.Core-typed; keep the property write late-bound.
-            dynamic font = shape.TextFrame.TextRange.Font;
-            font.Bold = bold ? MsoTrue : MsoFalse;
+            dynamic? font = null;
+            try
+            {
+                // Font tri-state properties are Microsoft.Office.Core-typed; keep the property write late-bound.
+                font = shape.TextFrame.TextRange.Font;
+                font.Bold = bold ? MsoTrue : MsoFalse;
 
-            return new TextFrameOperationResult { Success = true, Bold = bold };
+                return new TextFrameOperationResult { Success = true, Bold = bold };
+            }
+            finally
+            {
+                if (font != null)
+                {
+                    ComUtilities.Release(ref font!);
+                }
+            }
         });
     }
 
@@ -147,10 +159,21 @@ public sealed class TextFrameCommands : ITextFrameCommands
             if (validation is not null) return validation;
 
             PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            dynamic font = shape.TextFrame.TextRange.Font;
-            font.Italic = italic ? MsoTrue : MsoFalse;
+            dynamic? font = null;
+            try
+            {
+                font = shape.TextFrame.TextRange.Font;
+                font.Italic = italic ? MsoTrue : MsoFalse;
 
-            return new TextFrameOperationResult { Success = true, Italic = italic };
+                return new TextFrameOperationResult { Success = true, Italic = italic };
+            }
+            finally
+            {
+                if (font != null)
+                {
+                    ComUtilities.Release(ref font!);
+                }
+            }
         });
     }
 
@@ -165,10 +188,21 @@ public sealed class TextFrameCommands : ITextFrameCommands
             if (validation is not null) return validation;
 
             PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            dynamic font = shape.TextFrame.TextRange.Font;
-            bool italic = (int)font.Italic == MsoTrue;
+            dynamic? font = null;
+            try
+            {
+                font = shape.TextFrame.TextRange.Font;
+                bool italic = (int)font.Italic == MsoTrue;
 
-            return new TextFrameOperationResult { Success = true, Italic = italic };
+                return new TextFrameOperationResult { Success = true, Italic = italic };
+            }
+            finally
+            {
+                if (font != null)
+                {
+                    ComUtilities.Release(ref font!);
+                }
+            }
         });
     }
 
@@ -183,10 +217,21 @@ public sealed class TextFrameCommands : ITextFrameCommands
             if (validation is not null) return validation;
 
             PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            dynamic font = shape.TextFrame.TextRange.Font;
-            font.Underline = underline ? MsoTrue : MsoFalse;
+            dynamic? font = null;
+            try
+            {
+                font = shape.TextFrame.TextRange.Font;
+                font.Underline = underline ? MsoTrue : MsoFalse;
 
-            return new TextFrameOperationResult { Success = true, Underline = underline };
+                return new TextFrameOperationResult { Success = true, Underline = underline };
+            }
+            finally
+            {
+                if (font != null)
+                {
+                    ComUtilities.Release(ref font!);
+                }
+            }
         });
     }
 
@@ -201,10 +246,21 @@ public sealed class TextFrameCommands : ITextFrameCommands
             if (validation is not null) return validation;
 
             PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            dynamic font = shape.TextFrame.TextRange.Font;
-            bool underline = (int)font.Underline == MsoTrue;
+            dynamic? font = null;
+            try
+            {
+                font = shape.TextFrame.TextRange.Font;
+                bool underline = (int)font.Underline == MsoTrue;
 
-            return new TextFrameOperationResult { Success = true, Underline = underline };
+                return new TextFrameOperationResult { Success = true, Underline = underline };
+            }
+            finally
+            {
+                if (font != null)
+                {
+                    ComUtilities.Release(ref font!);
+                }
+            }
         });
     }
 
@@ -316,23 +372,36 @@ public sealed class TextFrameCommands : ITextFrameCommands
             }
 
             PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            // ParagraphFormat.Bullet's embedded signature references Office.MsoTriState from
+            // Reason: ParagraphFormat.Bullet's embedded signature references Office.MsoTriState from
             // office.dll, which this project deliberately does not load. Keep only this boundary
             // late-bound; the containing PowerPoint shape and PpBulletType values remain typed.
-            dynamic bullet = ((dynamic)shape.TextFrame.TextRange.ParagraphFormat).Bullet;
-
-            bullet.Type = enabled ? PpBulletUnnumbered : PpBulletNone;
-            if (enabled && character is not null)
+            dynamic? bullet = null;
+            try
             {
-                bullet.Character = (int)character[0];
+                // Reason: ParagraphFormat.Bullet's embedded signature references
+                // Office.MsoTriState from office.dll, so it is read via dynamic late binding.
+                bullet = ((dynamic)shape.TextFrame.TextRange.ParagraphFormat).Bullet;
+
+                bullet.Type = enabled ? PpBulletUnnumbered : PpBulletNone;
+                if (enabled && character is not null)
+                {
+                    bullet.Character = (int)character[0];
+                }
+
+                return new TextFrameOperationResult
+                {
+                    Success = true,
+                    BulletEnabled = enabled,
+                    BulletCharacter = enabled ? (character ?? char.ConvertFromUtf32((int)bullet.Character)) : null
+                };
             }
-
-            return new TextFrameOperationResult
+            finally
             {
-                Success = true,
-                BulletEnabled = enabled,
-                BulletCharacter = enabled ? (character ?? char.ConvertFromUtf32((int)bullet.Character)) : null
-            };
+                if (bullet != null)
+                {
+                    ComUtilities.Release(ref bullet!);
+                }
+            }
         });
     }
 
@@ -347,16 +416,28 @@ public sealed class TextFrameCommands : ITextFrameCommands
             if (validation is not null) return validation;
 
             PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
-            // See SetBullet: the Bullet getter depends on Office.MsoTriState from office.dll.
-            dynamic bullet = ((dynamic)shape.TextFrame.TextRange.ParagraphFormat).Bullet;
-            bool enabled = (int)bullet.Type != (int)PpBulletNone;
-
-            return new TextFrameOperationResult
+            // Reason: See SetBullet — the Bullet getter depends on Office.MsoTriState from office.dll.
+            dynamic? bullet = null;
+            try
             {
-                Success = true,
-                BulletEnabled = enabled,
-                BulletCharacter = enabled ? char.ConvertFromUtf32((int)bullet.Character) : null
-            };
+                // Reason: See SetBullet — the Bullet getter depends on Office.MsoTriState from office.dll.
+                bullet = ((dynamic)shape.TextFrame.TextRange.ParagraphFormat).Bullet;
+                bool enabled = (int)bullet.Type != (int)PpBulletNone;
+
+                return new TextFrameOperationResult
+                {
+                    Success = true,
+                    BulletEnabled = enabled,
+                    BulletCharacter = enabled ? char.ConvertFromUtf32((int)bullet.Character) : null
+                };
+            }
+            finally
+            {
+                if (bullet != null)
+                {
+                    ComUtilities.Release(ref bullet!);
+                }
+            }
         });
     }
 

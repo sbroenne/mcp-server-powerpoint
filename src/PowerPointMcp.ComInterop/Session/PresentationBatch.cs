@@ -236,6 +236,7 @@ internal sealed class PresentationBatch : IPresentationBatch
                         if (processId != 0)
                         {
                             _powerPointProcessId = (int)processId;
+                            PresentationSessionRegistry.TrackPowerPointProcess(_powerPointProcessId.Value);
                             break;
                         }
                     }

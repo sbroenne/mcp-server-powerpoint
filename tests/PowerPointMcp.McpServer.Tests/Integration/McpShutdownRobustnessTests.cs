@@ -77,7 +77,7 @@ public sealed class McpShutdownRobustnessTests
             // session once the file is on disk — otherwise it lingers in the registry and the
             // final list_sessions count assertion (expecting 0) would see it.
             var seedFile = Path.Join(tempDir, "Seed.pptx");
-            var seedCreateJson = await Call("create_presentation", new() { ["filePath"] = seedFile });
+            var seedCreateJson = await Call("presentation", new() { ["action"] = "create", ["filePath"] = seedFile });
             AssertSuccess(seedCreateJson, "create_presentation");
             var seedSessionId = GetString(seedCreateJson, "sessionId");
             Assert.True(File.Exists(seedFile));
@@ -95,7 +95,7 @@ public sealed class McpShutdownRobustnessTests
             // Close the seed session now that its file has been copied — the test only needs the
             // file on disk, not a live seed session. Its background disposal is tracked and awaited
             // by DisposeAll on host shutdown like any other session.
-            AssertSuccess(await Call("close_presentation", new() { ["sessionId"] = seedSessionId }), "close_presentation (seed)");
+            AssertSuccess(await Call("presentation", new() { ["action"] = "close", ["sessionId"] = seedSessionId }), "close_presentation (seed)");
             _output.WriteLine("✓ close_presentation (seed session)");
 
             // Open sessions sequentially — concurrent PowerPoint COM activation is transiently
@@ -127,8 +127,8 @@ public sealed class McpShutdownRobustnessTests
 
             // --- Concurrent close: closing two independent sessions at the same time. ---
             var concurrentStopwatch = Stopwatch.StartNew();
-            var closeBTask = Call("close_presentation", new() { ["sessionId"] = sessionB });
-            var closeCTask = Call("close_presentation", new() { ["sessionId"] = sessionC });
+            var closeBTask = Call("presentation", new() { ["action"] = "close", ["sessionId"] = sessionB });
+            var closeCTask = Call("presentation", new() { ["action"] = "close", ["sessionId"] = sessionC });
             var closeResults = await Task.WhenAll(closeBTask, closeCTask);
             concurrentStopwatch.Stop();
 
@@ -151,7 +151,7 @@ public sealed class McpShutdownRobustnessTests
             Assert.True(closeD.Elapsed < TimeSpan.FromSeconds(15), $"Close of D should be fast; took {closeD.Elapsed}.");
             _output.WriteLine($"✓ close_presentation D returned in {closeD.Elapsed.TotalMilliseconds:N0}ms; stopping host immediately (no delay)");
 
-            var listAfterAllClosesResult = await Call("list_sessions", []);
+            var listAfterAllClosesResult = await Call("presentation", new() { ["action"] = "list" });
             AssertSuccess(listAfterAllClosesResult, "list_sessions (after all closes)");
             using (var listJson = JsonDocument.Parse(listAfterAllClosesResult))
             {
@@ -198,7 +198,7 @@ public sealed class McpShutdownRobustnessTests
         string filePath,
         string label)
     {
-        var result = await call("open_presentation", new Dictionary<string, object?> { ["filePath"] = filePath });
+        var result = await call("presentation", new Dictionary<string, object?> { ["action"] = "open", ["filePath"] = filePath });
         AssertSuccess(result, $"open_presentation ({label})");
         var sessionId = GetString(result, "sessionId");
         Assert.False(string.IsNullOrEmpty(sessionId), $"Expected a sessionId for session {label}: {result}");
@@ -210,7 +210,7 @@ public sealed class McpShutdownRobustnessTests
         string sessionId)
     {
         var stopwatch = Stopwatch.StartNew();
-        var result = await call("close_presentation", new Dictionary<string, object?> { ["sessionId"] = sessionId });
+        var result = await call("presentation", new Dictionary<string, object?> { ["action"] = "close", ["sessionId"] = sessionId });
         stopwatch.Stop();
         return (result, stopwatch.Elapsed);
     }

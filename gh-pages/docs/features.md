@@ -1,181 +1,178 @@
 ---
 title: Complete Feature Reference
-description: 18 MCP tools with ~98 operations across 12 domains for live PowerPoint automation. Slides, shapes, text, tables, charts, notes, layouts, masters, animations, templates, images and export-to-verify.
-keywords: "PowerPoint MCP features, PowerPoint automation, slide tools, shape tools, chart tools, table tools, template tools, MCP operations"
+description: 13 MCP tools with 132 operations across 13 domains for live PowerPoint automation through single action-dispatch tools.
+keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-Every tool operates on a **session** (`session_id`) obtained from
-`open_presentation` or `create_presentation`, and drives a real, live
-PowerPoint desktop process via COM — not an offline `.pptx` parser.
+PowerPoint MCP Server exposes **13 MCP tools with 132 operations across 13 domains**.
+Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
+`presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
+`chart(action="add-chart", session_id="...", slide_index=2, ...)`.
 
-Most domains are exposed as a single **action-dispatch tool** (e.g. `shape`,
-`table`, `chart`) with an `operation` parameter selecting the specific
-action — this keeps the tool list small for AI assistants while still
-exposing every operation below. `Presentation` and `Template` are the
-exception: they're small enough to stay as individual, hand-written tools.
+The CLI mirrors the same domain model:
+
+- `pptcli session <action> ...` for the `presentation` domain's session/template/property work
+- `pptcli <domain> <action> ...` for all other domains, such as `pptcli chart add-chart ...`
 
 ## Tool matrix
 
-### Presentation — session lifecycle
+| Tool | Ops | What it covers | MCP call shape | CLI shape |
+|------|-----|----------------|----------------|-----------|
+| `presentation` | 12 | Session lifecycle, template application, built-in/custom document properties | `presentation(action="...", ...)` | `pptcli session <action> ...` |
+| `slide` | 14 | Slide lifecycle, slide backgrounds, sections | `slide(action="...", session_id=..., ...)` | `pptcli slide <action> -s <SESSION_ID> ...` |
+| `shape` | 36 | Shapes, geometry, styling, effects, grouping, naming, hyperlinks | `shape(action="...", session_id=..., ...)` | `pptcli shape <action> -s <SESSION_ID> ...` |
+| `textframe` | 17 | Text content and text formatting | `textframe(action="...", session_id=..., ...)` | `pptcli textframe <action> -s <SESSION_ID> ...` |
+| `table` | 12 | Table creation and cell editing/formatting | `table(action="...", session_id=..., ...)` | `pptcli table <action> -s <SESSION_ID> ...` |
+| `notes` | 2 | Speaker notes | `notes(action="...", session_id=..., ...)` | `pptcli notes <action> -s <SESSION_ID> ...` |
+| `layout` | 2 | Slide layouts | `layout(action="...", session_id=..., ...)` | `pptcli layout <action> -s <SESSION_ID> ...` |
+| `master` | 8 | Slide master fonts and backgrounds | `master(action="...", session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
+| `animation` | 5 | Shape effects and slide transitions | `animation(action="...", session_id=..., ...)` | `pptcli animation <action> -s <SESSION_ID> ...` |
+| `image` | 5 | Picture insertion and picture adjustments | `image(action="...", session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
+| `chart` | 10 | Native charts, titles, axes, legend, data replacement | `chart(action="...", session_id=..., ...)` | `pptcli chart <action> -s <SESSION_ID> ...` |
+| `smartart` | 7 | SmartArt diagrams and node editing | `smartart(action="...", session_id=..., ...)` | `pptcli smartart <action> -s <SESSION_ID> ...` |
+| `export` | 2 | Export-to-verify image rendering | `export(action="...", session_id=..., ...)` | `pptcli export <action> -s <SESSION_ID> ...` |
 
-| Tool | What it does |
-|------|---------------|
-| `create_presentation` | Creates a new, blank presentation (in-memory, not yet a session) |
-| `open_presentation` | Opens an existing `.pptx`/`.pptm` file and starts a session |
-| `save_presentation` | Saves the active session to disk — nothing persists until this is called |
-| `close_presentation` | Closes a session (optionally saving first); closing is async |
-| `list_sessions` | Lists all currently open sessions, for state discovery without asking the user |
+## Domain reference
 
-### Template — themes &amp; masters
+### `presentation` tool (12 operations)
 
-| Tool | What it does |
-|------|---------------|
-| `apply_template` | Applies a `.potx`/`.potm`/`.pot` (or `.pptx`/`.pptm`) template's masters/theme/layouts, preserving existing slide content |
-| `get_theme_name` | Reads the name of the design/theme currently applied to the presentation |
+Use `presentation` for session lifecycle, templates/themes, and document properties.
+`create` and `open` establish a session and return a `sessionId`; the remaining edit/read actions
+use that `sessionId`.
 
-### Slide (`slide` tool — 12 operations)
+| Action | What it does |
+|--------|---------------|
+| `create` | Create a new presentation file, save it immediately, and leave the session open. |
+| `open` | Open an existing presentation file and start a session. |
+| `save` | Save the presentation for an open session. |
+| `close` | Close an open session; PowerPoint shutdown continues in the background. |
+| `list` | List all currently open sessions. |
+| `apply-template` | Apply a `.potx`/`.potm`/`.pot` or `.pptx`/`.pptm` template source while preserving slide content. |
+| `get-theme-name` | Read the currently applied design/theme name. |
+| `set-document-property` | Set a built-in document metadata property such as Title or Author. |
+| `get-document-property` | Read a built-in document metadata property. |
+| `set-custom-property` | Create or update a custom document property. |
+| `get-custom-property` | Read a custom document property. |
+| `remove-custom-property` | Remove a custom document property. |
 
-| Operation | What it does |
-|-----------|---------------|
-| `add-blank` | Adds a new blank slide at the end of the presentation |
-| `get-count` | Returns the number of slides in the presentation |
-| `delete` | Deletes a slide by 1-based index |
-| `duplicate` | Duplicates a slide, inserting the copy immediately after the source |
-| `move-to` | Moves a slide to a new 1-based position, renumbering the rest |
-| `set-background-color` | Sets a solid background color for a single slide, overriding the master |
-| `get-background-color` | Reads a slide's background color and whether it follows the master |
-| `add-section` | Adds a new section at a given position |
-| `rename-section` | Renames a section |
-| `delete-section` | Deletes a section (optionally deleting its slides too) |
-| `get-section-count` | Returns the number of sections |
-| `get-section-name` | Reads a section's name |
+**Exact action order:** `create`, `open`, `save`, `close`, `list`, `apply-template`,
+`get-theme-name`, `set-document-property`, `get-document-property`, `set-custom-property`,
+`get-custom-property`, `remove-custom-property`
 
-### Shape (`shape` tool — 25 operations)
+### `slide` tool (14 operations)
 
-| Operation | What it does |
-|-----------|---------------|
-| `add-rectangle` | Adds a rectangle shape at a given position and size |
-| `add-text-box` | Adds a text box shape |
-| `add-auto-shape` | Adds a non-rectangle auto shape (oval, arrow, star, etc.) by `MsoAutoShapeType` name |
-| `add-line` | Adds a straight line between two points |
-| `add-connector` | Adds a connector shape (straight, elbow, or curved) between two points |
-| `get-count` | Returns the number of shapes on a slide |
-| `delete` | Deletes a shape by 1-based index |
-| `set-position` | Moves a shape to a new X/Y position |
-| `set-size` | Resizes a shape's width/height |
-| `set-fill` / `get-fill` | Sets / reads a shape's solid fill color |
-| `set-line` / `get-line` | Sets / reads a shape's line/border color, weight, dash style, visibility |
-| `set-rotation` / `get-rotation` | Sets / reads a shape's rotation in degrees |
-| `flip` | Flips a shape horizontally or vertically |
-| `set-z-order` | Moves a shape in the slide's draw order (front/back/forward/backward) |
-| `set-shadow` / `get-shadow` | Toggles / reads a shape's default drop shadow |
-| `group` / `ungroup` | Groups multiple shapes into one, or splits a group back apart |
-| `set-name` / `get-name` | Sets / reads a shape's name (Selection Pane) |
-| `set-alt-text` / `get-alt-text` | Sets / reads a shape's accessibility alt text |
+| Action | What it does |
+|--------|---------------|
+| `add-blank` | Add a blank slide. |
+| `get-count` | Return the slide count. |
+| `delete` | Delete a slide by 1-based index. |
+| `duplicate` | Duplicate a slide. |
+| `move-to` | Move a slide to a new 1-based position. |
+| `set-background-color` | Set a slide's solid background color. |
+| `get-background-color` | Read a slide's solid background color / master-follow state. |
+| `set-gradient-background` | Set a slide's gradient background. |
+| `get-gradient-background` | Read a slide's gradient background. |
+| `add-section` | Add a section. |
+| `rename-section` | Rename a section. |
+| `delete-section` | Delete a section. |
+| `get-section-count` | Return the section count. |
+| `get-section-name` | Read a section name. |
 
-### TextFrame (`textframe` tool — 15 operations)
+**Exact action order:** `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`,
+`set-background-color`, `get-background-color`, `set-gradient-background`,
+`get-gradient-background`, `add-section`, `rename-section`, `delete-section`,
+`get-section-count`, `get-section-name`
 
-| Operation | What it does |
-|-----------|---------------|
-| `set-text` / `get-text` | Sets / reads a shape's text content |
-| `set-font-size` | Sets font size for a shape's text range |
-| `set-bold` | Toggles bold |
-| `set-font-color` | Sets font color |
-| `set-italic` / `get-italic` | Sets / reads italic |
-| `set-underline` / `get-underline` | Sets / reads underline |
-| `set-font-name` / `get-font-name` | Sets / reads the font typeface |
-| `set-alignment` / `get-alignment` | Sets / reads paragraph alignment |
-| `set-bullet` / `get-bullet` | Sets / reads bullet formatting |
+### `shape` tool (36 operations)
 
-### Table (`table` tool — 12 operations)
+Use `shape` for shape creation, geometry, styling, effects, grouping, naming, alt text, and
+hyperlinks.
 
-| Operation | What it does |
-|-----------|---------------|
-| `add-table` | Adds a table shape with a given row/column count |
-| `set-cell-text` / `get-cell-text` | Sets / reads a cell's text by 1-based row/column |
-| `insert-row` / `delete-row` | Inserts / deletes a table row |
-| `insert-column` / `delete-column` | Inserts / deletes a table column |
-| `set-cell-fill` / `get-cell-fill` | Sets / reads a cell's solid fill color |
-| `set-cell-border` / `get-cell-border` | Sets / reads a single cell border's color, weight, dash style, visibility |
-| `merge-cells` | Merges two adjacent cells into one |
+**Exact action order:** `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`,
+`add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`,
+`set-line`, `get-line`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`,
+`get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`,
+`get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`,
+`set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`
 
-### Notes (`notes` tool — 2 operations)
+### `textframe` tool (17 operations)
 
-| Operation | What it does |
-|-----------|---------------|
-| `set-notes-text` | Sets the speaker notes text for a slide |
-| `get-notes-text` | Reads the speaker notes text for a slide |
+Use `textframe` for text content and font/paragraph formatting on a shape's text frame.
 
-### Layout (`layout` tool — 2 operations)
+**Exact action order:** `set-text`, `get-text`, `set-font-size`, `set-bold`, `set-font-color`,
+`set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`,
+`set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`, `set-auto-size`, `get-auto-size`
 
-| Operation | What it does |
-|-----------|---------------|
-| `set-layout` | Applies a built-in slide layout (e.g. Title Only, Blank) |
-| `get-layout` | Reads a slide's current layout name |
+### `table` tool (12 operations)
 
-### Master (`master` tool — 6 operations)
+Use `table` for native PowerPoint tables.
 
-| Operation | What it does |
-|-----------|---------------|
-| `get-title-font` / `set-title-font` | Reads / sets the slide master's title placeholder font (name, size, bold, color) |
-| `get-body-font` / `set-body-font` | Reads / sets the slide master's body placeholder font |
-| `get-background-color` / `set-background-color` | Reads / sets the slide master's background fill color |
+**Exact action order:** `add-table`, `set-cell-text`, `get-cell-text`, `insert-row`, `delete-row`,
+`insert-column`, `delete-column`, `set-cell-fill`, `get-cell-fill`, `set-cell-border`,
+`get-cell-border`, `merge-cells`
 
-Changes to the master apply to every slide that inherits from it (i.e. any slide that doesn't
-override the property itself) — the practical "edit once, apply everywhere" workflow PowerPoint's
-COM model supports safely.
+### `notes` tool (2 operations)
 
-### Animation (`animation` tool — 5 operations)
+**Exact action order:** `set-notes-text`, `get-notes-text`
 
-| Operation | What it does |
-|-----------|---------------|
-| `add-effect` | Adds an entrance/emphasis/exit animation effect to a shape by `MsoAnimEffect` name |
-| `get-effect-count` | Returns the number of animation effects on a slide's timeline |
-| `delete-effect` | Deletes an effect from a slide's timeline by 1-based index |
-| `get-transition` / `set-transition` | Reads / sets a slide's transition (effect, duration, advance behavior) |
+### `layout` tool (2 operations)
 
-### Image (`image` tool — 1 operation)
+**Exact action order:** `set-layout`, `get-layout`
 
-| Operation | What it does |
-|-----------|---------------|
-| `add-picture` | Embeds a picture from a local file path onto a slide |
+### `master` tool (8 operations)
 
-### Chart (`chart` tool — 9 operations)
+Use `master` for deck-wide master placeholder fonts and master backgrounds.
 
-| Operation | What it does |
-|-----------|---------------|
-| `add-chart` | Adds a native chart shape (bar, line, or pie) with categories and a data series |
-| `get-chart-data` | Reads back a chart's category and series counts |
-| `add-series` | Adds another data series to an existing chart |
-| `set-chart-title` / `get-chart-title` | Sets / reads the chart's main title |
-| `set-axis-title` / `get-axis-title` | Sets / reads a category or value axis title |
-| `set-legend-visibility` / `get-legend-visibility` | Shows/hides / reads the chart's legend |
+**Exact action order:** `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`,
+`get-background-color`, `set-background-color`, `set-gradient-background`,
+`get-gradient-background`
 
-### Export (`export` tool — 2 operations) — the visual-verification differentiator
+### `animation` tool (5 operations)
 
-| Operation | What it does |
-|-----------|---------------|
-| `export-slide-to-image` | Exports a single slide to an image file, for multimodal visual verification |
-| `export-all-slides-to-images` | Exports every slide to image files in one call |
+**Exact action order:** `add-effect`, `get-effect-count`, `delete-effect`, `get-transition`,
+`set-transition`
+
+### `image` tool (5 operations)
+
+Use `image` for inserting and adjusting pictures.
+
+**Exact action order:** `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`,
+`set-recolor`, `get-recolor`
+
+### `chart` tool (10 operations)
+
+Use `chart` for native PowerPoint charts.
+
+**Exact action order:** `add-chart`, `get-chart-data`, `add-series`, `set-chart-title`,
+`get-chart-title`, `set-axis-title`, `get-axis-title`, `set-legend-visibility`,
+`get-legend-visibility`, `replace-chart-data`
+
+### `smartart` tool (7 operations)
+
+Use `smartart` for SmartArt diagrams and node editing.
+
+**Exact action order:** `add-smart-art`, `add-node`, `add-child-node`, `set-node-text`,
+`get-node-text`, `delete-node`, `get-node-count`
+
+### `export` tool (2 operations)
+
+Use `export` for the project's export-to-verify loop.
+
+**Exact action order:** `export-slide-to-image`, `export-all-slides-to-images`
 
 !!! tip "Why export-to-verify matters"
-    Because tools drive a real PowerPoint instance, every edit can be
-    immediately rendered to a PNG and checked by a vision-capable AI
-    assistant — catching layout overlaps, overflow and visual regressions
-    that text-only automation (or offline `.pptx` libraries) simply can't
-    see.
+    Because the tools drive a **real PowerPoint desktop instance**, every visual edit can be
+    rendered to an image and checked by a vision-capable AI assistant before the deck is declared
+    done.
 
 ## Design principles
 
-- **1-based indexing everywhere** — slide index, shape index, table
-  row/column all start at 1, matching how PowerPoint itself numbers things
-  and how a human would describe a slide deck.
-- **Sessions required for edits** — `open_presentation` (or
-  `create_presentation` + a session) must precede any edit tool call.
-- **Explicit save** — changes exist only in the live PowerPoint process until
-  `save_presentation` is called.
-- **Structured results** — every tool returns `{ success, errorMessage }`
-  (Rule 1 in the codebase): expected failures (bad index, missing file) come
-  back as a clean JSON error, never an unhandled exception.
+- **Single action-dispatch tool per domain** — fewer MCP tools, clearer schemas, same total power.
+- **`action`, not `operation`** — every MCP domain tool selects its behavior with an `action`
+  enum parameter.
+- **1-based indexing everywhere** — slides, shapes, rows, and columns all match PowerPoint's own
+  object model.
+- **Sessions are explicit** — open/create once, do the work, save, then close.
+- **Export to verify** — when a change is visual, render it and inspect the image.

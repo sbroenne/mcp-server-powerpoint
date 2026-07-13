@@ -54,6 +54,16 @@
     <_SkipUpgradeNetAnalyzersNuGetWarning>true</_SkipUpgradeNetAnalyzersNuGetWarning>
   </PropertyGroup>
 
+  <!--
+    Pre-build cleanup: gracefully stop PowerPointMCP Service and kill PowerPoint processes.
+    Prevents file locking during build. Skipped in CI (no PowerPoint/Service there).
+  -->
+  <Target Name="StopPowerPointMcpProcesses" BeforeTargets="Build" Condition="'$(CI)' != 'true' AND '$(PowerPointMcpSkipCleanup)' != 'true'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\Stop-PowerPointMcpProcesses.ps1&quot;"
+          IgnoreExitCode="true"
+          StandardOutputImportance="low" />
+  </Target>
+
   <!-- Import user-specific properties (gitignored, for local secrets) -->
   <Import Project="Directory.Build.props.user" Condition="Exists('Directory.Build.props.user')" />
 

@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
@@ -149,19 +150,30 @@ public sealed class AnimationCommands : IAnimationCommands
                 PowerPoint.MsoAnimateByLevel.msoAnimateLevelNone,
                 triggerValue,
                 newIndex);
-            dynamic dynEffect = effect;
-            dynEffect.Exit = isExit ? MsoTrue : MsoFalse;
-            effect.Timing.TriggerType = triggerValue;
-
-            return new AnimationOperationResult
+            dynamic? dynEffect = null;
+            try
             {
-                Success = true,
-                EffectIndex = newIndex,
-                EffectCount = sequence.Count,
-                EffectName = effectName,
-                IsExit = isExit,
-                Trigger = trigger
-            };
+                dynEffect = effect;
+                dynEffect.Exit = isExit ? MsoTrue : MsoFalse;
+                effect.Timing.TriggerType = triggerValue;
+
+                return new AnimationOperationResult
+                {
+                    Success = true,
+                    EffectIndex = newIndex,
+                    EffectCount = sequence.Count,
+                    EffectName = effectName,
+                    IsExit = isExit,
+                    Trigger = trigger
+                };
+            }
+            finally
+            {
+                if (dynEffect != null)
+                {
+                    ComUtilities.Release(ref dynEffect!);
+                }
+            }
         });
     }
 
@@ -261,31 +273,42 @@ public sealed class AnimationCommands : IAnimationCommands
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             PowerPoint.SlideShowTransition transition = slide.SlideShowTransition;
-            transition.EntryEffect = transitionValue;
-
-            if (durationSeconds is not null)
+            dynamic? dynTransition = null;
+            try
             {
-                transition.Duration = durationSeconds.Value;
-            }
+                transition.EntryEffect = transitionValue;
 
-            if (advanceOnClick is not null)
+                if (durationSeconds is not null)
+                {
+                    transition.Duration = durationSeconds.Value;
+                }
+
+                if (advanceOnClick is not null)
+                {
+                    dynTransition = transition;
+                    dynTransition.AdvanceOnClick = advanceOnClick.Value ? MsoTrue : MsoFalse;
+                }
+
+                if (advanceOnTime is not null)
+                {
+                    dynTransition ??= transition;
+                    dynTransition.AdvanceOnTime = advanceOnTime.Value ? MsoTrue : MsoFalse;
+                }
+
+                if (advanceTimeSeconds is not null)
+                {
+                    transition.AdvanceTime = advanceTimeSeconds.Value;
+                }
+
+                return ReadTransition(slide);
+            }
+            finally
             {
-                dynamic dynTransition = transition;
-                dynTransition.AdvanceOnClick = advanceOnClick.Value ? MsoTrue : MsoFalse;
+                if (dynTransition != null)
+                {
+                    ComUtilities.Release(ref dynTransition!);
+                }
             }
-
-            if (advanceOnTime is not null)
-            {
-                dynamic dynTransition = transition;
-                dynTransition.AdvanceOnTime = advanceOnTime.Value ? MsoTrue : MsoFalse;
-            }
-
-            if (advanceTimeSeconds is not null)
-            {
-                transition.AdvanceTime = advanceTimeSeconds.Value;
-            }
-
-            return ReadTransition(slide);
         });
     }
 
@@ -296,17 +319,28 @@ public sealed class AnimationCommands : IAnimationCommands
         string transitionName = EntryEffectsByValue.TryGetValue(entryEffectValue, out var name)
             ? name
             : $"unknown ({(int)entryEffectValue})";
-        dynamic dynTransition = transition;
-
-        return new AnimationOperationResult
+        dynamic? dynTransition = null;
+        try
         {
-            Success = true,
-            TransitionName = transitionName,
-            DurationSeconds = transition.Duration,
-            AdvanceOnClick = (int)dynTransition.AdvanceOnClick == MsoTrue,
-            AdvanceOnTime = (int)dynTransition.AdvanceOnTime == MsoTrue,
-            AdvanceTimeSeconds = transition.AdvanceTime
-        };
+            dynTransition = transition;
+
+            return new AnimationOperationResult
+            {
+                Success = true,
+                TransitionName = transitionName,
+                DurationSeconds = transition.Duration,
+                AdvanceOnClick = (int)dynTransition.AdvanceOnClick == MsoTrue,
+                AdvanceOnTime = (int)dynTransition.AdvanceOnTime == MsoTrue,
+                AdvanceTimeSeconds = transition.AdvanceTime
+            };
+        }
+        finally
+        {
+            if (dynTransition != null)
+            {
+                ComUtilities.Release(ref dynTransition!);
+            }
+        }
     }
 
     private static AnimationOperationResult? ValidateSlideIndex(int slideCount, int slideIndex)

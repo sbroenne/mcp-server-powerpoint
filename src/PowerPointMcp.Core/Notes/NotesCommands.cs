@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
@@ -55,26 +56,50 @@ public sealed class NotesCommands : INotesCommands
     /// </remarks>
     private static PowerPoint.Shape FindNotesTextShape(PresentationContext ctx, int slideIndex)
     {
-        dynamic notesPage = ctx.Presentation.Slides[slideIndex].NotesPage;
-        dynamic shapes = notesPage.Shapes;
-        int count = (int)shapes.Count;
-
-        for (int i = 1; i <= count; i++)
+        dynamic? notesPage = null;
+        dynamic? shapes = null;
+        try
         {
-            dynamic shape = shapes[i];
-            bool isPlaceholder = (int)shape.Type == MsoShapePlaceholder;
-            if (!isPlaceholder) continue;
+            notesPage = ctx.Presentation.Slides[slideIndex].NotesPage;
+            shapes = notesPage.Shapes;
+            int count = (int)shapes.Count;
 
-            PowerPoint.PpPlaceholderType placeholderType =
-                (PowerPoint.PpPlaceholderType)shape.PlaceholderFormat.Type;
-            if (placeholderType == PowerPoint.PpPlaceholderType.ppPlaceholderBody)
+            for (int i = 1; i <= count; i++)
             {
-                return (PowerPoint.Shape)shape;
-            }
-        }
+                dynamic? shape = null;
+                bool matched = false;
+                try
+                {
+                    shape = shapes[i];
+                    bool isPlaceholder = (int)shape.Type == MsoShapePlaceholder;
+                    if (!isPlaceholder) continue;
 
-        throw new InvalidOperationException(
-            $"Could not find the notes body text placeholder on slide {slideIndex}'s notes page.");
+                    PowerPoint.PpPlaceholderType placeholderType =
+                        (PowerPoint.PpPlaceholderType)shape.PlaceholderFormat.Type;
+                    if (placeholderType == PowerPoint.PpPlaceholderType.ppPlaceholderBody)
+                    {
+                        matched = true;
+                        return (PowerPoint.Shape)shape;
+                    }
+                }
+                finally
+                {
+                    // Only release non-matching shapes — the matched shape is returned to the caller.
+                    if (shape != null && !matched)
+                    {
+                        ComUtilities.Release(ref shape!);
+                    }
+                }
+            }
+
+            throw new InvalidOperationException(
+                $"Could not find the notes body text placeholder on slide {slideIndex}'s notes page.");
+        }
+        finally
+        {
+            if (shapes != null) ComUtilities.Release(ref shapes!);
+            if (notesPage != null) ComUtilities.Release(ref notesPage!);
+        }
     }
 
     private static NotesOperationResult? ValidateSlideIndex(PresentationContext ctx, int slideIndex)

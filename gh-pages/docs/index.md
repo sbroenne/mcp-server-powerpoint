@@ -23,8 +23,8 @@ hide:
       file, so there's zero risk of producing a `.pptx` that PowerPoint can't
       open.
     - **Export-to-verify.** After any visual edit, export the slide (or the
-      whole deck) to an image with `export_slide_to_image` /
-      `export_all_slides_to_images` and let a vision-capable AI assistant
+      whole deck) to an image with `export(action="export-slide-to-image", ...)` /
+      `export(action="export-all-slides-to-images", ...)` and let a vision-capable AI assistant
       *see* the result — catching overlapping shapes, text overflow, and
       layout regressions that text-only automation simply cannot detect.
 
@@ -101,7 +101,7 @@ hide:
 
 </div>
 
-[See all 18 tools (~98 operations) across 12 domains :material-arrow-right:](features.md){ .md-button .md-button--primary }
+[See all 13 tools (132 operations) across 13 domains :material-arrow-right:](features.md){ .md-button .md-button--primary }
 
 ## See it in action
 
@@ -133,13 +133,13 @@ Ask your AI assistant in plain language — it drives PowerPoint for you:
     point."
 
     AI reads each slide's content and writes tailored notes via
-    `set_notes_text`.
+    `notes(action="set-notes-text", ...)`.
 
 !!! example "🖼️ Visual verification"
     **You:** "Export slide 3 as an image and tell me if the chart overlaps
     the text box."
 
-    AI exports the slide with `export_slide_to_image` and inspects the
+    AI exports the slide with `export(action="export-slide-to-image", ...)` and inspects the
     rendered PNG directly — catching issues no text-only tool could see.
 
 ## CLI or MCP Server?

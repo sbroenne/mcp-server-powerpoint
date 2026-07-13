@@ -6,13 +6,21 @@ using Sbroenne.PowerPointMcp.ComInterop.Session;
 namespace Sbroenne.PowerPointMcp.McpServer.Tools;
 
 /// <summary>
-/// Presentation lifecycle tools: create a file, open/close a session, save, and list open
-/// sessions. This is the first hand-written vertical slice of the MCP surface — it proves the
-/// session → registry → Core command pipeline end-to-end.
+/// Single action-dispatch MCP tool for presentation lifecycle, template application, and
+/// document-property operations: create a file, open/close a session, save, list open
+/// sessions, apply a template, and read/write document properties.
 /// </summary>
 /// <remarks>
+/// Mirrors mcp-server-excel's <c>ExcelFileTool</c> shape (one hand-written tool named
+/// "presentation" with an <see cref="PresentationToolAction"/> enum parameter and an OPTIONAL
+/// <c>sessionId</c>, since <c>create</c>/<c>open</c> establish a session rather than requiring
+/// one) instead of exposing one MCP tool per verb. Collapsed from 12 individually-named tools
+/// (create_presentation, open_presentation, ...) — see .squad/decisions.md for the rationale:
+/// PowerPoint's per-domain generator always requires a non-nullable sessionId, which doesn't fit
+/// session-establishing actions, so this domain stays hand-written like Excel's file tool.
+///
 /// The <see cref="PresentationSessionRegistry"/> singleton is resolved from DI and injected into
-/// each tool method by the MCP SDK (parameters not part of the JSON schema are satisfied from the
+/// the tool method by the MCP SDK (parameters not part of the JSON schema are satisfied from the
 /// host's service provider). Tools stay thin: they marshal to Core commands and serialize the
 /// result — no domain logic lives here.
 /// </remarks>
@@ -22,100 +30,120 @@ public static class PresentationTools
     private static readonly PresentationCommands Commands = new();
 
     /// <summary>
-    /// Creates a new, empty PowerPoint presentation, saves it to disk, and leaves the session
-    /// OPEN — returns a sessionId immediately, exactly like <c>open_presentation</c>. No
-    /// synchronous dispose happens here, so the call cannot block on PowerPoint's slow shutdown
-    /// sequence (see .squad/decisions/inbox/ripley-create-presentation-blocks-on-dispose.md).
+    /// Presentation lifecycle, template, and document-property operations for an already-open
+    /// or about-to-be-opened presentation.
     /// </summary>
-    [McpServerTool(Name = "create_presentation")]
-    [Description("Create a new empty PowerPoint presentation file on disk and leave it OPEN. The containing directory must already exist. Returns a sessionId that must be passed to subsequent tools (save_presentation, close_presentation, slide/shape tools, etc.) — there is no separate open_presentation call needed for a freshly created file. Returns immediately; does not wait for any PowerPoint shutdown.")]
-    public static string CreatePresentation(
-        [Description("Full Windows path to the new presentation. Use .pptx (standard) or .pptm (macro-enabled). Example: C:\\Users\\me\\Documents\\deck.pptx")] string filePath,
-        [Description("Set true only when creating a macro-enabled .pptm file. Default: false.")] bool isMacroEnabled = false,
+    [McpServerTool(Name = "presentation")]
+    [Description("Presentation lifecycle (create, open, save, close, list sessions), template restyling (apply-template, get-theme-name), and document-property (built-in and custom) operations. Actions: create, open, save, close, list, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")]
+    public static string Presentation(
+        [Description("The action to perform. One of: create, open, save, close, list, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] PresentationToolAction action,
+        [Description("Full Windows path to the presentation file. Required for: create (new .pptx/.pptm file; containing directory must already exist), open (existing .pptx/.pptm/.ppt file).")] string? filePath = null,
+        [Description("The sessionId returned by create or open. Required for: save, close, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? sessionId = null,
+        [Description("Set true only when creating a macro-enabled .pptm file. Default: false. Used for: create.")] bool isMacroEnabled = false,
+        [Description("Full Windows path to a .potx/.potm/.pot template file (a .pptx/.pptm presentation may also be used as a template source). Required for: apply-template.")] string? templatePath = null,
+        [Description("Document property name. For set/get-document-property, one of: Title, Subject, Author, Keywords, Comments, Category, Manager, Company (case-insensitive). For custom-property actions, any user-defined name. Required for: set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? propertyName = null,
+        [Description("The new property value. Required for: set-document-property, set-custom-property.")] string? value = null,
         PresentationSessionRegistry? registry = null)
-        => PowerPointToolsBase.ExecuteToolAction("create_presentation", () =>
+        => PowerPointToolsBase.ExecuteToolAction("presentation", action.ToActionString(), () =>
         {
-            if (string.IsNullOrWhiteSpace(filePath))
+            var reg = registry!;
+            return action switch
             {
-                return PowerPointToolsBase.ValidationError("filePath is required for create_presentation.");
-            }
-
-            var sessionId = registry!.Create(filePath);
-
-            // Persist the new file to disk immediately through the still-open batch — no
-            // Dispose(), so this cannot block on PowerPoint's shutdown/grace-period sequence.
-            if (!registry.TryGet(sessionId, out var batch))
-            {
-                return PowerPointToolsBase.ValidationError($"Session {sessionId} was created but could not be resolved.");
-            }
-
-            var result = Commands.Save(batch);
-            if (!result.Success)
-            {
-                return SerializeResult(result);
-            }
-
-            return PowerPointToolsBase.Serialize(new
-            {
-                success = true,
-                sessionId,
-                presentationPath = result.PresentationPath,
-                message = "Presentation created and saved; session left open. Use the returned sessionId with other tools, then close_presentation when finished."
-            });
+                PresentationToolAction.Create => HandleCreate(filePath, isMacroEnabled, reg),
+                PresentationToolAction.Open => HandleOpen(filePath, reg),
+                PresentationToolAction.Save => HandleSave(sessionId, reg),
+                PresentationToolAction.Close => HandleClose(sessionId, reg),
+                PresentationToolAction.List => HandleList(reg),
+                PresentationToolAction.ApplyTemplate => HandleApplyTemplate(sessionId, templatePath, reg),
+                PresentationToolAction.GetThemeName => HandleGetThemeName(sessionId, reg),
+                PresentationToolAction.SetDocumentProperty => HandleSetDocumentProperty(sessionId, propertyName, value, reg),
+                PresentationToolAction.GetDocumentProperty => HandleGetDocumentProperty(sessionId, propertyName, reg),
+                PresentationToolAction.SetCustomProperty => HandleSetCustomProperty(sessionId, propertyName, value, reg),
+                PresentationToolAction.GetCustomProperty => HandleGetCustomProperty(sessionId, propertyName, reg),
+                PresentationToolAction.RemoveCustomProperty => HandleRemoveCustomProperty(sessionId, propertyName, reg),
+                _ => PowerPointToolsBase.ValidationError($"Unknown action: {action}")
+            };
         });
 
     /// <summary>
-    /// Opens an existing presentation and returns a session id used by all subsequent tools.
+    /// Creates a new, empty PowerPoint presentation, saves it to disk, and leaves the session
+    /// OPEN — returns a sessionId immediately. No synchronous dispose happens here, so the call
+    /// cannot block on PowerPoint's slow shutdown sequence (see
+    /// .squad/decisions/inbox/ripley-create-presentation-blocks-on-dispose.md).
     /// </summary>
-    [McpServerTool(Name = "open_presentation")]
-    [Description("Open an existing PowerPoint presentation and start a session. Returns a sessionId that must be passed to all subsequent tools (save_presentation, close_presentation, etc.).")]
-    public static string OpenPresentation(
-        [Description("Full Windows path to an existing .pptx, .pptm, or .ppt file. Example: C:\\Users\\me\\Documents\\deck.pptx")] string filePath,
-        PresentationSessionRegistry registry)
-        => PowerPointToolsBase.ExecuteToolAction("open_presentation", () =>
+    private static string HandleCreate(string? filePath, bool isMacroEnabled, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
         {
-            if (string.IsNullOrWhiteSpace(filePath))
-            {
-                return PowerPointToolsBase.ValidationError("filePath is required for open_presentation.");
-            }
+            return PowerPointToolsBase.ValidationError("filePath is required for action=create.");
+        }
 
-            if (!File.Exists(filePath))
-            {
-                return PowerPointToolsBase.ValidationError($"File not found: {filePath}");
-            }
+        var sessionId = registry.Create(filePath);
 
-            var sessionId = registry.Open(filePath);
-            return PowerPointToolsBase.Serialize(new
-            {
-                success = true,
-                sessionId,
-                presentationPath = filePath
-            });
+        // Persist the new file to disk immediately through the still-open batch — no
+        // Dispose(), so this cannot block on PowerPoint's shutdown/grace-period sequence.
+        if (!registry.TryGet(sessionId, out var batch))
+        {
+            return PowerPointToolsBase.ValidationError($"Session {sessionId} was created but could not be resolved.");
+        }
+
+        var result = Commands.Save(batch);
+        if (!result.Success)
+        {
+            return SerializeResult(result);
+        }
+
+        return PowerPointToolsBase.Serialize(new
+        {
+            success = true,
+            sessionId,
+            presentationPath = result.PresentationPath,
+            message = "Presentation created and saved; session left open. Use the returned sessionId with other actions, then action=close when finished."
         });
+    }
+
+    /// <summary>
+    /// Opens an existing presentation and returns a session id used by all subsequent actions.
+    /// </summary>
+    private static string HandleOpen(string? filePath, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return PowerPointToolsBase.ValidationError("filePath is required for action=open.");
+        }
+
+        if (!File.Exists(filePath))
+        {
+            return PowerPointToolsBase.ValidationError($"File not found: {filePath}");
+        }
+
+        var sessionId = registry.Open(filePath);
+        return PowerPointToolsBase.Serialize(new
+        {
+            success = true,
+            sessionId,
+            presentationPath = filePath
+        });
+    }
 
     /// <summary>
     /// Saves the presentation associated with the given session.
     /// </summary>
-    [McpServerTool(Name = "save_presentation")]
-    [Description("Save the presentation for an open session to its current file. Requires a sessionId from open_presentation.")]
-    public static string SavePresentation(
-        [Description("The sessionId returned by open_presentation.")] string sessionId,
-        PresentationSessionRegistry registry)
-        => PowerPointToolsBase.ExecuteToolAction("save_presentation", () =>
+    private static string HandleSave(string? sessionId, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
         {
-            if (string.IsNullOrWhiteSpace(sessionId))
-            {
-                return PowerPointToolsBase.ValidationError("sessionId is required for save_presentation.");
-            }
+            return PowerPointToolsBase.ValidationError("sessionId is required for action=save.");
+        }
 
-            if (!registry.TryGet(sessionId, out var batch))
-            {
-                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
-            }
+        if (!registry.TryGet(sessionId, out var batch))
+        {
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
 
-            var result = Commands.Save(batch);
-            return SerializeResult(result);
-        });
+        var result = Commands.Save(batch);
+        return SerializeResult(result);
+    }
 
     /// <summary>
     /// Closes a session: removes it from the registry immediately and starts disposing its batch
@@ -124,199 +152,178 @@ public static class PresentationTools
     /// <remarks>
     /// PowerPoint's own post-Quit cleanup can legitimately take up to ~150-210s (bounded grace
     /// period + force-kill safety net — see .squad/decisions.md, Parker's shutdown hardening).
-    /// This tool call does NOT wait for that; it returns as soon as the session is removed from
-    /// the registry, so the MCP client is never blocked. The host still guarantees the PowerPoint
+    /// This does NOT wait for that; it returns as soon as the session is removed from the
+    /// registry, so the MCP client is never blocked. The host still guarantees the PowerPoint
     /// process is fully cleaned up before it exits (see
     /// <see cref="PresentationSessionRegistry.DisposeAll()"/>).
     /// </remarks>
-    [McpServerTool(Name = "close_presentation")]
-    [Description("Close an open session and release its PowerPoint process. Call this when finished with a presentation. Save first with save_presentation if you need to persist changes. Returns immediately; PowerPoint shuts down in the background (can take up to a few minutes) and the session is already gone from list_sessions.")]
-    public static string ClosePresentation(
-        [Description("The sessionId returned by open_presentation.")] string sessionId,
-        PresentationSessionRegistry registry)
-        => PowerPointToolsBase.ExecuteToolAction("close_presentation", () =>
+    private static string HandleClose(string? sessionId, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
         {
-            if (string.IsNullOrWhiteSpace(sessionId))
-            {
-                return PowerPointToolsBase.ValidationError("sessionId is required for close_presentation.");
-            }
+            return PowerPointToolsBase.ValidationError("sessionId is required for action=close.");
+        }
 
-            var closed = registry.Close(sessionId);
-            if (!closed)
-            {
-                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
-            }
+        var closed = registry.Close(sessionId);
+        if (!closed)
+        {
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
 
-            return PowerPointToolsBase.Serialize(new
-            {
-                success = true,
-                sessionId,
-                closed = true,
-                message = "Session closed; PowerPoint is shutting down in the background."
-            });
+        return PowerPointToolsBase.Serialize(new
+        {
+            success = true,
+            sessionId,
+            closed = true,
+            message = "Session closed; PowerPoint is shutting down in the background."
         });
+    }
 
     /// <summary>
     /// Lists all currently open presentation sessions.
     /// </summary>
-    [McpServerTool(Name = "list_sessions")]
-    [Description("List all currently open PowerPoint presentation sessions, including their id, file path, and whether the PowerPoint process is still alive.")]
-    public static string ListSessions(PresentationSessionRegistry registry)
-        => PowerPointToolsBase.ExecuteToolAction("list_sessions", () =>
-        {
-            var sessions = registry.List()
-                .Select(s => new
-                {
-                    sessionId = s.SessionId,
-                    presentationPath = s.PresentationPath,
-                    isPowerPointProcessAlive = s.IsPowerPointProcessAlive
-                })
-                .ToArray();
-
-            return PowerPointToolsBase.Serialize(new
+    private static string HandleList(PresentationSessionRegistry registry)
+    {
+        var sessions = registry.List()
+            .Select(s => new
             {
-                success = true,
-                count = sessions.Length,
-                sessions
-            });
+                sessionId = s.SessionId,
+                presentationPath = s.PresentationPath,
+                isPowerPointProcessAlive = s.IsPowerPointProcessAlive
+            })
+            .ToArray();
+
+        return PowerPointToolsBase.Serialize(new
+        {
+            success = true,
+            count = sessions.Length,
+            sessions
         });
+    }
 
     /// <summary>
     /// Applies a PowerPoint template's masters/theme/layouts to the open presentation, preserving
     /// slide content.
     /// </summary>
-    [McpServerTool(Name = "apply_template")]
-    [Description("Restyle the presentation for an open session using a PowerPoint template file (.potx/.potm/.pot, or a .pptx/.pptm used as a template source). Applies the template's masters, theme, and layouts while preserving all existing slide content. Requires a sessionId from open_presentation or create_presentation.")]
-    public static string ApplyTemplate(
-        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
-        [Description("Full Windows path to the template file, e.g. C:\\Templates\\corporate.potx")] string templatePath,
-        PresentationSessionRegistry registry)
-        => PowerPointToolsBase.ExecuteToolAction("apply_template", () =>
+    private static string HandleApplyTemplate(string? sessionId, string? templatePath, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            if (!registry.TryGet(sessionId, out var batch))
-            {
-                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
-            }
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
 
-            return SerializeResult(Commands.ApplyTemplate(batch, templatePath));
-        });
+        if (string.IsNullOrWhiteSpace(templatePath))
+        {
+            return PowerPointToolsBase.ValidationError("templatePath is required for action=apply-template.");
+        }
+
+        return SerializeResult(Commands.ApplyTemplate(batch, templatePath));
+    }
 
     /// <summary>
     /// Reads the design/theme name currently applied to the open presentation.
     /// </summary>
-    [McpServerTool(Name = "get_theme_name")]
-    [Description("Get the design/theme name currently applied to the presentation for an open session. Useful for verifying that apply_template actually changed the presentation's styling.")]
-    public static string GetThemeName(
-        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
-        PresentationSessionRegistry registry)
-        => PowerPointToolsBase.ExecuteToolAction("get_theme_name", () =>
+    private static string HandleGetThemeName(string? sessionId, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            if (!registry.TryGet(sessionId, out var batch))
-            {
-                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
-            }
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
 
-            return SerializeResult(Commands.GetThemeName(batch));
-        });
+        return SerializeResult(Commands.GetThemeName(batch));
+    }
 
     /// <summary>
     /// Sets a built-in document metadata property (Title, Subject, Author, Keywords, Comments,
     /// Category, Manager, or Company) on the open presentation.
     /// </summary>
-    [McpServerTool(Name = "set_document_property")]
-    [Description("Set a built-in document metadata property on the presentation for an open session. Supported property names (case-insensitive): Title, Subject, Author, Keywords, Comments, Category, Manager, Company. Requires a sessionId from open_presentation or create_presentation.")]
-    public static string SetDocumentProperty(
-        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
-        [Description("One of: Title, Subject, Author, Keywords, Comments, Category, Manager, Company (case-insensitive).")] string propertyName,
-        [Description("The new value for the property.")] string value,
-        PresentationSessionRegistry registry)
-        => PowerPointToolsBase.ExecuteToolAction("set_document_property", () =>
+    private static string HandleSetDocumentProperty(string? sessionId, string? propertyName, string? value, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            if (!registry.TryGet(sessionId, out var batch))
-            {
-                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
-            }
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
 
-            return SerializeResult(Commands.SetDocumentProperty(batch, propertyName, value));
-        });
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return PowerPointToolsBase.ValidationError("propertyName is required for action=set-document-property.");
+        }
+
+        return SerializeResult(Commands.SetDocumentProperty(batch, propertyName, value ?? string.Empty));
+    }
 
     /// <summary>
     /// Reads a built-in document metadata property from the open presentation.
     /// </summary>
-    [McpServerTool(Name = "get_document_property")]
-    [Description("Get a built-in document metadata property from the presentation for an open session. Supported property names (case-insensitive): Title, Subject, Author, Keywords, Comments, Category, Manager, Company. Requires a sessionId from open_presentation or create_presentation.")]
-    public static string GetDocumentProperty(
-        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
-        [Description("One of: Title, Subject, Author, Keywords, Comments, Category, Manager, Company (case-insensitive).")] string propertyName,
-        PresentationSessionRegistry registry)
-        => PowerPointToolsBase.ExecuteToolAction("get_document_property", () =>
+    private static string HandleGetDocumentProperty(string? sessionId, string? propertyName, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            if (!registry.TryGet(sessionId, out var batch))
-            {
-                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
-            }
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
 
-            return SerializeResult(Commands.GetDocumentProperty(batch, propertyName));
-        });
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return PowerPointToolsBase.ValidationError("propertyName is required for action=get-document-property.");
+        }
+
+        return SerializeResult(Commands.GetDocumentProperty(batch, propertyName));
+    }
 
     /// <summary>
     /// Creates or updates a custom (user-defined) string document property on the open
     /// presentation.
     /// </summary>
-    [McpServerTool(Name = "set_custom_property")]
-    [Description("Create or update a custom (user-defined) string document property on the presentation for an open session. Requires a sessionId from open_presentation or create_presentation.")]
-    public static string SetCustomProperty(
-        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
-        [Description("The custom property's name.")] string propertyName,
-        [Description("The custom property's string value.")] string value,
-        PresentationSessionRegistry registry)
-        => PowerPointToolsBase.ExecuteToolAction("set_custom_property", () =>
+    private static string HandleSetCustomProperty(string? sessionId, string? propertyName, string? value, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            if (!registry.TryGet(sessionId, out var batch))
-            {
-                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
-            }
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
 
-            return SerializeResult(Commands.SetCustomProperty(batch, propertyName, value));
-        });
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return PowerPointToolsBase.ValidationError("propertyName is required for action=set-custom-property.");
+        }
+
+        return SerializeResult(Commands.SetCustomProperty(batch, propertyName, value ?? string.Empty));
+    }
 
     /// <summary>
     /// Reads a custom (user-defined) document property from the open presentation.
     /// </summary>
-    [McpServerTool(Name = "get_custom_property")]
-    [Description("Get a custom (user-defined) document property from the presentation for an open session. Returns success=false if no custom property with that name exists. Requires a sessionId from open_presentation or create_presentation.")]
-    public static string GetCustomProperty(
-        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
-        [Description("The custom property's name.")] string propertyName,
-        PresentationSessionRegistry registry)
-        => PowerPointToolsBase.ExecuteToolAction("get_custom_property", () =>
+    private static string HandleGetCustomProperty(string? sessionId, string? propertyName, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            if (!registry.TryGet(sessionId, out var batch))
-            {
-                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
-            }
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
 
-            return SerializeResult(Commands.GetCustomProperty(batch, propertyName));
-        });
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return PowerPointToolsBase.ValidationError("propertyName is required for action=get-custom-property.");
+        }
+
+        return SerializeResult(Commands.GetCustomProperty(batch, propertyName));
+    }
 
     /// <summary>
     /// Removes a custom (user-defined) document property from the open presentation.
     /// </summary>
-    [McpServerTool(Name = "remove_custom_property")]
-    [Description("Remove a custom (user-defined) document property from the presentation for an open session. Returns success=false if no custom property with that name exists. Requires a sessionId from open_presentation or create_presentation.")]
-    public static string RemoveCustomProperty(
-        [Description("The sessionId returned by open_presentation or create_presentation.")] string sessionId,
-        [Description("The custom property's name.")] string propertyName,
-        PresentationSessionRegistry registry)
-        => PowerPointToolsBase.ExecuteToolAction("remove_custom_property", () =>
+    private static string HandleRemoveCustomProperty(string? sessionId, string? propertyName, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            if (!registry.TryGet(sessionId, out var batch))
-            {
-                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
-            }
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
 
-            return SerializeResult(Commands.RemoveCustomProperty(batch, propertyName));
-        });
+        if (string.IsNullOrWhiteSpace(propertyName))
+        {
+            return PowerPointToolsBase.ValidationError("propertyName is required for action=remove-custom-property.");
+        }
+
+        return SerializeResult(Commands.RemoveCustomProperty(batch, propertyName));
+    }
 
     private static string SerializeResult(PresentationOperationResult result)
     {

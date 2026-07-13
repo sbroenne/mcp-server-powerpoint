@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
@@ -168,19 +169,30 @@ public sealed class MasterCommands : IMasterCommands
             PowerPoint.Master master = GetSlideMaster(ctx);
             // TwoColorGradient() must be called BEFORE setting ForeColor/BackColor — it resets
             // both colors to PowerPoint's defaults as a side effect (verified via diagnostic spike).
-            dynamic fill = master.Background.Fill;
-            fill.TwoColorGradient(styleValue, gradientVariant);
-            fill.ForeColor.RGB = rgb1;
-            fill.BackColor.RGB = rgb2;
-
-            return new MasterOperationResult
+            dynamic? fill = null;
+            try
             {
-                Success = true,
-                ColorRgb = rgb1,
-                ColorRgb2 = rgb2,
-                GradientStyleName = gradientStyle,
-                GradientVariant = gradientVariant
-            };
+                fill = master.Background.Fill;
+                fill.TwoColorGradient(styleValue, gradientVariant);
+                fill.ForeColor.RGB = rgb1;
+                fill.BackColor.RGB = rgb2;
+
+                return new MasterOperationResult
+                {
+                    Success = true,
+                    ColorRgb = rgb1,
+                    ColorRgb2 = rgb2,
+                    GradientStyleName = gradientStyle,
+                    GradientVariant = gradientVariant
+                };
+            }
+            finally
+            {
+                if (fill != null)
+                {
+                    ComUtilities.Release(ref fill!);
+                }
+            }
         });
     }
 
@@ -192,32 +204,43 @@ public sealed class MasterCommands : IMasterCommands
         return batch.Execute((ctx, ct) =>
         {
             PowerPoint.Master master = GetSlideMaster(ctx);
-            dynamic fill = master.Background.Fill;
-            int fillType = (int)fill.Type;
-            const int MsoFillGradient = 3;
-            if (fillType != MsoFillGradient)
+            dynamic? fill = null;
+            try
             {
+                fill = master.Background.Fill;
+                int fillType = (int)fill.Type;
+                const int MsoFillGradient = 3;
+                if (fillType != MsoFillGradient)
+                {
+                    return new MasterOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"The slide master's background fill is not a gradient (fill type = {fillType})."
+                    };
+                }
+
+                int rgb1 = (int)fill.ForeColor.RGB;
+                int rgb2 = (int)fill.BackColor.RGB;
+                int styleValue = (int)fill.GradientStyle;
+                int variant = (int)fill.GradientVariant;
+                string? styleName = GradientStylesByValue.GetValueOrDefault(styleValue);
+
                 return new MasterOperationResult
                 {
-                    Success = false,
-                    ErrorMessage = $"The slide master's background fill is not a gradient (fill type = {fillType})."
+                    Success = true,
+                    ColorRgb = rgb1,
+                    ColorRgb2 = rgb2,
+                    GradientStyleName = styleName,
+                    GradientVariant = variant
                 };
             }
-
-            int rgb1 = (int)fill.ForeColor.RGB;
-            int rgb2 = (int)fill.BackColor.RGB;
-            int styleValue = (int)fill.GradientStyle;
-            int variant = (int)fill.GradientVariant;
-            string? styleName = GradientStylesByValue.GetValueOrDefault(styleValue);
-
-            return new MasterOperationResult
+            finally
             {
-                Success = true,
-                ColorRgb = rgb1,
-                ColorRgb2 = rgb2,
-                GradientStyleName = styleName,
-                GradientVariant = variant
-            };
+                if (fill != null)
+                {
+                    ComUtilities.Release(ref fill!);
+                }
+            }
         });
     }
 
@@ -236,6 +259,8 @@ public sealed class MasterCommands : IMasterCommands
         for (int i = 1; i <= shapeCount; i++)
         {
             PowerPoint.Shape shape = master.Shapes[i];
+            // Reason: Shape.Type is Microsoft.Office.Core.MsoShapeType (Office.Core — not embedded),
+            // so it is read via dynamic late binding here.
             bool hasPlaceholder = (int)((dynamic)shape).Type == 14 /* msoPlaceholder */;
             if (!hasPlaceholder)
             {
@@ -256,26 +281,40 @@ public sealed class MasterCommands : IMasterCommands
     {
         // The embedded NoPIA getter for Presentation.SlideMaster hangs indefinitely in live
         // PowerPoint. Dispatch only that getter through IDispatch, then return to typed PIA access.
+        // NOTE: `presentation` is a dynamic alias of the shared, session-owned ctx.Presentation
+        // object (not a new/owned COM reference) — it must NOT be released here, since doing so
+        // decrements the reference count of the Presentation RCW shared by the whole batch/session.
         dynamic presentation = ctx.Presentation;
         return (PowerPoint.Master)presentation.SlideMaster;
     }
 
     private static MasterOperationResult ReadFont(PowerPoint.Shape placeholder)
     {
-        dynamic font = placeholder.TextFrame.TextRange.Font;
-        string fontName = (string)font.Name;
-        float fontSize = (float)font.Size;
-        bool bold = (int)font.Bold == MsoTrue;
-        int colorRgb = (int)font.Color.RGB;
-
-        return new MasterOperationResult
+        dynamic? font = null;
+        try
         {
-            Success = true,
-            FontName = fontName,
-            FontSize = fontSize,
-            Bold = bold,
-            ColorRgb = colorRgb
-        };
+            font = placeholder.TextFrame.TextRange.Font;
+            string fontName = (string)font.Name;
+            float fontSize = (float)font.Size;
+            bool bold = (int)font.Bold == MsoTrue;
+            int colorRgb = (int)font.Color.RGB;
+
+            return new MasterOperationResult
+            {
+                Success = true,
+                FontName = fontName,
+                FontSize = fontSize,
+                Bold = bold,
+                ColorRgb = colorRgb
+            };
+        }
+        finally
+        {
+            if (font != null)
+            {
+                ComUtilities.Release(ref font!);
+            }
+        }
     }
 
     private static MasterOperationResult ApplyFont(
@@ -287,34 +326,45 @@ public sealed class MasterCommands : IMasterCommands
         byte? green,
         byte? blue)
     {
-        dynamic font = placeholder.TextFrame.TextRange.Font;
-
-        if (fontName is not null)
+        dynamic? font = null;
+        try
         {
-            font.Name = fontName;
-        }
+            font = placeholder.TextFrame.TextRange.Font;
 
-        if (fontSize is not null)
+            if (fontName is not null)
+            {
+                font.Name = fontName;
+            }
+
+            if (fontSize is not null)
+            {
+                font.Size = fontSize.Value;
+            }
+
+            if (bold is not null)
+            {
+                font.Bold = bold.Value ? MsoTrue : MsoFalse;
+            }
+
+            if (red is not null || green is not null || blue is not null)
+            {
+                // Missing channels default to 0 — callers are expected to pass all three together
+                // when setting color (mirrors TextFrameCommands.SetFontColor's all-or-nothing shape).
+                int rgb = (red ?? 0) + ((green ?? 0) << 8) + ((blue ?? 0) << 16);
+                font.Color.RGB = rgb;
+            }
+
+            // Re-read from the placeholder so the result reflects the values actually applied
+            // (including any font properties left unchanged by this call).
+            return ReadFont(placeholder);
+        }
+        finally
         {
-            font.Size = fontSize.Value;
+            if (font != null)
+            {
+                ComUtilities.Release(ref font!);
+            }
         }
-
-        if (bold is not null)
-        {
-            font.Bold = bold.Value ? MsoTrue : MsoFalse;
-        }
-
-        if (red is not null || green is not null || blue is not null)
-        {
-            // Missing channels default to 0 — callers are expected to pass all three together
-            // when setting color (mirrors TextFrameCommands.SetFontColor's all-or-nothing shape).
-            int rgb = (red ?? 0) + ((green ?? 0) << 8) + ((blue ?? 0) << 16);
-            font.Color.RGB = rgb;
-        }
-
-        // Re-read from the placeholder so the result reflects the values actually applied
-        // (including any font properties left unchanged by this call).
-        return ReadFont(placeholder);
     }
 
     private static MasterOperationResult NotFound(string placeholderName)

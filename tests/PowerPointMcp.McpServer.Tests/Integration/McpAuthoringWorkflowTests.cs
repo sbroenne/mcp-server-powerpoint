@@ -115,7 +115,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
     public async Task FullDeckAuthoringWorkflow_ViaMcpProtocol_ExercisesEveryDomainTool()
     {
         // 1. create_presentation returns an OPEN session (create-and-keep-open) → sessionId.
-        var createResult = await Call("create_presentation", new() { ["filePath"] = _presentationFile });
+        var createResult = await Call("presentation", new() { ["action"] = "create", ["filePath"] = _presentationFile });
         AssertSuccess(createResult, "create_presentation");
         Assert.True(File.Exists(_presentationFile));
         var sessionId = GetString(createResult, "sessionId");
@@ -1084,11 +1084,11 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
 
         // 12. save_presentation, then close_presentation (fast/non-blocking), then list_sessions
         // confirms the session is gone.
-        AssertSuccess(await Call("save_presentation", new() { ["sessionId"] = sessionId }), "save_presentation");
+        AssertSuccess(await Call("presentation", new() { ["action"] = "save", ["sessionId"] = sessionId }), "save_presentation");
         _output.WriteLine("✓ save_presentation");
 
         var closeStopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var closeResult = await Call("close_presentation", new() { ["sessionId"] = sessionId });
+        var closeResult = await Call("presentation", new() { ["action"] = "close", ["sessionId"] = sessionId });
         closeStopwatch.Stop();
         AssertSuccess(closeResult, "close_presentation");
         Assert.True(GetBool(closeResult, "closed"));
@@ -1097,7 +1097,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
             $"close_presentation should return immediately (async close per Brett's fix); took {closeStopwatch.Elapsed}.");
         _output.WriteLine($"✓ close_presentation returned in {closeStopwatch.ElapsedMilliseconds}ms (non-blocking)");
 
-        var listSessionsResult = await Call("list_sessions", []);
+        var listSessionsResult = await Call("presentation", new() { ["action"] = "list" });
         AssertSuccess(listSessionsResult, "list_sessions");
         using (var listJson = System.Text.Json.JsonDocument.Parse(listSessionsResult))
         {

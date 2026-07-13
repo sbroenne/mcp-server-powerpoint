@@ -82,5 +82,5 @@ There is no API in this surface to query the actual slide width/height — assum
    call renders every slide.
 2. Review each exported image; fix any slide with overlapping shapes, empty placeholders, or text
    overflow (reduce `text` length or increase shape height / reduce font size).
-3. `save_presentation(sessionId)`.
+3. `presentation(action: "save", sessionId: sessionId)`.
 4. Summarize: slide count, layouts used, and the output path.

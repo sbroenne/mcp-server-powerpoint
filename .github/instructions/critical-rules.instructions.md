@@ -93,9 +93,10 @@ Convenience or shorter syntax is never sufficient justification for bypassing th
 - Every session (`PresentationSessionRegistry` entry) MUST be reachable from
   `PresentationSessionRegistry.DisposeAll()` at host shutdown — never create a code path that
   starts a `PresentationBatch` outside the registry's tracking.
-- `close_presentation` is asynchronous by design: it removes the session from the registry
-  immediately and disposes the batch (and its PowerPoint process) on a background task. Do not
-  make it block on process exit — Office's own cleanup can legitimately take minutes.
+- `presentation(action: "close", sessionId: ...)` is asynchronous by design: it removes the
+  session from the registry immediately and disposes the batch (and its PowerPoint process) on a
+  background task. Do not make it block on process exit — Office's own cleanup can legitimately
+  take minutes.
 
 ## Rule: No Confidential Information in Commits/PRs/Issues
 

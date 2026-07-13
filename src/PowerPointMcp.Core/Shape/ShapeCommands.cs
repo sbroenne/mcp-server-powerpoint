@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
@@ -151,21 +152,32 @@ public sealed class ShapeCommands : IShapeCommands
             if (slideValidation is not null) return slideValidation;
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-            dynamic dynShapes = slide.Shapes;
-            dynShapes.AddShape(MsoShapeRectangle, left, top, width, height);
-            // NOTE: discovered via integration test — accessing the newly-added shape's
-            // .Index property dynamically threw a RuntimeBinderException ("'System.__ComObject'
-            // does not contain a definition for 'Index'"), a NoPIA/late-binding quirk on the
-            // COM object returned from AddShape. Sidestepped entirely: since shapes are always
-            // appended, the new shape's 1-based index is simply the new Shapes.Count.
-            int newIndex = slide.Shapes.Count;
-
-            return new ShapeOperationResult
+            dynamic? dynShapes = null;
+            try
             {
-                Success = true,
-                ShapeIndex = newIndex,
-                ShapeCount = slide.Shapes.Count
-            };
+                dynShapes = slide.Shapes;
+                dynShapes.AddShape(MsoShapeRectangle, left, top, width, height);
+                // NOTE: discovered via integration test — accessing the newly-added shape's
+                // .Index property dynamically threw a RuntimeBinderException ("'System.__ComObject'
+                // does not contain a definition for 'Index'"), a NoPIA/late-binding quirk on the
+                // COM object returned from AddShape. Sidestepped entirely: since shapes are always
+                // appended, the new shape's 1-based index is simply the new Shapes.Count.
+                int newIndex = slide.Shapes.Count;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = slide.Shapes.Count
+                };
+            }
+            finally
+            {
+                if (dynShapes != null)
+                {
+                    ComUtilities.Release(ref dynShapes!);
+                }
+            }
         });
     }
 
@@ -181,18 +193,29 @@ public sealed class ShapeCommands : IShapeCommands
             if (slideValidation is not null) return slideValidation;
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-            dynamic dynShapes = slide.Shapes;
-            PowerPoint.Shape shape = dynShapes.AddTextbox(MsoTextOrientationHorizontal, left, top, width, height);
-            shape.TextFrame.TextRange.Text = text;
-            // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
-            int newIndex = slide.Shapes.Count;
-
-            return new ShapeOperationResult
+            dynamic? dynShapes = null;
+            try
             {
-                Success = true,
-                ShapeIndex = newIndex,
-                ShapeCount = slide.Shapes.Count
-            };
+                dynShapes = slide.Shapes;
+                PowerPoint.Shape shape = dynShapes.AddTextbox(MsoTextOrientationHorizontal, left, top, width, height);
+                shape.TextFrame.TextRange.Text = text;
+                // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
+                int newIndex = slide.Shapes.Count;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = slide.Shapes.Count
+                };
+            }
+            finally
+            {
+                if (dynShapes != null)
+                {
+                    ComUtilities.Release(ref dynShapes!);
+                }
+            }
         });
     }
 
@@ -217,18 +240,29 @@ public sealed class ShapeCommands : IShapeCommands
             }
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-            dynamic dynShapes = slide.Shapes;
-            dynShapes.AddShape(typeValue, left, top, width, height);
-            // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
-            int newIndex = slide.Shapes.Count;
-
-            return new ShapeOperationResult
+            dynamic? dynShapes = null;
+            try
             {
-                Success = true,
-                ShapeIndex = newIndex,
-                ShapeCount = slide.Shapes.Count,
-                ShapeTypeName = shapeType
-            };
+                dynShapes = slide.Shapes;
+                dynShapes.AddShape(typeValue, left, top, width, height);
+                // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
+                int newIndex = slide.Shapes.Count;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = slide.Shapes.Count,
+                    ShapeTypeName = shapeType
+                };
+            }
+            finally
+            {
+                if (dynShapes != null)
+                {
+                    ComUtilities.Release(ref dynShapes!);
+                }
+            }
         });
     }
 
@@ -281,22 +315,33 @@ public sealed class ShapeCommands : IShapeCommands
             }
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-            dynamic dynShapes = slide.Shapes;
-            dynShapes.AddConnector(typeValue, beginX, beginY, endX, endY);
-            // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
-            int newIndex = slide.Shapes.Count;
-
-            return new ShapeOperationResult
+            dynamic? dynShapes = null;
+            try
             {
-                Success = true,
-                ShapeIndex = newIndex,
-                ShapeCount = slide.Shapes.Count,
-                ConnectorTypeName = connectorType,
-                BeginX = beginX,
-                BeginY = beginY,
-                EndX = endX,
-                EndY = endY
-            };
+                dynShapes = slide.Shapes;
+                dynShapes.AddConnector(typeValue, beginX, beginY, endX, endY);
+                // Same NoPIA late-binding quirk as AddRectangle — avoid shape.Index, use Count.
+                int newIndex = slide.Shapes.Count;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = slide.Shapes.Count,
+                    ConnectorTypeName = connectorType,
+                    BeginX = beginX,
+                    BeginY = beginY,
+                    EndX = endX,
+                    EndY = endY
+                };
+            }
+            finally
+            {
+                if (dynShapes != null)
+                {
+                    ComUtilities.Release(ref dynShapes!);
+                }
+            }
         });
     }
 
@@ -481,30 +526,41 @@ public sealed class ShapeCommands : IShapeCommands
             }
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
-            dynamic line = shape.Line;
-
-            if (red is not null || green is not null || blue is not null)
+            dynamic? line = null;
+            try
             {
-                int rgb = (red ?? 0) + ((green ?? 0) << 8) + ((blue ?? 0) << 16);
-                line.ForeColor.RGB = rgb;
-            }
+                line = shape.Line;
 
-            if (weight is not null)
+                if (red is not null || green is not null || blue is not null)
+                {
+                    int rgb = (red ?? 0) + ((green ?? 0) << 8) + ((blue ?? 0) << 16);
+                    line.ForeColor.RGB = rgb;
+                }
+
+                if (weight is not null)
+                {
+                    line.Weight = weight.Value;
+                }
+
+                if (dashStyleValue is not null)
+                {
+                    line.DashStyle = dashStyleValue.Value;
+                }
+
+                if (visible is not null)
+                {
+                    line.Visible = visible.Value ? MsoTrue : MsoFalse;
+                }
+
+                return ReadLine(shape, shapeIndex);
+            }
+            finally
             {
-                line.Weight = weight.Value;
+                if (line != null)
+                {
+                    ComUtilities.Release(ref line!);
+                }
             }
-
-            if (dashStyleValue is not null)
-            {
-                line.DashStyle = dashStyleValue.Value;
-            }
-
-            if (visible is not null)
-            {
-                line.Visible = visible.Value ? MsoTrue : MsoFalse;
-            }
-
-            return ReadLine(shape, shapeIndex);
         });
     }
 
@@ -592,10 +648,21 @@ public sealed class ShapeCommands : IShapeCommands
                 };
             }
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            shape.Flip(directionValue);
+            dynamic? shape = null;
+            try
+            {
+                shape = slide.Shapes[shapeIndex];
+                shape.Flip(directionValue);
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, FlipDirection = direction };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, FlipDirection = direction };
+            }
+            finally
+            {
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -623,10 +690,21 @@ public sealed class ShapeCommands : IShapeCommands
                 };
             }
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            shape.ZOrder(commandValue);
+            dynamic? shape = null;
+            try
+            {
+                shape = slide.Shapes[shapeIndex];
+                shape.ZOrder(commandValue);
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ZOrderCommand = zOrderCommand };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ZOrderCommand = zOrderCommand };
+            }
+            finally
+            {
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -647,34 +725,50 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic shadow = shape.Shadow;
-            shadow.Visible = visible ? MsoTrue : MsoFalse;
-
-            if (!visible)
+            dynamic? shape = null;
+            dynamic? shadow = null;
+            try
             {
-                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                shape = slide.Shapes[shapeIndex];
+                shadow = shape.Shadow;
+                shadow.Visible = visible ? MsoTrue : MsoFalse;
+
+                if (!visible)
+                {
+                    return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                }
+
+                int rgb = red + (green << 8) + (blue << 16);
+                shadow.Type = MsoShadow20; // offset shadow — verified live via ShapeEffectsDiagTests
+                shadow.ForeColor.RGB = rgb;
+                shadow.Transparency = transparency;
+                shadow.Blur = blur;
+                shadow.OffsetX = offsetX;
+                shadow.OffsetY = offsetY;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Visible = true,
+                    ColorRgb = rgb,
+                    Transparency = transparency,
+                    Blur = blur,
+                    OffsetX = offsetX,
+                    OffsetY = offsetY,
+                };
             }
-
-            int rgb = red + (green << 8) + (blue << 16);
-            shadow.Type = MsoShadow20; // offset shadow — verified live via ShapeEffectsDiagTests
-            shadow.ForeColor.RGB = rgb;
-            shadow.Transparency = transparency;
-            shadow.Blur = blur;
-            shadow.OffsetX = offsetX;
-            shadow.OffsetY = offsetY;
-
-            return new ShapeOperationResult
+            finally
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Visible = true,
-                ColorRgb = rgb,
-                Transparency = transparency,
-                Blur = blur,
-                OffsetX = offsetX,
-                OffsetY = offsetY,
-            };
+                if (shadow != null)
+                {
+                    ComUtilities.Release(ref shadow!);
+                }
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -692,27 +786,43 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic shadow = shape.Shadow;
-            bool visible = (int)shadow.Visible == MsoTrue;
-
-            if (!visible)
+            dynamic? shape = null;
+            dynamic? shadow = null;
+            try
             {
-                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                shape = slide.Shapes[shapeIndex];
+                shadow = shape.Shadow;
+                bool visible = (int)shadow.Visible == MsoTrue;
+
+                if (!visible)
+                {
+                    return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                }
+
+                int rgb = (int)shadow.ForeColor.RGB;
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Visible = true,
+                    ColorRgb = rgb,
+                    Transparency = (float)shadow.Transparency,
+                    Blur = (float)shadow.Blur,
+                    OffsetX = (float)shadow.OffsetX,
+                    OffsetY = (float)shadow.OffsetY,
+                };
             }
-
-            int rgb = (int)shadow.ForeColor.RGB;
-            return new ShapeOperationResult
+            finally
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Visible = true,
-                ColorRgb = rgb,
-                Transparency = (float)shadow.Transparency,
-                Blur = (float)shadow.Blur,
-                OffsetX = (float)shadow.OffsetX,
-                OffsetY = (float)shadow.OffsetY,
-            };
+                if (shadow != null)
+                {
+                    ComUtilities.Release(ref shadow!);
+                }
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -730,21 +840,37 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic glow = shape.Glow;
-            int rgb = red + (green << 8) + (blue << 16);
-            glow.Radius = radius;
-            glow.Color.RGB = rgb;
-            glow.Transparency = transparency;
-
-            return new ShapeOperationResult
+            dynamic? shape = null;
+            dynamic? glow = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                ColorRgb = rgb,
-                GlowRadius = radius,
-                Transparency = transparency,
-            };
+                shape = slide.Shapes[shapeIndex];
+                glow = shape.Glow;
+                int rgb = red + (green << 8) + (blue << 16);
+                glow.Radius = radius;
+                glow.Color.RGB = rgb;
+                glow.Transparency = transparency;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    ColorRgb = rgb,
+                    GlowRadius = radius,
+                    Transparency = transparency,
+                };
+            }
+            finally
+            {
+                if (glow != null)
+                {
+                    ComUtilities.Release(ref glow!);
+                }
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -762,17 +888,33 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic glow = shape.Glow;
-
-            return new ShapeOperationResult
+            dynamic? shape = null;
+            dynamic? glow = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                ColorRgb = (int)glow.Color.RGB,
-                GlowRadius = (float)glow.Radius,
-                Transparency = (float)glow.Transparency,
-            };
+                shape = slide.Shapes[shapeIndex];
+                glow = shape.Glow;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    ColorRgb = (int)glow.Color.RGB,
+                    GlowRadius = (float)glow.Radius,
+                    Transparency = (float)glow.Transparency,
+                };
+            }
+            finally
+            {
+                if (glow != null)
+                {
+                    ComUtilities.Release(ref glow!);
+                }
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -790,29 +932,45 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic reflection = shape.Reflection;
-
-            if (!visible)
+            dynamic? shape = null;
+            dynamic? reflection = null;
+            try
             {
-                reflection.Type = MsoReflectionTypeNone;
-                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                shape = slide.Shapes[shapeIndex];
+                reflection = shape.Reflection;
+
+                if (!visible)
+                {
+                    reflection.Type = MsoReflectionTypeNone;
+                    return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                }
+
+                reflection.Type = MsoReflectionType9; // full touching — verified live via ShapeEffectsDiagTests
+                reflection.Transparency = transparency;
+                reflection.Size = size;
+                reflection.Blur = blur;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Visible = true,
+                    Transparency = transparency,
+                    ReflectionSize = size,
+                    Blur = blur,
+                };
             }
-
-            reflection.Type = MsoReflectionType9; // full touching — verified live via ShapeEffectsDiagTests
-            reflection.Transparency = transparency;
-            reflection.Size = size;
-            reflection.Blur = blur;
-
-            return new ShapeOperationResult
+            finally
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Visible = true,
-                Transparency = transparency,
-                ReflectionSize = size,
-                Blur = blur,
-            };
+                if (reflection != null)
+                {
+                    ComUtilities.Release(ref reflection!);
+                }
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -830,24 +988,40 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic reflection = shape.Reflection;
-            bool visible = (int)reflection.Type != MsoReflectionTypeNone;
-
-            if (!visible)
+            dynamic? shape = null;
+            dynamic? reflection = null;
+            try
             {
-                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                shape = slide.Shapes[shapeIndex];
+                reflection = shape.Reflection;
+                bool visible = (int)reflection.Type != MsoReflectionTypeNone;
+
+                if (!visible)
+                {
+                    return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Visible = false };
+                }
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Visible = true,
+                    Transparency = (float)reflection.Transparency,
+                    ReflectionSize = (float)reflection.Size,
+                    Blur = (float)reflection.Blur,
+                };
             }
-
-            return new ShapeOperationResult
+            finally
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Visible = true,
-                Transparency = (float)reflection.Transparency,
-                ReflectionSize = (float)reflection.Size,
-                Blur = (float)reflection.Blur,
-            };
+                if (reflection != null)
+                {
+                    ComUtilities.Release(ref reflection!);
+                }
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -865,10 +1039,21 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            shape.SoftEdge.Radius = radius;
+            dynamic? shape = null;
+            try
+            {
+                shape = slide.Shapes[shapeIndex];
+                shape.SoftEdge.Radius = radius;
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, SoftEdgeRadius = radius };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, SoftEdgeRadius = radius };
+            }
+            finally
+            {
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -886,10 +1071,21 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            float radius = (float)shape.SoftEdge.Radius;
+            dynamic? shape = null;
+            try
+            {
+                shape = slide.Shapes[shapeIndex];
+                float radius = (float)shape.SoftEdge.Radius;
 
-            return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, SoftEdgeRadius = radius };
+                return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, SoftEdgeRadius = radius };
+            }
+            finally
+            {
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -916,20 +1112,36 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic threeD = shape.ThreeD;
-            threeD.BevelTopType = typeValue;
-            threeD.BevelTopDepth = depth;
-            threeD.BevelTopInset = inset;
-
-            return new ShapeOperationResult
+            dynamic? shape = null;
+            dynamic? threeD = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                BevelTypeName = bevelType,
-                BevelDepth = depth,
-                BevelInset = inset,
-            };
+                shape = slide.Shapes[shapeIndex];
+                threeD = shape.ThreeD;
+                threeD.BevelTopType = typeValue;
+                threeD.BevelTopDepth = depth;
+                threeD.BevelTopInset = inset;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    BevelTypeName = bevelType,
+                    BevelDepth = depth,
+                    BevelInset = inset,
+                };
+            }
+            finally
+            {
+                if (threeD != null)
+                {
+                    ComUtilities.Release(ref threeD!);
+                }
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -947,19 +1159,35 @@ public sealed class ShapeCommands : IShapeCommands
             var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
             if (shapeValidation is not null) return shapeValidation;
 
-            dynamic shape = slide.Shapes[shapeIndex];
-            dynamic threeD = shape.ThreeD;
-            int typeValue = (int)threeD.BevelTopType;
-            string typeName = BevelTypesByValue.TryGetValue(typeValue, out var name) ? name : $"unknown({typeValue})";
-
-            return new ShapeOperationResult
+            dynamic? shape = null;
+            dynamic? threeD = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                BevelTypeName = typeName,
-                BevelDepth = (float)threeD.BevelTopDepth,
-                BevelInset = (float)threeD.BevelTopInset,
-            };
+                shape = slide.Shapes[shapeIndex];
+                threeD = shape.ThreeD;
+                int typeValue = (int)threeD.BevelTopType;
+                string typeName = BevelTypesByValue.TryGetValue(typeValue, out var name) ? name : $"unknown({typeValue})";
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    BevelTypeName = typeName,
+                    BevelDepth = (float)threeD.BevelTopDepth,
+                    BevelInset = (float)threeD.BevelTopInset,
+                };
+            }
+            finally
+            {
+                if (threeD != null)
+                {
+                    ComUtilities.Release(ref threeD!);
+                }
+                if (shape != null)
+                {
+                    ComUtilities.Release(ref shape!);
+                }
+            }
         });
     }
 
@@ -1207,24 +1435,35 @@ public sealed class ShapeCommands : IShapeCommands
 
     private static ShapeOperationResult ReadLine(PowerPoint.Shape shape, int shapeIndex)
     {
-        dynamic line = shape.Line;
-        int rgb = (int)line.ForeColor.RGB;
-        float weight = (float)line.Weight;
-        int dashStyleValue = (int)line.DashStyle;
-        string dashStyleName = LineDashStylesByValue.TryGetValue(dashStyleValue, out var name)
-            ? name
-            : $"unknown ({dashStyleValue})";
-        bool visible = (int)line.Visible == MsoTrue;
-
-        return new ShapeOperationResult
+        dynamic? line = null;
+        try
         {
-            Success = true,
-            ShapeIndex = shapeIndex,
-            ColorRgb = rgb,
-            LineWeight = weight,
-            DashStyleName = dashStyleName,
-            Visible = visible
-        };
+            line = shape.Line;
+            int rgb = (int)line.ForeColor.RGB;
+            float weight = (float)line.Weight;
+            int dashStyleValue = (int)line.DashStyle;
+            string dashStyleName = LineDashStylesByValue.TryGetValue(dashStyleValue, out var name)
+                ? name
+                : $"unknown ({dashStyleValue})";
+            bool visible = (int)line.Visible == MsoTrue;
+
+            return new ShapeOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                ColorRgb = rgb,
+                LineWeight = weight,
+                DashStyleName = dashStyleName,
+                Visible = visible
+            };
+        }
+        finally
+        {
+            if (line != null)
+            {
+                ComUtilities.Release(ref line!);
+            }
+        }
     }
 
     private static ShapeOperationResult? ValidateSlideIndex(int slideCount, int slideIndex)

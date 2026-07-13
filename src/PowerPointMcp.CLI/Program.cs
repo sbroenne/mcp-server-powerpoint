@@ -28,12 +28,19 @@ public static class Program
 
             config.AddBranch("session", session =>
             {
-                session.SetDescription("Open, create, save, close, or list presentation sessions held by the daemon.");
+                session.SetDescription("Open, create, save, close, or list presentation sessions held by the daemon; apply templates and read/write document properties.");
                 session.AddCommand<SessionOpenCommand>("open").WithDescription("Open an existing presentation and return a session id.");
                 session.AddCommand<SessionCreateCommand>("create").WithDescription("Create a new presentation and return a session id.");
                 session.AddCommand<SessionCloseCommand>("close").WithDescription("Close a session, optionally saving first.");
                 session.AddCommand<SessionSaveCommand>("save").WithDescription("Save the presentation open in a session.");
                 session.AddCommand<SessionListCommand>("list").WithDescription("List every session currently open in the daemon.");
+                session.AddCommand<SessionApplyTemplateCommand>("apply-template").WithDescription("Apply a template's masters/theme/layouts to the open presentation, preserving slide content.");
+                session.AddCommand<SessionGetThemeNameCommand>("get-theme-name").WithDescription("Read the design/theme name currently applied to the open presentation.");
+                session.AddCommand<SessionSetDocumentPropertyCommand>("set-document-property").WithDescription("Set a built-in document metadata property (Title, Subject, Author, Keywords, Comments, Category, Manager, Company).");
+                session.AddCommand<SessionGetDocumentPropertyCommand>("get-document-property").WithDescription("Read a built-in document metadata property.");
+                session.AddCommand<SessionSetCustomPropertyCommand>("set-custom-property").WithDescription("Create or update a custom (user-defined) document property.");
+                session.AddCommand<SessionGetCustomPropertyCommand>("get-custom-property").WithDescription("Read a custom (user-defined) document property.");
+                session.AddCommand<SessionRemoveCustomPropertyCommand>("remove-custom-property").WithDescription("Remove a custom (user-defined) document property.");
             });
 
             config.AddBranch("service", service =>

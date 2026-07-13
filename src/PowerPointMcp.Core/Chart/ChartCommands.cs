@@ -1,5 +1,6 @@
 using System.Linq;
 using System.Runtime.InteropServices;
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
@@ -60,22 +61,34 @@ public sealed class ChartCommands : IChartCommands
             if (slideValidation is not null) return slideValidation;
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-
-            // Shapes.AddChart2(Style, XlChartType, Left, Top, Width, Height, NewLayout) -> Shape
-            dynamic chartShape = ((dynamic)slide.Shapes).AddChart2(-1, xlChartType.Value, left, top, width, height, true);
-            PowerPoint.Chart chart = chartShape.Chart;
-
-            WriteChartData(chart, categories, seriesName, values);
-
-            // Same NoPIA .Index late-binding quirk as Shape domain — use Shapes.Count instead.
-            int newIndex = slide.Shapes.Count;
-
-            return new ChartOperationResult
+            dynamic? chartShape = null;
+            try
             {
-                Success = true,
-                ShapeIndex = newIndex,
-                ShapeCount = slide.Shapes.Count
-            };
+                // Shapes.AddChart2(Style, XlChartType, Left, Top, Width, Height, NewLayout) -> Shape
+                // Reason: AddChart2 is not exposed on the strongly-typed PIA Shapes interface, so it
+                // must be invoked via dynamic late binding.
+                chartShape = ((dynamic)slide.Shapes).AddChart2(-1, xlChartType.Value, left, top, width, height, true);
+                PowerPoint.Chart chart = chartShape.Chart;
+
+                WriteChartData(chart, categories, seriesName, values);
+
+                // Same NoPIA .Index late-binding quirk as Shape domain — use Shapes.Count instead.
+                int newIndex = slide.Shapes.Count;
+
+                return new ChartOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = slide.Shapes.Count
+                };
+            }
+            finally
+            {
+                if (chartShape != null)
+                {
+                    ComUtilities.Release(ref chartShape!);
+                }
+            }
         });
     }
 
@@ -95,6 +108,8 @@ public sealed class ChartCommands : IChartCommands
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             // NOTE: HasChart is MsoTriState (an int), not a C# bool — msoTrue = -1.
+            // Reason: read via dynamic late binding for consistent MsoTriState handling with the
+            // rest of this file's chart-shape checks.
             if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
@@ -105,22 +120,56 @@ public sealed class ChartCommands : IChartCommands
             }
 
             PowerPoint.Chart chart = shape.Chart;
-            dynamic seriesCollection = chart.SeriesCollection();
-            int seriesCount = (int)seriesCollection.Count;
-            int categoryCount = 0;
-            if (seriesCount > 0)
+            dynamic? seriesCollection = null;
+            dynamic? firstSeries = null;
+            try
             {
-                dynamic firstSeries = seriesCollection.Item(1);
-                categoryCount = ReadNonEmptyXValues(firstSeries).Length;
-            }
+                // Chart writes (e.g. immediately preceding AddChart/ReplaceChartData calls) can
+                // settle asynchronously in the embedded Excel workbook, so SeriesCollection.Count
+                // can transiently read back as 0 right after a write. Retry until it's non-zero,
+                // matching the same settling tolerance used by AddSeries/ReplaceChartData.
+                int seriesCount = 0;
+                for (int attempt = 1; attempt <= TransientReadRetryAttempts; attempt++)
+                {
+                    seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
+                    seriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
+                    if (seriesCount > 0 || attempt == TransientReadRetryAttempts)
+                    {
+                        break;
+                    }
 
-            return new ChartOperationResult
+                    ComUtilities.Release(ref seriesCollection!);
+                    seriesCollection = null;
+                    System.Threading.Thread.Sleep(TransientReadRetryDelayMs);
+                }
+
+                int categoryCount = 0;
+                if (seriesCount > 0)
+                {
+                    firstSeries = RetryTransientChartRead(() => seriesCollection.Item(1));
+                    categoryCount = ReadNonEmptyXValues(firstSeries).Length;
+                }
+
+                return new ChartOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    SeriesCount = seriesCount,
+                    CategoryCount = categoryCount
+                };
+            }
+            finally
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                SeriesCount = seriesCount,
-                CategoryCount = categoryCount
-            };
+                if (firstSeries != null)
+                {
+                    ComUtilities.Release(ref firstSeries!);
+                }
+
+                if (seriesCollection != null)
+                {
+                    ComUtilities.Release(ref seriesCollection!);
+                }
+            }
         });
     }
 
@@ -141,6 +190,8 @@ public sealed class ChartCommands : IChartCommands
             if (shapeValidation is not null) return shapeValidation;
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            // Reason: read via dynamic late binding for consistent MsoTriState handling with the
+            // rest of this file's chart-shape checks.
             if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
@@ -151,47 +202,70 @@ public sealed class ChartCommands : IChartCommands
             }
 
             PowerPoint.Chart chart = shape.Chart;
-            dynamic seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
-            int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
-
-            if (existingSeriesCount == 0)
+            dynamic? seriesCollection = null;
+            dynamic? firstSeries = null;
+            dynamic? newSeries = null;
+            try
             {
+                seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
+                int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
+
+                if (existingSeriesCount == 0)
+                {
+                    return new ChartOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = "The chart has no existing series to determine its category count from."
+                    };
+                }
+
+                firstSeries = RetryTransientChartRead(() => seriesCollection.Item(1));
+                Array existingXValues = ReadNonEmptyXValues(firstSeries);
+                int categoryCount = existingXValues.Length;
+
+                if (values.Count != categoryCount)
+                {
+                    return new ChartOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Value count ({values.Count}) must match the chart's existing category count ({categoryCount})."
+                    };
+                }
+
+                // SeriesCollection is backed by Excel interop types that are not present in the
+                // embedded PowerPoint PIA. Keep this boundary narrowly late-bound.
+                newSeries = seriesCollection.NewSeries();
+                newSeries.Values = values.ToArray();
+                newSeries.XValues = existingXValues;
+                newSeries.Name = seriesName;
+
+                int newSeriesCount = (int)chart.SeriesCollection().Count;
+
                 return new ChartOperationResult
                 {
-                    Success = false,
-                    ErrorMessage = "The chart has no existing series to determine its category count from."
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    SeriesCount = newSeriesCount,
+                    CategoryCount = categoryCount
                 };
             }
-
-            dynamic firstSeries = RetryTransientChartRead(() => seriesCollection.Item(1));
-            Array existingXValues = ReadNonEmptyXValues(firstSeries);
-            int categoryCount = existingXValues.Length;
-
-            if (values.Count != categoryCount)
+            finally
             {
-                return new ChartOperationResult
+                if (newSeries != null)
                 {
-                    Success = false,
-                    ErrorMessage = $"Value count ({values.Count}) must match the chart's existing category count ({categoryCount})."
-                };
+                    ComUtilities.Release(ref newSeries!);
+                }
+
+                if (firstSeries != null)
+                {
+                    ComUtilities.Release(ref firstSeries!);
+                }
+
+                if (seriesCollection != null)
+                {
+                    ComUtilities.Release(ref seriesCollection!);
+                }
             }
-
-            // SeriesCollection is backed by Excel interop types that are not present in the
-            // embedded PowerPoint PIA. Keep this boundary narrowly late-bound.
-            dynamic newSeries = seriesCollection.NewSeries();
-            newSeries.Values = values.ToArray();
-            newSeries.XValues = existingXValues;
-            newSeries.Name = seriesName;
-
-            int newSeriesCount = (int)chart.SeriesCollection().Count;
-
-            return new ChartOperationResult
-            {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                SeriesCount = newSeriesCount,
-                CategoryCount = categoryCount
-            };
         });
     }
 
@@ -238,6 +312,8 @@ public sealed class ChartCommands : IChartCommands
             if (shapeValidation is not null) return shapeValidation;
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            // Reason: read via dynamic late binding for consistent MsoTriState handling with the
+            // rest of this file's chart-shape checks.
             if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
@@ -251,38 +327,71 @@ public sealed class ChartCommands : IChartCommands
 
             // Avoid the embedded Excel workbook and update its late-bound SeriesCollection
             // directly, because Excel interop types are not part of the embedded PowerPoint PIA.
-            dynamic seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
-            int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
-            for (int i = existingSeriesCount; i >= 1; i--)
+            dynamic? seriesCollection = null;
+            try
             {
-                dynamic existingSeries = seriesCollection.Item(i);
-                existingSeries.Delete();
-            }
-
-            string[] categoriesArray = categories.ToArray();
-            for (int s = 0; s < seriesNames.Count; s++)
-            {
-                var valuesForSeries = new double[categories.Count];
-                for (int i = 0; i < categories.Count; i++)
+                seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
+                int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
+                for (int i = existingSeriesCount; i >= 1; i--)
                 {
-                    valuesForSeries[i] = seriesValues[(s * categories.Count) + i];
+                    dynamic? existingSeries = null;
+                    try
+                    {
+                        existingSeries = seriesCollection.Item(i);
+                        existingSeries.Delete();
+                    }
+                    finally
+                    {
+                        if (existingSeries != null)
+                        {
+                            ComUtilities.Release(ref existingSeries!);
+                        }
+                    }
                 }
 
-                dynamic newSeries = seriesCollection.NewSeries();
-                newSeries.Values = valuesForSeries;
-                newSeries.XValues = categoriesArray;
-                newSeries.Name = seriesNames[s];
+                string[] categoriesArray = categories.ToArray();
+                for (int s = 0; s < seriesNames.Count; s++)
+                {
+                    var valuesForSeries = new double[categories.Count];
+                    for (int i = 0; i < categories.Count; i++)
+                    {
+                        valuesForSeries[i] = seriesValues[(s * categories.Count) + i];
+                    }
+
+                    dynamic? newSeries = null;
+                    try
+                    {
+                        newSeries = seriesCollection.NewSeries();
+                        newSeries.Values = valuesForSeries;
+                        newSeries.XValues = categoriesArray;
+                        newSeries.Name = seriesNames[s];
+                    }
+                    finally
+                    {
+                        if (newSeries != null)
+                        {
+                            ComUtilities.Release(ref newSeries!);
+                        }
+                    }
+                }
+
+                int newSeriesCount = (int)chart.SeriesCollection().Count;
+
+                return new ChartOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    SeriesCount = newSeriesCount,
+                    CategoryCount = categories.Count
+                };
             }
-
-            int newSeriesCount = (int)chart.SeriesCollection().Count;
-
-            return new ChartOperationResult
+            finally
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                SeriesCount = newSeriesCount,
-                CategoryCount = categories.Count
-            };
+                if (seriesCollection != null)
+                {
+                    ComUtilities.Release(ref seriesCollection!);
+                }
+            }
         });
     }
 
@@ -302,6 +411,8 @@ public sealed class ChartCommands : IChartCommands
             if (shapeValidation is not null) return shapeValidation;
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            // Reason: read via dynamic late binding for consistent MsoTriState handling with the
+            // rest of this file's chart-shape checks.
             if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
@@ -340,6 +451,8 @@ public sealed class ChartCommands : IChartCommands
             if (shapeValidation is not null) return shapeValidation;
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            // Reason: read via dynamic late binding for consistent MsoTriState handling with the
+            // rest of this file's chart-shape checks.
             if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
@@ -390,6 +503,8 @@ public sealed class ChartCommands : IChartCommands
             if (shapeValidation is not null) return shapeValidation;
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            // Reason: read via dynamic late binding for consistent MsoTriState handling with the
+            // rest of this file's chart-shape checks.
             if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
@@ -400,18 +515,29 @@ public sealed class ChartCommands : IChartCommands
             }
 
             PowerPoint.Chart chart = shape.Chart;
-            dynamic axis = chart.Axes(xlAxisType.Value);
-            axis.HasTitle = true;
-            axis.AxisTitle.Text = title;
-
-            return new ChartOperationResult
+            dynamic? axis = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                AxisType = axisType,
-                Title = title,
-                HasTitle = true
-            };
+                axis = chart.Axes(xlAxisType.Value);
+                axis.HasTitle = true;
+                axis.AxisTitle.Text = title;
+
+                return new ChartOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    AxisType = axisType,
+                    Title = title,
+                    HasTitle = true
+                };
+            }
+            finally
+            {
+                if (axis != null)
+                {
+                    ComUtilities.Release(ref axis!);
+                }
+            }
         });
     }
 
@@ -441,6 +567,8 @@ public sealed class ChartCommands : IChartCommands
             if (shapeValidation is not null) return shapeValidation;
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            // Reason: read via dynamic late binding for consistent MsoTriState handling with the
+            // rest of this file's chart-shape checks.
             if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
@@ -451,18 +579,29 @@ public sealed class ChartCommands : IChartCommands
             }
 
             PowerPoint.Chart chart = shape.Chart;
-            dynamic axis = chart.Axes(xlAxisType.Value);
-            bool hasTitle = (bool)axis.HasTitle;
-            string? title = hasTitle ? (string)axis.AxisTitle.Text : null;
-
-            return new ChartOperationResult
+            dynamic? axis = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                AxisType = axisType,
-                HasTitle = hasTitle,
-                Title = title
-            };
+                axis = chart.Axes(xlAxisType.Value);
+                bool hasTitle = (bool)axis.HasTitle;
+                string? title = hasTitle ? (string)axis.AxisTitle.Text : null;
+
+                return new ChartOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    AxisType = axisType,
+                    HasTitle = hasTitle,
+                    Title = title
+                };
+            }
+            finally
+            {
+                if (axis != null)
+                {
+                    ComUtilities.Release(ref axis!);
+                }
+            }
         });
     }
 
@@ -481,6 +620,8 @@ public sealed class ChartCommands : IChartCommands
             if (shapeValidation is not null) return shapeValidation;
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            // Reason: read via dynamic late binding for consistent MsoTriState handling with the
+            // rest of this file's chart-shape checks.
             if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
@@ -521,6 +662,8 @@ public sealed class ChartCommands : IChartCommands
             if (shapeValidation is not null) return shapeValidation;
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
+            // Reason: read via dynamic late binding for consistent MsoTriState handling with the
+            // rest of this file's chart-shape checks.
             if ((int)((dynamic)shape).HasChart != MsoTrue)
             {
                 return new ChartOperationResult
@@ -553,22 +696,52 @@ public sealed class ChartCommands : IChartCommands
     {
         // SeriesCollection is backed by Excel types that are not present in the embedded
         // PowerPoint PIA, so this is a deliberately narrow late-bound boundary.
-        dynamic seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
-        int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
-        for (int i = existingSeriesCount; i >= 1; i--)
+        dynamic? seriesCollection = null;
+        dynamic? newSeries = null;
+        try
         {
-            dynamic existingSeries = seriesCollection.Item(i);
-            existingSeries.Delete();
-        }
+            seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
+            int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
+            for (int i = existingSeriesCount; i >= 1; i--)
+            {
+                dynamic? existingSeries = null;
+                try
+                {
+                    existingSeries = seriesCollection.Item(i);
+                    existingSeries.Delete();
+                }
+                finally
+                {
+                    if (existingSeries != null)
+                    {
+                        ComUtilities.Release(ref existingSeries!);
+                    }
+                }
+            }
 
-        dynamic newSeries = seriesCollection.NewSeries();
-        newSeries.Values = values.ToArray();
-        newSeries.XValues = categories.ToArray();
-        newSeries.Name = seriesName;
+            newSeries = seriesCollection.NewSeries();
+            newSeries.Values = values.ToArray();
+            newSeries.XValues = categories.ToArray();
+            newSeries.Name = seriesName;
+        }
+        finally
+        {
+            if (newSeries != null)
+            {
+                ComUtilities.Release(ref newSeries!);
+            }
+
+            if (seriesCollection != null)
+            {
+                ComUtilities.Release(ref seriesCollection!);
+            }
+        }
     }
 
     // Chart writes can settle asynchronously; a short bounded retry handles transient reads.
-    private const int TransientReadRetryAttempts = 10;
+    // Bumped from 10x300ms (3s) to 20x300ms (6s) after observing the shorter window was
+    // insufficient for SeriesCollection/XValues to settle under heavier COM/system load.
+    private const int TransientReadRetryAttempts = 20;
     private const int TransientReadRetryDelayMs = 300;
 
     /// <summary>

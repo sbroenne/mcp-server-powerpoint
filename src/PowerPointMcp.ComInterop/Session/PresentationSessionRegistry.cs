@@ -42,7 +42,7 @@ public sealed record PresentationSessionInfo(
 /// shutdown) can await every one of them — both the ones it starts itself and any still pending
 /// from earlier <see cref="Close"/> calls — before the host is allowed to exit. This preserves
 /// the "no lingering POWERPNT.exe after shutdown" guarantee while keeping the MCP-visible
-/// `close_presentation` call fast.
+/// `presentation(action=close)` call fast.
 /// </remarks>
 public sealed class PresentationSessionRegistry : IDisposable
 {
@@ -53,6 +53,92 @@ public sealed class PresentationSessionRegistry : IDisposable
     /// dispose in parallel rather than sequentially.
     /// </summary>
     private static readonly TimeSpan DisposeAllTimeout = ComInteropConstants.StaThreadJoinTimeout + TimeSpan.FromSeconds(30);
+
+    // --- Crash-safety PID tracking (ported from mcp-server-excel's SessionManager) ---
+    //
+    // PresentationBatch's normal Dispose()/shutdown path already force-kills its own tracked
+    // POWERPNT.exe on timeout (see PresentationBatch.TryKillProcess / PresentationShutdownService).
+    // That only runs if the process gets a chance to unwind normally. If the MCP Server or CLI
+    // daemon process itself terminates uncleanly (unhandled exception, Ctrl+C during a stuck STA
+    // call, OOM, etc.) nothing calls Dispose() and any live POWERPNT.exe is orphaned. This static,
+    // process-wide PID registry plus an AppDomain.ProcessExit handler is the safety net for that
+    // case - it runs during CLR teardown regardless of which code path caused the exit.
+    private static readonly System.Collections.Concurrent.ConcurrentBag<int> _trackedPowerPointPids = new();
+    private static int _processExitRegistered;
+
+    /// <summary>
+    /// Registers a POWERPNT.exe process ID for cleanup on unexpected process exit.
+    /// Called from <see cref="PresentationBatch"/> as soon as a PID is captured.
+    /// </summary>
+    public static void TrackPowerPointProcess(int processId)
+    {
+        _trackedPowerPointPids.Add(processId);
+
+        // Register the handler exactly once (thread-safe).
+        if (Interlocked.CompareExchange(ref _processExitRegistered, 1, 0) == 0)
+        {
+            AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+        }
+    }
+
+    /// <summary>
+    /// Marks a POWERPNT.exe process as no longer needing crash-safety cleanup.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="System.Collections.Concurrent.ConcurrentBag{T}"/> doesn't support removal, so
+    /// this is intentionally a documented no-op: <see cref="OnProcessExit"/> checks
+    /// <c>Process.HasExited</c> before killing, so a PID that already exited normally is simply
+    /// skipped. The parameter documents API intent and mirrors mcp-server-excel's
+    /// <c>UntrackExcelProcess</c> exactly.
+    /// </remarks>
+#pragma warning disable IDE0060 // Intentional: parameter documents API intent; ConcurrentBag lacks Remove
+    public static void UntrackPowerPointProcess(int processId)
+#pragma warning restore IDE0060
+    {
+        // No-op - see remarks above.
+    }
+
+    private static void OnProcessExit(object? sender, EventArgs e)
+    {
+        int killedCount = 0;
+        int alreadyExitedCount = 0;
+        int failedCount = 0;
+
+        foreach (var pid in _trackedPowerPointPids)
+        {
+            try
+            {
+                using var proc = System.Diagnostics.Process.GetProcessById(pid);
+                if (!proc.HasExited)
+                {
+                    proc.Kill();
+                    killedCount++;
+                    // Cannot use ILogger here - this handler runs during AppDomain teardown.
+                    PresentationDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-KILLED] Force-killed PowerPoint process {pid}");
+                }
+                else
+                {
+                    alreadyExitedCount++;
+                }
+            }
+            catch (ArgumentException)
+            {
+                // Process already exited.
+                alreadyExitedCount++;
+            }
+            catch (Exception ex)
+            {
+                failedCount++;
+                PresentationDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-FAILED] Failed to kill PowerPoint process {pid}: {ex.Message}");
+            }
+        }
+
+        if (killedCount > 0 || failedCount > 0)
+        {
+            PresentationDiagnostics.WriteStdErr(
+                $"[DIAG-PROCESSEXIT-SUMMARY] Killed={killedCount}, AlreadyExited={alreadyExitedCount}, Failed={failedCount}, Total={_trackedPowerPointPids.Count}");
+        }
+    }
 
     private readonly ConcurrentDictionary<string, IPresentationBatch> _sessions = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<Task, byte> _pendingDisposals = new();

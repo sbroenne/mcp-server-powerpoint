@@ -21,8 +21,8 @@ PowerPoint process running on your Windows PC.
   content, etc.) stay within the local MCP stdio session between your AI
   assistant and the server process — they are never sent to a third-party
   service by this project.
-- **Exported images** (from `export_slide_to_image` /
-  `export_all_slides_to_images`) are written only to the local file paths
+- **Exported images** (from `export(action="export-slide-to-image", ...)` /
+  `export(action="export-all-slides-to-images", ...)`) are written only to the local file paths
   you specify.
 
 ## What this project does NOT do

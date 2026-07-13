@@ -67,6 +67,8 @@ public sealed class ImageCommands : IImageCommands
             // ShapeCommands.cs). LinkToFile=False, SaveWithDocument=True embeds the image
             // directly in the .pptx rather than linking to the external file.
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            // Reason: Shapes.AddPicture is called late-bound via dynamic because
+            // LinkToFile/SaveWithDocument are Microsoft.Office.Core.MsoTriState (office.dll).
             ((dynamic)slide.Shapes).AddPicture(fullImagePath, MsoFalse, MsoTrue, left, top, width, height);
             int newIndex = slide.Shapes.Count; // always appended
 
@@ -173,7 +175,7 @@ public sealed class ImageCommands : IImageCommands
             var typeValidation = ValidatePictureShape(shape, slideIndex, shapeIndex);
             if (typeValidation is not null) return typeValidation;
 
-            // PictureFormat.ColorType is MsoPictureColorType (Microsoft.Office.Core — not embedded);
+            // Reason: PictureFormat.ColorType is MsoPictureColorType (Microsoft.Office.Core — not embedded);
             // assigned via dynamic late binding with the pre-validated integer value.
             ((dynamic)shape.PictureFormat).ColorType = typeValue;
 
@@ -204,7 +206,7 @@ public sealed class ImageCommands : IImageCommands
             var typeValidation = ValidatePictureShape(shape, slideIndex, shapeIndex);
             if (typeValidation is not null) return typeValidation;
 
-            // PictureFormat.ColorType is MsoPictureColorType (Microsoft.Office.Core — not embedded);
+            // Reason: PictureFormat.ColorType is MsoPictureColorType (Microsoft.Office.Core — not embedded);
             // read via dynamic late binding.
             int rawColorType = (int)((dynamic)shape.PictureFormat).ColorType;
             string typeName = PictureColorTypesByValue.TryGetValue(rawColorType, out var name) ? name : $"unknown({rawColorType})";
@@ -322,6 +324,8 @@ public sealed class ImageCommands : IImageCommands
     /// </summary>
     private static ImageOperationResult? ValidatePictureShape(PowerPoint.Shape shape, int slideIndex, int shapeIndex)
     {
+        // Reason: Shape.Type is Microsoft.Office.Core.MsoShapeType (Office.Core — not embedded),
+        // so it is read via dynamic late binding and compared against named integer constants.
         int shapeType = (int)((dynamic)shape).Type;
         if (shapeType != MsoPicture && shapeType != MsoLinkedPicture)
         {

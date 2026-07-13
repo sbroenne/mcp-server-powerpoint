@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
@@ -186,19 +187,30 @@ public sealed class SlideCommands : ISlideCommands
             }
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-            dynamic dynSlide = slide;
-            dynSlide.FollowMasterBackground = MsoFalse;
-            int rgb = red + (green << 8) + (blue << 16);
-            slide.Background.Fill.Solid();
-            slide.Background.Fill.ForeColor.RGB = rgb;
-
-            return new SlideOperationResult
+            dynamic? dynSlide = null;
+            try
             {
-                Success = true,
-                SlideIndex = slideIndex,
-                ColorRgb = rgb,
-                FollowsMasterBackground = false
-            };
+                dynSlide = slide;
+                dynSlide.FollowMasterBackground = MsoFalse;
+                int rgb = red + (green << 8) + (blue << 16);
+                slide.Background.Fill.Solid();
+                slide.Background.Fill.ForeColor.RGB = rgb;
+
+                return new SlideOperationResult
+                {
+                    Success = true,
+                    SlideIndex = slideIndex,
+                    ColorRgb = rgb,
+                    FollowsMasterBackground = false
+                };
+            }
+            finally
+            {
+                if (dynSlide != null)
+                {
+                    ComUtilities.Release(ref dynSlide!);
+                }
+            }
         });
     }
 
@@ -221,17 +233,28 @@ public sealed class SlideCommands : ISlideCommands
             }
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-            dynamic dynSlide = slide;
-            bool followsMaster = (int)dynSlide.FollowMasterBackground == MsoTrue;
-            int rgb = slide.Background.Fill.ForeColor.RGB;
-
-            return new SlideOperationResult
+            dynamic? dynSlide = null;
+            try
             {
-                Success = true,
-                SlideIndex = slideIndex,
-                ColorRgb = rgb,
-                FollowsMasterBackground = followsMaster
-            };
+                dynSlide = slide;
+                bool followsMaster = (int)dynSlide.FollowMasterBackground == MsoTrue;
+                int rgb = slide.Background.Fill.ForeColor.RGB;
+
+                return new SlideOperationResult
+                {
+                    Success = true,
+                    SlideIndex = slideIndex,
+                    ColorRgb = rgb,
+                    FollowsMasterBackground = followsMaster
+                };
+            }
+            finally
+            {
+                if (dynSlide != null)
+                {
+                    ComUtilities.Release(ref dynSlide!);
+                }
+            }
         });
     }
 
@@ -272,25 +295,42 @@ public sealed class SlideCommands : ISlideCommands
             int rgb2 = red2 + (green2 << 8) + (blue2 << 16);
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-            dynamic dynSlide = slide;
-            dynSlide.FollowMasterBackground = MsoFalse;
-            // TwoColorGradient() must be called BEFORE setting ForeColor/BackColor — it resets
-            // both colors to PowerPoint's defaults as a side effect (verified via diagnostic spike).
-            dynamic fill = slide.Background.Fill;
-            fill.TwoColorGradient(styleValue, gradientVariant);
-            fill.ForeColor.RGB = rgb1;
-            fill.BackColor.RGB = rgb2;
-
-            return new SlideOperationResult
+            dynamic? dynSlide = null;
+            dynamic? fill = null;
+            try
             {
-                Success = true,
-                SlideIndex = slideIndex,
-                ColorRgb = rgb1,
-                ColorRgb2 = rgb2,
-                GradientStyleName = gradientStyle,
-                GradientVariant = gradientVariant,
-                FollowsMasterBackground = false
-            };
+                dynSlide = slide;
+                dynSlide.FollowMasterBackground = MsoFalse;
+                // TwoColorGradient() must be called BEFORE setting ForeColor/BackColor — it resets
+                // both colors to PowerPoint's defaults as a side effect (verified via diagnostic spike).
+                fill = slide.Background.Fill;
+                fill.TwoColorGradient(styleValue, gradientVariant);
+                fill.ForeColor.RGB = rgb1;
+                fill.BackColor.RGB = rgb2;
+
+                return new SlideOperationResult
+                {
+                    Success = true,
+                    SlideIndex = slideIndex,
+                    ColorRgb = rgb1,
+                    ColorRgb2 = rgb2,
+                    GradientStyleName = gradientStyle,
+                    GradientVariant = gradientVariant,
+                    FollowsMasterBackground = false
+                };
+            }
+            finally
+            {
+                if (fill != null)
+                {
+                    ComUtilities.Release(ref fill!);
+                }
+
+                if (dynSlide != null)
+                {
+                    ComUtilities.Release(ref dynSlide!);
+                }
+            }
         });
     }
 
@@ -313,35 +353,46 @@ public sealed class SlideCommands : ISlideCommands
             }
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-            dynamic fill = slide.Background.Fill;
-            int fillType = (int)fill.Type;
-            const int MsoFillGradient = 3;
-            if (fillType != MsoFillGradient)
+            dynamic? fill = null;
+            try
             {
+                fill = slide.Background.Fill;
+                int fillType = (int)fill.Type;
+                const int MsoFillGradient = 3;
+                if (fillType != MsoFillGradient)
+                {
+                    return new SlideOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Slide {slideIndex}'s background fill is not a gradient (fill type = {fillType}).",
+                        SlideIndex = slideIndex
+                    };
+                }
+
+                int rgb1 = (int)fill.ForeColor.RGB;
+                int rgb2 = (int)fill.BackColor.RGB;
+                int styleValue = (int)fill.GradientStyle;
+                int variant = (int)fill.GradientVariant;
+                string? styleName = GradientStylesByValue.GetValueOrDefault(styleValue);
+
                 return new SlideOperationResult
                 {
-                    Success = false,
-                    ErrorMessage = $"Slide {slideIndex}'s background fill is not a gradient (fill type = {fillType}).",
-                    SlideIndex = slideIndex
+                    Success = true,
+                    SlideIndex = slideIndex,
+                    ColorRgb = rgb1,
+                    ColorRgb2 = rgb2,
+                    GradientStyleName = styleName,
+                    GradientVariant = variant,
+                    FollowsMasterBackground = false
                 };
             }
-
-            int rgb1 = (int)fill.ForeColor.RGB;
-            int rgb2 = (int)fill.BackColor.RGB;
-            int styleValue = (int)fill.GradientStyle;
-            int variant = (int)fill.GradientVariant;
-            string? styleName = GradientStylesByValue.GetValueOrDefault(styleValue);
-
-            return new SlideOperationResult
+            finally
             {
-                Success = true,
-                SlideIndex = slideIndex,
-                ColorRgb = rgb1,
-                ColorRgb2 = rgb2,
-                GradientStyleName = styleName,
-                GradientVariant = variant,
-                FollowsMasterBackground = false
-            };
+                if (fill != null)
+                {
+                    ComUtilities.Release(ref fill!);
+                }
+            }
         });
     }
 

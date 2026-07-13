@@ -44,7 +44,7 @@ public static class PowerPointToolsBase
     /// encoded as Success=false payloads by the operation; any unexpected exception is logged to
     /// stderr and serialized into a structured error so the host stays alive (Rule 1b).
     /// </summary>
-    /// <param name="toolName">Tool name for error context (e.g. "create_presentation").</param>
+    /// <param name="toolName">Tool name for error context (e.g. "presentation").</param>
     /// <param name="operation">The synchronous operation producing a JSON response string.</param>
     /// <returns>The operation's JSON response, or a serialized error payload on exception.</returns>
     public static string ExecuteToolAction(string toolName, Func<string> operation)

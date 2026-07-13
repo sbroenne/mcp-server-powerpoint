@@ -33,7 +33,7 @@ The changelog is end-user facing. Favor plain language over implementation detai
 
 ```md
 ✅ Good:
-**Faster slide export** (#123): `export_slide_to_image` now batches COM calls,
+**Faster slide export** (#123): `export(action="export-slide-to-image", ...)` now batches COM calls,
 cutting export time for multi-slide decks by roughly half.
 
 ❌ Too technical / internal:
