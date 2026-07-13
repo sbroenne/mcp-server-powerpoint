@@ -251,7 +251,23 @@ else {
 # --- 3b. Documentation tool/operation counts ------------------------------------------------
 # Always runs (even for docs-only commits) - validates the currently-generated manifest on disk
 # against every user-facing doc that advertises a tool/operation count. Requires a prior Release
-# build to have produced _SkillManifest.g.cs at least once.
+# build to have produced _SkillManifest.g.cs at least once. On a fresh clone (or after cleaning
+# obj/), a docs-only commit could otherwise be the FIRST commit ever run here, with no build
+# artifacts on disk yet - do a one-time Release build in that case so the gate reflects reality
+# instead of failing purely because nothing has been generated yet.
+$manifestExists = $null -ne (Get-ChildItem -Path (Join-Path $rootDir "src\PowerPointMcp.Core\obj") -Recurse -Filter "_SkillManifest.g.cs" -ErrorAction SilentlyContinue | Select-Object -First 1)
+if (-not $manifestExists) {
+    Write-Step "No generated skill manifest found yet - running a one-time Release build so the doc-count gate has ground truth..."
+
+    $slnPath = Join-Path $rootDir "Sbroenne.PowerPointMcp.slnx"
+    & dotnet build $slnPath -c Release --nologo
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "BLOCKED: Release build failed (needed to generate the skill manifest for the doc-count check)." -ForegroundColor Red
+        exit 1
+    }
+}
+
 Write-Step "Checking documentation tool/operation counts..."
 
 try {
