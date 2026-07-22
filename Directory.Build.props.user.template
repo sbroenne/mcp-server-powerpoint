@@ -1,0 +1,14 @@
+<!--
+  Local developer settings (COPY to Directory.Build.props.user)
+
+  This file is a template. To use:
+  1. Copy this file to Directory.Build.props.user
+  2. Fill in your local-only values
+  3. Directory.Build.props.user is gitignored and won't be committed
+-->
+<Project>
+  <PropertyGroup>
+    <!-- Set to true to skip the local pre-build cleanup that stops PowerPointMcp processes. -->
+    <PowerPointMcpSkipCleanup>false</PowerPointMcpSkipCleanup>
+  </PropertyGroup>
+</Project>

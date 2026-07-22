@@ -23,11 +23,20 @@ public interface ITextFrameCommands
     /// <summary>Sets the font size (in points) of a shape's entire text range.</summary>
     TextFrameOperationResult SetFontSize(IPresentationBatch batch, int slideIndex, int shapeIndex, float fontSize);
 
+    /// <summary>Gets the font size (in points) of a shape's text range.</summary>
+    TextFrameOperationResult GetFontSize(IPresentationBatch batch, int slideIndex, int shapeIndex);
+
     /// <summary>Sets whether a shape's entire text range is bold.</summary>
     TextFrameOperationResult SetBold(IPresentationBatch batch, int slideIndex, int shapeIndex, bool bold);
 
+    /// <summary>Gets whether a shape's text range is bold.</summary>
+    TextFrameOperationResult GetBold(IPresentationBatch batch, int slideIndex, int shapeIndex);
+
     /// <summary>Sets the font color (RGB) of a shape's entire text range.</summary>
     TextFrameOperationResult SetFontColor(IPresentationBatch batch, int slideIndex, int shapeIndex, byte red, byte green, byte blue);
+
+    /// <summary>Gets the font color of a shape's text range as an RGB integer (0xBBGGRR, PowerPoint's native color order).</summary>
+    TextFrameOperationResult GetFontColor(IPresentationBatch batch, int slideIndex, int shapeIndex);
 
     /// <summary>Sets whether a shape's entire text range is italic.</summary>
     TextFrameOperationResult SetItalic(IPresentationBatch batch, int slideIndex, int shapeIndex, bool italic);

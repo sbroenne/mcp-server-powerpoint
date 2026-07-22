@@ -1,0 +1,135 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.{json,jsonc}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+indent_size = 2
+
+[*.cs]
+# C# coding conventions
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_qualification_for_event = false:suggestion
+
+# Modern C# language features
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_prefer_braces = true:silent
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_prefer_method_group_conversion = true:silent
+csharp_style_prefer_top_level_statements = false:silent
+
+# Code style rules
+dotnet_sort_system_directives_first = true
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+
+# Security-focused code analysis rules
+dotnet_diagnostic.CA2100.severity = error        # SQL injection
+dotnet_diagnostic.CA3001.severity = error        # Potential SQL injection
+dotnet_diagnostic.CA3003.severity = error        # File path injection
+dotnet_diagnostic.CA3006.severity = error        # Process command injection
+dotnet_diagnostic.CA3012.severity = error        # Regex injection
+dotnet_diagnostic.CA5350.severity = error        # Weak cryptographic algorithm
+dotnet_diagnostic.CA5351.severity = error        # Broken cryptographic algorithm
+dotnet_diagnostic.CA5389.severity = error        # Do Not Add Archive Item's Path To The Target File System Path
+dotnet_diagnostic.CA5390.severity = error        # Do not hard-code encryption key
+dotnet_diagnostic.CA5394.severity = error        # Do not use insecure randomness
+
+# Performance and reliability
+dotnet_diagnostic.CA1806.severity = warning      # Do not ignore method results
+dotnet_diagnostic.CA1816.severity = warning      # Dispose methods should call SuppressFinalize
+dotnet_diagnostic.CA1821.severity = warning      # Remove empty Finalizers
+dotnet_diagnostic.CA1822.severity = warning      # Mark members as static
+dotnet_diagnostic.CA1825.severity = warning      # Avoid zero-length array allocations
+
+# Code style enforcement (IDE rules)
+dotnet_diagnostic.IDE0001.severity = warning     # Simplify names
+dotnet_diagnostic.IDE0002.severity = warning     # Simplify member access
+dotnet_diagnostic.IDE0005.severity = warning     # Remove unnecessary usings
+dotnet_diagnostic.IDE0040.severity = warning     # Add accessibility modifiers
+dotnet_diagnostic.IDE0055.severity = warning     # Fix formatting
+dotnet_diagnostic.IDE0051.severity = warning     # Remove unused private members
+dotnet_diagnostic.IDE0052.severity = warning     # Remove unread private members
+dotnet_diagnostic.IDE0058.severity = silent      # Expression value is never used
+dotnet_diagnostic.IDE0059.severity = warning     # Unnecessary assignment of a value
+dotnet_diagnostic.IDE0060.severity = warning     # Remove unused parameter
+dotnet_diagnostic.IDE0080.severity = warning     # Remove unnecessary suppression operator
+dotnet_diagnostic.IDE0100.severity = warning     # Remove unnecessary equality operator
+dotnet_diagnostic.IDE0110.severity = warning     # Remove unnecessary discard
+
+# Suppress CA1068 for batch API - timeout parameter is intentionally after CancellationToken
+# This allows optional timeout while keeping cancellationToken with default value
+dotnet_diagnostic.CA1068.severity = suggestion
+
+# Suppress CA2016 for STA thread operations - CancellationToken cannot be used with Task.Run in STA context
+# COM operations require STA thread apartment and use timeout-based cancellation instead
+dotnet_diagnostic.CA2016.severity = suggestion
+
+# Suppress CA1707 for test projects - test method names use underscores for readability
+# Pattern: MethodName_StateUnderTest_ExpectedBehavior (standard xUnit convention)
+dotnet_diagnostic.CA1707.severity = suggestion
+
+# ===========================
+# CODE ANALYSIS RULES
+# ===========================
+
+# Core layer: treat warnings as errors (all warnings fixed)
+[src/PowerPointMcp.Core/**/*.cs]
+dotnet_analyzer_diagnostic.category-CodeQuality.severity = error
+dotnet_analyzer_diagnostic.category-Design.severity = warning  # API design changes require careful planning
+dotnet_analyzer_diagnostic.category-Performance.severity = error
+dotnet_analyzer_diagnostic.category-Globalization.severity = error
+dotnet_analyzer_diagnostic.category-Security.severity = error
+# IDE style warnings (cosmetic) - informational only
+dotnet_diagnostic.IDE0008.severity = none  # Use explicit type vs var (disabled - prefer var)
+dotnet_diagnostic.IDE0022.severity = suggestion  # Use block body
+dotnet_diagnostic.IDE0028.severity = suggestion  # Collection initialization
+dotnet_diagnostic.IDE0031.severity = suggestion  # Null check simplification
+dotnet_diagnostic.IDE0037.severity = suggestion  # Member name simplification
+dotnet_diagnostic.IDE0045.severity = suggestion  # if simplification
+dotnet_diagnostic.IDE0046.severity = suggestion  # if simplification
+dotnet_diagnostic.IDE0078.severity = suggestion  # Pattern matching
+dotnet_diagnostic.IDE0090.severity = suggestion  # 'new' expression
+dotnet_diagnostic.IDE0130.severity = suggestion  # Namespace mismatch (intentional for partial classes)
+dotnet_diagnostic.IDE0270.severity = suggestion  # Null check simplification
+dotnet_diagnostic.IDE0290.severity = suggestion  # Primary constructor
+dotnet_diagnostic.IDE0300.severity = suggestion  # Collection initialization
+dotnet_diagnostic.IDE0305.severity = suggestion  # Collection initialization
+dotnet_diagnostic.IDE0010.severity = suggestion  # Populate switch
+dotnet_diagnostic.IDE0072.severity = suggestion  # Populate switch
+dotnet_diagnostic.IDE0018.severity = suggestion  # Variable declaration inlining
+
+# CLI layer: Some ToString warnings remain - treat most as errors
+[src/PowerPointMcp.CLI/**/*.cs]
+dotnet_analyzer_diagnostic.category-Globalization.severity = error
+dotnet_analyzer_diagnostic.category-Performance.severity = error
+dotnet_diagnostic.CA1305.severity = warning  # ToString culture warnings in display layer (acceptable for CLI)
+dotnet_diagnostic.CA1311.severity = warning  # ToLower warnings in display layer (acceptable for CLI)
+dotnet_diagnostic.CA1304.severity = warning  # Culture warnings in display layer (acceptable for CLI)
+
+# MCP Server layer: Additional warnings to fix in follow-up
+[src/PowerPointMcp.McpServer/**/*.cs]
+dotnet_diagnostic.CA1861.severity = warning  # Static readonly arrays - low risk, fix in follow-up
+dotnet_diagnostic.CA1866.severity = warning  # String.StartsWith(char) - performance optimization
+dotnet_diagnostic.CA1310.severity = warning  # StartsWith StringComparison - low risk in prompts
+dotnet_diagnostic.CA1869.severity = warning  # JsonSerializerOptions caching - fix in follow-up
+
+# ComInterop layer: Windows-only, platform warnings expected
+[src/PowerPointMcp.ComInterop/**/*.cs]
+dotnet_diagnostic.CA1416.severity = suggestion  # Platform-specific APIs expected (Windows-only library)

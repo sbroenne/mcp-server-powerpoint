@@ -40,6 +40,32 @@ public class PresentationCommandsTests
     }
 
     [Fact]
+    public void CreateNew_ShowsRealWindow_BecauseChartInPlaceActivationRequiresIt()
+    {
+        string path = CoreTestHelper.CreateUniqueTestFilePath();
+        try
+        {
+            using var batch = PresentationSession.CreateNew(path);
+            var appState = batch.Execute((ctx, ct) => ctx.Presentation.Application.WindowState);
+            int windowCount = batch.Execute((ctx, ct) => ctx.Presentation.Windows.Count);
+
+            // PowerPoint does not support hiding its application window (Application.Visible =
+            // False throws), and two workarounds — minimizing (ppWindowMinimized) and moving the
+            // window off-screen while Normal — were both tried and both broke Chart.ChartData's
+            // in-place activation of its embedded Excel workbook (get-chart-data read back 0
+            // categories/series in both cases). So the window is always a real, visible,
+            // ppWindowNormal document window regardless of the `show` flag — see
+            // PresentationBatch.RunStaThread for the full rationale.
+            Assert.Equal(1, windowCount);
+            Assert.Equal(Microsoft.Office.Interop.PowerPoint.PpWindowState.ppWindowNormal, appState);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Save_PersistsChanges_VisibleAfterReopen()
     {
         string path = CoreTestHelper.CreateUniqueTestFilePath();

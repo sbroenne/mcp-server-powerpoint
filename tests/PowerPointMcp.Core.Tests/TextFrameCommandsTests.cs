@@ -81,6 +81,61 @@ public class TextFrameCommandsTests : IClassFixture<SharedPresentationFixture>
     }
 
     [Fact]
+    public void SetFontSize_AndGetFontSize_RoundTrips()
+    {
+        var batch = SetUpPresentationWithShape();
+        _commands.SetText(batch, 1, 1, "Sized Text");
+
+        var setResult = _commands.SetFontSize(batch, 1, 1, 28f);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal(28f, setResult.FontSize);
+
+        var getResult = _commands.GetFontSize(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal(28f, getResult.FontSize);
+    }
+
+    [Fact]
+    public void SetBold_AndGetBold_RoundTrips()
+    {
+        var batch = SetUpPresentationWithShape();
+        _commands.SetText(batch, 1, 1, "Bold Text");
+
+        var setResult = _commands.SetBold(batch, 1, 1, true);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.True(setResult.Bold);
+
+        var getResult = _commands.GetBold(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.True(getResult.Bold);
+    }
+
+    [Fact]
+    public void SetFontColor_AndGetFontColor_RoundTrips()
+    {
+        var batch = SetUpPresentationWithShape();
+        _commands.SetText(batch, 1, 1, "Colored Text");
+
+        var setResult = _commands.SetFontColor(batch, 1, 1, red: 255, green: 0, blue: 0);
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+
+        var getResult = _commands.GetFontColor(batch, 1, 1);
+        Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.Equal(255, getResult.ColorRgb); // pure red => 0x0000FF in BGR-packed RGB
+    }
+
+    [Fact]
+    public void GetBold_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        var batch = SetUpPresentationWithShape();
+
+        var result = _commands.GetBold(batch, 1, 99);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
     public void GetText_WithInvalidShapeIndex_ReturnsFailure_NotException()
     {
         var batch = SetUpPresentationWithShape();

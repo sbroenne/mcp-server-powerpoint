@@ -52,10 +52,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: 10.0.x
 
@@ -64,14 +64,7 @@ jobs:
       uses: github/codeql-action/init@v4
       with:
         languages: ${{ matrix.language }}
-        # NOTE: mcp-server-excel uses a custom ./.github/codeql/codeql-config.yml
-        # (paths-ignore for tests/**, query-filters suppressing intentional
-        # catch-all-exception/dynamic-call/GC patterns in COM interop code).
-        # That config file has not been ported yet — this repo relies on the
-        # default query suite for now. Port a PowerPointMcp equivalent config
-        # (see mcp-server-excel/.github/codeql/codeql-config.yml) once the
-        # Core/ComInterop/CLI/McpServer exception-handling and COM-dynamic-call
-        # patterns stabilize, then wire it in here via `config-file:`.
+        # This repo currently relies on the default query suite; add a local config-file when PowerPoint-specific suppressions are documented.
         queries: +security-extended
 
     # Restore dependencies before build
@@ -95,7 +88,7 @@ jobs:
     # Upload SARIF results as artifact for review
     - name: Upload CodeQL Results
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: codeql-sarif-results-${{ matrix.language }}
         path: sarif-results

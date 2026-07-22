@@ -461,22 +461,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         return typeName.IndexOf("TimeSpan", StringComparison.Ordinal) >= 0;
     }
 
-    /// <summary>
-    /// Returns a short alias for backward compatibility with pre-generator CLI parameter names.
-    /// Before code generation, CLI used short names like --sheet and --range.
-    /// Now generator creates kebab-case from Core camelCase (e.g., sheetName -> --sheet-name).
-    /// This method provides short aliases to maintain backward compatibility.
-    /// </summary>
-    private static string? GetShortAlias(string parameterName)
-    {
-        return parameterName switch
-        {
-            "sheetName" => "sheet",
-            "rangeAddress" => "range",
-            _ => null
-        };
-    }
-
     private static void GenerateCliSettings(StringBuilder sb, ServiceInfo info, List<ExposedParameter> allParams)
     {
         // Note: These types require Spectre.Console reference in consuming project
@@ -523,11 +507,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             if (IsTimeSpanType(p.TypeName) && escapedDescription.IndexOf("seconds", StringComparison.OrdinalIgnoreCase) < 0)
                 escapedDescription += " Accepts seconds (e.g. 600) or TimeSpan format (e.g. 00:10:00).";
 
-            // Add short aliases for backward compatibility with pre-generator CLI parameter names
-            var shortAlias = GetShortAlias(p.Name);
-            var optionSpec = shortAlias != null
-                ? $"--{shortAlias}|--{optionName} <{valuePlaceholder}>"
-                : $"--{optionName} <{valuePlaceholder}>";
+            var optionSpec = $"--{optionName} <{valuePlaceholder}>";
 
             sb.AppendLine($"            [Spectre.Console.Cli.CommandOption(\"{optionSpec}\")]");
             sb.AppendLine($"            [System.ComponentModel.Description(\"{escapedDescription}\")]");
@@ -1114,7 +1094,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("    {");
         sb.AppendLine("        // Stdin sentinel: if json == \"-\", read from Console.In.");
         sb.AppendLine("        // This allows piping JSON to avoid PowerShell argument quoting issues:");
-        sb.AppendLine("        //   echo '[[\"value\",1]]' | excelcli range set-values --values -");
+        sb.AppendLine("        //   echo '[[\"value\",1]]' | pptcli chart add-chart --values -");
         sb.AppendLine("        if (json.Trim() == \"-\")");
         sb.AppendLine("        {");
         sb.AppendLine("            json = Console.In.ReadToEnd().Trim();");
@@ -1140,7 +1120,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("            }");
         sb.AppendLine("            throw new System.ArgumentException(");
         sb.AppendLine("                $\"Invalid JSON for nested collection. Expected 2D array (e.g., [[\\\"a\\\",\\\"b\\\"],[\\\"c\\\",\\\"d\\\"]]) or 1D array (auto-wrapped to single row). Got: {json}\" +");
-        sb.AppendLine("                \" Tip: PowerShell strips double-quotes from native executable arguments. Use --values-file <path> to pass JSON from a file, or pipe JSON and use --values - (e.g., echo '[[...]]' | excelcli ... --values -).\");");
+        sb.AppendLine("                \" Tip: PowerShell strips double-quotes from native executable arguments. Use --values-file <path> to pass JSON from a file, or pipe JSON and use --values - (e.g., echo '[[...]]' | pptcli ... --values -).\");");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
         sb.AppendLine();

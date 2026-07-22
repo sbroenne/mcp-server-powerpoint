@@ -88,16 +88,16 @@ public class PiaMigrationGuardTests
     private static readonly Dictionary<string, int> DynamicAllowlist = new(StringComparer.OrdinalIgnoreCase)
     {
         // domain path (relative to src/PowerPointMcp.Core)         max allowed   reason
-        ["Animation\\AnimationCommands.cs"]       =  4,  // Effect.Exit + Transition.AdvanceOnClick/AdvanceOnTime are MsoTriState (office.dll)
-        ["Chart\\ChartCommands.cs"]               = 21,  // Shape.HasChart (MsoTriState) + Excel.SeriesCollection/XValues (Excel.dll)
-        ["Master\\MasterCommands.cs"]             =  5,  // SlideMaster NoPIA hang + Font.Bold MsoTriState (office.dll)
-        ["Notes\\NotesCommands.cs"]               =  3,  // NotesPage / shape iteration — office.dll types
-        ["Presentation\\PresentationCommands.cs"] =  5,  // DocumentProperties (office.dll)
-        ["Shape\\ShapeCommands.cs"]               = 26,  // MsoAutoShapeType / MsoShadowStyle / Line+Shadow Visible (office.dll)
-        ["Slide\\SlideCommands.cs"]               =  5,  // FollowMasterBackground MsoTriState + FillFormat/SectionProperties (office.dll)
-        ["SmartArt\\SmartArtCommands.cs"]         = 20,  // SmartArtLayouts / HasSmartArt MsoTriState (office.dll)
-        ["Table\\TableCommands.cs"]               =  4,  // Border Visible MsoTriState + cell/border access (office.dll)
-        ["TextFrame\\TextFrameCommands.cs"]       =  7,  // Font tri-state + ParagraphFormat.Bullet (office.dll)
+        ["Animation\\AnimationCommands.cs"] = 4, // Effect.Exit + Transition.AdvanceOnClick/AdvanceOnTime are MsoTriState (office.dll)
+        ["Chart\\ChartCommands.cs"] = 21, // Shape.HasChart (MsoTriState) + Excel.SeriesCollection/XValues (Excel.dll)
+        ["Master\\MasterCommands.cs"] = 5, // SlideMaster NoPIA hang + Font.Bold MsoTriState (office.dll)
+        ["Notes\\NotesCommands.cs"] = 3, // NotesPage / shape iteration — office.dll types
+        ["Presentation\\PresentationCommands.cs"] = 5, // DocumentProperties (office.dll)
+        ["Shape\\ShapeCommands.cs"] = 26, // MsoAutoShapeType / MsoShadowStyle / Line+Shadow Visible (office.dll)
+        ["Slide\\SlideCommands.cs"] = 5, // FollowMasterBackground MsoTriState + FillFormat/SectionProperties (office.dll)
+        ["SmartArt\\SmartArtCommands.cs"] = 20, // SmartArtLayouts / HasSmartArt MsoTriState (office.dll)
+        ["Table\\TableCommands.cs"] = 4, // Border Visible MsoTriState + cell/border access (office.dll)
+        ["TextFrame\\TextFrameCommands.cs"] = 7, // Font tri-state + ParagraphFormat.Bullet (office.dll)
     };
 
     /// <summary>
@@ -178,7 +178,7 @@ public class PiaMigrationGuardTests
     public void NonImageCoreAndComInterop_ReflectionActivationPatterns_AreAbsent()
     {
         string repoRoot = FindRepoRoot();
-        string coreRoot      = Path.Combine(repoRoot, "src", "PowerPointMcp.Core");
+        string coreRoot = Path.Combine(repoRoot, "src", "PowerPointMcp.Core");
         string comInteropRoot = Path.Combine(repoRoot, "src", "PowerPointMcp.ComInterop");
 
         var coreFiles = Directory.GetFiles(coreRoot, "*.cs", SearchOption.AllDirectories)
@@ -193,9 +193,9 @@ public class PiaMigrationGuardTests
         // Patterns that represent COM activation/dispatch via reflection — all are forbidden.
         var forbiddenPatterns = new (string Label, Regex Pattern)[]
         {
-            ("Type.GetTypeFromProgID",    new Regex(@"\bType\.GetTypeFromProgID\s*\(",    RegexOptions.Compiled)),
-            ("Activator.CreateInstance",  new Regex(@"\bActivator\.CreateInstance\s*\(",  RegexOptions.Compiled)),
-            (".InvokeMember",             new Regex(@"\.InvokeMember\s*\(",               RegexOptions.Compiled)),
+            ("Type.GetTypeFromProgID", new Regex(@"\bType\.GetTypeFromProgID\s*\(", RegexOptions.Compiled)),
+            ("Activator.CreateInstance", new Regex(@"\bActivator\.CreateInstance\s*\(", RegexOptions.Compiled)),
+            (".InvokeMember", new Regex(@"\.InvokeMember\s*\(", RegexOptions.Compiled)),
         };
 
         var violations = new List<string>();
@@ -208,7 +208,7 @@ public class PiaMigrationGuardTests
                 if (pattern.IsMatch(content))
                 {
                     string rel = GetRelativePath(repoRoot, filePath);
-                    int count  = pattern.Count(content);
+                    int count = pattern.Count(content);
                     violations.Add($"  {rel}: found {count}× '{label}'");
                 }
             }
@@ -250,8 +250,8 @@ public class PiaMigrationGuardTests
     [Fact]
     public void NonImageCore_RawPpEnumConstantDefinitions_AreAbsent()
     {
-        string repoRoot  = FindRepoRoot();
-        string coreRoot  = Path.Combine(repoRoot, "src", "PowerPointMcp.Core");
+        string repoRoot = FindRepoRoot();
+        string coreRoot = Path.Combine(repoRoot, "src", "PowerPointMcp.Core");
 
         var coreFiles = Directory.GetFiles(coreRoot, "*.cs", SearchOption.AllDirectories)
             .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}Image{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase)
@@ -325,7 +325,7 @@ public class PiaMigrationGuardTests
         while (dir is not null)
         {
             bool hasSlnx = Directory.GetFiles(dir, "*.slnx", SearchOption.TopDirectoryOnly).Length > 0;
-            bool hasSln  = Directory.GetFiles(dir, "*.sln",  SearchOption.TopDirectoryOnly).Length > 0;
+            bool hasSln = Directory.GetFiles(dir, "*.sln", SearchOption.TopDirectoryOnly).Length > 0;
 
             if (hasSlnx || hasSln)
             {

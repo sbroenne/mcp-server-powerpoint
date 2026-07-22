@@ -3,7 +3,6 @@
 
 using System.IO.Pipelines;
 using ModelContextProtocol.Client;
-using Xunit;
 using Xunit.Abstractions;
 
 namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;

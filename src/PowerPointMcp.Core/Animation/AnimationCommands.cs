@@ -138,24 +138,34 @@ public sealed class AnimationCommands : IAnimationCommands
             }
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
-            PowerPoint.Sequence sequence = slide.TimeLine.MainSequence;
-            // Pre-capture append position: Count+1 before the call equals Count after (the new
-            // effect's 1-based index). Passing 0 explicitly sends an integer-out-of-range COM
-            // error — the VBA "default=0 means append" only works via COM's missing-arg protocol,
-            // not from an explicit .NET value. Any index > Count is documented to append.
-            int newIndex = sequence.Count + 1;
-            PowerPoint.Effect effect = sequence.AddEffect(
-                shape,
-                effectValue,
-                PowerPoint.MsoAnimateByLevel.msoAnimateLevelNone,
-                triggerValue,
-                newIndex);
-            dynamic? dynEffect = null;
+            PowerPoint.TimeLine? timeLine = null;
+            PowerPoint.Sequence? sequence = null;
+            PowerPoint.Effect? effect = null;
+            PowerPoint.Timing? timing = null;
             try
             {
-                dynEffect = effect;
+                timeLine = slide.TimeLine;
+                sequence = timeLine.MainSequence;
+                // Pre-capture append position: Count+1 before the call equals Count after (the new
+                // effect's 1-based index). Passing 0 explicitly sends an integer-out-of-range COM
+                // error — the VBA "default=0 means append" only works via COM's missing-arg protocol,
+                // not from an explicit .NET value. Any index > Count is documented to append.
+                int newIndex = sequence.Count + 1;
+                effect = sequence.AddEffect(
+                    shape,
+                    effectValue,
+                    PowerPoint.MsoAnimateByLevel.msoAnimateLevelNone,
+                    triggerValue,
+                    newIndex);
+
+                // Effect.Exit is an MsoTriState (Office core enum, not in the embedded PowerPoint
+                // PIA) — keep this single assignment late-bound. dynEffect aliases the SAME RCW as
+                // `effect`, so it is not released separately.
+                dynamic dynEffect = effect;
                 dynEffect.Exit = isExit ? MsoTrue : MsoFalse;
-                effect.Timing.TriggerType = triggerValue;
+
+                timing = effect.Timing;
+                timing.TriggerType = triggerValue;
 
                 return new AnimationOperationResult
                 {
@@ -169,10 +179,10 @@ public sealed class AnimationCommands : IAnimationCommands
             }
             finally
             {
-                if (dynEffect != null)
-                {
-                    ComUtilities.Release(ref dynEffect!);
-                }
+                if (timing != null) ComUtilities.Release(ref timing!);
+                if (effect != null) ComUtilities.Release(ref effect!);
+                if (sequence != null) ComUtilities.Release(ref sequence!);
+                if (timeLine != null) ComUtilities.Release(ref timeLine!);
             }
         });
     }
@@ -188,9 +198,20 @@ public sealed class AnimationCommands : IAnimationCommands
             if (slideValidation is not null) return slideValidation;
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-            PowerPoint.Sequence sequence = slide.TimeLine.MainSequence;
+            PowerPoint.TimeLine? timeLine = null;
+            PowerPoint.Sequence? sequence = null;
+            try
+            {
+                timeLine = slide.TimeLine;
+                sequence = timeLine.MainSequence;
 
-            return new AnimationOperationResult { Success = true, EffectCount = sequence.Count };
+                return new AnimationOperationResult { Success = true, EffectCount = sequence.Count };
+            }
+            finally
+            {
+                if (sequence != null) ComUtilities.Release(ref sequence!);
+                if (timeLine != null) ComUtilities.Release(ref timeLine!);
+            }
         });
     }
 
@@ -205,27 +226,40 @@ public sealed class AnimationCommands : IAnimationCommands
             if (slideValidation is not null) return slideValidation;
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-            PowerPoint.Sequence sequence = slide.TimeLine.MainSequence;
-            int effectCount = sequence.Count;
-
-            if (effectIndex < 1 || effectIndex > effectCount)
+            PowerPoint.TimeLine? timeLine = null;
+            PowerPoint.Sequence? sequence = null;
+            PowerPoint.Effect? effect = null;
+            try
             {
+                timeLine = slide.TimeLine;
+                sequence = timeLine.MainSequence;
+                int effectCount = sequence.Count;
+
+                if (effectIndex < 1 || effectIndex > effectCount)
+                {
+                    return new AnimationOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Effect index {effectIndex} is out of range. The slide has {effectCount} effect(s) (valid range: 1-{effectCount})."
+                    };
+                }
+
+                effect = sequence[effectIndex];
+                effect.Delete();
+
                 return new AnimationOperationResult
                 {
-                    Success = false,
-                    ErrorMessage = $"Effect index {effectIndex} is out of range. The slide has {effectCount} effect(s) (valid range: 1-{effectCount})."
+                    Success = true,
+                    EffectIndex = effectIndex,
+                    EffectCount = sequence.Count
                 };
             }
-
-            PowerPoint.Effect effect = sequence[effectIndex];
-            effect.Delete();
-
-            return new AnimationOperationResult
+            finally
             {
-                Success = true,
-                EffectIndex = effectIndex,
-                EffectCount = sequence.Count
-            };
+                if (effect != null) ComUtilities.Release(ref effect!);
+                if (sequence != null) ComUtilities.Release(ref sequence!);
+                if (timeLine != null) ComUtilities.Release(ref timeLine!);
+            }
         });
     }
 
@@ -276,6 +310,7 @@ public sealed class AnimationCommands : IAnimationCommands
             dynamic? dynTransition = null;
             try
             {
+                dynTransition = transition;
                 transition.EntryEffect = transitionValue;
 
                 if (durationSeconds is not null)
@@ -285,13 +320,11 @@ public sealed class AnimationCommands : IAnimationCommands
 
                 if (advanceOnClick is not null)
                 {
-                    dynTransition = transition;
                     dynTransition.AdvanceOnClick = advanceOnClick.Value ? MsoTrue : MsoFalse;
                 }
 
                 if (advanceOnTime is not null)
                 {
-                    dynTransition ??= transition;
                     dynTransition.AdvanceOnTime = advanceOnTime.Value ? MsoTrue : MsoFalse;
                 }
 

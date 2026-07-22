@@ -216,10 +216,16 @@ internal sealed class PresentationBatch : IPresentationBatch
             // NOTE (discovered via real integration test, not assumed): PowerPoint's automation
             // COM object does NOT allow hiding its application window — setting
             // Application.Visible = False throws COMException "Hiding the application window is
-            // not allowed." (unlike Excel, which does allow it). So PowerPoint is unconditionally
-            // shown; _showPowerPoint is retained for API parity with mcp-server-excel's show
-            // option and any future distinction we might add (e.g. window position), but does not
-            // currently toggle Application.Visible.
+            // not allowed." (unlike Excel, which does allow it). Two alternative workarounds
+            // (minimizing via WindowState = ppWindowMinimized, and moving the window off-screen
+            // via Left/Top while keeping WindowState = ppWindowNormal) were both tried and BOTH
+            // broke Chart.ChartData's in-place activation of its embedded out-of-process Excel
+            // workbook: chart.add-chart succeeds, but a subsequent get-chart-data reads back 0
+            // categories/0 series instead of the real data, in both cases — chart in-place
+            // activation apparently requires the window to be genuinely on-screen and Normal.
+            // So PowerPoint is unconditionally shown; _showPowerPoint is retained for API parity
+            // with mcp-server-excel's show option and any future distinction we might add (e.g.
+            // window position), but does not currently toggle Application.Visible.
             try { dynApp.Visible = msoTrue; } catch { /* best effort */ }
             tempApp.DisplayAlerts = PowerPoint.PpAlertLevel.ppAlertsNone;
 
@@ -292,44 +298,65 @@ internal sealed class PresentationBatch : IPresentationBatch
     {
         const int msoTrue = -1;
         const int msoFalse = 0;
-        dynamic dynPresentations = app.Presentations;
+        dynamic? dynPresentations = null;
 
         PowerPoint.Presentation presentation;
 
-        if (createNewFile)
+        try
         {
-            string? directory = Path.GetDirectoryName(fullPath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            dynPresentations = app.Presentations;
+
+            if (createNewFile)
             {
-                throw new DirectoryNotFoundException($"Directory does not exist: '{directory}'.");
+                string? directory = Path.GetDirectoryName(fullPath);
+                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                {
+                    throw new DirectoryNotFoundException($"Directory does not exist: '{directory}'.");
+                }
+
+                // WithWindow must always be msoTrue (see RunStaThread's original NOTE): chart
+                // in-place activation needs a real document window, independent of visibility.
+                // Automation-only sessions are hidden via Application.WindowState = ppWindowMinimized
+                // instead (see RunStaThread), not by suppressing the document window here.
+                presentation = (PowerPoint.Presentation)dynPresentations.Add(msoTrue);
+
+                // Presentations.Add() creates a presentation with ZERO slides — add one blank
+                // slide so "create a new presentation" is immediately useful.
+                presentation.Slides.Add(1, PowerPoint.PpSlideLayout.ppLayoutBlank);
+
+                PowerPoint.PpSaveAsFileType formatCode = string.Equals(Path.GetExtension(fullPath), ".pptm", StringComparison.OrdinalIgnoreCase)
+                    ? ComInteropConstants.PpSaveAsOpenXmlPresentationMacroEnabled
+                    : ComInteropConstants.PpSaveAsOpenXmlPresentation;
+                // dynPresentation is a late-bound alias of the SAME RCW as `presentation`; it is
+                // NOT a distinct COM object, so it must not be released here (that would decrement
+                // the ref-count of the presentation we return and keep alive).
+                dynamic dynPresentation = presentation;
+                dynPresentation.SaveAs(fullPath, formatCode);
             }
+            else
+            {
+                if (!File.Exists(fullPath))
+                {
+                    throw new FileNotFoundException($"PowerPoint file not found: {fullPath}.", fullPath);
+                }
 
-            // See RunStaThread's original NOTE: WithWindow must be msoTrue (chart in-place
-            // activation needs a real document window), independent of Application.Visible.
-            presentation = (PowerPoint.Presentation)dynPresentations.Add(msoTrue);
-
-            // Presentations.Add() creates a presentation with ZERO slides — add one blank
-            // slide so "create a new presentation" is immediately useful.
-            presentation.Slides.Add(1, PowerPoint.PpSlideLayout.ppLayoutBlank);
-
-            PowerPoint.PpSaveAsFileType formatCode = string.Equals(Path.GetExtension(fullPath), ".pptm", StringComparison.OrdinalIgnoreCase)
-                ? ComInteropConstants.PpSaveAsOpenXmlPresentationMacroEnabled
-                : ComInteropConstants.PpSaveAsOpenXmlPresentation;
-            dynamic dynPresentation = presentation;
-            dynPresentation.SaveAs(fullPath, formatCode);
+                presentation = (PowerPoint.Presentation)dynPresentations.Open(
+                    fullPath,
+                    msoFalse, // ReadOnly = false — we need to be able to Save()
+                    msoFalse, // Untitled = false — see RunStaThread's original NOTE.
+                    msoTrue); // WithWindow = true — see RunStaThread's original NOTE; chart in-place
+                              // activation needs a real document window. Visibility is controlled
+                              // separately via Application.WindowState (see RunStaThread).
+            }
         }
-        else
+        finally
         {
-            if (!File.Exists(fullPath))
+            // Release the intermediate Presentations collection RCW so it does not leak on every
+            // session open/create (the returned Presentation itself is deliberately kept alive).
+            if (dynPresentations != null)
             {
-                throw new FileNotFoundException($"PowerPoint file not found: {fullPath}.", fullPath);
+                ComUtilities.Release(ref dynPresentations!);
             }
-
-            presentation = (PowerPoint.Presentation)dynPresentations.Open(
-                fullPath,
-                msoFalse, // ReadOnly = false — we need to be able to Save()
-                msoFalse, // Untitled = false — see RunStaThread's original NOTE.
-                msoTrue); // WithWindow = true — see RunStaThread's original NOTE.
         }
 
         return presentation;
@@ -480,7 +507,11 @@ internal sealed class PresentationBatch : IPresentationBatch
         }
         catch (OperationCanceledException)
         {
-            _operationTimedOut = true;
+            // Caller-initiated cancellation (e.g. an upstream request timeout or Ctrl+C). This is
+            // NOT an internal operation timeout: the STA thread drains the in-flight operation
+            // normally and the batch remains reusable, so we must NOT set _operationTimedOut here
+            // (doing so would poison every later call AND force-kill the PowerPoint process in
+            // Dispose, bypassing the graceful PresentationShutdownService path).
             throw;
         }
     }

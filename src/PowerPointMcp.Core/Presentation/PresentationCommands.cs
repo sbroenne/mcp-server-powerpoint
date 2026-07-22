@@ -1,5 +1,6 @@
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Presentation;
 
@@ -119,9 +120,7 @@ public sealed class PresentationCommands : IPresentationCommands
         {
             ctx.Presentation.ApplyTemplate(fullTemplatePath);
 
-            string? themeName = ctx.Presentation.Designs.Count > 0
-                ? ctx.Presentation.Designs[1].Name
-                : null;
+            string? themeName = ReadFirstDesignName(ctx.Presentation);
 
             return new PresentationOperationResult
             {
@@ -139,9 +138,7 @@ public sealed class PresentationCommands : IPresentationCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            string? themeName = ctx.Presentation.Designs.Count > 0
-                ? ctx.Presentation.Designs[1].Name
-                : null;
+            string? themeName = ReadFirstDesignName(ctx.Presentation);
 
             return new PresentationOperationResult
             {
@@ -150,6 +147,29 @@ public sealed class PresentationCommands : IPresentationCommands
                 ThemeName = themeName
             };
         });
+    }
+
+    /// <summary>
+    /// Reads the Name of the first Design in the presentation's Designs collection, if any,
+    /// releasing both the intermediate DesignCollection and Design COM objects afterward.
+    /// </summary>
+    private static string? ReadFirstDesignName(PowerPoint.Presentation presentation)
+    {
+        dynamic? designs = null;
+        dynamic? design = null;
+        try
+        {
+            designs = presentation.Designs;
+            if (designs.Count == 0) return null;
+
+            design = designs[1];
+            return (string)design.Name;
+        }
+        finally
+        {
+            if (design != null) ComUtilities.Release(ref design!);
+            if (designs != null) ComUtilities.Release(ref designs!);
+        }
     }
 
     /// <summary>
@@ -277,7 +297,7 @@ public sealed class PresentationCommands : IPresentationCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var custom = ctx.Presentation.CustomDocumentProperties;
+            dynamic custom = ctx.Presentation.CustomDocumentProperties;
 
             // PowerPoint's CustomDocumentProperties collection has no TryGetValue/Contains
             // helper — an ArgumentException from the name-indexed lookup is the documented way
@@ -302,6 +322,7 @@ public sealed class PresentationCommands : IPresentationCommands
                 {
                     ComUtilities.Release(ref existing!);
                 }
+                ComUtilities.Release(ref custom!);
             }
 
             return new PresentationOperationResult
@@ -336,7 +357,7 @@ public sealed class PresentationCommands : IPresentationCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var custom = ctx.Presentation.CustomDocumentProperties;
+            dynamic custom = ctx.Presentation.CustomDocumentProperties;
 
             dynamic? existing = null;
             try
@@ -368,6 +389,7 @@ public sealed class PresentationCommands : IPresentationCommands
                 {
                     ComUtilities.Release(ref existing!);
                 }
+                ComUtilities.Release(ref custom!);
             }
         });
     }
@@ -388,7 +410,7 @@ public sealed class PresentationCommands : IPresentationCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var custom = ctx.Presentation.CustomDocumentProperties;
+            dynamic custom = ctx.Presentation.CustomDocumentProperties;
 
             dynamic? existing = null;
             try
@@ -420,6 +442,7 @@ public sealed class PresentationCommands : IPresentationCommands
                 {
                     ComUtilities.Release(ref existing!);
                 }
+                ComUtilities.Release(ref custom!);
             }
         });
     }

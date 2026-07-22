@@ -24,14 +24,14 @@
     <WarningsAsErrors />
 
     <!--
-      Suppressed warnings (mirrors mcp-server-excel — see that repo's docs/DEVELOPMENT.md):
+      Suppressed warnings:
       - CA1416: Windows-only APIs (this is a Windows-only COM automation project)
       - CS8602: Dereference of possibly null reference (dynamic COM objects)
       - IL2026/IL3050: Reflection/dynamic code incompatible with trimming/NativeAOT (PowerPoint COM uses dynamic)
       - CS1573: Parameter has no matching param tag (batch parameter is internal, filtered by generators)
       - CA1848: Use LoggerMessage delegates (perf optimization not needed for our diagnostic logging)
     -->
-    <NoWarn>$(NoWarn);CA1416;CS8602;IL2026;IL3050;CS1573;CA1848</NoWarn>
+    <NoWarn>$(NoWarn);CA1416;CS8602;IL2026;IL3050;CS1573;CA1848;SYSLIB1045;CA1873;CA1875</NoWarn>
 
     <!-- Deterministic builds for reproducibility -->
     <Deterministic>true</Deterministic>

@@ -460,8 +460,20 @@ public sealed class ShapeCommands : IShapeCommands
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             int rgb = red + (green << 8) + (blue << 16);
-            shape.Fill.Solid();
-            shape.Fill.ForeColor.RGB = rgb;
+            dynamic? fill = null;
+            try
+            {
+                fill = shape.Fill;
+                fill.Solid();
+                fill.ForeColor.RGB = rgb;
+            }
+            finally
+            {
+                if (fill != null)
+                {
+                    ComUtilities.Release(ref fill!);
+                }
+            }
 
             return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ColorRgb = rgb };
         });
@@ -482,7 +494,20 @@ public sealed class ShapeCommands : IShapeCommands
             if (shapeValidation is not null) return shapeValidation;
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
-            int rgb = shape.Fill.ForeColor.RGB;
+            dynamic? fill = null;
+            int rgb;
+            try
+            {
+                fill = shape.Fill;
+                rgb = (int)fill.ForeColor.RGB;
+            }
+            finally
+            {
+                if (fill != null)
+                {
+                    ComUtilities.Release(ref fill!);
+                }
+            }
 
             return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, ColorRgb = rgb };
         });
@@ -1221,8 +1246,19 @@ public sealed class ShapeCommands : IShapeCommands
             }
 
             object[] indexArray = shapeIndexes.Select(i => (object)i).ToArray();
-            PowerPoint.ShapeRange range = slide.Shapes.Range(indexArray);
-            range.Group();
+            PowerPoint.ShapeRange? range = null;
+            try
+            {
+                range = slide.Shapes.Range(indexArray);
+                range.Group();
+            }
+            finally
+            {
+                if (range != null)
+                {
+                    ComUtilities.Release(ref range!);
+                }
+            }
 
             return new ShapeOperationResult { Success = true, ShapeCount = slide.Shapes.Count };
         });
@@ -1243,8 +1279,20 @@ public sealed class ShapeCommands : IShapeCommands
             if (shapeValidation is not null) return shapeValidation;
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
-            PowerPoint.ShapeRange ungrouped = shape.Ungroup();
-            int ungroupedCount = ungrouped.Count;
+            PowerPoint.ShapeRange? ungrouped = null;
+            int ungroupedCount;
+            try
+            {
+                ungrouped = shape.Ungroup();
+                ungroupedCount = ungrouped.Count;
+            }
+            finally
+            {
+                if (ungrouped != null)
+                {
+                    ComUtilities.Release(ref ungrouped!);
+                }
+            }
 
             return new ShapeOperationResult
             {
@@ -1358,21 +1406,32 @@ public sealed class ShapeCommands : IShapeCommands
             // ActionSettings(ppMouseClick).Hyperlink.Address — verified live: setting Address
             // automatically flips the action setting's Action to ppActionHyperlink; no separate
             // "enable hyperlink" step is needed.
-            PowerPoint.ActionSetting actionSetting = shape.ActionSettings[MouseClickActivation];
-            actionSetting.Hyperlink.Address = address;
-            if (screenTip is not null)
+            PowerPoint.ActionSetting? actionSetting = null;
+            try
             {
-                actionSetting.Hyperlink.ScreenTip = screenTip;
-            }
+                actionSetting = shape.ActionSettings[MouseClickActivation];
+                actionSetting.Hyperlink.Address = address;
+                if (screenTip is not null)
+                {
+                    actionSetting.Hyperlink.ScreenTip = screenTip;
+                }
 
-            return new ShapeOperationResult
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    HasHyperlink = true,
+                    HyperlinkAddress = actionSetting.Hyperlink.Address,
+                    HyperlinkScreenTip = actionSetting.Hyperlink.ScreenTip
+                };
+            }
+            finally
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                HasHyperlink = true,
-                HyperlinkAddress = actionSetting.Hyperlink.Address,
-                HyperlinkScreenTip = actionSetting.Hyperlink.ScreenTip
-            };
+                if (actionSetting != null)
+                {
+                    ComUtilities.Release(ref actionSetting!);
+                }
+            }
         });
     }
 
@@ -1391,18 +1450,29 @@ public sealed class ShapeCommands : IShapeCommands
             if (shapeValidation is not null) return shapeValidation;
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
-            PowerPoint.ActionSetting actionSetting = shape.ActionSettings[MouseClickActivation];
-            PowerPoint.PpActionType action = actionSetting.Action;
-            bool hasHyperlink = action == PpActionHyperlink;
-
-            return new ShapeOperationResult
+            PowerPoint.ActionSetting? actionSetting = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                HasHyperlink = hasHyperlink,
-                HyperlinkAddress = hasHyperlink ? actionSetting.Hyperlink.Address : null,
-                HyperlinkScreenTip = hasHyperlink ? actionSetting.Hyperlink.ScreenTip : null
-            };
+                actionSetting = shape.ActionSettings[MouseClickActivation];
+                PowerPoint.PpActionType action = actionSetting.Action;
+                bool hasHyperlink = action == PpActionHyperlink;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    HasHyperlink = hasHyperlink,
+                    HyperlinkAddress = hasHyperlink ? actionSetting.Hyperlink.Address : null,
+                    HyperlinkScreenTip = hasHyperlink ? actionSetting.Hyperlink.ScreenTip : null
+                };
+            }
+            finally
+            {
+                if (actionSetting != null)
+                {
+                    ComUtilities.Release(ref actionSetting!);
+                }
+            }
         });
     }
 
@@ -1421,15 +1491,26 @@ public sealed class ShapeCommands : IShapeCommands
             if (shapeValidation is not null) return shapeValidation;
 
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
-            PowerPoint.ActionSetting actionSetting = shape.ActionSettings[MouseClickActivation];
-            actionSetting.Action = PpActionNone;
-
-            return new ShapeOperationResult
+            PowerPoint.ActionSetting? actionSetting = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                HasHyperlink = false
-            };
+                actionSetting = shape.ActionSettings[MouseClickActivation];
+                actionSetting.Action = PpActionNone;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    HasHyperlink = false
+                };
+            }
+            finally
+            {
+                if (actionSetting != null)
+                {
+                    ComUtilities.Release(ref actionSetting!);
+                }
+            }
         });
     }
 

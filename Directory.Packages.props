@@ -15,10 +15,10 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" />
     <!-- Skill-manifest MSBuild task (PowerPointMcp.Build.Tasks): renders skills/powerpoint-cli/SKILL.md
          from the generator's JSON manifest via a Scriban template -->
-    <PackageVersion Include="Scriban" Version="7.2.3" />
-    <PackageVersion Include="System.Text.Json" Version="10.0.8" />
-    <PackageVersion Include="Microsoft.Build.Framework" Version="18.6.3" />
-    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.6.3" />
+    <PackageVersion Include="Scriban" Version="7.2.5" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.9" />
+    <PackageVersion Include="Microsoft.Build.Framework" Version="18.7.1" />
+    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.7.1" />
     <!-- Microsoft Extensions for MCP Server / logging / resilience -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.9" />
@@ -26,17 +26,19 @@
     <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.7.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
     <!-- MCP SDK -->
-    <PackageVersion Include="ModelContextProtocol" Version="1.3.0" />
-    <!-- CLI daemon transport (named pipes + JSON-RPC 2.0), ported from mcp-server-excel -->
-    <PackageVersion Include="StreamJsonRpc" Version="2.25.25" />
-    <!-- Security override: StreamJsonRpc transitively pins vulnerable MessagePack versions -->
-    <PackageVersion Include="Nerdbank.MessagePack" Version="1.2.4" />
+    <PackageVersion Include="ModelContextProtocol" Version="1.4.0" />
+    <!-- CLI daemon transport (named pipes + JSON-RPC 2.0) -->
+    <PackageVersion Include="StreamJsonRpc" Version="2.25.29" />
+    <!-- Security override: StreamJsonRpc transitively pins vulnerable Nerdbank.MessagePack versions -->
+    <PackageVersion Include="Nerdbank.MessagePack" Version="1.2.30" />
     <PackageVersion Include="MessagePack" Version="3.1.7" />
     <PackageVersion Include="MessagePack.Annotations" Version="3.1.7" />
     <!-- Test dependencies -->
     <PackageVersion Include="xunit" Version="2.9.3" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="xunit.analyzers" Version="1.27.0" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+    <PackageVersion Include="MartinCostello.Logging.XUnit" Version="0.7.1" />
   </ItemGroup>
 </Project>
