@@ -1,3 +1,47 @@
+# Set default behavior to automatically normalize line endings.
+# Keep text files as CRLF by default to match .editorconfig and Windows-only tooling.
+* text=auto eol=crlf
+
+# C# source files
+*.cs text diff=csharp
+*.csproj text
+*.sln text
+*.slnx text
+
+# Markdown files
+*.md text
+
+# JSON files
+*.json text
+
+# YAML files
+*.yml text
+*.yaml text
+
+# PowerShell scripts
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+
+# Shell scripts (use LF)
+*.sh text eol=lf
+
+# Windows batch files
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary files
+*.dll binary
+*.exe binary
+*.pptx binary
+*.pptm binary
+*.potx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+
 # Squad: union merge for append-only team state files
 .squad/decisions.md merge=union
 .squad/agents/*/history.md merge=union

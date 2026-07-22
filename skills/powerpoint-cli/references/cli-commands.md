@@ -268,7 +268,7 @@ Text frame commands: set/get text and font/paragraph formatting (size, bold, ita
 font name, color, alignment, bullets) for a shape's text range. Operates within an already-open
 session, targeting a specific shape by its 1-based slide and shape index.
 
-**Actions:** `set-text`, `get-text`, `set-font-size`, `set-bold`, `set-font-color`, `set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`
+**Actions:** `set-text`, `get-text`, `set-font-size`, `get-font-size`, `set-bold`, `get-bold`, `set-font-color`, `get-font-color`, `set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`
 
 | Parameter | Description |
 |-----------|-------------|

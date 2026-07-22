@@ -37,10 +37,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
 
@@ -51,7 +51,7 @@ jobs:
       # the audit scripts below see the generated CLI/MCP surface and skill
       # manifest. Mirrors the pre-commit Release build gate.
       - name: Build (Release)
-        run: dotnet build Sbroenne.PowerPointMcp.slnx --configuration Release --no-restore
+        run: dotnet build Sbroenne.PowerPointMcp.slnx --configuration Release --no-restore -p:NuGetAudit=false
 
       # --- PowerPoint-free correctness gates (ported from scripts/pre-commit.ps1) ---
 
@@ -115,7 +115,7 @@ jobs:
 
       - name: Upload CLI build artifacts
         if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: PowerPointMcp-CLI-${{ github.sha }}
           path: src/PowerPointMcp.CLI/bin/Release/net10.0-windows/
@@ -123,7 +123,7 @@ jobs:
 
       - name: Upload MCP Server build artifacts
         if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: PowerPointMcp-MCP-Server-${{ github.sha }}
           path: src/PowerPointMcp.McpServer/bin/Release/net10.0-windows/

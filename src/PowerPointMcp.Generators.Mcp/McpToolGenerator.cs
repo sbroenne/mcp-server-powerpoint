@@ -152,7 +152,12 @@ public sealed class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine("[McpServerToolType]");
         sb.AppendLine($"public static class PowerPoint{info.CategoryPascal}Tool");
         sb.AppendLine("{");
-        sb.AppendLine($"    [McpServerTool(Name = \"{info.McpToolName}\")]");
+        var title = info.McpToolTitle ?? $"PowerPoint {info.CategoryPascal} Operations";
+        var destructive = info.McpToolDestructive ? "true" : "false";
+        var category = info.McpToolCategory ?? "content";
+        sb.AppendLine($"    [McpServerTool(Name = \"{info.McpToolName}\", Title = \"{title}\", Destructive = {destructive})]");
+        sb.AppendLine($"    [McpMeta(\"category\", \"{category}\")]");
+        sb.AppendLine($"    [McpMeta(\"requiresSession\", {(!info.NoSession).ToString().ToLowerInvariant()})]");
         sb.AppendLine($"    [Description(\"{toolDescription} Actions: {actionList}.\")]");
         sb.AppendLine($"    public static string PowerPoint{info.CategoryPascal}(");
         sb.AppendLine($"        [Description(\"The action to perform. One of: {actionList}.\")] {info.CategoryPascal}Action action,");

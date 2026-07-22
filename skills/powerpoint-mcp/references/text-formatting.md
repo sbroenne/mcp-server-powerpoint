@@ -1,9 +1,10 @@
 # Text Formatting: TextFrame Tools
 
-Reference for the `textframe` tool's actions — `set-text`, `get-text`, `set-font-size`,
-`set-bold`, `set-font-color`, `set-italic`/`get-italic`, `set-underline`/`get-underline`,
-`set-font-name`/`get-font-name`, `set-alignment`/`get-alignment`, `set-bullet`/`get-bullet`,
-`set-autosize`/`get-autosize` — all operate on a shape's text frame.
+Reference for the `textframe` tool's actions — `set-text`, `get-text`,
+`set-font-size`/`get-font-size`, `set-bold`/`get-bold`, `set-font-color`/`get-font-color`,
+`set-italic`/`get-italic`, `set-underline`/`get-underline`, `set-font-name`/`get-font-name`,
+`set-alignment`/`get-alignment`, `set-bullet`/`get-bullet`, `set-autosize`/`get-autosize` — all
+operate on a shape's text frame.
 
 ## Actions
 
@@ -12,8 +13,11 @@ Reference for the `textframe` tool's actions — `set-text`, `get-text`, `set-fo
 | `textframe` | `set-text` | `session_id`, `slide_index`, `shape_index`, `text` | Replaces the shape's entire text content. |
 | `textframe` | `get-text` | `session_id`, `slide_index`, `shape_index` | Reads current text (`text`) — use before editing to avoid clobbering unrelated content. |
 | `textframe` | `set-font-size` | `session_id`, `slide_index`, `shape_index`, `font_size` (points) | Applies to the shape's **entire** text range, not a substring. |
+| `textframe` | `get-font-size` | `session_id`, `slide_index`, `shape_index` | Returns `fontSize`. Fails if the value is mixed across the text range. |
 | `textframe` | `set-bold` | `session_id`, `slide_index`, `shape_index`, `bold` (bool) | Applies to the entire text range. |
+| `textframe` | `get-bold` | `session_id`, `slide_index`, `shape_index` | Returns `bold`. Fails if the value is mixed across the text range. |
 | `textframe` | `set-font-color` | `session_id`, `slide_index`, `shape_index`, `red`, `green`, `blue` (each 0-255) | RGB triplet, applies to the entire text range. |
+| `textframe` | `get-font-color` | `session_id`, `slide_index`, `shape_index` | Returns `red`, `green`, `blue`. Fails if the color is mixed across the text range. |
 | `textframe` | `set-italic` | `session_id`, `slide_index`, `shape_index`, `italic` (bool) | Applies to the entire text range. |
 | `textframe` | `get-italic` | `session_id`, `slide_index`, `shape_index` | Returns `italic`. |
 | `textframe` | `set-underline` | `session_id`, `slide_index`, `shape_index`, `underline` (bool) | Applies to the entire text range. |

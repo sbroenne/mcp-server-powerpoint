@@ -192,20 +192,20 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
             Assert.True(setResult.Success, setResult.ErrorMessage);
             Assert.Null(setResult.ErrorMessage);
             Assert.NotNull(setResult.CropLeft);
-            Assert.InRange(setResult.CropLeft!.Value,  5f - 0.01f, 5f + 0.01f);
-            Assert.InRange(setResult.CropTop!.Value,   3f - 0.01f, 3f + 0.01f);
+            Assert.InRange(setResult.CropLeft!.Value, 5f - 0.01f, 5f + 0.01f);
+            Assert.InRange(setResult.CropTop!.Value, 3f - 0.01f, 3f + 0.01f);
             Assert.InRange(setResult.CropRight!.Value, 7f - 0.01f, 7f + 0.01f);
-            Assert.InRange(setResult.CropBottom!.Value,2f - 0.01f, 2f + 0.01f);
+            Assert.InRange(setResult.CropBottom!.Value, 2f - 0.01f, 2f + 0.01f);
 
             var getResult = _commands.GetCrop(batch, 1, 1);
 
             Assert.True(getResult.Success, getResult.ErrorMessage);
             Assert.Null(getResult.ErrorMessage);
             Assert.NotNull(getResult.CropLeft);
-            Assert.InRange(getResult.CropLeft!.Value,  5f - 0.01f, 5f + 0.01f);
-            Assert.InRange(getResult.CropTop!.Value,   3f - 0.01f, 3f + 0.01f);
+            Assert.InRange(getResult.CropLeft!.Value, 5f - 0.01f, 5f + 0.01f);
+            Assert.InRange(getResult.CropTop!.Value, 3f - 0.01f, 3f + 0.01f);
             Assert.InRange(getResult.CropRight!.Value, 7f - 0.01f, 7f + 0.01f);
-            Assert.InRange(getResult.CropBottom!.Value,2f - 0.01f, 2f + 0.01f);
+            Assert.InRange(getResult.CropBottom!.Value, 2f - 0.01f, 2f + 0.01f);
         }
         finally { File.Delete(imagePath); }
     }
@@ -263,10 +263,10 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
 
             Assert.True(getResult.Success, getResult.ErrorMessage);
             Assert.NotNull(getResult.CropLeft);
-            Assert.InRange(getResult.CropLeft!.Value,  8f - 0.01f, 8f + 0.01f);
-            Assert.InRange(getResult.CropTop!.Value,   4f - 0.01f, 4f + 0.01f);
+            Assert.InRange(getResult.CropLeft!.Value, 8f - 0.01f, 8f + 0.01f);
+            Assert.InRange(getResult.CropTop!.Value, 4f - 0.01f, 4f + 0.01f);
             Assert.InRange(getResult.CropRight!.Value, 6f - 0.01f, 6f + 0.01f);
-            Assert.InRange(getResult.CropBottom!.Value,3f - 0.01f, 3f + 0.01f);
+            Assert.InRange(getResult.CropBottom!.Value, 3f - 0.01f, 3f + 0.01f);
         }
         finally { File.Delete(imagePath); }
     }
@@ -622,10 +622,10 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
                         (float)pf.CropRight, (float)pf.CropBottom);
             });
 
-            Assert.InRange(cl,   5f - 0.01f, 5f + 0.01f);
+            Assert.InRange(cl, 5f - 0.01f, 5f + 0.01f);
             Assert.InRange(ctop, 3f - 0.01f, 3f + 0.01f);
-            Assert.InRange(cr,   7f - 0.01f, 7f + 0.01f);
-            Assert.InRange(cb,   2f - 0.01f, 2f + 0.01f);
+            Assert.InRange(cr, 7f - 0.01f, 7f + 0.01f);
+            Assert.InRange(cb, 2f - 0.01f, 2f + 0.01f);
         }
         finally
         {

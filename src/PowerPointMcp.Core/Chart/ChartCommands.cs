@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Runtime.InteropServices;
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
@@ -239,7 +238,7 @@ public sealed class ChartCommands : IChartCommands
                 newSeries.XValues = existingXValues;
                 newSeries.Name = seriesName;
 
-                int newSeriesCount = (int)chart.SeriesCollection().Count;
+                int newSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
 
                 return new ChartOperationResult
                 {
@@ -375,7 +374,7 @@ public sealed class ChartCommands : IChartCommands
                     }
                 }
 
-                int newSeriesCount = (int)chart.SeriesCollection().Count;
+                int newSeriesCount = (int)seriesCollection.Count;
 
                 return new ChartOperationResult
                 {

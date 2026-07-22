@@ -1,12 +1,12 @@
 ---
 title: Complete Feature Reference
-description: 13 MCP tools with 134 operations across 13 domains for live PowerPoint automation through single action-dispatch tools.
+description: 13 MCP tools with 137 operations across 13 domains for live PowerPoint automation through single action-dispatch tools.
 keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **13 MCP tools with 134 operations across 13 domains**.
+PowerPoint MCP Server exposes **13 MCP tools with 137 operations across 13 domains**.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
 `chart(action="add-chart", session_id="...", slide_index=2, ...)`.
@@ -23,7 +23,7 @@ The CLI mirrors the same domain model:
 | `presentation` | 12 | Session lifecycle, template application, built-in/custom document properties | `presentation(action="...", ...)` | `pptcli session <action> ...` |
 | `slide` | 14 | Slide lifecycle, slide backgrounds, sections | `slide(action="...", session_id=..., ...)` | `pptcli slide <action> -s <SESSION_ID> ...` |
 | `shape` | 36 | Shapes, geometry, styling, effects, grouping, naming, hyperlinks | `shape(action="...", session_id=..., ...)` | `pptcli shape <action> -s <SESSION_ID> ...` |
-| `textframe` | 17 | Text content and text formatting | `textframe(action="...", session_id=..., ...)` | `pptcli textframe <action> -s <SESSION_ID> ...` |
+| `textframe` | 20 | Text content and text formatting | `textframe(action="...", session_id=..., ...)` | `pptcli textframe <action> -s <SESSION_ID> ...` |
 | `table` | 12 | Table creation and cell editing/formatting | `table(action="...", session_id=..., ...)` | `pptcli table <action> -s <SESSION_ID> ...` |
 | `notes` | 2 | Speaker notes | `notes(action="...", session_id=..., ...)` | `pptcli notes <action> -s <SESSION_ID> ...` |
 | `layout` | 2 | Slide layouts | `layout(action="...", session_id=..., ...)` | `pptcli layout <action> -s <SESSION_ID> ...` |
@@ -97,13 +97,14 @@ hyperlinks.
 `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`,
 `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`
 
-### `textframe` tool (17 operations)
+### `textframe` tool (20 operations)
 
 Use `textframe` for text content and font/paragraph formatting on a shape's text frame.
 
-**Exact action order:** `set-text`, `get-text`, `set-font-size`, `set-bold`, `set-font-color`,
-`set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`,
-`set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`, `set-auto-size`, `get-auto-size`
+**Exact action order:** `set-text`, `get-text`, `set-font-size`, `get-font-size`, `set-bold`,
+`get-bold`, `set-font-color`, `get-font-color`, `set-italic`, `get-italic`, `set-underline`,
+`get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`,
+`get-bullet`, `set-auto-size`, `get-auto-size`
 
 ### `table` tool (12 operations)
 

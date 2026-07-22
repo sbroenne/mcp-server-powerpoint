@@ -1,8 +1,6 @@
 // Copyright (c) Sbroenne. All rights reserved.
 // Licensed under the MIT License.
 
-using Xunit;
-
 namespace Sbroenne.PowerPointMcp.McpServer.Tests;
 
 /// <summary>

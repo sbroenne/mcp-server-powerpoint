@@ -364,7 +364,7 @@ Actions: `add-table`, `set-cell-text`, `get-cell-text`, `insert-row`, `delete-ro
 
 ### `textframe` — Text frame commands: set/get text and basic font formatting (size, bold, italic, underline, font name, color, alignment, bullets) for a shape's text range. Operates within an already-open IPresentationBatch, targeting a specific shape by its 1-based slide and shape index.
 
-Actions: `set-text`, `get-text`, `set-font-size`, `set-bold`, `set-font-color`, `set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`, `set-auto-size`, `get-auto-size`
+Actions: `set-text`, `get-text`, `set-font-size`, `get-font-size`, `set-bold`, `get-bold`, `set-font-color`, `get-font-color`, `set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`, `set-auto-size`, `get-auto-size`
 
 | Flag | Description |
 |------|-------------|

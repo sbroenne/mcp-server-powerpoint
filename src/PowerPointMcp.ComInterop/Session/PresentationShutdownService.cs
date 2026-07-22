@@ -91,6 +91,13 @@ internal static class PresentationShutdownService
             ComUtilities.Release(ref app);
         }
 
+        // Force the CLR to process any deferred RCW finalization before we check whether the
+        // PowerPoint process has actually exited. Without this, the process can linger until the
+        // runtime notices the COM references are gone.
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
         if (processId.HasValue)
         {
             WaitForProcessExitOrEscalate(processId.Value, fileName, logger);

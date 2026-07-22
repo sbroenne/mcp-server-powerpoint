@@ -423,9 +423,13 @@ public sealed class PowerPointMcpService : IDisposable
         // remarks for why this must not block the caller.
         var closed = _sessions.Close(request.SessionId);
 
-        return new ServiceResponse { Success = true, Result = closed
-            ? null
-            : JsonSerializer.Serialize(new { success = true, sessionId = request.SessionId, message = "Session already closed." }, ServiceProtocol.JsonOptions) };
+        return new ServiceResponse
+        {
+            Success = true,
+            Result = closed
+                ? null
+                : JsonSerializer.Serialize(new { success = true, sessionId = request.SessionId, message = "Session already closed." }, ServiceProtocol.JsonOptions)
+        };
     }
 
     private ServiceResponse HandleSessionSave(ServiceRequest request)

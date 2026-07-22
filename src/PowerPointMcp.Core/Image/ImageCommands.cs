@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
@@ -8,13 +9,13 @@ public sealed class ImageCommands : IImageCommands
 {
     // MsoTriState values from Microsoft.Office.Core — office.dll is not referenced/embedded,
     // so passed as raw ints via dynamic late binding (same pattern as ShapeCommands.cs).
-    private const int MsoFalse = 0;   // MsoTriState.msoFalse
-    private const int MsoTrue  = -1;  // MsoTriState.msoTrue
+    private const int MsoFalse = 0; // MsoTriState.msoFalse
+    private const int MsoTrue = -1; // MsoTriState.msoTrue
 
     // MsoShapeType values for picture-shape validation.
     // Shape.Type is Microsoft.Office.Core.MsoShapeType (Office.Core — not embedded);
     // read via (int)((dynamic)shape).Type and compared against these named constants.
-    private const int MsoPicture       = 13; // MsoShapeType.msoPicture
+    private const int MsoPicture = 13; // MsoShapeType.msoPicture
     private const int MsoLinkedPicture = 11; // MsoShapeType.msoLinkedPicture
 
     // MsoPictureColorType member name -> value, for SetRecolor/GetRecolor
@@ -22,10 +23,10 @@ public sealed class ImageCommands : IImageCommands
     // PictureEffectsDiagTests (a temporary diagnostic spike, since removed).
     private static readonly Dictionary<string, int> PictureColorTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["msoPictureAutomatic"]     = 1,
-        ["msoPictureGrayscale"]     = 2,
+        ["msoPictureAutomatic"] = 1,
+        ["msoPictureGrayscale"] = 2,
         ["msoPictureBlackAndWhite"] = 3,
-        ["msoPictureWatermark"]     = 4,
+        ["msoPictureWatermark"] = 4,
     };
 
     private static readonly Dictionary<int, string> PictureColorTypesByValue =
@@ -103,17 +104,28 @@ public sealed class ImageCommands : IImageCommands
             var typeValidation = ValidatePictureShape(shape, slideIndex, shapeIndex);
             if (typeValidation is not null) return typeValidation;
 
-            PowerPoint.PictureFormat pictureFormat = shape.PictureFormat;
-            pictureFormat.Brightness = brightness;
-            pictureFormat.Contrast = contrast;
-
-            return new ImageOperationResult
+            PowerPoint.PictureFormat? pictureFormat = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Brightness = brightness,
-                Contrast = contrast,
-            };
+                pictureFormat = shape.PictureFormat;
+                pictureFormat.Brightness = brightness;
+                pictureFormat.Contrast = contrast;
+
+                return new ImageOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Brightness = brightness,
+                    Contrast = contrast,
+                };
+            }
+            finally
+            {
+                if (pictureFormat != null)
+                {
+                    ComUtilities.Release(ref pictureFormat!);
+                }
+            }
         });
     }
 
@@ -135,15 +147,26 @@ public sealed class ImageCommands : IImageCommands
             var typeValidation = ValidatePictureShape(shape, slideIndex, shapeIndex);
             if (typeValidation is not null) return typeValidation;
 
-            PowerPoint.PictureFormat pictureFormat = shape.PictureFormat;
-
-            return new ImageOperationResult
+            PowerPoint.PictureFormat? pictureFormat = null;
+            try
             {
-                Success = true,
-                ShapeIndex = shapeIndex,
-                Brightness = pictureFormat.Brightness,
-                Contrast = pictureFormat.Contrast,
-            };
+                pictureFormat = shape.PictureFormat;
+
+                return new ImageOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    Brightness = pictureFormat.Brightness,
+                    Contrast = pictureFormat.Contrast,
+                };
+            }
+            finally
+            {
+                if (pictureFormat != null)
+                {
+                    ComUtilities.Release(ref pictureFormat!);
+                }
+            }
         });
     }
 
@@ -177,7 +200,19 @@ public sealed class ImageCommands : IImageCommands
 
             // Reason: PictureFormat.ColorType is MsoPictureColorType (Microsoft.Office.Core — not embedded);
             // assigned via dynamic late binding with the pre-validated integer value.
-            ((dynamic)shape.PictureFormat).ColorType = typeValue;
+            dynamic? pictureFormat = null;
+            try
+            {
+                pictureFormat = shape.PictureFormat;
+                pictureFormat.ColorType = typeValue;
+            }
+            finally
+            {
+                if (pictureFormat != null)
+                {
+                    ComUtilities.Release(ref pictureFormat!);
+                }
+            }
 
             return new ImageOperationResult
             {
@@ -208,7 +243,20 @@ public sealed class ImageCommands : IImageCommands
 
             // Reason: PictureFormat.ColorType is MsoPictureColorType (Microsoft.Office.Core — not embedded);
             // read via dynamic late binding.
-            int rawColorType = (int)((dynamic)shape.PictureFormat).ColorType;
+            dynamic? pictureFormat = null;
+            int rawColorType;
+            try
+            {
+                pictureFormat = shape.PictureFormat;
+                rawColorType = (int)pictureFormat.ColorType;
+            }
+            finally
+            {
+                if (pictureFormat != null)
+                {
+                    ComUtilities.Release(ref pictureFormat!);
+                }
+            }
             string typeName = PictureColorTypesByValue.TryGetValue(rawColorType, out var name) ? name : $"unknown({rawColorType})";
 
             return new ImageOperationResult
@@ -241,21 +289,32 @@ public sealed class ImageCommands : IImageCommands
 
             // CropLeft/Top/Right/Bottom are typed float properties on the embedded PIA.
             // Negative values are valid (expand visible area beyond image boundary); no clamping.
-            PowerPoint.PictureFormat pictureFormat = shape.PictureFormat;
-            pictureFormat.CropLeft   = cropLeft;
-            pictureFormat.CropTop    = cropTop;
-            pictureFormat.CropRight  = cropRight;
-            pictureFormat.CropBottom = cropBottom;
-
-            return new ImageOperationResult
+            PowerPoint.PictureFormat? pictureFormat = null;
+            try
             {
-                Success    = true,
-                ShapeIndex = shapeIndex,
-                CropLeft   = pictureFormat.CropLeft,
-                CropTop    = pictureFormat.CropTop,
-                CropRight  = pictureFormat.CropRight,
-                CropBottom = pictureFormat.CropBottom,
-            };
+                pictureFormat = shape.PictureFormat;
+                pictureFormat.CropLeft = cropLeft;
+                pictureFormat.CropTop = cropTop;
+                pictureFormat.CropRight = cropRight;
+                pictureFormat.CropBottom = cropBottom;
+
+                return new ImageOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    CropLeft = pictureFormat.CropLeft,
+                    CropTop = pictureFormat.CropTop,
+                    CropRight = pictureFormat.CropRight,
+                    CropBottom = pictureFormat.CropBottom,
+                };
+            }
+            finally
+            {
+                if (pictureFormat != null)
+                {
+                    ComUtilities.Release(ref pictureFormat!);
+                }
+            }
         });
     }
 
@@ -277,17 +336,28 @@ public sealed class ImageCommands : IImageCommands
             var typeValidation = ValidatePictureShape(shape, slideIndex, shapeIndex);
             if (typeValidation is not null) return typeValidation;
 
-            PowerPoint.PictureFormat pictureFormat = shape.PictureFormat;
-
-            return new ImageOperationResult
+            PowerPoint.PictureFormat? pictureFormat = null;
+            try
             {
-                Success    = true,
-                ShapeIndex = shapeIndex,
-                CropLeft   = pictureFormat.CropLeft,
-                CropTop    = pictureFormat.CropTop,
-                CropRight  = pictureFormat.CropRight,
-                CropBottom = pictureFormat.CropBottom,
-            };
+                pictureFormat = shape.PictureFormat;
+
+                return new ImageOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    CropLeft = pictureFormat.CropLeft,
+                    CropTop = pictureFormat.CropTop,
+                    CropRight = pictureFormat.CropRight,
+                    CropBottom = pictureFormat.CropBottom,
+                };
+            }
+            finally
+            {
+                if (pictureFormat != null)
+                {
+                    ComUtilities.Release(ref pictureFormat!);
+                }
+            }
         });
     }
 

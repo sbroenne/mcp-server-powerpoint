@@ -78,6 +78,11 @@ public static class PresentationTools
             return PowerPointToolsBase.ValidationError("filePath is required for action=create.");
         }
 
+        if (isMacroEnabled && !Path.GetExtension(filePath).Equals(".pptm", StringComparison.OrdinalIgnoreCase))
+        {
+            return PowerPointToolsBase.ValidationError("isMacroEnabled=true requires a .pptm file path.");
+        }
+
         var sessionId = registry.Create(filePath);
 
         // Persist the new file to disk immediately through the still-open batch — no

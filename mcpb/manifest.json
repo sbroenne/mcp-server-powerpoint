@@ -4,7 +4,7 @@
   "display_name": "PowerPoint (Windows)",
   "version": "0.1.0",
   "description": "Automate Microsoft PowerPoint - slides, shapes, text, tables, charts, images, notes, layouts & slide-to-image export - requires PowerPoint to be installed",
-  "long_description": "MCP server for Microsoft PowerPoint automation. 31 tools across 10 domains (Presentation, Slide, Shape, Text, Table, Notes, Layout, Image, Chart, Export) that drive a live PowerPoint desktop instance via COM, including slide-to-image export so an AI can visually verify its own work. Windows-only, requires Microsoft PowerPoint desktop application.",
+  "long_description": "MCP server for Microsoft PowerPoint automation. 13 tools (137 operations across 13 domains: Presentation, Slide, Shape, TextFrame, Table, Notes, Layout, Master, Animation, Image, Chart, SmartArt, Export) that drive a live PowerPoint desktop instance via COM, including slide-to-image export so an AI can visually verify its own work. Windows-only, requires Microsoft PowerPoint desktop application.",
   "author": {
     "name": "Stefan Broenner",
     "url": "https://github.com/sbroenne"

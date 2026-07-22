@@ -4,7 +4,6 @@
 using System.Text.Json;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
-using Xunit;
 
 namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
 

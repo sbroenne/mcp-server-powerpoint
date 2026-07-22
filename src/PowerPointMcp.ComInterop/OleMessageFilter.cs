@@ -37,7 +37,7 @@ public sealed partial class OleMessageFilter : IOleMessageFilter
     /// with SERVERCALL_RETRYLATER to trigger the caller's RetryRejectedCall backoff.
     /// </summary>
     [ThreadStatic]
-    private static volatile bool _isInLongOperation;
+    private static bool _isInLongOperation;
 
     [ThreadStatic]
     private static long _messagePendingCount;

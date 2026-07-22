@@ -117,8 +117,20 @@ public sealed class SlideCommands : ISlideCommands
 
             // Duplicate() returns a SlideRange containing the single new slide, inserted
             // immediately after the source slide.
-            PowerPoint.SlideRange duplicateRange = ctx.Presentation.Slides[slideIndex].Duplicate();
-            int newSlideIndex = duplicateRange[1].SlideIndex;
+            PowerPoint.SlideRange? duplicateRange = null;
+            int newSlideIndex;
+            try
+            {
+                duplicateRange = ctx.Presentation.Slides[slideIndex].Duplicate();
+                newSlideIndex = duplicateRange[1].SlideIndex;
+            }
+            finally
+            {
+                if (duplicateRange != null)
+                {
+                    ComUtilities.Release(ref duplicateRange!);
+                }
+            }
 
             return new SlideOperationResult
             {
@@ -188,13 +200,17 @@ public sealed class SlideCommands : ISlideCommands
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             dynamic? dynSlide = null;
+            PowerPoint.ShapeRange? background = null;
+            dynamic? fill = null;
             try
             {
                 dynSlide = slide;
                 dynSlide.FollowMasterBackground = MsoFalse;
                 int rgb = red + (green << 8) + (blue << 16);
-                slide.Background.Fill.Solid();
-                slide.Background.Fill.ForeColor.RGB = rgb;
+                background = slide.Background;
+                fill = background.Fill;
+                fill.Solid();
+                fill.ForeColor.RGB = rgb;
 
                 return new SlideOperationResult
                 {
@@ -206,6 +222,14 @@ public sealed class SlideCommands : ISlideCommands
             }
             finally
             {
+                if (fill != null)
+                {
+                    ComUtilities.Release(ref fill!);
+                }
+                if (background != null)
+                {
+                    ComUtilities.Release(ref background!);
+                }
                 if (dynSlide != null)
                 {
                     ComUtilities.Release(ref dynSlide!);
@@ -234,11 +258,15 @@ public sealed class SlideCommands : ISlideCommands
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             dynamic? dynSlide = null;
+            PowerPoint.ShapeRange? background = null;
+            dynamic? fill = null;
             try
             {
                 dynSlide = slide;
                 bool followsMaster = (int)dynSlide.FollowMasterBackground == MsoTrue;
-                int rgb = slide.Background.Fill.ForeColor.RGB;
+                background = slide.Background;
+                fill = background.Fill;
+                int rgb = (int)fill.ForeColor.RGB;
 
                 return new SlideOperationResult
                 {
@@ -250,6 +278,14 @@ public sealed class SlideCommands : ISlideCommands
             }
             finally
             {
+                if (fill != null)
+                {
+                    ComUtilities.Release(ref fill!);
+                }
+                if (background != null)
+                {
+                    ComUtilities.Release(ref background!);
+                }
                 if (dynSlide != null)
                 {
                     ComUtilities.Release(ref dynSlide!);
@@ -296,6 +332,7 @@ public sealed class SlideCommands : ISlideCommands
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
             dynamic? dynSlide = null;
+            PowerPoint.ShapeRange? background = null;
             dynamic? fill = null;
             try
             {
@@ -303,7 +340,8 @@ public sealed class SlideCommands : ISlideCommands
                 dynSlide.FollowMasterBackground = MsoFalse;
                 // TwoColorGradient() must be called BEFORE setting ForeColor/BackColor — it resets
                 // both colors to PowerPoint's defaults as a side effect (verified via diagnostic spike).
-                fill = slide.Background.Fill;
+                background = slide.Background;
+                fill = background.Fill;
                 fill.TwoColorGradient(styleValue, gradientVariant);
                 fill.ForeColor.RGB = rgb1;
                 fill.BackColor.RGB = rgb2;
@@ -324,6 +362,11 @@ public sealed class SlideCommands : ISlideCommands
                 if (fill != null)
                 {
                     ComUtilities.Release(ref fill!);
+                }
+
+                if (background != null)
+                {
+                    ComUtilities.Release(ref background!);
                 }
 
                 if (dynSlide != null)
@@ -353,10 +396,12 @@ public sealed class SlideCommands : ISlideCommands
             }
 
             PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            PowerPoint.ShapeRange? background = null;
             dynamic? fill = null;
             try
             {
-                fill = slide.Background.Fill;
+                background = slide.Background;
+                fill = background.Fill;
                 int fillType = (int)fill.Type;
                 const int MsoFillGradient = 3;
                 if (fillType != MsoFillGradient)
@@ -391,6 +436,10 @@ public sealed class SlideCommands : ISlideCommands
                 if (fill != null)
                 {
                     ComUtilities.Release(ref fill!);
+                }
+                if (background != null)
+                {
+                    ComUtilities.Release(ref background!);
                 }
             }
         });

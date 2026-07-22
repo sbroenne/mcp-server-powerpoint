@@ -1,6 +1,5 @@
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
-using System.Linq;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.TextFrame;
@@ -98,6 +97,23 @@ public sealed class TextFrameCommands : ITextFrameCommands
     }
 
     /// <inheritdoc/>
+    public TextFrameOperationResult GetFontSize(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
+            if (validation is not null) return validation;
+
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            float fontSize = (float)shape.TextFrame.TextRange.Font.Size;
+
+            return new TextFrameOperationResult { Success = true, FontSize = fontSize };
+        });
+    }
+
+    /// <inheritdoc/>
     public TextFrameOperationResult SetBold(IPresentationBatch batch, int slideIndex, int shapeIndex, bool bold)
     {
         ArgumentNullException.ThrowIfNull(batch);
@@ -128,6 +144,36 @@ public sealed class TextFrameCommands : ITextFrameCommands
     }
 
     /// <inheritdoc/>
+    public TextFrameOperationResult GetBold(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
+            if (validation is not null) return validation;
+
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            dynamic? font = null;
+            try
+            {
+                // Font tri-state properties are Microsoft.Office.Core-typed; keep the property read late-bound.
+                font = shape.TextFrame.TextRange.Font;
+                bool bold = (int)font.Bold == MsoTrue;
+
+                return new TextFrameOperationResult { Success = true, Bold = bold };
+            }
+            finally
+            {
+                if (font != null)
+                {
+                    ComUtilities.Release(ref font!);
+                }
+            }
+        });
+    }
+
+    /// <inheritdoc/>
     public TextFrameOperationResult SetFontColor(IPresentationBatch batch, int slideIndex, int shapeIndex, byte red, byte green, byte blue)
     {
         ArgumentNullException.ThrowIfNull(batch);
@@ -143,6 +189,23 @@ public sealed class TextFrameCommands : ITextFrameCommands
 
             PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
             shape.TextFrame.TextRange.Font.Color.RGB = rgb;
+
+            return new TextFrameOperationResult { Success = true, ColorRgb = rgb };
+        });
+    }
+
+    /// <inheritdoc/>
+    public TextFrameOperationResult GetFontColor(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var validation = ValidateIndices(ctx, slideIndex, shapeIndex);
+            if (validation is not null) return validation;
+
+            PowerPoint.Shape shape = ctx.Presentation.Slides[slideIndex].Shapes[shapeIndex];
+            int rgb = (int)shape.TextFrame.TextRange.Font.Color.RGB;
 
             return new TextFrameOperationResult { Success = true, ColorRgb = rgb };
         });

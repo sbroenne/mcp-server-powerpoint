@@ -8,7 +8,6 @@ using ModelContextProtocol.Client;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Generated;
 using Sbroenne.PowerPointMcp.McpServer.Tools;
-using Xunit;
 using Xunit.Abstractions;
 
 namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
@@ -47,26 +46,9 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
     /// <summary>
     /// Expected MCP parameter names: fixed generator params + the union of all
     /// <c>IImageCommands</c> method parameters (excluding <c>IPresentationBatch</c>),
-    /// converted via the stable camelCase → snake_case naming rule.
-    /// <list type="table">
-    ///   <listheader><term>Interface param</term><term>snake_case MCP name</term><term>Required for</term></listheader>
-    ///   <item><term>(enum, generated)</term><term>action</term><term>all — ImageAction enum</term></item>
-    ///   <item><term>(generator fixed)</term><term>session_id</term><term>all</term></item>
-    ///   <item><term>slideIndex</term><term>slide_index</term><term>all 7 actions</term></item>
-    ///   <item><term>imagePath</term><term>image_path</term><term>add-picture</term></item>
-    ///   <item><term>left</term><term>left</term><term>add-picture</term></item>
-    ///   <item><term>top</term><term>top</term><term>add-picture</term></item>
-    ///   <item><term>width</term><term>width</term><term>add-picture</term></item>
-    ///   <item><term>height</term><term>height</term><term>add-picture</term></item>
-    ///   <item><term>shapeIndex</term><term>shape_index</term><term>set/get-brightness-contrast, set/get-recolor, set/get-crop</term></item>
-    ///   <item><term>brightness</term><term>brightness</term><term>set-brightness-contrast</term></item>
-    ///   <item><term>contrast</term><term>contrast</term><term>set-brightness-contrast</term></item>
-    ///   <item><term>colorType</term><term>color_type</term><term>set-recolor</term></item>
-    ///   <item><term>cropLeft</term><term>crop_left</term><term>set-crop</term></item>
-    ///   <item><term>cropTop</term><term>crop_top</term><term>set-crop</term></item>
-    ///   <item><term>cropRight</term><term>crop_right</term><term>set-crop</term></item>
-    ///   <item><term>cropBottom</term><term>crop_bottom</term><term>set-crop</term></item>
-    /// </list>
+    /// converted via the stable camelCase → snake_case naming rule (e.g. <c>slideIndex</c> →
+    /// <c>slide_index</c>). See the inline comments on <see cref="ExpectedMcpParameters"/> below
+    /// for the per-parameter interface name and which action(s) require it.
     /// </summary>
     private static readonly HashSet<string> ExpectedMcpParameters = new(StringComparer.Ordinal)
     {

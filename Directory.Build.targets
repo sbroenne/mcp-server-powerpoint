@@ -7,7 +7,7 @@
     .NET SDK on its own — the SDK resolves PackageReference-based PIAs as plain
     /reference: assemblies. This target flips the resolved reference item to
     EmbedInteropTypes=true (equivalent of /link:) after resolution, mirroring the
-    approach used in mcp-server-excel for Microsoft.Office.Interop.Excel.
+    template approach for Office Primary Interop Assemblies.
 
     Net effect: no runtime dependency on office.dll (Microsoft.Office.Core), no PIA
     install required on the target machine beyond PowerPoint itself.
@@ -17,7 +17,11 @@
     <ItemGroup>
       <ReferencePath Condition="'%(FileName)' == 'Microsoft.Office.Interop.PowerPoint'">
         <EmbedInteropTypes>true</EmbedInteropTypes>
+        <Private>false</Private>
       </ReferencePath>
+      <!-- Embedded interop types are baked into this assembly; the PIA must NOT be copied to output. -->
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
+                               Condition="'%(FileName)' == 'Microsoft.Office.Interop.PowerPoint'" />
     </ItemGroup>
   </Target>
 
