@@ -1,5 +1,83 @@
 # Changelog
 
+## [0.1.1] - 2026-07-22
+
+### Minor Changes
+
+- [#32](https://github.com/sbroenne/mcp-server-powerpoint/pull/32) [`778240d`](https://github.com/sbroenne/mcp-server-powerpoint/commit/778240d92361e9a488847cef1502d0db5ae71ab7) Thanks [@sbroenne](https://github.com/sbroenne)! - Aligned mcp-server-powerpoint's architecture and tooling with mcp-server-excel, the
+  authoritative template for this family of projects:
+
+  - **Single MCP dispatch tool**: replaced the 12 separate presentation-related MCP tools
+    with one `presentation` tool taking an `action` parameter, matching Excel's dispatch
+    pattern. Added matching CLI session-management commands so the CLI and MCP Server
+    remain equal, parity-checked entry points.
+  - **COM object cleanup**: every `dynamic` COM object obtained inside a Core Commands
+    method is now released in a `finally` block once no longer needed, instead of relying
+    solely on the top-level session Application/Presentation cleanup. This closes a class
+    of potential COM object leaks under heavy or long-running use.
+  - **Crash-safety process tracking**: PowerPoint process IDs are now tracked in a
+    process-wide registry with an `AppDomain.ProcessExit` handler that force-kills any
+    still-running `POWERPNT.exe` if the host process itself terminates uncleanly (crash,
+    forced kill, etc.), closing a gap versus Excel's existing crash-safety net.
+  - **Ported audit scripts** from mcp-server-excel: `check-com-leaks.ps1`,
+    `check-success-flag.ps1`, `check-dynamic-casts.ps1`, and a new
+    `check-core-interface-completeness.ps1` tailored to this project's
+    generate-enums-from-interface architecture. All are wired into the pre-commit hook.
+  - Corrected stale documentation (tool/operation/domain counts) across the README,
+    docs site, and skills files.
+
+  No behavior change for existing MCP tool calls beyond the dispatch-tool consolidation;
+  CLI commands are unaffected.
+
+### Patch Changes
+
+- [#26](https://github.com/sbroenne/mcp-server-powerpoint/pull/26) [`ddb6808`](https://github.com/sbroenne/mcp-server-powerpoint/commit/ddb68080460e6f1a6b9e8d0c86e309874cf6ae1d) Thanks [@sbroenne](https://github.com/sbroenne)! - Aligned the project's public-facing docs with the leading sister project
+  `mcp-server-excel`: ported the daily GitHub star-history chart. Added
+  `scripts/Update-StarHistory.ps1` (generates a theme-aware SVG from live
+  stargazer data) and wired it into the `deploy-gh-pages` workflow with a daily
+  schedule, then added a "GitHub Star History" section to both the README and the
+  docs-site homepage. The generated SVG is produced in CI and gitignored, mirroring
+  Excel's setup. Repository description, homepage URL, and topics were also updated
+  to match Excel's format.
+
+- [#33](https://github.com/sbroenne/mcp-server-powerpoint/pull/33) [`9663e7a`](https://github.com/sbroenne/mcp-server-powerpoint/commit/9663e7a7be95ff6778c22b21de5d833be801c351) Thanks [@sbroenne](https://github.com/sbroenne)! - **Fixed stale tool/operation counts** (#33): the docs advertised "132
+  operations" even though the `image` tool gained `set-crop`/`get-crop` a while
+  back, bringing the real total to 134 operations across 13 tools. Fixed across
+  the README, MCP Server README, mcpb README, and the public docs site.
+
+  Also replaced the old path-filtered build workflows with a single CI Gate
+  workflow that runs on every pull request, and added a documentation
+  count-check to the pre-commit hook so this kind of drift is caught
+  automatically going forward.
+
+- [#35](https://github.com/sbroenne/mcp-server-powerpoint/pull/35) [`3f72dae`](https://github.com/sbroenne/mcp-server-powerpoint/commit/3f72dae2d4203af5233fe90245e3e0bc8772ed41) Thanks [@sbroenne](https://github.com/sbroenne)! - **Critical repo review remediation** — a pass comparing this repo against
+  `mcp-server-excel` (the architectural template) surfaced several gaps, now
+  fixed:
+
+  - Added `get-font-size`, `get-bold`, and `get-font-color` operations to the
+    `textframe` tool (previously only the `set-` variants existed), bringing
+    the total to 137 operations across 13 tools.
+  - Fixed several COM reference leaks in the Chart/Shape/Image/Animation/
+    Presentation/Slide commands — every manually-acquired COM object is now
+    released via `ComUtilities.Release` in a `finally` block.
+  - Fixed ComInterop lifecycle bugs and removed dead code left over from the
+    original Excel-to-PowerPoint port (`ServiceRegistryGenerator`'s unused
+    `GetShortAlias` helper and stray `excelcli` string references).
+  - Reverted an in-progress window-hiding change that had broken embedded-chart
+    OLE activation — PowerPoint windows remain visible, matching documented
+    behavior.
+  - Aligned CI workflows, `Directory.Build.*`, `Packages.props`, manifest,
+    `.gitattributes`, `.editorconfig`, `SECURITY.md`, `PRIVACY.md`, dependabot
+    config, and issue templates with the `mcp-server-excel` template repo.
+
+- [#29](https://github.com/sbroenne/mcp-server-powerpoint/pull/29) [`8a268ca`](https://github.com/sbroenne/mcp-server-powerpoint/commit/8a268ca1bfd2adfc57a59a0b39c87ed8f98c089f) Thanks [@sbroenne](https://github.com/sbroenne)! - Improved SEO for the public docs site (powerpointmcpserver.dev): added a
+  branded 1200x630 Open Graph/Twitter card image, richer `SoftwareApplication`
+  structured data (image, MIT license, `sameAs` links to GitHub and NuGet), a
+  `WebSite`+`Person` JSON-LD graph, and per-page `BreadcrumbList` structured
+  data for interior pages. Also sped up `scripts/pre-commit.ps1` for
+  docs-only commits (including `gh-pages/` website changes) by fully skipping
+  the Release build and Core test gates when no compiled code changed.
+
 ## [0.1.0] - 2026-07-11
 
 ### Minor Changes
