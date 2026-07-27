@@ -26,14 +26,15 @@ server definition provider and ships the associated Agent Skills.
 ```pwsh
 cd vscode-extension
 npm install
-npm run compile        # type-check + build extension.ts
-npm run package        # produce the .vsix (runs vscode:prepublish)
+npm run compile        # quick check: compiles src/extension.ts -> out/extension.js only
+npm run package        # produce the .vsix (runs vscode:prepublish -> full bundle)
 ```
 
-`vscode:prepublish` publishes the self-contained MCP server into `bin/`, copies
-the skill pack and changelog, then compiles the TypeScript.
-
-> **Note:** a marketplace `icon.png` still needs to be added before publishing.
+`npm run compile` is just a fast TypeScript build for local iteration — it does
+**not** bundle the MCP server or skills. The `.vsix` is produced by
+`npm run package`, which triggers `vscode:prepublish`: this publishes the
+self-contained MCP server into `bin/`, copies the skill pack and changelog, and
+then compiles the TypeScript.
 
 ## Links
 
