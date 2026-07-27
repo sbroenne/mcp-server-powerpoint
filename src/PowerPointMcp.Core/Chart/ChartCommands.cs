@@ -69,6 +69,7 @@ public sealed class ChartCommands : IChartCommands
                 chartShape = ((dynamic)slide.Shapes).AddChart2(-1, xlChartType.Value, left, top, width, height, true);
                 PowerPoint.Chart chart = chartShape.Chart;
 
+                EnsureChartDataReady(chart);
                 WriteChartData(chart, categories, seriesName, values);
 
                 // Same NoPIA .Index late-binding quirk as Shape domain — use Shapes.Count instead.
@@ -119,6 +120,7 @@ public sealed class ChartCommands : IChartCommands
             }
 
             PowerPoint.Chart chart = shape.Chart;
+            EnsureChartDataReady(chart);
             dynamic? seriesCollection = null;
             dynamic? firstSeries = null;
             try
@@ -201,6 +203,7 @@ public sealed class ChartCommands : IChartCommands
             }
 
             PowerPoint.Chart chart = shape.Chart;
+            EnsureChartDataReady(chart);
             dynamic? seriesCollection = null;
             dynamic? firstSeries = null;
             dynamic? newSeries = null;
@@ -323,6 +326,7 @@ public sealed class ChartCommands : IChartCommands
             }
 
             PowerPoint.Chart chart = shape.Chart;
+            EnsureChartDataReady(chart);
 
             // Avoid the embedded Excel workbook and update its late-bound SeriesCollection
             // directly, because Excel interop types are not part of the embedded PowerPoint PIA.
@@ -691,6 +695,43 @@ public sealed class ChartCommands : IChartCommands
         _ => null
     };
 
+    private static void EnsureChartDataReady(PowerPoint.Chart chart)
+    {
+        dynamic? chartData = null;
+        dynamic? workbook = null;
+        dynamic? workbookApplication = null;
+        try
+        {
+            // The embedded Excel workbook backing the chart can be lazy-initialized. Activating it
+            // and forcing a workbook recalculation makes the follow-on SeriesCollection/XValues
+            // reads deterministic instead of returning transient zero-count state immediately after
+            // AddChart/ReplaceChartData.
+            chartData = chart.ChartData;
+            chartData.Activate();
+            workbook = chartData.Workbook;
+            workbookApplication = workbook.Application;
+            workbookApplication.Calculate();
+            chart.Refresh();
+        }
+        finally
+        {
+            if (workbookApplication != null)
+            {
+                ComUtilities.Release(ref workbookApplication!);
+            }
+
+            if (workbook != null)
+            {
+                ComUtilities.Release(ref workbook!);
+            }
+
+            if (chartData != null)
+            {
+                ComUtilities.Release(ref chartData!);
+            }
+        }
+    }
+
     private static void WriteChartData(PowerPoint.Chart chart, IReadOnlyList<string> categories, string seriesName, IReadOnlyList<double> values)
     {
         // SeriesCollection is backed by Excel types that are not present in the embedded
@@ -787,7 +828,19 @@ public sealed class ChartCommands : IChartCommands
             Thread.Sleep(TransientReadRetryDelayMs);
         }
 
-        return xValues;
+        Array values = Array.Empty<object>();
+        for (int attempt = 1; attempt <= TransientReadRetryAttempts; attempt++)
+        {
+            values = RetryTransientChartRead(() => (Array)series.Values);
+            if (values.Length > 0 || attempt == TransientReadRetryAttempts)
+            {
+                return values;
+            }
+
+            Thread.Sleep(TransientReadRetryDelayMs);
+        }
+
+        return values;
     }
 
     private static ChartOperationResult? ValidateSlideIndex(int slideCount, int slideIndex)

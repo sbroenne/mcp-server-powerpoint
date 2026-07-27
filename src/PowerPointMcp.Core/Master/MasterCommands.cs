@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
@@ -244,6 +245,90 @@ public sealed class MasterCommands : IMasterCommands
         });
     }
 
+    /// <inheritdoc/>
+    public MasterOperationResult ListMasters(IPresentationBatch batch)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Designs designs = ctx.Presentation.Designs;
+            int designCount = designs.Count;
+            var masters = new List<MasterOperationResult.MasterInventoryEntry>(designCount);
+
+            for (int i = 1; i <= designCount; i++)
+            {
+                PowerPoint.Design design = designs[i];
+                PowerPoint.Master slideMaster = design.SlideMaster;
+                PowerPoint.CustomLayouts customLayouts = slideMaster.CustomLayouts;
+                int layoutCount = customLayouts.Count;
+                var layouts = new List<MasterOperationResult.LayoutInventoryEntry>(layoutCount);
+
+                for (int j = 1; j <= layoutCount; j++)
+                {
+                    PowerPoint.CustomLayout layout = customLayouts[j];
+                    layouts.Add(new MasterOperationResult.LayoutInventoryEntry
+                    {
+                        LayoutIndex = j,
+                        LayoutName = GetLayoutName(layout),
+                        IsUsed = IsLayoutUsedByAnySlide(ctx, design, layout)
+                    });
+                }
+
+                masters.Add(new MasterOperationResult.MasterInventoryEntry
+                {
+                    MasterIndex = i,
+                    MasterName = GetMasterName(design, slideMaster),
+                    Layouts = layouts
+                });
+            }
+
+            return new MasterOperationResult { Success = true, Masters = masters };
+        });
+    }
+
+    /// <inheritdoc/>
+    public MasterOperationResult DeleteMaster(IPresentationBatch batch, int masterIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        if (masterIndex < 1)
+        {
+            return new MasterOperationResult
+            {
+                Success = false,
+                ErrorMessage = "Master index must be 1 or greater."
+            };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Designs designs = ctx.Presentation.Designs;
+            int designCount = designs.Count;
+            if (masterIndex > designCount)
+            {
+                return new MasterOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Master index {masterIndex} is out of range. The presentation has {designCount} master(s) (valid range: 1-{designCount})."
+                };
+            }
+
+            PowerPoint.Design design = designs[masterIndex];
+            if (IsMasterUsedByAnySlide(ctx, design))
+            {
+                return new MasterOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Master '{GetMasterName(design, design.SlideMaster)}' is still used by one or more slides."
+                };
+            }
+
+            InvokeComMethod(design, "Delete");
+            return new MasterOperationResult { Success = true };
+        });
+    }
+
     /// <summary>
     /// Finds the master placeholder shape of the given type by scanning the slide master's
     /// <c>Shapes</c> collection for a shape whose <c>PlaceholderFormat.Type</c> matches.
@@ -287,6 +372,142 @@ public sealed class MasterCommands : IMasterCommands
         dynamic presentation = ctx.Presentation;
         return (PowerPoint.Master)presentation.SlideMaster;
     }
+
+    private static bool IsLayoutUsedByAnySlide(PresentationContext ctx, PowerPoint.Design design, PowerPoint.CustomLayout layout)
+    {
+        string? targetDesignName = NormalizeName(design.Name);
+        string? targetLayoutName = NormalizeName(layout.Name) ?? NormalizeName(layout.MatchingName);
+
+        int slideCount = ctx.Presentation.Slides.Count;
+        for (int i = 1; i <= slideCount; i++)
+        {
+            PowerPoint.Slide slide = ctx.Presentation.Slides[i];
+            PowerPoint.CustomLayout? currentLayout = slide.CustomLayout;
+            if (currentLayout is null)
+            {
+                continue;
+            }
+
+            if (IsSameComObject(currentLayout, layout)
+                || IsSameComObject(currentLayout.Design, design)
+                || IsSameComObject(slide.Design, design))
+            {
+                return true;
+            }
+
+            string? currentLayoutName = NormalizeName(currentLayout.Name) ?? NormalizeName(currentLayout.MatchingName);
+            string? currentLayoutDesignName = NormalizeName(currentLayout.Design?.Name);
+            string? slideDesignName = NormalizeName(slide.Design?.Name);
+
+            if (string.Equals(currentLayoutName, targetLayoutName, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(currentLayoutDesignName, targetDesignName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (string.Equals(slideDesignName, targetDesignName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsMasterUsedByAnySlide(PresentationContext ctx, PowerPoint.Design design)
+    {
+        string? targetDesignName = NormalizeName(design.Name);
+
+        int slideCount = ctx.Presentation.Slides.Count;
+        for (int i = 1; i <= slideCount; i++)
+        {
+            PowerPoint.Slide slide = ctx.Presentation.Slides[i];
+            PowerPoint.CustomLayout? currentLayout = slide.CustomLayout;
+            if (currentLayout is null)
+            {
+                continue;
+            }
+
+            if (IsSameComObject(slide.Design, design)
+                || IsSameComObject(currentLayout.Design, design))
+            {
+                return true;
+            }
+
+            string? slideDesignName = NormalizeName(slide.Design?.Name);
+            string? currentLayoutDesignName = NormalizeName(currentLayout.Design?.Name);
+            if (string.Equals(slideDesignName, targetDesignName, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(currentLayoutDesignName, targetDesignName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsSameComObject(object? left, object? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        if (left is null || right is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            return Marshal.GetIUnknownForObject(left) == Marshal.GetIUnknownForObject(right);
+        }
+        catch (COMException)
+        {
+            return false;
+        }
+    }
+
+    private static void InvokeComMethod(object target, string methodName)
+    {
+        if (!string.Equals(methodName, "Delete", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new NotSupportedException($"Unsupported COM method '{methodName}'.");
+        }
+
+        // The PowerPoint interop RCWs expose Delete via COM dispatch rather than as a managed
+        // member. Invoke it dynamically so the underlying PowerPoint COM object receives the call.
+        dynamic dynamicTarget = target;
+        dynamicTarget.Delete();
+    }
+
+    private static string? NormalizeName(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string? GetMasterName(PowerPoint.Design design, PowerPoint.Master slideMaster)
+    {
+        string? name = TryGetString(design.Name);
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            return name;
+        }
+
+        return TryGetString(slideMaster.Design?.Name);
+    }
+
+    private static string? GetLayoutName(PowerPoint.CustomLayout layout)
+    {
+        string? name = TryGetString(layout.Name);
+        if (!string.IsNullOrWhiteSpace(name))
+        {
+            return name;
+        }
+
+        return TryGetString(layout.MatchingName);
+    }
+
+    private static string? TryGetString(object? value)
+        => value is null ? null : value.ToString();
 
     private static MasterOperationResult ReadFont(PowerPoint.Shape placeholder)
     {

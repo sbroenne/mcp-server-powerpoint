@@ -81,4 +81,10 @@ public interface IMasterCommands
     /// gradient fill.
     /// </summary>
     MasterOperationResult GetGradientBackground(IPresentationBatch batch);
+
+    /// <summary>Lists every slide master in the presentation, along with the layouts attached to it.</summary>
+    MasterOperationResult ListMasters(IPresentationBatch batch);
+
+    /// <summary>Deletes an unused slide master. Fails if any slide still references it.</summary>
+    MasterOperationResult DeleteMaster(IPresentationBatch batch, int masterIndex);
 }

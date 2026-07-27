@@ -20,4 +20,10 @@ public interface ILayoutCommands
 
     /// <summary>Gets the current slide's layout name.</summary>
     LayoutOperationResult GetLayout(IPresentationBatch batch, int slideIndex);
+
+    /// <summary>Lists the layouts attached to a given slide master, including whether any slide uses each one.</summary>
+    LayoutOperationResult ListLayouts(IPresentationBatch batch, int masterIndex);
+
+    /// <summary>Deletes an unused layout from a slide master. Fails if any slide still references it.</summary>
+    LayoutOperationResult DeleteLayout(IPresentationBatch batch, int masterIndex, int layoutIndex);
 }
