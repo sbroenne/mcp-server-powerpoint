@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sbroenne.PowerPointMcp.Core.Cli;
 using Sbroenne.PowerPointMcp.Service;
 using Spectre.Console.Cli;
 
@@ -83,7 +84,7 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
             Source = "cli"
         }, cancellationToken);
 
-        var outputPath = settings.GetType().GetProperty("OutputPath")?.GetValue(settings) as string;
+        var outputPath = (settings as IHasOutputPath)?.OutputPath;
 
         if (response.Success)
         {

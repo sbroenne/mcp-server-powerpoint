@@ -31,7 +31,25 @@
          combined with PackAsTool it forces the pack flow to look for RID-qualified output,
          breaking `dotnet pack` (no-build) in CI. Standalone-exe CI builds pass the RID flag. -->
     <PublishSelfContained>false</PublishSelfContained>
-    <PublishTrimmed>false</PublishTrimmed>
+    <!-- Trimming is enabled only for the standalone self-contained exe publish (win-x64, CI release
+         job). Setting it here (not via -p: on the publish command line) keeps it from propagating
+         as a global MSBuild property to the netstandard2.0 analyzer/generator project references,
+         which don't support trimming and would fail with NETSDK1124. -->
+    <PublishTrimmed Condition="'$(SelfContained)' == 'true'">true</PublishTrimmed>
+    <TrimMode Condition="'$(SelfContained)' == 'true'">partial</TrimMode>
+    <!-- IL2104 ("assembly not verified trim-safe") is expected noise from third-party
+         dependencies (Humanizer, PowerShell SDK, WPF, System.Management, etc. — pulled in
+         transitively via Roslyn/Spectre.Console.Cli/COM interop) under TrimMode=partial, where
+         only explicitly opted-in assemblies get trimmed and everything else is preserved as-is.
+         It is informational, not an actionable bug in this project's own code, so it must not be
+         promoted to a build error by the repo-wide TreatWarningsAsErrors=true. -->
+    <NoWarn Condition="'$(SelfContained)' == 'true'">$(NoWarn);IL2104</NoWarn>
+    <!-- Trimming disables System.Text.Json's reflection-based serializer by default (it expects
+         source-generated JsonSerializerContext usage). The MCP SDK (ModelContextProtocol) and
+         this project's own JSON usage still rely on runtime reflection, so re-enable it
+         explicitly for the trimmed publish to avoid breaking tool serialization at runtime
+         ("Reflection-based serialization has been disabled..."). -->
+    <JsonSerializerIsReflectionEnabledByDefault Condition="'$(SelfContained)' == 'true'">true</JsonSerializerIsReflectionEnabledByDefault>
   </PropertyGroup>
 
   <!-- Emit generated source files for inspection -->

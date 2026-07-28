@@ -144,7 +144,6 @@ jobs:
           --self-contained true `
           -p:PublishSingleFile=true `
           -p:IncludeNativeLibrariesForSelfExtract=true `
-          -p:PublishTrimmed=false `
           -p:PublishReadyToRun=false `
           -p:Version=${{ env.VERSION }} `
           -p:AssemblyVersion=${{ env.VERSION }}.0 `
@@ -235,7 +234,6 @@ jobs:
           --self-contained true `
           -p:PublishSingleFile=true `
           -p:IncludeNativeLibrariesForSelfExtract=true `
-          -p:PublishTrimmed=false `
           -p:PublishReadyToRun=false `
           -p:Version=${{ env.VERSION }} `
           -p:AssemblyVersion=${{ env.VERSION }}.0 `
