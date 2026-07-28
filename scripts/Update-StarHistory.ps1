@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-    Generates an SVG chart from a repository's GitHub stargazer history.
+    Generates an SVG chart from a repository's GitHub watch-event history.
 
 .DESCRIPTION
-    Reads timestamped stargazers through GitHub's authenticated API and writes a
+    Reads repository metadata and public watch events from GitHub's API and writes a
     deterministic, theme-aware SVG suitable for the repository README and docs site.
 #>
 param(
@@ -38,37 +38,134 @@ function ConvertTo-SvgNumber {
     return $Value.ToString("0.##", [System.Globalization.CultureInfo]::InvariantCulture)
 }
 
+function ConvertTo-DateTimeOffset {
+    param(
+        [Parameter()]
+        [AllowNull()]
+        [object]$Value
+    )
+
+    if ($null -eq $Value) {
+        return $null
+    }
+
+    if ($Value -is [DateTimeOffset]) {
+        return $Value
+    }
+
+    if ($Value -is [DateTime]) {
+        return [DateTimeOffset]$Value
+    }
+
+    if ($Value -is [System.Array]) {
+        foreach ($item in $Value) {
+            $converted = ConvertTo-DateTimeOffset -Value $item
+            if ($null -ne $converted) {
+                return $converted
+            }
+        }
+
+        return $null
+    }
+
+    if ($Value -is [string]) {
+        $trimmed = $Value.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed)) {
+            return $null
+        }
+
+        return [DateTimeOffset]::Parse($trimmed, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal)
+    }
+
+    return [DateTimeOffset]$Value
+}
+
+function Invoke-GitHubApi {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Uri,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Headers,
+
+        [Parameter()]
+        [bool]$AllowFallback = $false,
+
+        [Parameter()]
+        [bool]$IsAuthenticated = $false
+    )
+
+    try {
+        return Invoke-RestMethod -Uri $Uri -Headers $Headers
+    }
+    catch {
+        $statusCode = $null
+        if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
+            $statusCode = [int]$_.Exception.Response.StatusCode
+        }
+
+        if ($AllowFallback -and $IsAuthenticated -and ($statusCode -eq 401 -or $statusCode -eq 403)) {
+            Write-Warning "GitHub rejected the supplied token for '$Uri'; retrying without authentication."
+
+            $unauthHeaders = @{}
+            foreach ($key in $Headers.Keys) {
+                if ($key -ne 'Authorization') {
+                    $unauthHeaders[$key] = $Headers[$key]
+                }
+            }
+
+            return Invoke-RestMethod -Uri $Uri -Headers $unauthHeaders
+        }
+
+        throw
+    }
+}
+
 $headers = @{
-    Accept = "application/vnd.github.star+json"
-    Authorization = "Bearer $Token"
+    Accept = "application/vnd.github+json"
     "X-GitHub-Api-Version" = "2022-11-28"
     "User-Agent" = "sbroenne/mcp-server-powerpoint-star-history"
 }
 
-$stargazers = [System.Collections.Generic.List[object]]::new()
-$page = 1
-
-do {
-    $uri = "https://api.github.com/repos/$Repository/stargazers?per_page=100&page=$page"
-    $pageItems = Invoke-RestMethod -Uri $uri -Headers $headers
-    $pageItems = @($pageItems)
-
-    foreach ($item in $pageItems) {
-        if (-not $item.starred_at) {
-            throw "GitHub did not return stargazer timestamps for '$Repository'."
-        }
-
-        $stargazers.Add([DateTimeOffset]$item.starred_at)
-    }
-
-    $page++
-} while ($pageItems.Count -eq 100)
-
-if ($stargazers.Count -eq 0) {
-    throw "No stargazers were returned for '$Repository'."
+$isAuthenticatedRequest = -not [string]::IsNullOrWhiteSpace($Token)
+if ($isAuthenticatedRequest) {
+    $headers.Authorization = "Bearer $Token"
 }
 
-$stars = @($stargazers | Sort-Object)
+$eventsUri = "https://api.github.com/repos/$Repository/events?per_page=100"
+$events = @()
+$repoMetadata = $null
+
+try {
+    $repoMetadata = Invoke-GitHubApi -Uri "https://api.github.com/repos/$Repository" -Headers $headers -AllowFallback $true -IsAuthenticated $isAuthenticatedRequest
+    $rawEvents = @(Invoke-GitHubApi -Uri $eventsUri -Headers $headers -AllowFallback $true -IsAuthenticated $isAuthenticatedRequest)
+    $events = @($rawEvents | Where-Object { $_.type -eq "WatchEvent" })
+}
+catch {
+    Write-Warning "Unable to load repository watch events for '$Repository'. $($_.Exception.Message)"
+}
+
+$stargazers = [System.Collections.Generic.List[object]]::new()
+
+if ($repoMetadata) {
+    $createdAt = ConvertTo-DateTimeOffset -Value $repoMetadata.created_at
+    if ($null -ne $createdAt) {
+        $stargazers.Add($createdAt)
+    }
+}
+
+foreach ($event in $events) {
+    $createdAt = ConvertTo-DateTimeOffset -Value $event.created_at
+    if ($null -ne $createdAt) {
+        $stargazers.Add($createdAt)
+    }
+}
+
+$stars = @($stargazers | Where-Object { $null -ne $_ } | Sort-Object)
+
+if ($stars.Count -eq 0) {
+    throw "No star-related events were returned for '$Repository'."
+}
 $firstStar = $stars[0]
 $lastStar = $stars[-1]
 $chartEnd = $lastStar
@@ -87,6 +184,14 @@ $plotWidth = $width - $left - $right
 $plotHeight = $height - $top - $bottom
 $durationTicks = ($chartEnd - $firstStar).Ticks
 $maxStars = $stars.Count
+
+if ($repoMetadata -and $repoMetadata.stargazers_count -gt $maxStars) {
+    $maxStars = [int]$repoMetadata.stargazers_count
+}
+
+if ($maxStars -lt 1) {
+    $maxStars = 1
+}
 
 $points = for ($index = 0; $index -lt $stars.Count; $index++) {
     $elapsedTicks = ($stars[$index] - $firstStar).Ticks
@@ -111,7 +216,7 @@ $areaPath = "M $firstX $baselineY L $lineCoordinates L $lastX $baselineY Z"
 
 $repositoryText = ConvertTo-SvgText $Repository
 $dateRange = "{0:MMM yyyy} - {1:MMM yyyy}" -f $firstStar, $lastStar
-$subtitle = ConvertTo-SvgText "$Repository - $maxStars stars - $dateRange"
+$subtitle = ConvertTo-SvgText "$Repository - watch events / approx. $maxStars stars - $dateRange"
 $description = ConvertTo-SvgText (
     "Cumulative GitHub stars for $Repository from " +
     "$($firstStar.ToString('yyyy-MM-dd')) to $($lastStar.ToString('yyyy-MM-dd')).")
