@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.4] - 2026-07-28
+
+### Patch Changes
+
+- [#42](https://github.com/sbroenne/mcp-server-powerpoint/pull/42) [`ec2f011`](https://github.com/sbroenne/mcp-server-powerpoint/commit/ec2f01184396e7db54dac908fbfe66926620fff0) Thanks [@sbroenne](https://github.com/sbroenne)! - The MCP Server and CLI standalone `.exe` release downloads are now trimmed, reducing their download size by roughly 29% (CLI: ~185MB → ~131MB). Also fixed an intermittent failure in chart creation/data operations that could occur immediately after adding or replacing chart data.
+
 ## [0.1.1] - 2026-07-22
 
 ### Minor Changes
