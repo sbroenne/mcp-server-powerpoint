@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
@@ -184,6 +185,12 @@ internal sealed class PresentationBatch : IPresentationBatch
         }
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2072",
+        Justification = "The `new PowerPoint.Application()` coclass constructor lowers to a " +
+            "runtime-activation call keyed off Marshal.GetTypeFromCLSID(...) for the embedded " +
+            "interop type. The created object is a COM proxy accessed exclusively via " +
+            "IDispatch/`dynamic` (see the PIA-first COM access rule) — no .NET reflection over " +
+            "its members occurs, so trimming member metadata on this type is irrelevant.")]
     private void RunStaThread(TaskCompletionSource started)
     {
         PowerPoint.Application? startupApp = null;

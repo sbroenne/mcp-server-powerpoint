@@ -463,12 +463,20 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
     private static void GenerateCliSettings(StringBuilder sb, ServiceInfo info, List<ExposedParameter> allParams)
     {
+        // Output path option (available on all commands), unless a domain parameter already uses
+        // the "OutputPath" PascalCase name (e.g. Export's own outputPath parameter) — in that case
+        // skip the reserved option/interface to avoid a duplicate-member compile error.
+        var hasConflictingOutputPathParam = allParams.Any(p => StringHelper.ToPascalCase(p.Name) == "OutputPath");
+
         // Note: These types require Spectre.Console reference in consuming project
         sb.AppendLine("        /// <summary>");
         sb.AppendLine($"        /// Generated CLI settings for {info.CategoryPascal} commands.");
         sb.AppendLine("        /// Requires Spectre.Console package reference.");
         sb.AppendLine("        /// </summary>");
-        sb.AppendLine("        public sealed class CliSettings : Spectre.Console.Cli.CommandSettings");
+        var settingsBaseTypes = hasConflictingOutputPathParam
+            ? "Spectre.Console.Cli.CommandSettings"
+            : "Spectre.Console.Cli.CommandSettings, Sbroenne.PowerPointMcp.Core.Cli.IHasOutputPath";
+        sb.AppendLine($"        public sealed class CliSettings : {settingsBaseTypes}");
         sb.AppendLine("        {");
 
         // Action argument (always first)
@@ -518,7 +526,6 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         // Output path option (available on all commands), unless a domain parameter already
         // uses the "OutputPath" PascalCase name (e.g. Export's own outputPath parameter) —
         // skip the reserved option in that case to avoid a duplicate-member compile error.
-        var hasConflictingOutputPathParam = allParams.Any(p => StringHelper.ToPascalCase(p.Name) == "OutputPath");
         if (!hasConflictingOutputPathParam)
         {
             sb.AppendLine("            [Spectre.Console.Cli.CommandOption(\"-o|--output <PATH>\")]");

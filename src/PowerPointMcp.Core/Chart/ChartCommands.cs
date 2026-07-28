@@ -707,11 +707,33 @@ public sealed class ChartCommands : IChartCommands
             // reads deterministic instead of returning transient zero-count state immediately after
             // AddChart/ReplaceChartData.
             chartData = chart.ChartData;
-            chartData.Activate();
-            workbook = chartData.Workbook;
-            workbookApplication = workbook.Application;
-            workbookApplication.Calculate();
-            chart.Refresh();
+
+            // Any step below (Activate, Workbook, Application, Calculate, Refresh) can throw a
+            // transient COMException immediately after AddChart/ReplaceChartData while the
+            // embedded Excel workbook is still spinning up — same class of flakiness
+            // RetryTransientChartRead already handles for series reads. Retry the whole sequence
+            // as a unit, releasing any partially-acquired COM refs before each retry attempt.
+            RetryTransientChartRead(() =>
+            {
+                if (workbookApplication != null)
+                {
+                    ComUtilities.Release(ref workbookApplication!);
+                    workbookApplication = null;
+                }
+
+                if (workbook != null)
+                {
+                    ComUtilities.Release(ref workbook!);
+                    workbook = null;
+                }
+
+                chartData.Activate();
+                workbook = chartData.Workbook;
+                workbookApplication = workbook.Application;
+                workbookApplication.Calculate();
+                chart.Refresh();
+                return true;
+            });
         }
         finally
         {

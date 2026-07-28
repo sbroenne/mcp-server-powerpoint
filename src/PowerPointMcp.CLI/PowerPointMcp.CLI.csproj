@@ -21,7 +21,25 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>pptcli</ToolCommandName>
     <PublishSelfContained>false</PublishSelfContained>
-    <PublishTrimmed>false</PublishTrimmed>
+    <!-- Trimming is enabled only for the standalone self-contained exe publish (win-x64, CI release
+         job). Setting it here (not via -p: on the publish command line) keeps it from propagating
+         as a global MSBuild property to the netstandard2.0 analyzer/generator project references,
+         which don't support trimming and would fail with NETSDK1124. -->
+    <PublishTrimmed Condition="'$(SelfContained)' == 'true'">true</PublishTrimmed>
+    <TrimMode Condition="'$(SelfContained)' == 'true'">partial</TrimMode>
+    <!-- IL2104 ("assembly not verified trim-safe") is expected noise from third-party
+         dependencies (Humanizer, PowerShell SDK, WPF, System.Management, etc. — pulled in
+         transitively via Roslyn/Spectre.Console.Cli/COM interop) under TrimMode=partial, where
+         only explicitly opted-in assemblies get trimmed and everything else is preserved as-is.
+         It is informational, not an actionable bug in this project's own code, so it must not be
+         promoted to a build error by the repo-wide TreatWarningsAsErrors=true. -->
+    <NoWarn Condition="'$(SelfContained)' == 'true'">$(NoWarn);IL2104</NoWarn>
+    <!-- Trimming disables System.Text.Json's reflection-based serializer by default (it expects
+         source-generated JsonSerializerContext usage). ServiceProtocol.JsonOptions (the CLI<->
+         daemon RPC wire format) and the daemon's own request/response types still rely on runtime
+         reflection, so re-enable it explicitly for the trimmed publish to avoid breaking the
+         daemon at runtime ("Reflection-based serialization has been disabled..."). -->
+    <JsonSerializerIsReflectionEnabledByDefault Condition="'$(SelfContained)' == 'true'">true</JsonSerializerIsReflectionEnabledByDefault>
     <!-- IMPORTANT: Do NOT declare <RuntimeIdentifiers> here — combined with PackAsTool it forces
          the pack flow to look for RID-qualified build output (bin/Release/net10.0-windows/win-x64/),
          but `dotnet build` without a RID produces plain bin/Release/net10.0-windows/, breaking
