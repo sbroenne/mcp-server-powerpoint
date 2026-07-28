@@ -24,9 +24,7 @@
     <ProjectReference Include="..\PowerPointMcp.ComInterop\PowerPointMcp.ComInterop.csproj" />
     <!-- Source generator for ServiceRegistry (CLI + skill manifest only; no [ServiceCategory]
          interfaces exist yet — this wiring is inert until Core interfaces are annotated) -->
-    <ProjectReference Include="..\PowerPointMcp.Generators\PowerPointMcp.Generators.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\PowerPointMcp.Generators\PowerPointMcp.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- Emit generated source files for inspection -->
@@ -40,6 +38,7 @@
       <ExcludeAssets>runtime</ExcludeAssets>
       <NoWarn>NU1701</NoWarn>
     </PackageReference>
+    <PackageReference Include="Microsoft.PowerShell.SDK" />
     <!-- Required for generated CliSettings class (Spectre.Console.Cli.CommandSettings) -->
     <PackageReference Include="Spectre.Console.Cli" />
   </ItemGroup>

@@ -1,12 +1,12 @@
 ---
 title: Complete Feature Reference
-description: 13 MCP tools with 137 operations across 13 domains for live PowerPoint automation through single action-dispatch tools.
+description: 13 MCP tools with 141 operations across 13 domains for live PowerPoint automation through single action-dispatch tools.
 keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **13 MCP tools with 137 operations across 13 domains**.
+PowerPoint MCP Server exposes **13 MCP tools with 141 operations across 13 domains**.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
 `chart(action="add-chart", session_id="...", slide_index=2, ...)`.
@@ -26,8 +26,8 @@ The CLI mirrors the same domain model:
 | `textframe` | 20 | Text content and text formatting | `textframe(action="...", session_id=..., ...)` | `pptcli textframe <action> -s <SESSION_ID> ...` |
 | `table` | 12 | Table creation and cell editing/formatting | `table(action="...", session_id=..., ...)` | `pptcli table <action> -s <SESSION_ID> ...` |
 | `notes` | 2 | Speaker notes | `notes(action="...", session_id=..., ...)` | `pptcli notes <action> -s <SESSION_ID> ...` |
-| `layout` | 2 | Slide layouts | `layout(action="...", session_id=..., ...)` | `pptcli layout <action> -s <SESSION_ID> ...` |
-| `master` | 8 | Slide master fonts and backgrounds | `master(action="...", session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
+| `layout` | 4 | Slide layouts | `layout(action="...", session_id=..., ...)` | `pptcli layout <action> -s <SESSION_ID> ...` |
+| `master` | 10 | Slide master fonts and backgrounds | `master(action="...", session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
 | `animation` | 5 | Shape effects and slide transitions | `animation(action="...", session_id=..., ...)` | `pptcli animation <action> -s <SESSION_ID> ...` |
 | `image` | 7 | Picture insertion and picture adjustments (brightness/contrast, recolor, crop) | `image(action="...", session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
 | `chart` | 10 | Native charts, titles, axes, legend, data replacement | `chart(action="...", session_id=..., ...)` | `pptcli chart <action> -s <SESSION_ID> ...` |

@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.Core.Master;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
 
@@ -177,5 +178,52 @@ public class MasterCommandsTests : IClassFixture<SharedPresentationFixture>
 
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void ListMasters_ReturnsMastersAndLayouts()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.ListMasters(batch);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.NotNull(result.Masters);
+        Assert.NotEmpty(result.Masters);
+
+        var firstMaster = Assert.Single(result.Masters);
+        Assert.NotNull(firstMaster.MasterName);
+        Assert.True(firstMaster.MasterIndex >= 1);
+        Assert.NotNull(firstMaster.Layouts);
+        Assert.NotEmpty(firstMaster.Layouts);
+    }
+
+    [Fact]
+    public void DeleteMaster_RemovesUnusedMasterAfterTemplateApply()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Designs designs = ctx.Presentation.Designs;
+            PowerPoint.Design extraDesign = designs.Add("PptMcpTestExtraMaster");
+            return 0;
+        });
+
+        var listResult = _commands.ListMasters(batch);
+        Assert.True(listResult.Success, listResult.ErrorMessage);
+        Assert.True(listResult.Masters!.Count >= 2);
+
+        var candidateMaster = listResult.Masters!.First(m => m.MasterName == "PptMcpTestExtraMaster");
+        var deleteResult = _commands.DeleteMaster(batch, candidateMaster.MasterIndex);
+
+        Assert.True(deleteResult.Success, deleteResult.ErrorMessage);
+
+        var afterDelete = _commands.ListMasters(batch);
+        Assert.True(afterDelete.Success, afterDelete.ErrorMessage);
+        Assert.DoesNotContain(afterDelete.Masters!, m => m.MasterName == candidateMaster.MasterName);
+        Assert.Equal(listResult.Masters!.Count - 1, afterDelete.Masters!.Count);
     }
 }

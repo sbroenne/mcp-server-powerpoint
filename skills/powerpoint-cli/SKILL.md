@@ -206,17 +206,19 @@ Actions: `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`, `s
 
 ### `layout` — Slide layout commands: apply/read a slide's built-in layout. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
 
-Actions: `set-layout`, `get-layout`
+Actions: `set-layout`, `get-layout`, `list-layouts`, `delete-layout`
 
 | Flag | Description |
 |------|-------------|
-| `--slide-index` | (required) |
+| `--slide-index` | (required for: set-layout, get-layout) |
 | `--layout-name` | (required for: set-layout) |
+| `--master-index` | (required for: list-layouts, delete-layout) |
+| `--layout-index` | (required for: delete-layout) |
 
 
 ### `master` — Slide master commands: read/edit the title and body placeholder fonts on the presentation's slide master, and read/edit the slide master's background fill color. Operates within an already-open . Changes here apply to every slide that inherits from the master (i.e. any slide that does not itself override the property), which is the practical "edit the master, not each slide" workflow PowerPoint's COM object model supports safely.
 
-Actions: `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`, `get-background-color`, `set-background-color`, `set-gradient-background`, `get-gradient-background`
+Actions: `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`, `get-background-color`, `set-background-color`, `set-gradient-background`, `get-gradient-background`, `list-masters`, `delete-master`
 
 | Flag | Description |
 |------|-------------|
@@ -234,6 +236,7 @@ Actions: `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`, `
 | `--blue2` | (required for: set-gradient-background) |
 | `--gradient-style` |  |
 | `--gradient-variant` |  |
+| `--master-index` | (required for: delete-master) |
 
 
 ### `notes` — Speaker notes commands: set/get the notes text for a slide. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.

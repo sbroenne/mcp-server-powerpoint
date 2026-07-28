@@ -32,7 +32,7 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 
 ## Capabilities
 
-**13 tools with 137 operations across 13 domains:**
+**13 tools with 141 operations across 13 domains:**
 
 | Tool | Ops | Coverage |
 | --- | --- | --- |
@@ -42,8 +42,8 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 | `textframe` | 20 | text content, font formatting, alignment, bullets, auto-size |
 | `table` | 12 | tables, cell text, row/column edits, cell fill/border, merge |
 | `notes` | 2 | set/get speaker notes |
-| `layout` | 2 | set/get slide layout |
-| `master` | 8 | title/body placeholder fonts, solid + gradient master backgrounds |
+| `layout` | 4 | set/get slide layout |
+| `master` | 10 | title/body placeholder fonts, solid + gradient master backgrounds |
 | `animation` | 5 | shape effects, transition read/write |
 | `image` | 7 | add picture, brightness/contrast, recolor, crop |
 | `chart` | 10 | charts, series, chart/axis titles, legend visibility, data replacement |

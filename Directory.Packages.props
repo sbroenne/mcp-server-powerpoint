@@ -8,6 +8,7 @@
     <!-- PowerPoint COM Interop PIA -->
     <PackageVersion Include="Microsoft.Office.Interop.PowerPoint" Version="15.0.4420.1018" />
     <!-- UI Framework (CLI) -->
+    <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.4.6" />
     <PackageVersion Include="Spectre.Console" Version="0.57.1" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
     <!-- Roslyn source generators (CLI + skill-manifest generation only; see .squad/decisions.md) -->
@@ -33,6 +34,8 @@
     <PackageVersion Include="Nerdbank.MessagePack" Version="1.2.30" />
     <PackageVersion Include="MessagePack" Version="3.1.7" />
     <PackageVersion Include="MessagePack.Annotations" Version="3.1.7" />
+    <!-- Pin the vulnerable transitive dependency used by PowerShell/other SDK packages to a patched release. -->
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="8.0.4" />
     <!-- Test dependencies -->
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.analyzers" Version="1.27.0" />

@@ -34,4 +34,33 @@ public sealed class MasterOperationResult
 
     /// <summary>Gradient variant (1-4), for Set/GetGradientBackground.</summary>
     public int? GradientVariant { get; init; }
+
+    /// <summary>Inventory of the slide masters in the presentation, for ListMasters.</summary>
+    public IReadOnlyList<MasterInventoryEntry>? Masters { get; init; }
+
+    /// <summary>Represents one slide master and the layouts attached to it.</summary>
+    public sealed class MasterInventoryEntry
+    {
+        /// <summary>1-based index of the slide master in the presentation.</summary>
+        public int MasterIndex { get; init; }
+
+        /// <summary>Name of the slide master.</summary>
+        public string? MasterName { get; init; }
+
+        /// <summary>Layouts attached to this slide master.</summary>
+        public IReadOnlyList<LayoutInventoryEntry>? Layouts { get; init; }
+    }
+
+    /// <summary>Represents one layout entry inside a slide master's inventory.</summary>
+    public sealed class LayoutInventoryEntry
+    {
+        /// <summary>1-based index of the layout within the slide master.</summary>
+        public int LayoutIndex { get; init; }
+
+        /// <summary>Name of the layout.</summary>
+        public string? LayoutName { get; init; }
+
+        /// <summary>Whether any slide in the presentation currently uses this layout.</summary>
+        public bool IsUsed { get; init; }
+    }
 }
