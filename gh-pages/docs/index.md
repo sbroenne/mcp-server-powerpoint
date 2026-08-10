@@ -158,4 +158,5 @@ based on your use case:
 
 ![GitHub stars over time for PowerPointMcp](assets/images/star-history.svg){ loading=lazy }
 
-Updated daily from GitHub's stargazer data.
+Bootstrapped from exact authenticated stargazer timestamps, then updated daily from
+GitHub's exact public star count. Only date/count aggregates are retained.

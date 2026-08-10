@@ -11,16 +11,12 @@ on:
       - 'src/PowerPointMcp.CLI/README.md'
       - 'skills/README.md'
       - '.github/workflows/deploy-gh-pages.yml'
+      - 'scripts/Initialize-StarHistory.ps1'
       - 'scripts/Update-StarHistory.ps1'
+      - 'star-history.json'
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:
-
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
-permissions:
-  contents: read
-  pages: write
-  id-token: write
 
 # Allow only one concurrent deployment
 concurrency:
@@ -28,24 +24,107 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  collect-star-history:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Ensure aggregate data branch exists
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! git ls-remote --exit-code origin refs/heads/star-history-data >/dev/null 2>&1; then
+            gh api \
+              --method POST \
+              "repos/${GITHUB_REPOSITORY}/git/refs" \
+              -f ref='refs/heads/star-history-data' \
+              -f sha="${GITHUB_SHA}"
+          fi
+
+      - name: Checkout aggregate data
+        uses: actions/checkout@v5
+        with:
+          ref: star-history-data
+          path: .star-history-data
+          persist-credentials: false
+
+      - name: Record exact daily star count and generate chart
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $aggregatePath = './.star-history-data/star-history.json'
+          if (-not (Test-Path -LiteralPath $aggregatePath)) {
+            Copy-Item -LiteralPath './star-history.json' -Destination $aggregatePath
+          }
+
+          $starCount = gh api "repos/${{ github.repository }}" --jq '.stargazers_count'
+          if ($LASTEXITCODE -ne 0 -or $starCount -notmatch '^\d+$') {
+            throw "Unable to read the repository's exact public stargazers_count."
+          }
+
+          ./scripts/Update-StarHistory.ps1 `
+            -Repository '${{ github.repository }}' `
+            -AggregatePath $aggregatePath `
+            -SnapshotDate ([DateTime]::UtcNow.ToString('yyyy-MM-dd')) `
+            -SnapshotCount ([int]$starCount) `
+            -OutputPath './star-history.svg'
+
+      - name: Persist daily aggregate snapshot
+        shell: bash
+        working-directory: .star-history-data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- star-history.json
+
+          if git diff --cached --quiet; then
+            echo "Today's exact snapshot is already current."
+            exit 0
+          fi
+
+          git commit -m "chore: record star count for $(date -u +%F)"
+          AUTH_HEADER="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $AUTH_HEADER" \
+            push origin HEAD:star-history-data
+
+      - name: Upload star history chart
+        uses: actions/upload-artifact@v4
+        with:
+          name: star-history-chart
+          path: star-history.svg
+          if-no-files-found: error
+          retention-days: 1
+
   deploy:
+    needs: collect-star-history
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
-      - name: Generate star history chart
-        shell: pwsh
-        env:
-          STAR_HISTORY_TOKEN: ${{ github.token }}
-        run: >
-          ./scripts/Update-StarHistory.ps1
-          -Repository '${{ github.repository }}'
-          -Token $env:STAR_HISTORY_TOKEN
-          -OutputPath './gh-pages/docs/assets/images/star-history.svg'
+      - name: Download star history chart
+        uses: actions/download-artifact@v5
+        with:
+          name: star-history-chart
+          path: gh-pages/docs/assets/images
 
       - name: Setup Python
         uses: actions/setup-python@v5

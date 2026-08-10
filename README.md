@@ -200,7 +200,8 @@ PowerPoint instance, and they do **not** share live sessions with each other.
 
 [![GitHub stars over time for PowerPointMcp](https://powerpointmcpserver.dev/assets/images/star-history.svg)](https://github.com/sbroenne/mcp-server-powerpoint/stargazers)
 
-Updated daily from GitHub's stargazer data.
+Bootstrapped from exact authenticated stargazer timestamps, then updated daily from
+GitHub's exact public star count. Only date/count aggregates are retained.
 
 ## 📋 Additional Information
 

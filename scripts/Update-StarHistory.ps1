@@ -1,10 +1,11 @@
 <#
 .SYNOPSIS
-    Generates an SVG chart from a repository's GitHub watch-event history.
+    Records an exact daily star-count snapshot and generates the star-history SVG.
 
 .DESCRIPTION
-    Reads repository metadata and public watch events from GitHub's API and writes a
-    deterministic, theme-aware SVG suitable for the repository README and docs site.
+    Reads aggregate-only star history, replaces or appends the supplied UTC daily
+    snapshot, persists the normalized aggregates, and renders a theme-aware SVG.
+    Network access is intentionally handled by the caller.
 #>
 param(
     [Parameter(Mandatory = $true)]
@@ -12,13 +13,22 @@ param(
     [string]$Repository,
 
     [Parameter(Mandatory = $true)]
-    [string]$Token,
+    [string]$AggregatePath,
+
+    [Parameter(Mandatory = $true)]
+    [ValidatePattern("^\d{4}-\d{2}-\d{2}$")]
+    [string]$SnapshotDate,
+
+    [Parameter(Mandatory = $true)]
+    [ValidateRange(0, [int]::MaxValue)]
+    [int]$SnapshotCount,
 
     [Parameter(Mandatory = $true)]
     [string]$OutputPath
 )
 
 $ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
 
 function ConvertTo-SvgText {
     param(
@@ -38,141 +48,87 @@ function ConvertTo-SvgNumber {
     return $Value.ToString("0.##", [System.Globalization.CultureInfo]::InvariantCulture)
 }
 
-function ConvertTo-DateTimeOffset {
-    param(
-        [Parameter()]
-        [AllowNull()]
-        [object]$Value
-    )
-
-    if ($null -eq $Value) {
-        return $null
-    }
-
-    if ($Value -is [DateTimeOffset]) {
-        return $Value
-    }
-
-    if ($Value -is [DateTime]) {
-        return [DateTimeOffset]$Value
-    }
-
-    if ($Value -is [System.Array]) {
-        foreach ($item in $Value) {
-            $converted = ConvertTo-DateTimeOffset -Value $item
-            if ($null -ne $converted) {
-                return $converted
-            }
-        }
-
-        return $null
-    }
-
-    if ($Value -is [string]) {
-        $trimmed = $Value.Trim()
-        if ([string]::IsNullOrWhiteSpace($trimmed)) {
-            return $null
-        }
-
-        return [DateTimeOffset]::Parse($trimmed, [System.Globalization.CultureInfo]::InvariantCulture, [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal)
-    }
-
-    return [DateTimeOffset]$Value
-}
-
-function Invoke-GitHubApi {
+function ConvertTo-SnapshotDate {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$Uri,
-
-        [Parameter(Mandatory = $true)]
-        [hashtable]$Headers,
-
-        [Parameter()]
-        [bool]$AllowFallback = $false,
-
-        [Parameter()]
-        [bool]$IsAuthenticated = $false
+        [string]$Value
     )
 
-    try {
-        return Invoke-RestMethod -Uri $Uri -Headers $Headers
+    $parsed = [DateTime]::MinValue
+    if (-not [DateTime]::TryParseExact(
+        $Value,
+        "yyyy-MM-dd",
+        [System.Globalization.CultureInfo]::InvariantCulture,
+        [System.Globalization.DateTimeStyles]::AssumeUniversal -bor [System.Globalization.DateTimeStyles]::AdjustToUniversal,
+        [ref]$parsed)) {
+        throw "Invalid star-history date '$Value'. Expected yyyy-MM-dd."
     }
-    catch {
-        $statusCode = $null
-        if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
-            $statusCode = [int]$_.Exception.Response.StatusCode
-        }
 
-        if ($AllowFallback -and $IsAuthenticated -and ($statusCode -eq 401 -or $statusCode -eq 403)) {
-            Write-Warning "GitHub rejected the supplied token for '$Uri'; retrying without authentication."
+    return $parsed
+}
 
-            $unauthHeaders = @{}
-            foreach ($key in $Headers.Keys) {
-                if ($key -ne 'Authorization') {
-                    $unauthHeaders[$key] = $Headers[$key]
-                }
+$resolvedAggregatePath = [System.IO.Path]::GetFullPath($AggregatePath)
+if (-not (Test-Path -LiteralPath $resolvedAggregatePath -PathType Leaf)) {
+    throw "Star-history aggregate file not found: $resolvedAggregatePath"
+}
+
+$rawHistory = Get-Content -LiteralPath $resolvedAggregatePath -Raw | ConvertFrom-Json
+$snapshotsByDate = [System.Collections.Generic.Dictionary[string, int]]::new([System.StringComparer]::Ordinal)
+
+foreach ($rawSnapshot in @($rawHistory)) {
+    $propertyNames = @($rawSnapshot.PSObject.Properties.Name | Sort-Object)
+    if (($propertyNames -join ",") -ne "count,date") {
+        throw "Star-history records may contain only 'date' and 'count'."
+    }
+
+    $date = [string]$rawSnapshot.date
+    [void](ConvertTo-SnapshotDate -Value $date)
+
+    $countText = [string]$rawSnapshot.count
+    $count = 0
+    if ($countText -notmatch "^\d+$" -or -not [int]::TryParse(
+        $countText,
+        [System.Globalization.NumberStyles]::None,
+        [System.Globalization.CultureInfo]::InvariantCulture,
+        [ref]$count)) {
+        throw "Invalid star count '$countText' for $date."
+    }
+
+    if (-not $snapshotsByDate.TryAdd($date, $count)) {
+        throw "Duplicate star-history date '$date'."
+    }
+}
+
+[void](ConvertTo-SnapshotDate -Value $SnapshotDate)
+$snapshotsByDate[$SnapshotDate] = $SnapshotCount
+
+$snapshots = @(
+    $snapshotsByDate.GetEnumerator() |
+        Sort-Object -Property Key |
+        ForEach-Object {
+            [ordered]@{
+                date = $_.Key
+                count = $_.Value
             }
-
-            return Invoke-RestMethod -Uri $Uri -Headers $unauthHeaders
         }
+)
 
-        throw
-    }
+if ($snapshots.Count -eq 0) {
+    throw "Star history must contain at least one snapshot."
 }
 
-$headers = @{
-    Accept = "application/vnd.github+json"
-    "X-GitHub-Api-Version" = "2022-11-28"
-    "User-Agent" = "sbroenne/mcp-server-powerpoint-star-history"
+$aggregateDirectory = Split-Path -Parent $resolvedAggregatePath
+if (-not (Test-Path -LiteralPath $aggregateDirectory)) {
+    New-Item -ItemType Directory -Path $aggregateDirectory -Force | Out-Null
 }
 
-$isAuthenticatedRequest = -not [string]::IsNullOrWhiteSpace($Token)
-if ($isAuthenticatedRequest) {
-    $headers.Authorization = "Bearer $Token"
-}
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+$aggregateJson = $snapshots | ConvertTo-Json -Depth 3 -AsArray
+[System.IO.File]::WriteAllText($resolvedAggregatePath, "$aggregateJson`n", $utf8NoBom)
 
-$eventsUri = "https://api.github.com/repos/$Repository/events?per_page=100"
-$events = @()
-$repoMetadata = $null
-
-try {
-    $repoMetadata = Invoke-GitHubApi -Uri "https://api.github.com/repos/$Repository" -Headers $headers -AllowFallback $true -IsAuthenticated $isAuthenticatedRequest
-    $rawEvents = @(Invoke-GitHubApi -Uri $eventsUri -Headers $headers -AllowFallback $true -IsAuthenticated $isAuthenticatedRequest)
-    $events = @($rawEvents | Where-Object { $_.type -eq "WatchEvent" })
-}
-catch {
-    Write-Warning "Unable to load repository watch events for '$Repository'. $($_.Exception.Message)"
-}
-
-$stargazers = [System.Collections.Generic.List[object]]::new()
-
-if ($repoMetadata) {
-    $createdAt = ConvertTo-DateTimeOffset -Value $repoMetadata.created_at
-    if ($null -ne $createdAt) {
-        $stargazers.Add($createdAt)
-    }
-}
-
-foreach ($event in $events) {
-    $createdAt = ConvertTo-DateTimeOffset -Value $event.created_at
-    if ($null -ne $createdAt) {
-        $stargazers.Add($createdAt)
-    }
-}
-
-$stars = @($stargazers | Where-Object { $null -ne $_ } | Sort-Object)
-
-if ($stars.Count -eq 0) {
-    throw "No star-related events were returned for '$Repository'."
-}
-$firstStar = $stars[0]
-$lastStar = $stars[-1]
-$chartEnd = $lastStar
-
-if ($chartEnd -eq $firstStar) {
-    $chartEnd = $firstStar.AddDays(1)
-}
+$firstDate = ConvertTo-SnapshotDate -Value $snapshots[0].date
+$lastDate = ConvertTo-SnapshotDate -Value $snapshots[-1].date
+$chartEnd = if ($lastDate -eq $firstDate) { $firstDate.AddDays(1) } else { $lastDate }
 
 $width = 900
 $height = 480
@@ -182,44 +138,43 @@ $top = 76
 $bottom = 62
 $plotWidth = $width - $left - $right
 $plotHeight = $height - $top - $bottom
-$durationTicks = ($chartEnd - $firstStar).Ticks
-$maxStars = $stars.Count
+$durationTicks = ($chartEnd - $firstDate).Ticks
+$maxStars = [Math]::Max(1, [int](($snapshots | Measure-Object -Property count -Maximum).Maximum))
 
-if ($repoMetadata -and $repoMetadata.stargazers_count -gt $maxStars) {
-    $maxStars = [int]$repoMetadata.stargazers_count
-}
+$points = @(
+    foreach ($snapshot in $snapshots) {
+        $date = ConvertTo-SnapshotDate -Value $snapshot.date
+        $x = $left + ((($date - $firstDate).Ticks / $durationTicks) * $plotWidth)
+        $y = $top + $plotHeight - (($snapshot.count / $maxStars) * $plotHeight)
 
-if ($maxStars -lt 1) {
-    $maxStars = 1
-}
-
-$points = for ($index = 0; $index -lt $stars.Count; $index++) {
-    $elapsedTicks = ($stars[$index] - $firstStar).Ticks
-    $x = $left + (($elapsedTicks / $durationTicks) * $plotWidth)
-    $y = $top + $plotHeight - ((($index + 1) / $maxStars) * $plotHeight)
-
-    [pscustomobject]@{
-        X = $x
-        Y = $y
+        [pscustomobject]@{
+            X = $x
+            Y = $y
+        }
     }
-}
+)
 
-$lineCoordinates = ($points | ForEach-Object {
-    "$(ConvertTo-SvgNumber $_.X) $(ConvertTo-SvgNumber $_.Y)"
-}) -join " L "
-$linePath = "M $lineCoordinates"
+$linePath = "M $(ConvertTo-SvgNumber $points[0].X) $(ConvertTo-SvgNumber $points[0].Y)"
+for ($index = 1; $index -lt $points.Count; $index++) {
+    $linePath += " H $(ConvertTo-SvgNumber $points[$index].X) V $(ConvertTo-SvgNumber $points[$index].Y)"
+}
 
 $firstX = ConvertTo-SvgNumber $points[0].X
 $lastX = ConvertTo-SvgNumber $points[-1].X
 $baselineY = ConvertTo-SvgNumber ($top + $plotHeight)
-$areaPath = "M $firstX $baselineY L $lineCoordinates L $lastX $baselineY Z"
+$areaPath = "M $firstX $baselineY L $firstX $(ConvertTo-SvgNumber $points[0].Y)"
+for ($index = 1; $index -lt $points.Count; $index++) {
+    $areaPath += " H $(ConvertTo-SvgNumber $points[$index].X) V $(ConvertTo-SvgNumber $points[$index].Y)"
+}
+$areaPath += " L $lastX $baselineY Z"
 
 $repositoryText = ConvertTo-SvgText $Repository
-$dateRange = "{0:MMM yyyy} - {1:MMM yyyy}" -f $firstStar, $lastStar
-$subtitle = ConvertTo-SvgText "$Repository - watch events / approx. $maxStars stars - $dateRange"
+$dateRange = "{0:MMM yyyy} - {1:MMM yyyy}" -f $firstDate, $lastDate
+$currentCount = [int]$snapshots[-1].count
+$subtitle = ConvertTo-SvgText "$Repository - $currentCount stars - $dateRange"
 $description = ConvertTo-SvgText (
-    "Cumulative GitHub stars for $Repository from " +
-    "$($firstStar.ToString('yyyy-MM-dd')) to $($lastStar.ToString('yyyy-MM-dd')).")
+    "Exact cumulative GitHub star snapshots for $Repository from " +
+    "$($firstDate.ToString('yyyy-MM-dd')) to $($lastDate.ToString('yyyy-MM-dd')).")
 
 $svg = [System.Text.StringBuilder]::new()
 [void]$svg.AppendLine('<?xml version="1.0" encoding="UTF-8"?>')
@@ -258,7 +213,7 @@ for ($index = 0; $index -le 4; $index++) {
 
 for ($index = 0; $index -le 4; $index++) {
     $x = $left + (($plotWidth * $index) / 4)
-    $tickDate = $firstStar.AddTicks([long](($durationTicks * $index) / 4))
+    $tickDate = $firstDate.AddTicks([long](($durationTicks * $index) / 4))
     $anchor = if ($index -eq 0) { "start" } elseif ($index -eq 4) { "end" } else { "middle" }
 
     [void]$svg.AppendLine("  <text class=`"axis-text`" x=`"$(ConvertTo-SvgNumber $x)`" y=`"$($top + $plotHeight + 28)`" text-anchor=`"$anchor`">$($tickDate.ToString('MMM yyyy'))</text>")
@@ -270,12 +225,9 @@ for ($index = 0; $index -le 4; $index++) {
 
 $resolvedOutputPath = [System.IO.Path]::GetFullPath($OutputPath)
 $outputDirectory = Split-Path -Parent $resolvedOutputPath
-
-if (-not (Test-Path $outputDirectory)) {
+if (-not (Test-Path -LiteralPath $outputDirectory)) {
     New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 }
 
-$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 [System.IO.File]::WriteAllText($resolvedOutputPath, $svg.ToString(), $utf8NoBom)
-
-Write-Host "Generated $resolvedOutputPath with $maxStars stars." -ForegroundColor Green
+Write-Host "Recorded $SnapshotDate at $SnapshotCount stars and generated $resolvedOutputPath." -ForegroundColor Green
