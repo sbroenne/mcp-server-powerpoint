@@ -376,7 +376,11 @@ def _faq_jsonld(markdown: str) -> str:
                 continue
             if in_fence or raw.startswith("|"):
                 continue
-            prose.append(raw)
+            # Strip the list marker here, per line, rather than from the joined
+            # string: a joined-string pattern like ``(?:^|\s)-\s+`` also matches
+            # a mid-sentence " - " separator and silently welds two clauses
+            # together. Caught in the sibling mcp-server-excel repo (#771).
+            prose.append(re.sub(r"^[-*+]\s+", "", raw))
 
         answer = " ".join(x for x in prose if x).strip()
         if not answer:
@@ -384,7 +388,6 @@ def _faq_jsonld(markdown: str) -> str:
         # Strip inline Markdown so the structured answer is plain prose.
         answer = _MD_LINK.sub(r"\1", answer)
         answer = re.sub(r"[*_`]+", "", answer)
-        answer = re.sub(r"(?:^|\s)-\s+", " ", answer)
         answer = re.sub(r"\s{2,}", " ", answer).strip()
         entities.append(
             {
