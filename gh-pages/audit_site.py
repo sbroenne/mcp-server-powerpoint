@@ -250,7 +250,13 @@ def audit_sitemap() -> None:
             if fh.read() != text:
                 fail("sitemap.xml.gz does not match sitemap.xml")
     except (OSError, EOFError, zlib.error) as exc:
-        fail(f"sitemap.xml.gz could not be read: {type(exc).__name__}: {exc}")
+        # zlib.error's bare type name is just "error", which says nothing. Qualify
+        # with the module unless it is a builtin, so the message names the failure
+        # (gzip.BadGzipFile / EOFError / zlib.error) rather than obscuring it.
+        kind = type(exc).__qualname__
+        if type(exc).__module__ != "builtins":
+            kind = f"{type(exc).__module__}.{kind}"
+        fail(f"sitemap.xml.gz could not be read: {kind}: {exc}")
 
 
 def audit_llms(html_files: list[Path]) -> None:
