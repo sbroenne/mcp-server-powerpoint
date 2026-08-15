@@ -1,2 +1,7 @@
+# Material for MkDocs. The [imaging] extra (Pillow + CairoSVG) is deliberately
+# NOT used: the built-in `social` plugin needs the native Cairo library, which is
+# absent on a stock Windows dev box, so it could only ever run in CI. One
+# hand-designed og-card.png is used for every page instead, set in
+# overrides/main.html. This matches the sibling mcp-server-excel repo.
 mkdocs-material==9.7.6
 mkdocs-minify-plugin==0.8.0

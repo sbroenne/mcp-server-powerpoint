@@ -12,8 +12,8 @@
     <!-- NuGet package configuration (distributed as a .NET tool). Command: pptcli -->
     <PackageId>Sbroenne.PowerPointMcp.CLI</PackageId>
     <Title>PowerPoint MCP CLI</Title>
-    <Description>Command-line PowerPoint automation built on the PowerPoint MCP engine. Requires PowerPoint to be installed. Only runs on Windows.</Description>
-    <PackageTags>powerpoint;microsoft;office;presentation;slides;automation;cli;dotnet-tool</PackageTags>
+    <Description>Command-line PowerPoint automation for AI coding agents (GitHub Copilot, Claude Code, Cursor, Windsurf), built on the PowerPoint MCP engine. Drives a live Microsoft PowerPoint desktop instance over COM to edit slides, shapes, text, tables, charts, SmartArt and animations, and to export slides as images for visual verification. Requires PowerPoint to be installed. Only runs on Windows.</Description>
+    <PackageTags>powerpoint;microsoft;office;presentation;slides;automation;cli;dotnet-tool;mcp;model-context-protocol;ai-agent;claude;cursor;github-copilot;windows</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-powerpoint/releases for release notes</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>

@@ -6,9 +6,10 @@ content tools. Activate this when the user asks to "create a deck", "build a pre
 
 ## Plan Before You Build
 
-Slides only append at the end — **there is no move/reorder action in this surface.**
-Decide the full slide order up front before adding slides, because re-ordering later means
-deleting and re-adding slides in the right sequence.
+New slides are always appended at the end by `slide(action: "add-blank", ...)`, so decide the full
+slide order up front. You *can* reorder afterwards with `slide(action: "move-to", session_id: ...,
+slide_index: ..., to_position: ...)`, but planning the order first avoids the renumbering churn —
+every `move-to` shifts the indexes of the slides around it, invalidating any index you were holding.
 
 1. `slide(action: "get-count", session_id: ...)` (or start from 0 for a new file) → know where
    you're starting from.
@@ -72,9 +73,11 @@ There is no API in this surface to query the actual slide width/height — assum
 
 - Title/agenda slide first, section dividers between major topics, summary/closing slide last.
 - Keep related content together — build a whole section's slides consecutively rather than
-  jumping around, since there's no reorder tool to fix mistakes cheaply.
-- If a slide was created in the wrong position, the only fix is `slide(action: "delete", ...)` +
-  re-`add-blank` in the right order — plan ahead to avoid this.
+  jumping around, so you rarely need to reorder at all.
+- If a slide ends up in the wrong position, move it with `slide(action: "move-to", session_id: ...,
+  slide_index: ..., to_position: ...)` — never delete and rebuild it. The action returns the
+  slide's new `slideIndex`; re-read `get-count` or re-derive any other index you were holding,
+  because everything between the old and new position has shifted by one.
 
 ## After the Deck Is Built
 

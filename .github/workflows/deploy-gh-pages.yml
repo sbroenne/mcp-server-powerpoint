@@ -140,6 +140,10 @@ jobs:
         working-directory: gh-pages
         run: mkdocs build --strict --clean
 
+      - name: Audit site (SEO + LLM discoverability)
+        working-directory: gh-pages
+        run: python audit_site.py
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 

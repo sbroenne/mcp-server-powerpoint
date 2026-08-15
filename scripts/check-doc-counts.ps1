@@ -131,6 +131,9 @@ $checks = @(
     @{ File = "README.md";                                     Pattern = '(?<t>\d+) MCP tools with (?<o>\d+) operations' }
     @{ File = "src\PowerPointMcp.McpServer\README.md";          Pattern = '(?<t>\d+) tools with (?<o>\d+) operations' }
     @{ File = "mcpb\README.md";                                 Pattern = 'tools \((?<o>\d+) operations across \d+ domains\)' }
+    # The MCPB manifest ships to end users in the .mcpb bundle, so its headline
+    # count is user-facing and must be guarded too (it silently drifted to 137).
+    @{ File = "mcpb\manifest.json";                             Pattern = '(?<t>\d+) tools \((?<o>\d+) operations across \d+ domains' }
     @{ File = "gh-pages\docs\index.md";                         Pattern = 'all (?<t>\d+) tools \((?<o>\d+) operations\) across \d+ domains' }
     @{ File = "gh-pages\docs\installation.md";                  Pattern = 'all (?<t>\d+) tools \((?<o>\d+) operations\) across \d+ domains' }
     @{ File = "gh-pages\docs\features.md";                      Pattern = '(?<t>\d+) MCP tools with (?<o>\d+) operations across \d+ domains' }
@@ -190,6 +193,62 @@ foreach ($check in $perDomainChecks) {
         if ($claimed -ne $domainOpCounts[$label]) {
             Add-Failure ("$($check.File): '$label' claims $claimed ops but the manifest says $($domainOpCounts[$label]) -> `"$($m.Value.Trim())`"")
         }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# 6. Distribution surfaces must point at the documentation site
+#    Each of these is the first thing a new user sees on a package/registry
+#    listing. Pointing them at the docs domain (rather than the repo) keeps the
+#    search authority on powerpointmcpserver.dev instead of splitting it with
+#    github.com. Ported from the sibling mcp-server-excel repo.
+# ---------------------------------------------------------------------------
+$docsSite = "https://powerpointmcpserver.dev/"
+$siteLinkChecks = @(
+    @{ File = "mcpb\manifest.json";                        Field = "homepage" }
+    @{ File = "mcpb\manifest.json";                        Field = "documentation" }
+    @{ File = "src\PowerPointMcp.McpServer\.mcp\server.json"; Field = "websiteUrl" }
+)
+
+foreach ($check in $siteLinkChecks) {
+    $path = Join-Path $rootDir $check.File
+    if (-not (Test-Path $path)) {
+        Add-Failure "Expected distribution file not found: $($check.File)"
+        continue
+    }
+    $obj = Get-Content $path -Raw | ConvertFrom-Json
+    $value = $obj.$($check.Field)
+    if ([string]::IsNullOrWhiteSpace($value)) {
+        Add-Failure "$($check.File): '$($check.Field)' is missing - it should point at $docsSite"
+    }
+    elseif ($value -notlike "$docsSite*") {
+        Add-Failure "$($check.File): '$($check.Field)' is '$value' but should point at $docsSite"
+    }
+}
+
+$propsPath = Join-Path $rootDir "Directory.Build.props"
+if (Test-Path $propsPath) {
+    $props = Get-Content $propsPath -Raw
+    if ($props -notmatch '<PackageProjectUrl>\s*https://powerpointmcpserver\.dev/?\s*</PackageProjectUrl>') {
+        Add-Failure "Directory.Build.props: <PackageProjectUrl> should be $docsSite so nuget.org links to the docs site"
+    }
+}
+
+# ---------------------------------------------------------------------------
+# 7. The CLI skill's command reference must match the generated SKILL.md
+#
+# SKILL.md is emitted by the CLI source generator, so it is always accurate.
+# references/cli-commands.md used to be hand-maintained and silently drifted
+# 29 operations behind - including the whole 'smartart' domain, which an agent
+# reading it would have concluded did not exist. It is now derived from
+# SKILL.md by scripts/Build-CliCommandReference.ps1.
+# ---------------------------------------------------------------------------
+$cliRefBuilder = Join-Path $PSScriptRoot "Build-CliCommandReference.ps1"
+$cliSkillPath = Join-Path $rootDir "skills\powerpoint-cli\SKILL.md"
+if ((Test-Path $cliRefBuilder) -and (Test-Path $cliSkillPath)) {
+    & $cliRefBuilder -Check | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Add-Failure "skills/powerpoint-cli/references/cli-commands.md is out of date with the generated SKILL.md - run: pwsh -File scripts/Build-CliCommandReference.ps1"
     }
 }
 

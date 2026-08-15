@@ -3,9 +3,8 @@ template: home.html
 title: Home
 description: >-
   Control Microsoft PowerPoint with natural language through AI assistants
-  like GitHub Copilot and Claude. Automate slides, shapes, tables, charts and
-  export-to-verify visual checks — no PowerPoint object-model knowledge
-  required.
+  like GitHub Copilot and Claude. Automate slides, shapes, tables and charts,
+  with export-to-verify visual checks.
 keywords: "PowerPoint automation, MCP server, AI PowerPoint, slide automation, PowerPoint COM, GitHub Copilot PowerPoint, Claude PowerPoint, PowerPoint CLI, presentation automation"
 hide:
   - navigation
@@ -102,6 +101,39 @@ hide:
 </div>
 
 [See all 13 tools (141 operations) across 13 domains :material-arrow-right:](features.md){ .md-button .md-button--primary }
+
+## Guides
+
+Task-focused walkthroughs that start from what you actually want to do:
+
+<div class="grid cards" markdown>
+
+-   :material-presentation-play: **[Build a deck with AI](guides/build-a-deck-with-ai.md)**
+
+    Generate a complete multi-slide presentation from an outline, then verify it
+    visually before saving.
+
+-   :material-file-edit: **[Edit an existing deck](guides/edit-an-existing-deck.md)**
+
+    Update, restructure and repair a `.pptx` file without losing its formatting.
+
+-   :material-image-multiple: **[Export slides to images](guides/export-slides-to-images.md)**
+
+    Render slides to PNG so an assistant can see — and correct — its own output.
+
+-   :material-chart-bar: **[Automate charts and tables](guides/automate-charts-and-tables.md)**
+
+    Put real data on a slide as a native chart or table, not a screenshot of one.
+
+-   :material-palette: **[Apply a corporate template](guides/apply-a-corporate-template.md)**
+
+    Force generated decks onto your brand's template, theme, fonts and colours.
+
+-   :material-book-open-variant: **[Full reference](reference/index.md)**
+
+    The complete expert corpus that ships inside the agent skill packages.
+
+</div>
 
 ## See it in action
 

@@ -81,9 +81,40 @@ theme:
 nav:
   - Home: index.md
   - Features: features.md
-  - Installation: installation.md
+  - Installation:
+      - Overview: installation.md
+      - Claude Desktop: claude-desktop.md
+      - VS Code & GitHub Copilot: vs-code.md
+      - Cursor: cursor.md
+  - Guides:
+      - Overview: guides/index.md
+      - Build a deck with AI: guides/build-a-deck-with-ai.md
+      - Edit an existing deck: guides/edit-an-existing-deck.md
+      - Export slides to images: guides/export-slides-to-images.md
+      - Automate charts & tables: guides/automate-charts-and-tables.md
+      - Apply a corporate template: guides/apply-a-corporate-template.md
+  - Reference:
+      - Overview: reference/index.md
+      - Session workflow: reference/workflows.md
+      - Behavioral rules: reference/behavioral-rules.md
+      - Anti-patterns: reference/anti-patterns.md
+      - Building a deck: reference/deck-builder.md
+      - Slides & shapes: reference/slides-and-shapes.md
+      - Text formatting: reference/text-formatting.md
+      - Tables: reference/tables.md
+      - Charts: reference/charts.md
+      - Images: reference/images.md
+      - SmartArt: reference/smartart.md
+      - Speaker notes: reference/speaker-notes.md
+      - Layouts: reference/layouts.md
+      - Slide master: reference/slide-master.md
+      - Export & verification: reference/export-and-verify.md
   - MCP Server: mcp-server.md
   - CLI: cli.md
+  - Help:
+      - FAQ: faq.md
+      - Troubleshooting: troubleshooting.md
+      - Comparison: comparison.md
   - More:
       - Agent Skills: skills.md
       - Architecture: architecture.md
@@ -135,6 +166,9 @@ markdown_extensions:
 
 plugins:
   - search
+  # /llms.txt, /llms-full.txt and the per-page Markdown mirrors are generated in
+  # hooks.py from the resolved navigation, so they cannot go stale the way a
+  # hand-curated plugin section map does. See on_post_build there.
   - minify:
       minify_html: true
 
