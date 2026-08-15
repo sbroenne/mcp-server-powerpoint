@@ -2,8 +2,9 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.sbroenne/mcp-server-powerpoint",
   "title": "MCP Server for PowerPoint",
-  "description": "PowerPoint automation for AI: slides, shapes, tables, charts, images, notes. Windows only.",
+  "description": "Automate real PowerPoint with AI: slides, shapes, tables, charts, SmartArt, animations. Windows.",
   "version": "0.1.0",
+  "websiteUrl": "https://powerpointmcpserver.dev/",
   "packages": [
     {
       "registryType": "nuget",

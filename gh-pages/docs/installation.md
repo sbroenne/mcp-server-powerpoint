@@ -1,6 +1,27 @@
 ---
 title: Installation Guide
 description: Complete installation instructions for PowerPoint MCP Server — NuGet .NET tools, standalone executable, VS Code extension, MCPB bundle, MCP Registry and Agent Skills.
+keywords: "install PowerPoint MCP Server, PowerPoint MCP setup Windows, dotnet tool install PowerPoint, mcp-powerpoint install, pptcli install, PowerPoint MCP VS Code extension"
+# The `howto:` list below is rendered as HowTo JSON-LD by overrides/main.html.
+# Each `anchor` must match a heading on this page.
+howto_name: How to install PowerPoint MCP Server on Windows
+howto_time: PT10M
+howto:
+  - name: Check the prerequisites
+    anchor: prerequisites
+    text: Confirm you are on Windows with Microsoft PowerPoint 2016 or later (desktop) installed and activated. The .NET 10 runtime is needed only for the dotnet tool install path.
+  - name: Choose an install path
+    anchor: choose-your-install-path
+    text: Install the MCP Server or CLI as a global .NET tool, download the self-contained standalone executable, install the VS Code extension, or open the MCPB bundle with Claude Desktop.
+  - name: Point your MCP client at the server
+    anchor: manual-configuration
+    text: Run npx add-mcp "mcp-powerpoint" --name powerpoint-mcp, or add the mcp-powerpoint command to your client's MCP settings manually.
+  - name: Install the agent skill
+    anchor: agent-skills
+    text: Run npx skills add sbroenne/mcp-server-powerpoint --skill powerpoint-mcp to give your AI assistant workflow guidance beyond the raw tool schemas.
+  - name: Verify the install
+    anchor: verifying-your-install
+    text: Ask your AI assistant to create a presentation and export a slide as an image. A rendered PNG of a real PowerPoint slide confirms the setup works.
 ---
 
 # Installation Guide
@@ -110,17 +131,31 @@ If the assistant can call `presentation(action="create", filePath=...)`,
 `export(action="export-slide-to-image", session_id=..., slide_index=..., output_path=...)` and
 you get back a rendered PNG of a real PowerPoint slide, you're set up correctly.
 
+## Client-specific setup
+
+Step-by-step guides with copy-paste config blocks:
+
+- [Claude Desktop](claude-desktop.md) — MCPB bundle or `claude_desktop_config.json`
+- [VS Code & GitHub Copilot](vs-code.md) — extension or `mcp.json`
+- [Cursor](cursor.md) — `.cursor/mcp.json`
+
+Claude Code, Windsurf, Cline and Continue follow the same pattern — point them
+at the `mcp-powerpoint` command.
+
 ## Troubleshooting
 
-- **"PowerPoint is not installed" errors** — this project requires the full
-  PowerPoint desktop application (not PowerPoint Online / Mobile) to be
-  installed and activated on the same Windows machine running the MCP
-  server.
-- **Lingering `POWERPNT.EXE` processes** — sessions are cleaned up on
-  `presentation(action="close", sessionId=...)` and on MCP server shutdown; if a process lingers
-  after a crash, close it from Task Manager.
-- **.NET tool not found on PATH** — restart your terminal after
-  `dotnet tool install --global` so the updated `PATH` is picked up.
+The most common problems:
+
+- **"Microsoft PowerPoint is not installed"** — the full desktop application
+  must be installed and activated. PowerPoint Online and PowerPoint Mobile
+  cannot be automated.
+- **.NET tool not found on PATH** — restart your terminal *and* your MCP client
+  after `dotnet tool install --global`.
+- **Lingering `POWERPNT.EXE` processes** — usually normal. Office's own
+  post-quit cleanup can take up to ~90–200 seconds.
+
+See the [troubleshooting guide](troubleshooting.md) for the full list, including
+COM HRESULT codes and CLI daemon errors.
 
 ## More information
 
@@ -128,3 +163,4 @@ you get back a rendered PNG of a real PowerPoint slide, you're set up correctly.
 - [MCP Server Documentation](mcp-server.md) — MCP tool reference
 - [CLI Documentation](cli.md) — CLI command reference
 - [Agent Skills](skills.md) — AI guidance for Claude Code, Cursor, Windsurf and more
+- [FAQ](faq.md) — requirements, client compatibility and behaviour

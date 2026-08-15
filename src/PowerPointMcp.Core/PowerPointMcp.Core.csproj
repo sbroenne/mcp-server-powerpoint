@@ -11,7 +11,7 @@
     <PackageId>Sbroenne.PowerPointMcp.Core</PackageId>
     <Title>Sbroenne PowerPointMcp Core Library</Title>
     <Description>PowerPoint business logic commands (slides, shapes, text, tables, charts, images, notes, layouts, export/QA) built on Sbroenne.PowerPointMcp.ComInterop.</Description>
-    <PackageTags>powerpoint;automation;com;interop;windows;sbroenne</PackageTags>
+    <PackageTags>powerpoint;automation;com;interop;windows;sbroenne;mcp;model-context-protocol;office;presentation;slides</PackageTags>
 
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>

@@ -5,8 +5,10 @@
   (Material already emits title, description, canonical and Open Graph tags).
 -->
 {% block extrahead %}
-  <!-- Search engine verification -->
-  <meta name="msvalidate.01" content="REPLACE_WITH_BING_VERIFICATION_TOKEN" />
+  <!-- Search engine verification: Bing ownership is established through the
+       Google Search Console import in Bing Webmaster Tools, which also carries
+       the sitemap over, so no msvalidate.01 meta tag / BingSiteAuth.xml is
+       needed here. Google is verified via the IndexNow key file. -->
 
   <!-- Bot directives for rich snippets -->
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
@@ -16,21 +18,56 @@
   <meta name="keywords" content="{{ page.meta.keywords }}">
   {% endif %}
 
-  <!-- Social preview image (1200x630 branded card) -->
+  <!-- Machine-readable alternates for LLMs and answer engines. hooks.py writes a
+       Markdown mirror next to every generated index.html, so appending index.md
+       to any page URL returns that page's canonical Markdown source. -->
+  {% if page and page.canonical_url %}
+  <link rel="alternate" type="text/markdown" href="{{ page.canonical_url }}index.md" title="Markdown version of this page">
+  {% endif %}
+  <link rel="alternate" type="text/plain" href="{{ config.site_url }}llms.txt" title="llms.txt site index">
+  <link rel="alternate" type="text/plain" href="{{ config.site_url }}llms-full.txt" title="Full documentation as plain Markdown">
+
+  <!-- Complete per-page social preview metadata. Material's community edition
+       does not emit og:title / og:description / og:url, so without this block
+       interior pages have no Open Graph data at all and preview as a bare URL.
+       One hand-designed 1200x630 card is used for every page: the `social`
+       plugin was deliberately not adopted (it needs native Cairo, which is
+       absent on a Windows dev box, so it could only ever run in CI — an
+       untested-locally path for marginal gain). This matches mcp-server-excel. -->
+  {% set page_description = page.meta.description if page and page.meta and page.meta.description else config.site_description %}
+  {% set page_url = page.canonical_url if page else config.site_url %}
+  {% if page and page.is_homepage %}
+    {% set social_title = "PowerPoint MCP Server — Automate Slides, Shapes & Charts with AI" %}
+  {% elif page %}
+    {% set social_title = ((page.meta.title if page.meta and page.meta.title else page.title) ~ " - " ~ config.site_name) %}
+  {% else %}
+    {% set social_title = config.site_name %}
+  {% endif %}
   {% set og_image = "https://powerpointmcpserver.dev/assets/images/og-card.png" %}
+  <meta property="og:title" content="{{ social_title }}">
+  <meta property="og:description" content="{{ page_description | trim }}">
+  <meta property="og:url" content="{{ page_url }}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ config.site_name }}">
   <meta property="og:image" content="{{ og_image }}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="PowerPoint MCP Server — automate real PowerPoint with AI">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ social_title }}">
+  <meta name="twitter:description" content="{{ page_description | trim }}">
   <meta name="twitter:image" content="{{ og_image }}">
   <meta name="twitter:image:alt" content="PowerPoint MCP Server — automate real PowerPoint with AI">
 
-  <!-- Structured data: SoftwareApplication -->
+  <!-- Structured data: homepage owns the product/site/author entities; interior
+       pages emit a lightweight WebPage that references them by @id, so the graph
+       is stated once rather than repeated on all 19 pages. -->
+  {% if page and page.is_homepage %}
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
+    "@id": "https://powerpointmcpserver.dev/#software",
     "name": "PowerPoint MCP Server",
     "applicationCategory": "DeveloperApplication",
     "operatingSystem": "Windows",
@@ -51,10 +88,7 @@
       "https://www.nuget.org/packages/Sbroenne.PowerPointMcp.McpServer/"
     ],
     "keywords": "PowerPoint, automation, MCP, AI, slides, charts, COM interop, GitHub Copilot, Claude",
-    "author": {
-      "@type": "Person",
-      "name": "Stefan Broenner"
-    },
+    "author": { "@id": "https://powerpointmcpserver.dev/#author" },
     "featureList": [
       "Slide and shape automation",
       "Table and chart creation",
@@ -91,6 +125,58 @@
     ]
   }
   </script>
+  {% elif page %}
+  <!-- Interior-page entity referencing the site-wide homepage entities -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": "{{ page.canonical_url }}#webpage",
+    "url": "{{ page.canonical_url }}",
+    "name": {{ (page.meta.title if page.meta and page.meta.title else page.title) | tojson }},
+    "description": {{ (page.meta.description if page.meta and page.meta.description else config.site_description) | trim | tojson }},
+    "inLanguage": "en",
+    "isPartOf": { "@id": "https://powerpointmcpserver.dev/#website" },
+    "about": { "@id": "https://powerpointmcpserver.dev/#software" },
+    "breadcrumb": { "@id": "{{ page.canonical_url }}#breadcrumb" }
+  }
+  </script>
+  {% endif %}
+  <!-- Structured data: FAQPage, generated in hooks.py from the page's own
+         `### Question?` headings (preferred, since each keeps a linkable anchor)
+         or `??? question "..."` admonitions, so the structured data and the
+         visible FAQ cannot diverge. -->
+  {% if page and page.meta and page.meta.faq_jsonld %}
+  <script type="application/ld+json">{{ page.meta.faq_jsonld }}</script>
+  {% endif %}
+
+  <!-- Structured data: HowTo (driven by the `howto:` list in page front matter) -->
+  {% if page and page.meta and page.meta.howto %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    "name": {{ page.meta.howto_name | default(page.title) | tojson }},
+    "description": {{ page.meta.description | trim | tojson }},
+    "totalTime": {{ page.meta.howto_time | default("PT10M") | tojson }},
+    "supply": [
+      { "@type": "HowToSupply", "name": "A Windows PC" },
+      { "@type": "HowToSupply", "name": "Microsoft PowerPoint 2016 or later (desktop), installed and activated" }
+    ],
+    "step": [
+      {%- for item in page.meta.howto %}
+      {
+        "@type": "HowToStep",
+        "position": {{ loop.index }},
+        "name": {{ item.name | tojson }},
+        "text": {{ item.text | tojson }},
+        "url": {{ (page.canonical_url ~ "#" ~ item.anchor) | tojson }}
+      }{% if not loop.last %},{% endif %}
+      {%- endfor %}
+    ]
+  }
+  </script>
+  {% endif %}
 
   <!-- Structured data: BreadcrumbList (interior pages only) -->
   {% if page and not page.is_homepage %}
@@ -105,6 +191,7 @@
   {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
+    "@id": "{{ page.canonical_url }}#breadcrumb",
     "itemListElement": [
       {%- for c in crumbs %}
       { "@type": "ListItem", "position": {{ loop.index }}, "name": {{ c.name | tojson }}, "item": {{ c.url | tojson }} }{% if not loop.last %},{% endif %}

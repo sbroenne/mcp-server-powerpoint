@@ -44,52 +44,39 @@ layout regressions that text-only automation simply cannot detect.
 
 ## 🎯 What You Can Do
 
-**13 MCP tools with 141 operations across 13 domains:**
+**13 MCP tools with 141 operations across 13 domains** — `presentation`, `slide`, `shape`,
+`textframe`, `table`, `notes`, `layout`, `master`, `animation`, `image`, `chart`, `smartart`
+and `export`.
 
-- 🗂️ **Presentation** (12 ops) — create, open, save, close, list sessions, apply a `.potx`/`.pptx`
-  template's masters/theme/layouts, read the current theme name, read/write built-in and custom
-  document properties
-- 📑 **Slide** (14 ops) — add, count, delete, duplicate, reorder, per-slide background color, sections
-- ▭ **Shape** (36 ops) — rectangles, text boxes, auto shapes, lines, connectors, fill/line/shadow,
-  rotation, flip, z-order, grouping, naming, alt text
-- ✏️ **TextFrame** (20 ops) — text, font size/name/color, bold, italic, underline, alignment, bullets
-- 📊 **Table** (12 ops) — add, cell text, insert/delete rows &amp; columns, cell fill/border, merge cells
-- 🗣️ **Notes** (2 ops) — set/get speaker notes
-- 🖼️ **Layout** (4 ops) — set/get slide layout
-- 🎭 **Master** (10 ops) — slide master title/body placeholder fonts, background color
-- 🎬 **Animation** (5 ops) — shape entrance/emphasis/exit effects, slide transitions
-- 🖼️ **Image** (7 ops) — insert and adjust pictures (brightness, contrast, recolor, crop)
-- 📈 **Chart** (10 ops) — add chart, multi-series data, titles, axis titles, legend
-- 🔀 **SmartArt** (7 ops) — insert and edit SmartArt diagrams
-- 🖼️ **Export** (2 ops) — export a slide, or all slides, to images for visual verification
+Every domain is a single **action-dispatch tool** (e.g. `shape`, `table`, `chart`) with an
+`action` parameter selecting the operation — keeping the tool list small for AI assistants while
+still exposing everything: slide lifecycle and sections, shape geometry/styling/grouping, rich
+text and bullets, tables, charts with real data, SmartArt, animations and transitions, images,
+speaker notes, templates and themes, slide masters, and slide-to-image export.
 
-Every domain is exposed as a single **action-dispatch tool** (e.g. `shape`, `table`, `chart`,
-`presentation`) with an `action` parameter selecting the specific operation — keeping the tool
-list small for AI assistants while still exposing every operation.
-
-📚 **[Complete Feature Reference →](https://powerpointmcpserver.dev/features/)** — detailed
-documentation of every tool and operation
+📚 **[Complete Feature Reference →](https://powerpointmcpserver.dev/features/)** — every tool and
+operation, with parameters
 
 ## 💬 Example Prompts
 
-**Build a deck from scratch:**
-- *"Create a new presentation with a title slide and three content slides about our Q3 results,
-  then export it as images so I can see it."*
+> *"Create a new presentation with a title slide and three content slides about our Q3 results,
+> then export it as images so I can see it."*
 
-**Tables &amp; charts:**
-- *"Add a 4x3 table summarizing this data, then add a bar chart next to it."*
+> *"Export slide 3 as an image and tell me if the chart overlaps the text box."*
 
-**Formatting &amp; shapes:**
-- *"Make the title bold and blue, and move the logo to the top-right corner."*
+📖 **[More examples →](https://powerpointmcpserver.dev/)**
 
-**Speaker notes:**
-- *"Write speaker notes for each slide summarizing the key talking point."*
+## 📘 Guides
 
-**Templates &amp; themes:**
-- *"Apply our corporate template to this deck without losing any of the slide content."*
+Step-by-step walkthroughs for the most common tasks:
 
-**Visual verification:**
-- *"Export slide 3 as an image and tell me if the chart overlaps the text box."*
+- **[Build a deck with AI](https://powerpointmcpserver.dev/guides/build-a-deck-with-ai/)** — generate a full presentation from an outline
+- **[Edit an existing deck](https://powerpointmcpserver.dev/guides/edit-an-existing-deck/)** — update a `.pptx` without losing its formatting
+- **[Export slides to images](https://powerpointmcpserver.dev/guides/export-slides-to-images/)** — render slides so an assistant can check its own work
+- **[Automate charts and tables](https://powerpointmcpserver.dev/guides/automate-charts-and-tables/)** — put real data on a slide natively
+- **[Apply a corporate template](https://powerpointmcpserver.dev/guides/apply-a-corporate-template/)** — force generated decks onto your brand
+
+📚 **[All guides →](https://powerpointmcpserver.dev/guides/)** • **[Full reference →](https://powerpointmcpserver.dev/reference/)**
 
 ## 👥 Who Should Use This?
 
@@ -102,12 +89,16 @@ documentation of every tool and operation
 - ❌ Server-side/headless processing (this drives a real desktop PowerPoint process)
 - ❌ Linux/macOS users (Windows + PowerPoint installation required)
 
+See the [comparison page](https://powerpointmcpserver.dev/comparison/) for how this differs from
+`python-pptx`, VBA macros and other PowerPoint MCP servers.
+
 ## 🚀 Quick Start
 
 | Platform | Installation |
 |----------|-------------|
-| **VS Code** | [Install Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.powerpoint-mcp) (one-click, recommended) |
-| **Claude Desktop** | Download `.mcpb` from [latest release](https://github.com/sbroenne/mcp-server-powerpoint/releases/latest) |
+| **VS Code** | [Install Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.powerpoint-mcp) (one-click, recommended) — [setup guide](https://powerpointmcpserver.dev/vs-code/) |
+| **Claude Desktop** | Download `.mcpb` from [latest release](https://github.com/sbroenne/mcp-server-powerpoint/releases/latest) — [setup guide](https://powerpointmcpserver.dev/claude-desktop/) |
+| **Cursor** | [Setup guide](https://powerpointmcpserver.dev/cursor/) |
 | **Any MCP Client** | Download `mcp-powerpoint.exe` from [latest release](https://github.com/sbroenne/mcp-server-powerpoint/releases/latest) and add to PATH |
 | **Details** | 📖 [Full Installation Guide →](https://powerpointmcpserver.dev/installation/) |
 
@@ -146,55 +137,20 @@ npx skills add sbroenne/mcp-server-powerpoint --skill powerpoint-mcp
 > 💡 The VS Code extension installs this skill automatically. Manual `npx skills add` is for other
 > MCP clients (Claude Code, Cursor, Windsurf, etc.).
 
-## ⚙️ How It Works - COM Automation & Unified Service Architecture
+## ⚙️ How It Works
 
 **PowerPointMcp uses Windows COM automation to control the actual PowerPoint application (not
 just `.pptx` files).**
 
-The **MCP Server** and **CLI** are two equal, first-class entry points. Each hosts its own
-**PowerPointMcp Service** that manages presentation sessions — the MCP Server runs it
-**in-process** (direct calls, no pipe), while the CLI uses a **background daemon** over a named
-pipe so sessions persist across CLI invocations:
+The **MCP Server** and **CLI** are two equal, first-class entry points sharing one Core codebase,
+so every operation behaves identically on either surface. Each hosts its own **PowerPointMcp
+Service** to manage presentation sessions: the MCP Server runs it **in-process** for low-latency
+calls, while the CLI uses a **background daemon** over a named pipe so sessions persist across
+`pptcli` invocations instead of re-opening files every command. They are separate processes and
+do not share live sessions with each other.
 
-```
-┌──────────────────────┐        ┌──────────────────────┐
-│  MCP Server          │        │  CLI (pptcli)        │
-│  (AI assistants)     │        │  (coding agents)     │
-└──────────┬───────────┘        └──────────┬───────────┘
-           │ in-process                     │ named pipe →
-           │ (direct calls)                 │ background daemon
-           ▼                                ▼
-┌──────────────────────┐        ┌──────────────────────┐
-│  PowerPointMcp       │        │  PowerPointMcp       │
-│  Service             │        │  Service             │
-│  (session mgmt)      │        │  (daemon; sessions   │
-│                      │        │   persist across     │
-│                      │        │   CLI invocations)   │
-└──────────┬───────────┘        └──────────┬───────────┘
-           ▼                                ▼
-      Core Commands                    Core Commands
-           ▼                                ▼
-┌──────────────────────┐        ┌──────────────────────┐
-│  PowerPoint COM API  │        │  PowerPoint COM API  │
-│  (PowerPoint.        │        │  (PowerPoint.        │
-│   Application)       │        │   Application)       │
-└──────────────────────┘        └──────────────────────┘
-```
-
-Both entry points share the same Core Commands codebase, so every operation behaves identically.
-They are separate processes, though: each runs its own PowerPointMcp Service and its own
-PowerPoint instance, and they do **not** share live sessions with each other.
-
-**Key Benefits:**
-- ✅ **Two equal entry points** — every operation works identically through the MCP Server and
-  the CLI
-- ✅ **Persistent CLI sessions** — the CLI daemon keeps presentations open across multiple
-  `pptcli` calls, so scripts don't re-open files each time
-- ✅ **In-process MCP calls** — the MCP Server runs the service in-process (no pipe) for
-  low-latency automation
-- ✅ **Real PowerPoint automation** — drives the actual `PowerPoint.Application` via COM, not just
-  file parsing
-- ✅ **Export-to-verify** — close the loop on every visual change with a real rendered image
+🏗️ **[Architecture deep-dive →](https://powerpointmcpserver.dev/architecture/)** — layer diagram,
+session model and COM threading details
 
 ## ⭐ GitHub Star History
 
@@ -208,7 +164,13 @@ GitHub's exact public star count. Only date/count aggregates are retained.
 📚 **[MCP Server Guide →](src/PowerPointMcp.McpServer/README.md)** | **[CLI Guide →](src/PowerPointMcp.CLI/README.md)** | **[Agent Skills →](skills/README.md)**
 
 📖 **[Complete Feature Reference](https://powerpointmcpserver.dev/features/)** •
+**[Guides](https://powerpointmcpserver.dev/guides/)** •
+**[Reference](https://powerpointmcpserver.dev/reference/)** •
 **[Installation Guide](https://powerpointmcpserver.dev/installation/)** •
+**[FAQ](https://powerpointmcpserver.dev/faq/)** •
+**[Troubleshooting](https://powerpointmcpserver.dev/troubleshooting/)** •
+**[Comparison](https://powerpointmcpserver.dev/comparison/)** •
+**[Architecture](https://powerpointmcpserver.dev/architecture/)** •
 **[Changelog](https://powerpointmcpserver.dev/changelog/)** •
 **[Contributing](https://powerpointmcpserver.dev/contributing/)** •
 **[Security](https://powerpointmcpserver.dev/security/)** •

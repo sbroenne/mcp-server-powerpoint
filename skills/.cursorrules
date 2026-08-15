@@ -51,8 +51,8 @@ repo's C# source), follow these rules:
   ...)`, `shape(action: "set-size", ...)`) over delete-and-recreate for small changes.
 - `chart(action: "add-chart", ...)` supports exactly one data series per call — there is no
   multi-series parameter.
-- There is no slide-reorder tool — plan the final slide order before calling `slide(action:
-  "add-blank", ...)`.
+- New slides are appended at the end; reorder afterwards with `slide(action: "move-to", ...)`, but
+  plan the final order first — every move renumbers the slides around it.
 
 ## Full Reference
 
