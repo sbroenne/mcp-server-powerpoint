@@ -21,6 +21,7 @@ import json
 import gzip
 import re
 import sys
+import zlib
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -238,10 +239,18 @@ def audit_sitemap() -> None:
         fail("sitemap.xml still contains unreliable build-date <lastmod> values")
 
     # The gzipped twin is served to some crawlers, so a stale copy would publish
-    # exactly the dates the plain file just dropped.
-    with gzip.open(SITE_DIR / "sitemap.xml.gz", "rt", encoding="utf-8") as fh:
-        if fh.read() != text:
-            fail("sitemap.xml.gz does not match sitemap.xml")
+    # exactly the dates the plain file just dropped. Guard the read: a corrupt
+    # archive should be a clean audit failure, not a traceback that buries every
+    # other finding in the CI log. Corruption surfaces three different ways and
+    # only the first is an OSError: a bad magic number raises gzip.BadGzipFile,
+    # a truncated body raises EOFError, and a damaged deflate stream raises
+    # zlib.error.
+    try:
+        with gzip.open(SITE_DIR / "sitemap.xml.gz", "rt", encoding="utf-8") as fh:
+            if fh.read() != text:
+                fail("sitemap.xml.gz does not match sitemap.xml")
+    except (OSError, EOFError, zlib.error) as exc:
+        fail(f"sitemap.xml.gz could not be read: {type(exc).__name__}: {exc}")
 
 
 def audit_llms(html_files: list[Path]) -> None:
