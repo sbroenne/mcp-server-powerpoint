@@ -33,11 +33,46 @@ SITE_URL = "https://powerpointmcpserver.dev/"
 # (which terminates the HTML content="..." attribute early) and an unquoted YAML
 # scalar containing ": " (which makes the whole front-matter block unparseable,
 # silently dropping title, description and keywords together).
-SITE_DESCRIPTION = (
-    "Control Microsoft PowerPoint with natural language through AI assistants like "
-    "GitHub Copilot and Claude. Automate slides, shapes, tables, charts, and "
-    "export-to-verify visual checks on a live PowerPoint desktop instance."
-)
+#
+# Read from mkdocs.yml rather than duplicated here: a hardcoded copy would stop
+# matching the moment site_description was reworded, and this check would then
+# silently pass forever without guarding anything.
+def _site_description() -> str:
+    """Read site_description from mkdocs.yml, handling plain and block scalars.
+
+    mkdocs.yml carries custom tags that ``yaml.safe_load`` rejects, so this
+    parses the one key it needs rather than pulling in a full YAML load.
+    """
+    path = Path(__file__).resolve().parent / "mkdocs.yml"
+    lines = path.read_text(encoding="utf-8").splitlines()
+
+    for index, line in enumerate(lines):
+        if not line.startswith("site_description:"):
+            continue
+        value = line.split(":", 1)[1].strip()
+
+        # Folded (>) or literal (|) block scalar: the value is the indented
+        # block that follows, not the indicator itself.
+        if value[:1] in {">", "|"}:
+            collected: list[str] = []
+            for candidate in lines[index + 1 :]:
+                if candidate.strip() and not candidate.startswith((" ", "\t")):
+                    break
+                collected.append(candidate.strip())
+            value = " ".join(collected)
+        elif value[:1] in {'"', "'"} and value[-1:] == value[:1]:
+            value = value[1:-1]
+
+        value = " ".join(value.split())
+        if value:
+            return value
+        break
+
+    print("audit: could not read site_description from mkdocs.yml", file=sys.stderr)
+    sys.exit(1)
+
+
+SITE_DESCRIPTION = _site_description()
 
 # The homepage legitimately uses the site description; every other page must not.
 HOMEPAGE = "index.html"
