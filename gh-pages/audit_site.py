@@ -138,13 +138,17 @@ def audit_html(path: Path) -> None:
     if description is None:
         fail(f"{name}: no meta description")
     else:
-        length = len(description)
+        # Normalise once: the length check and the site_description comparison
+        # below must judge the same string, or a page can be reported with a
+        # length that does not match the value actually being compared.
+        text = " ".join(description.split())
+        length = len(text)
         if not DESCRIPTION_MIN <= length <= DESCRIPTION_MAX:
             fail(
                 f"{name}: meta description is {length} chars "
                 f"(want {DESCRIPTION_MIN}-{DESCRIPTION_MAX})"
             )
-        if name != HOMEPAGE and " ".join(description.split()) == SITE_DESCRIPTION:
+        if name != HOMEPAGE and text == SITE_DESCRIPTION:
             fail(
                 f"{name}: meta description fell back to site_description - this "
                 f"page's YAML front matter did not apply (check for a double quote "
