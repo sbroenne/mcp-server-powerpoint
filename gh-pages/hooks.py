@@ -22,6 +22,7 @@ such root docs exist.
 from __future__ import annotations
 
 import logging
+import gzip
 import json
 import posixpath
 import re
@@ -522,3 +523,39 @@ def on_post_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
     )
 
     log.info("wrote llms.txt, llms-full.txt and %d Markdown mirrors", mirrored)
+
+    _normalize_sitemap(site_dir)
+
+
+def _normalize_sitemap(site_dir: Path) -> None:
+    """Strip MkDocs' unreliable ``<lastmod>`` stamps from the sitemap.
+
+    MkDocs stamps every URL with the build date, so a deploy that changed one
+    page tells search engines all 40 changed. That is a false freshness signal,
+    and a sitemap that cries wolf on every deploy is one search engines learn to
+    discount - which costs the recrawl prioritisation ``lastmod`` exists to buy.
+    Omitting it entirely is explicitly allowed by the sitemap protocol and is
+    better than publishing a value that is always wrong.
+
+    Ported from the sibling mcp-server-excel repo, minus its home-page video
+    markup: there is no intro video on this site to describe.
+    """
+    sitemap = site_dir / "sitemap.xml"
+    if not sitemap.is_file():
+        log.warning("sitemap.xml not found; skipping lastmod normalization")
+        return
+
+    xml = re.sub(
+        r"\s*<lastmod>[^<]*</lastmod>", "", sitemap.read_text(encoding="utf-8")
+    )
+    sitemap.write_text(xml, encoding="utf-8", newline="\n")
+
+    # The gzipped twin is what Search Console reads when it is present, so it
+    # must not keep the dates the plain file just dropped.
+    gz = site_dir / "sitemap.xml.gz"
+    if gz.exists():
+        # mtime=0 keeps the output reproducible, matching MkDocs' own gzip call.
+        with gzip.GzipFile(gz, "wb", mtime=0) as fh:
+            fh.write(xml.encode("utf-8"))
+
+    log.info("normalized sitemap: removed build-date lastmod values")

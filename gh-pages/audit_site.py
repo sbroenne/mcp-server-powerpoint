@@ -18,6 +18,7 @@ strips attribute quotes, so every attribute regex here must tolerate both
 from __future__ import annotations
 
 import json
+import gzip
 import re
 import sys
 from pathlib import Path
@@ -229,6 +230,18 @@ def audit_sitemap() -> None:
             fail(f"sitemap.xml has an off-site <loc>: {loc}")
     if not (SITE_DIR / "sitemap.xml.gz").exists():
         fail("sitemap.xml.gz is missing")
+        return
+
+    # MkDocs stamps every URL with the build date, which claims the whole site
+    # changed on every deploy. hooks.py strips those; catch a regression here.
+    if "<lastmod>" in text:
+        fail("sitemap.xml still contains unreliable build-date <lastmod> values")
+
+    # The gzipped twin is served to some crawlers, so a stale copy would publish
+    # exactly the dates the plain file just dropped.
+    with gzip.open(SITE_DIR / "sitemap.xml.gz", "rt", encoding="utf-8") as fh:
+        if fh.read() != text:
+            fail("sitemap.xml.gz does not match sitemap.xml")
 
 
 def audit_llms(html_files: list[Path]) -> None:
