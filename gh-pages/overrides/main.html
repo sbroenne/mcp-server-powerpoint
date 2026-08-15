@@ -143,8 +143,9 @@
   </script>
   {% endif %}
   <!-- Structured data: FAQPage, generated in hooks.py from the page's own
-       `??? question "..."` admonitions, so the structured data and the visible
-       FAQ cannot diverge. -->
+         `### Question?` headings (preferred, since each keeps a linkable anchor)
+         or `??? question "..."` admonitions, so the structured data and the
+         visible FAQ cannot diverge. -->
   {% if page and page.meta and page.meta.faq_jsonld %}
   <script type="application/ld+json">{{ page.meta.faq_jsonld }}</script>
   {% endif %}

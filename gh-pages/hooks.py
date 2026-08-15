@@ -307,6 +307,9 @@ def _resolve_snippets(text: str, depth: int = 0) -> str:
 _FAQ_ADMONITION = re.compile(r'^\?{3}\+?\s+question\s+"([^"]+)"\s*$')
 _FAQ_HEADING = re.compile(r"^###\s+(.+?)\s*$")
 
+# Below this, a page is a guide that happens to pose a question rather than an FAQ.
+_FAQ_MIN_ENTITIES = 3
+
 
 def _faq_jsonld(markdown: str) -> str:
     """Build FAQPage JSON-LD from a page's own question blocks.
@@ -391,7 +394,10 @@ def _faq_jsonld(markdown: str) -> str:
             }
         )
 
-    if not entities:
+    # A page with one or two question-shaped headings is a guide that happens to
+    # ask a question, not an FAQ; emitting FAQPage there is a false signal to
+    # search engines. Ported back from the sibling mcp-server-excel repo.
+    if len(entities) < _FAQ_MIN_ENTITIES:
         return ""
 
     return json.dumps(
