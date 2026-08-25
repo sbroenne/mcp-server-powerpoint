@@ -1,12 +1,12 @@
 ---
 title: Complete Feature Reference
-description: 13 MCP tools with 141 operations across 13 domains for live PowerPoint automation through single action-dispatch tools.
+description: 15 MCP tools with 158 operations across 15 domains for live PowerPoint automation through single action-dispatch tools.
 keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **13 MCP tools with 141 operations across 13 domains**.
+PowerPoint MCP Server exposes **15 MCP tools with 158 operations across 15 domains**.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
 `chart(action="add-chart", session_id="...", slide_index=2, ...)`.
@@ -21,18 +21,20 @@ The CLI mirrors the same domain model:
 | Tool | Ops | What it covers | MCP call shape | CLI shape |
 |------|-----|----------------|----------------|-----------|
 | `presentation` | 12 | Session lifecycle, template application, built-in/custom document properties | `presentation(action="...", ...)` | `pptcli session <action> ...` |
-| `slide` | 14 | Slide lifecycle, slide backgrounds, sections | `slide(action="...", session_id=..., ...)` | `pptcli slide <action> -s <SESSION_ID> ...` |
-| `shape` | 36 | Shapes, geometry, styling, effects, grouping, naming, hyperlinks | `shape(action="...", session_id=..., ...)` | `pptcli shape <action> -s <SESSION_ID> ...` |
+| `slide` | 19 | Slide lifecycle, backgrounds, sections, comments, import | `slide(action="...", session_id=..., ...)` | `pptcli slide <action> -s <SESSION_ID> ...` |
+| `shape` | 39 | Shapes, styling, grouping, hyperlinks, placeholders | `shape(action="...", session_id=..., ...)` | `pptcli shape <action> -s <SESSION_ID> ...` |
 | `textframe` | 20 | Text content and text formatting | `textframe(action="...", session_id=..., ...)` | `pptcli textframe <action> -s <SESSION_ID> ...` |
 | `table` | 12 | Table creation and cell editing/formatting | `table(action="...", session_id=..., ...)` | `pptcli table <action> -s <SESSION_ID> ...` |
 | `notes` | 2 | Speaker notes | `notes(action="...", session_id=..., ...)` | `pptcli notes <action> -s <SESSION_ID> ...` |
 | `layout` | 4 | Slide layouts | `layout(action="...", session_id=..., ...)` | `pptcli layout <action> -s <SESSION_ID> ...` |
+| `pagesetup` | 5 | Slide size, numbering, footer, date/time | `pagesetup(action="...", session_id=..., ...)` | `pptcli pagesetup <action> -s <SESSION_ID> ...` |
+| `accessibility` | 3 | Deterministic audit and reading order | `accessibility(action="...", session_id=..., ...)` | `pptcli accessibility <action> -s <SESSION_ID> ...` |
 | `master` | 10 | Slide master fonts and backgrounds | `master(action="...", session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
 | `animation` | 5 | Shape effects and slide transitions | `animation(action="...", session_id=..., ...)` | `pptcli animation <action> -s <SESSION_ID> ...` |
 | `image` | 7 | Picture insertion and picture adjustments (brightness/contrast, recolor, crop) | `image(action="...", session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
 | `chart` | 10 | Native charts, titles, axes, legend, data replacement | `chart(action="...", session_id=..., ...)` | `pptcli chart <action> -s <SESSION_ID> ...` |
 | `smartart` | 7 | SmartArt diagrams and node editing | `smartart(action="...", session_id=..., ...)` | `pptcli smartart <action> -s <SESSION_ID> ...` |
-| `export` | 2 | Export-to-verify image rendering | `export(action="...", session_id=..., ...)` | `pptcli export <action> -s <SESSION_ID> ...` |
+| `export` | 3 | PDF delivery and export-to-verify image rendering | `export(action="...", session_id=..., ...)` | `pptcli export <action> -s <SESSION_ID> ...` |
 
 ## Domain reference
 
@@ -61,7 +63,7 @@ use that `sessionId`.
 `get-theme-name`, `set-document-property`, `get-document-property`, `set-custom-property`,
 `get-custom-property`, `remove-custom-property`
 
-### `slide` tool (14 operations)
+### `slide` tool (19 operations)
 
 | Action | What it does |
 |--------|---------------|
@@ -79,13 +81,19 @@ use that `sessionId`.
 | `delete-section` | Delete a section. |
 | `get-section-count` | Return the section count. |
 | `get-section-name` | Read a section name. |
+| `list-comments` | List legacy slide comments exposed by the native PowerPoint COM API. |
+| `add-comment` | Add a legacy comment to a slide. |
+| `delete-comment` | Delete a legacy comment by 1-based index. |
+| `clear-comments` | Remove all legacy comments from a slide. |
+| `import-from-file` | Insert a 1-based source slide range after a destination slide. |
 
 **Exact action order:** `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`,
 `set-background-color`, `get-background-color`, `set-gradient-background`,
 `get-gradient-background`, `add-section`, `rename-section`, `delete-section`,
-`get-section-count`, `get-section-name`
+`get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`,
+`clear-comments`, `import-from-file`
 
-### `shape` tool (36 operations)
+### `shape` tool (39 operations)
 
 Use `shape` for shape creation, geometry, styling, effects, grouping, naming, alt text, and
 hyperlinks.
@@ -95,7 +103,8 @@ hyperlinks.
 `set-line`, `get-line`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`,
 `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`,
 `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`,
-`set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`
+`set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`,
+`list-placeholders`, `set-placeholder-text`, `set-placeholder-image`
 
 ### `textframe` tool (20 operations)
 
@@ -118,17 +127,31 @@ Use `table` for native PowerPoint tables.
 
 **Exact action order:** `set-notes-text`, `get-notes-text`
 
-### `layout` tool (2 operations)
+### `layout` tool (4 operations)
 
-**Exact action order:** `set-layout`, `get-layout`
+**Exact action order:** `set-layout`, `get-layout`, `list-layouts`, `delete-layout`
 
-### `master` tool (8 operations)
+### `pagesetup` tool (5 operations)
+
+Use `pagesetup` for presentation-wide slide dimensions, numbering, and footer settings.
+
+**Exact action order:** `get-settings`, `set-size`, `set-first-slide-number`, `get-footer`,
+`set-footer`
+
+### `accessibility` tool (3 operations)
+
+Use `accessibility` for deterministic checks and slide reading order. The audit covers missing
+alternative text on visual content and empty title placeholders; it is not an AI writing review.
+
+**Exact action order:** `audit`, `get-reading-order`, `set-reading-order`
+
+### `master` tool (10 operations)
 
 Use `master` for deck-wide master placeholder fonts and master backgrounds.
 
 **Exact action order:** `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`,
 `get-background-color`, `set-background-color`, `set-gradient-background`,
-`get-gradient-background`
+`get-gradient-background`, `list-masters`, `delete-master`
 
 ### `animation` tool (5 operations)
 
@@ -157,11 +180,12 @@ Use `smartart` for SmartArt diagrams and node editing.
 **Exact action order:** `add-smart-art`, `add-node`, `add-child-node`, `set-node-text`,
 `get-node-text`, `delete-node`, `get-node-count`
 
-### `export` tool (2 operations)
+### `export` tool (3 operations)
 
 Use `export` for the project's export-to-verify loop.
 
-**Exact action order:** `export-slide-to-image`, `export-all-slides-to-images`
+**Exact action order:** `export-to-pdf`, `export-slide-to-image`,
+`export-all-slides-to-images`
 
 !!! tip "Why export-to-verify matters"
     Because the tools drive a **real PowerPoint desktop instance**, every visual edit can be

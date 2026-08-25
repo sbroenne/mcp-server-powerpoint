@@ -4,13 +4,11 @@ using Sbroenne.PowerPointMcp.Core.Attributes;
 namespace Sbroenne.PowerPointMcp.Core.Slide;
 
 /// <summary>
-/// Slide lifecycle commands: add, delete, count, duplicate, reorder, per-slide background color,
-/// and section management. First domain built on top of the presentation lifecycle commands,
-/// operating within an already-open IPresentationBatch.
+/// Slide lifecycle, background, section, legacy comment, and slide-import commands.
 /// </summary>
 [ServiceCategory("slide", "Slide")]
 [McpTool("slide", Title = "Slide Operations", Destructive = true, Category = "content",
-    Description = "Add, count, delete, duplicate, reorder, and set section/background on slides in an open presentation session.")]
+    Description = "Manage slides, backgrounds, sections, legacy comments, and slide import in an open presentation session.")]
 public interface ISlideCommands
 {
     /// <summary>
@@ -99,4 +97,40 @@ public interface ISlideCommands
 
     /// <summary>Gets the name of the section at the given 1-based <paramref name="sectionIndex"/>.</summary>
     SlideOperationResult GetSectionName(IPresentationBatch batch, int sectionIndex);
+
+    /// <summary>
+    /// Lists the legacy comments exposed by PowerPoint for a slide. Modern Microsoft 365 threaded
+    /// comments are not exposed by the PowerPoint COM API.
+    /// </summary>
+    SlideOperationResult ListComments(IPresentationBatch batch, int slideIndex);
+
+    /// <summary>
+    /// Adds a legacy comment to a slide. PowerPoint may replace the supplied author and initials
+    /// with the signed-in Office identity.
+    /// </summary>
+    SlideOperationResult AddComment(
+        IPresentationBatch batch,
+        int slideIndex,
+        string author,
+        string initials,
+        string text,
+        float left = 0f,
+        float top = 0f);
+
+    /// <summary>Deletes a legacy comment by its 1-based index on a slide.</summary>
+    SlideOperationResult DeleteComment(IPresentationBatch batch, int slideIndex, int commentIndex);
+
+    /// <summary>Deletes every legacy comment on a slide.</summary>
+    SlideOperationResult ClearComments(IPresentationBatch batch, int slideIndex);
+
+    /// <summary>
+    /// Imports an inclusive, 1-based range of slides from another presentation after the given
+    /// 1-based destination slide.
+    /// </summary>
+    SlideOperationResult ImportFromFile(
+        IPresentationBatch batch,
+        string sourceFilePath,
+        int destinationSlideIndex,
+        int sourceStartSlide = 1,
+        int? sourceEndSlide = null);
 }

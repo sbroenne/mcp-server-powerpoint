@@ -3,13 +3,13 @@ using Sbroenne.PowerPointMcp.Core.Attributes;
 namespace Sbroenne.PowerPointMcp.Core.Shape;
 
 /// <summary>
-/// Shape commands: add rectangles/text boxes, count, delete, reposition/resize.
+/// Shape commands: create, inspect, format, group, link, and edit native placeholders.
 /// Operates within an already-open IPresentationBatch, targeting a specific slide by
 /// its 1-based index.
 /// </summary>
 [ServiceCategory("shape", "Shape")]
 [McpTool("shape", Title = "Shape Operations", Destructive = true, Category = "content",
-    Description = "Add, count, delete, reposition, and resize shapes on a slide in an open presentation session.")]
+    Description = "Create, inspect, format, group, link, and edit native placeholders on a slide.")]
 public interface IShapeCommands
 {
     /// <summary>Adds a rectangle shape to the given slide.</summary>
@@ -176,4 +176,21 @@ public interface IShapeCommands
 
     /// <summary>Removes a shape's mouse-click hyperlink, if any (idempotent — no-op if none is set).</summary>
     ShapeOperationResult RemoveHyperlink(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>Lists native placeholders on a slide with their 1-based shape indexes and state.</summary>
+    ShapeOperationResult ListPlaceholders(ComInterop.Session.IPresentationBatch batch, int slideIndex);
+
+    /// <summary>Replaces the text in a native text placeholder.</summary>
+    ShapeOperationResult SetPlaceholderText(
+        ComInterop.Session.IPresentationBatch batch,
+        int slideIndex,
+        int shapeIndex,
+        string text);
+
+    /// <summary>Places an image into a compatible native picture or content placeholder.</summary>
+    ShapeOperationResult SetPlaceholderImage(
+        ComInterop.Session.IPresentationBatch batch,
+        int slideIndex,
+        int shapeIndex,
+        string imagePath);
 }

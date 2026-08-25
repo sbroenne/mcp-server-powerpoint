@@ -25,6 +25,129 @@ public class ExportCommandsTests : IClassFixture<SharedPresentationFixture>
     }
 
     [Fact]
+    public void ExportToPdf_ExportsPresentation_FileExistsAndNonEmpty()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        string outputDir = Path.Combine(Path.GetTempPath(), "PowerPointMcpTests", $"export-pdf-{Guid.NewGuid():N}");
+        string outputFile = Path.Combine(outputDir, "presentation.pdf");
+        try
+        {
+            var result = _commands.ExportToPdf(batch, outputFile);
+
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.Null(result.ErrorMessage);
+            Assert.Equal(outputFile, result.ExportedFilePath, StringComparer.OrdinalIgnoreCase);
+            Assert.True(File.Exists(outputFile), "Exported PDF must exist on disk.");
+            Assert.True(new FileInfo(outputFile).Length > 0, "Exported PDF must be non-empty.");
+        }
+        finally
+        {
+            if (Directory.Exists(outputDir))
+                Directory.Delete(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ExportToPdf_PreservesOpenPresentationFullName()
+    {
+        string presentationPath = _fixture.CreateFreshPresentation("pptmcp-export-pdf-fullname");
+        var batch = _fixture.Batch;
+        string outputDir = Path.Combine(Path.GetTempPath(), "PowerPointMcpTests", $"export-pdf-fullname-{Guid.NewGuid():N}");
+        string outputFile = Path.Combine(outputDir, "presentation.pdf");
+        try
+        {
+            string fullNameBeforeExport = batch.Execute((ctx, ct) => ctx.Presentation.FullName);
+
+            var result = _commands.ExportToPdf(batch, outputFile);
+
+            Assert.True(result.Success, result.ErrorMessage);
+            string fullNameAfterExport = batch.Execute((ctx, ct) => ctx.Presentation.FullName);
+            Assert.Equal(presentationPath, fullNameBeforeExport, StringComparer.OrdinalIgnoreCase);
+            Assert.Equal(fullNameBeforeExport, fullNameAfterExport, StringComparer.OrdinalIgnoreCase);
+            Assert.NotEqual(outputFile, fullNameAfterExport, StringComparer.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDir))
+                Directory.Delete(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ExportToPdf_WhenFileExists_RefusesOverwriteByDefault()
+    {
+        _fixture.CreateFreshPresentation();
+        string outputDir = Path.Combine(Path.GetTempPath(), "PowerPointMcpTests", $"export-pdf-existing-{Guid.NewGuid():N}");
+        string outputFile = Path.Combine(outputDir, "presentation.pdf");
+        byte[] sentinel = "existing-content"u8.ToArray();
+        try
+        {
+            Directory.CreateDirectory(outputDir);
+            File.WriteAllBytes(outputFile, sentinel);
+
+            var result = _commands.ExportToPdf(_fixture.Batch, outputFile);
+
+            Assert.False(result.Success);
+            Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+            Assert.Equal(sentinel, File.ReadAllBytes(outputFile));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDir))
+                Directory.Delete(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ExportToPdf_WhenOverwriteIsExplicit_ReplacesExistingFile()
+    {
+        _fixture.CreateFreshPresentation();
+        string outputDir = Path.Combine(Path.GetTempPath(), "PowerPointMcpTests", $"export-pdf-overwrite-{Guid.NewGuid():N}");
+        string outputFile = Path.Combine(outputDir, "presentation.pdf");
+        byte[] sentinel = "existing-content"u8.ToArray();
+        try
+        {
+            Directory.CreateDirectory(outputDir);
+            File.WriteAllBytes(outputFile, sentinel);
+
+            var result = _commands.ExportToPdf(_fixture.Batch, outputFile, overwrite: true);
+
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.Null(result.ErrorMessage);
+            Assert.Equal(outputFile, result.ExportedFilePath, StringComparer.OrdinalIgnoreCase);
+            Assert.True(new FileInfo(outputFile).Length > sentinel.Length);
+            Assert.False(sentinel.SequenceEqual(File.ReadAllBytes(outputFile)));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDir))
+                Directory.Delete(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ExportToPdf_WithNonPdfExtension_ReturnsFailureWithoutCreatingFile()
+    {
+        _fixture.CreateFreshPresentation();
+        string outputDir = Path.Combine(Path.GetTempPath(), "PowerPointMcpTests", $"export-pdf-extension-{Guid.NewGuid():N}");
+        string outputFile = Path.Combine(outputDir, "presentation.pptx");
+        try
+        {
+            var result = _commands.ExportToPdf(_fixture.Batch, outputFile);
+
+            Assert.False(result.Success);
+            Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+            Assert.False(File.Exists(outputFile));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDir))
+                Directory.Delete(outputDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public void ExportSlideToImage_ExportsSingleSlide_FileExistsAndNonEmpty()
     {
         _fixture.CreateFreshPresentation();

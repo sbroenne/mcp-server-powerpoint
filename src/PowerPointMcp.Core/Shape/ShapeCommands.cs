@@ -5,7 +5,7 @@ using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 namespace Sbroenne.PowerPointMcp.Core.Shape;
 
 /// <inheritdoc cref="IShapeCommands"/>
-public sealed class ShapeCommands : IShapeCommands
+public sealed partial class ShapeCommands : IShapeCommands
 {
     // Shapes.AddShape's Type parameter and Shapes.AddTextbox's Orientation parameter are both
     // typed as Microsoft.Office.Core enums (MsoAutoShapeType / MsoTextOrientation) — i.e. office.dll

@@ -6,9 +6,10 @@ when working with the PowerPoint MCP Server.
 ## What This Is
 
 `mcp-server-powerpoint` drives a live Microsoft PowerPoint desktop instance via COM
-(`Microsoft.Office.Interop.PowerPoint`) and exposes it as **13 MCP tools across 13 domains**.
+(`Microsoft.Office.Interop.PowerPoint`) and exposes it as **15 MCP tools across 15 domains**.
 Every domain is a single action-dispatch tool: `presentation`, `slide`, `shape`, `textframe`,
-`table`, `notes`, `layout`, `master`, `animation`, `image`, `chart`, `smartart`, and `export`.
+`table`, `notes`, `layout`, `pagesetup`, `accessibility`, `master`, `animation`, `image`, `chart`,
+`smartart`, and `export`.
 
 Windows + PowerPoint desktop required. There is no cross-platform or headless mode — everything
 goes through real COM automation of a real PowerPoint process.
@@ -36,9 +37,11 @@ exists (see `.github/copilot-instructions.md`).
 5. **Verify visually** — use `export(action: "export-slide-to-image"/"export-all-slides-to-images",
    ...)` after any visual change; this is the project's core differentiator over text-only
    PowerPoint tooling.
-6. **Never ask clarifying questions** — discover state with `presentation(action: "list")`,
+6. **Run the accessibility audit** — call `accessibility(action: "audit", ...)` before final
+   delivery and fix deterministic structure issues.
+7. **Never ask clarifying questions** — discover state with `presentation(action: "list")`,
    `slide(action: "get-count", ...)`, `shape(action: "get-count", ...)`, etc.
-7. **Always end with a text summary** — never end a turn on a bare tool call.
+8. **Always end with a text summary** — never end a turn on a bare tool call.
 
 ## When Building Decks
 

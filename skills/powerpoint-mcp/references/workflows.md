@@ -1,6 +1,6 @@
 # Canonical Workflow: Start Session → Build → Verify → Save → Close
 
-The standard end-to-end loop for every PowerPoint MCP task. All 13 tools and 141 operations exist
+The standard end-to-end loop for every PowerPoint MCP task. All 15 tools and 158 operations exist
 to support this loop for one of two starting points: a brand-new deck or an existing file.
 
 ## Starting Point A — New Presentation
@@ -57,6 +57,10 @@ to support this loop for one of two starting points: a brand-new deck or an exis
 | `shape` | `get-count` | How many shapes are on a slide before adding/deleting/positioning |
 | `textframe` | `get-text` | Current text of a shape before editing it |
 | `layout` | `get-layout` | Current layout of a slide |
+| `pagesetup` | `get-settings` / `get-footer` | Slide size, first slide number, and footer state |
+| `shape` | `list-placeholders` | Placeholder indexes, types, bounds, and content state |
+| `slide` | `list-comments` | Legacy comments exposed by native PowerPoint COM |
+| `accessibility` | `audit` / `get-reading-order` | Deterministic accessibility issues and current reading order |
 | `table` | `get-cell-text` | Current content of a table cell |
 | `chart` | `get-chart-data` | Category/series counts of an existing chart |
 | `notes` | `get-notes-text` | Current speaker notes for a slide |
@@ -92,7 +96,9 @@ table(action: "set-cell-text", session_id: sessionId, slide_index: 3, shape_inde
 
 # Verify
 export(action: "export-all-slides-to-images", session_id: sessionId, output_directory: "C:\Decks\preview")
+accessibility(action: "audit", session_id: sessionId)
 
 presentation(action: "save", sessionId: sessionId)
+export(action: "export-to-pdf", session_id: sessionId, output_path: "C:\Decks\q4.pdf")
 presentation(action: "close", sessionId: sessionId)
 ```

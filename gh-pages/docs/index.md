@@ -101,7 +101,7 @@ hide:
 
 </div>
 
-[See all 13 tools (141 operations) across 13 domains :material-arrow-right:](features.md){ .md-button .md-button--primary }
+[See all 15 tools (158 operations) across 15 domains :material-arrow-right:](features.md){ .md-button .md-button--primary }
 
 ## See it in action
 

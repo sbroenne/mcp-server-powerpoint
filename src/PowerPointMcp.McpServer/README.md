@@ -32,23 +32,25 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 
 ## Capabilities
 
-**13 tools with 141 operations across 13 domains:**
+**15 tools with 158 operations across 15 domains:**
 
 | Tool | Ops | Coverage |
 | --- | --- | --- |
 | `presentation` | 12 | create, open, save, close, list, apply-template, get-theme-name, built-in/custom document properties |
-| `slide` | 14 | slide lifecycle, solid + gradient backgrounds, sections |
-| `shape` | 36 | shape creation, geometry, styling, effects, grouping, naming, hyperlinks |
+| `slide` | 19 | slide lifecycle, backgrounds, sections, comments, slide import |
+| `shape` | 39 | shape creation, styling, grouping, hyperlinks, placeholders |
 | `textframe` | 20 | text content, font formatting, alignment, bullets, auto-size |
 | `table` | 12 | tables, cell text, row/column edits, cell fill/border, merge |
 | `notes` | 2 | set/get speaker notes |
 | `layout` | 4 | set/get slide layout |
+| `pagesetup` | 5 | slide size, numbering, footer, date/time |
+| `accessibility` | 3 | deterministic audit and reading order |
 | `master` | 10 | title/body placeholder fonts, solid + gradient master backgrounds |
 | `animation` | 5 | shape effects, transition read/write |
 | `image` | 7 | add picture, brightness/contrast, recolor, crop |
 | `chart` | 10 | charts, series, chart/axis titles, legend visibility, data replacement |
 | `smartart` | 7 | SmartArt insertion and node editing |
-| `export` | 2 | export a slide or every slide to images |
+| `export` | 3 | export to PDF or images |
 
 Every domain is exposed as a single **action-dispatch tool** taking an `action`
 parameter — including `presentation`. Example MCP calls:

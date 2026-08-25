@@ -39,7 +39,7 @@ Every editing workflow starts by establishing a session:
 
 ## Tool Conventions
 
-- **All 13 MCP tools are action-dispatch tools.** Every call includes an `action` parameter.
+- **All 15 MCP tools are action-dispatch tools.** Every call includes an `action` parameter.
 - **`presentation` uses camelCase lifecycle/property parameters** — `filePath`, `sessionId`,
   `templatePath`, `propertyName`, `value`.
 - **The other 12 domain tools use `session_id` plus snake_case action parameters**, e.g.
@@ -98,6 +98,12 @@ After creating or changing visual content, export and look at the result:
 ```
 
 See `export-and-verify.md` for the full loop and when it is required.
+
+## Run the Deterministic Accessibility Audit
+
+Before final delivery, call `accessibility(action: "audit", session_id: ...)`. Fix missing
+alternative text and empty title placeholders, then rerun the audit. This is a deterministic
+PowerPoint structure check, not an AI review of writing quality.
 
 ## Report Results
 

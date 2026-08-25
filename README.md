@@ -44,24 +44,25 @@ layout regressions that text-only automation simply cannot detect.
 
 ## 🎯 What You Can Do
 
-**13 MCP tools with 141 operations across 13 domains:**
+**15 MCP tools with 158 operations across 15 domains:**
 
 - 🗂️ **Presentation** (12 ops) — create, open, save, close, list sessions, apply a `.potx`/`.pptx`
   template's masters/theme/layouts, read the current theme name, read/write built-in and custom
   document properties
-- 📑 **Slide** (14 ops) — add, count, delete, duplicate, reorder, per-slide background color, sections
-- ▭ **Shape** (36 ops) — rectangles, text boxes, auto shapes, lines, connectors, fill/line/shadow,
-  rotation, flip, z-order, grouping, naming, alt text
+- 📑 **Slide** (19 ops) — lifecycle, backgrounds, sections, comments, and slide import
+- ▭ **Shape** (39 ops) — shapes, styling, grouping, hyperlinks, and placeholder editing
 - ✏️ **TextFrame** (20 ops) — text, font size/name/color, bold, italic, underline, alignment, bullets
 - 📊 **Table** (12 ops) — add, cell text, insert/delete rows &amp; columns, cell fill/border, merge cells
 - 🗣️ **Notes** (2 ops) — set/get speaker notes
 - 🖼️ **Layout** (4 ops) — set/get slide layout
+- 📐 **Page Setup** (5 ops) — slide size, first slide number, footer, date/time, slide numbers
+- ♿ **Accessibility** (3 ops) — deterministic audit and reading-order management
 - 🎭 **Master** (10 ops) — slide master title/body placeholder fonts, background color
 - 🎬 **Animation** (5 ops) — shape entrance/emphasis/exit effects, slide transitions
 - 🖼️ **Image** (7 ops) — insert and adjust pictures (brightness, contrast, recolor, crop)
 - 📈 **Chart** (10 ops) — add chart, multi-series data, titles, axis titles, legend
 - 🔀 **SmartArt** (7 ops) — insert and edit SmartArt diagrams
-- 🖼️ **Export** (2 ops) — export a slide, or all slides, to images for visual verification
+- 🖼️ **Export** (3 ops) — export to PDF or images for delivery and visual verification
 
 Every domain is exposed as a single **action-dispatch tool** (e.g. `shape`, `table`, `chart`,
 `presentation`) with an `action` parameter selecting the specific operation — keeping the tool

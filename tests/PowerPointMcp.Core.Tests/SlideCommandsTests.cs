@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.Core.Presentation;
+using Sbroenne.PowerPointMcp.Core.Shape;
 using Sbroenne.PowerPointMcp.Core.Slide;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
@@ -341,5 +342,149 @@ public class SlideCommandsTests : IClassFixture<SharedPresentationFixture>
 
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void Comments_AddListDeleteAndClear_RoundTripAgainstNativeComments()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var firstAdd = _commands.AddComment(
+            _fixture.Batch, 1, "Release Tester", "RT", "First comment", left: 12f, top: 34f);
+        Assert.True(firstAdd.Success, firstAdd.ErrorMessage);
+        Assert.Equal(1, firstAdd.CommentCount);
+
+        var secondAdd = _commands.AddComment(
+            _fixture.Batch, 1, "Second Tester", "ST", "Second comment");
+        Assert.True(secondAdd.Success, secondAdd.ErrorMessage);
+        Assert.Equal(2, secondAdd.CommentCount);
+
+        var saveResult = _presentationCommands.Save(_fixture.Batch);
+        Assert.True(saveResult.Success, saveResult.ErrorMessage);
+        _fixture.ReopenCurrentPresentation();
+
+        var listed = _commands.ListComments(_fixture.Batch, 1);
+        Assert.True(listed.Success, listed.ErrorMessage);
+        Assert.Equal(2, listed.CommentCount);
+        var nativeAuthor = listed.Comments![0].Author;
+        var nativeInitials = listed.Comments[0].Initials;
+
+        // Modern PowerPoint replaces supplied comment identity with the signed-in Office identity.
+        // Assert that the native identity is populated and remains stable across comments instead.
+        Assert.False(string.IsNullOrWhiteSpace(nativeAuthor), "PowerPoint must expose a native comment author.");
+        Assert.False(string.IsNullOrWhiteSpace(nativeInitials), "PowerPoint must expose native comment initials.");
+        Assert.All(listed.Comments, comment =>
+        {
+            Assert.Equal(nativeAuthor, comment.Author);
+            Assert.Equal(nativeInitials, comment.Initials);
+        });
+
+        Assert.Collection(
+            listed.Comments,
+            comment =>
+            {
+                Assert.Equal(1, comment.CommentIndex);
+                Assert.Equal("First comment", comment.Text);
+                Assert.InRange(comment.Left, 11.9f, 12.1f);
+                // Modern comments may normalize the legacy COM Top value even when Left is preserved.
+                Assert.True(
+                    Math.Abs(comment.Top - 34f) <= 0.1f || comment.Top == 0f,
+                    $"Expected the requested or native-normalized comment Top value, but found {comment.Top}.");
+            },
+            comment =>
+            {
+                Assert.Equal(2, comment.CommentIndex);
+                Assert.Equal("Second comment", comment.Text);
+            });
+
+        var deleted = _commands.DeleteComment(_fixture.Batch, 1, 1);
+        Assert.True(deleted.Success, deleted.ErrorMessage);
+        Assert.Equal(1, deleted.CommentCount);
+
+        saveResult = _presentationCommands.Save(_fixture.Batch);
+        Assert.True(saveResult.Success, saveResult.ErrorMessage);
+        _fixture.ReopenCurrentPresentation();
+
+        var afterDelete = _commands.ListComments(_fixture.Batch, 1);
+        var remaining = Assert.Single(afterDelete.Comments!);
+        Assert.Equal("Second comment", remaining.Text);
+
+        var cleared = _commands.ClearComments(_fixture.Batch, 1);
+        Assert.True(cleared.Success, cleared.ErrorMessage);
+        Assert.Equal(0, cleared.CommentCount);
+
+        saveResult = _presentationCommands.Save(_fixture.Batch);
+        Assert.True(saveResult.Success, saveResult.ErrorMessage);
+        _fixture.ReopenCurrentPresentation();
+
+        var afterClear = _commands.ListComments(_fixture.Batch, 1);
+        Assert.True(afterClear.Success, afterClear.ErrorMessage);
+        Assert.Empty(afterClear.Comments!);
+    }
+
+    [Fact]
+    public void ImportFromFile_WithSourceRange_InsertsSlidesAfterDestination()
+    {
+        string sourcePath = _fixture.CreateFreshPresentation("pptmcp-import-source");
+        _commands.AddBlank(_fixture.Batch);
+        _commands.AddBlank(_fixture.Batch);
+        var shapeCommands = new ShapeCommands();
+        shapeCommands.AddTextBox(_fixture.Batch, 2, 10f, 10f, 200f, 40f, "Imported slide two");
+        shapeCommands.AddTextBox(_fixture.Batch, 3, 10f, 10f, 200f, 40f, "Imported slide three");
+        _presentationCommands.Save(_fixture.Batch);
+
+        _fixture.CreateFreshPresentation("pptmcp-import-destination");
+
+        var result = _commands.ImportFromFile(
+            _fixture.Batch,
+            sourcePath,
+            destinationSlideIndex: 1,
+            sourceStartSlide: 2,
+            sourceEndSlide: 3);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Null(result.ErrorMessage);
+        Assert.Equal(2, result.ImportedSlideCount);
+        Assert.Equal([2, 3], result.ImportedSlideIndexes);
+        Assert.Equal(3, result.SlideCount);
+
+        var saveResult = _presentationCommands.Save(_fixture.Batch);
+        Assert.True(saveResult.Success, saveResult.ErrorMessage);
+        _fixture.ReopenCurrentPresentation();
+        Assert.Equal(3, _commands.GetCount(_fixture.Batch).SlideCount);
+
+        string[] importedText = _fixture.Batch.Execute((ctx, ct) => new[]
+        {
+            ctx.Presentation.Slides[2].Shapes[1].TextFrame.TextRange.Text,
+            ctx.Presentation.Slides[3].Shapes[1].TextFrame.TextRange.Text
+        });
+        Assert.Equal(["Imported slide two", "Imported slide three"], importedText);
+    }
+
+    [Fact]
+    public void ImportFromFile_WithInvalidSourceRangeOrDestination_ReturnsFailure()
+    {
+        string sourcePath = _fixture.CreateFreshPresentation("pptmcp-import-invalid-source");
+        _commands.AddBlank(_fixture.Batch);
+        _presentationCommands.Save(_fixture.Batch);
+        _fixture.CreateFreshPresentation("pptmcp-import-invalid-destination");
+
+        var invalidRange = _commands.ImportFromFile(
+            _fixture.Batch,
+            sourcePath,
+            destinationSlideIndex: 1,
+            sourceStartSlide: 2,
+            sourceEndSlide: 1);
+        Assert.False(invalidRange.Success);
+        Assert.False(string.IsNullOrWhiteSpace(invalidRange.ErrorMessage));
+
+        var invalidDestination = _commands.ImportFromFile(
+            _fixture.Batch,
+            sourcePath,
+            destinationSlideIndex: 99,
+            sourceStartSlide: 1,
+            sourceEndSlide: 1);
+        Assert.False(invalidDestination.Success);
+        Assert.False(string.IsNullOrWhiteSpace(invalidDestination.ErrorMessage));
     }
 }

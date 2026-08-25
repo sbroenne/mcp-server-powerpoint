@@ -29,7 +29,7 @@
     Authoritative source = the generated `_SkillManifest.g.cs` (produced by
     ServiceRegistryGenerator from the Core [ServiceCategory] interfaces). It reports every
     generator-driven domain (slide, shape, textframe, table, notes, layout, master, animation,
-    image, chart, smartart, export) - 12 tools.
+    image, chart, smartart, export, pagesetup, accessibility) - 14 tools.
 
     canonical tools      = manifest.Commands.Count + 1              (+ presentation)
     canonical operations = sum(manifest.Commands[*].Actions.Count)

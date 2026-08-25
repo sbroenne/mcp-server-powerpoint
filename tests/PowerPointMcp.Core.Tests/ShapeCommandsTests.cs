@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.Core.Presentation;
+using Sbroenne.PowerPointMcp.Core.Layout;
 using Sbroenne.PowerPointMcp.Core.Shape;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
@@ -735,5 +736,88 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
 
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void ListPlaceholders_AndSetPlaceholderText_RoundTripTitlePlaceholder()
+    {
+        _fixture.CreateFreshPresentation();
+        var layoutResult = new LayoutCommands().SetLayout(_fixture.Batch, 1, "ppLayoutTitleOnly");
+        Assert.True(layoutResult.Success, layoutResult.ErrorMessage);
+
+        var listed = _commands.ListPlaceholders(_fixture.Batch, 1);
+
+        Assert.True(listed.Success, listed.ErrorMessage);
+        var title = Assert.Single(listed.Placeholders!);
+        Assert.True(title.ShapeIndex >= 1);
+        Assert.Equal("ppPlaceholderTitle", title.PlaceholderType);
+
+        var setResult = _commands.SetPlaceholderText(
+            _fixture.Batch, 1, title.ShapeIndex, "Release title");
+
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Null(setResult.ErrorMessage);
+
+        var saveResult = _presentationCommands.Save(_fixture.Batch);
+        Assert.True(saveResult.Success, saveResult.ErrorMessage);
+        _fixture.ReopenCurrentPresentation();
+
+        string nativeText = _fixture.Batch.Execute((ctx, ct) =>
+            ctx.Presentation.Slides[1].Shapes[title.ShapeIndex].TextFrame.TextRange.Text);
+        Assert.Equal("Release title", nativeText);
+    }
+
+    [Fact]
+    public void SetPlaceholderText_OnNonPlaceholder_ReturnsFailure()
+    {
+        _fixture.CreateFreshPresentation();
+        var added = _commands.AddTextBox(_fixture.Batch, 1, 10f, 10f, 200f, 40f, "Not a placeholder");
+        Assert.True(added.Success, added.ErrorMessage);
+
+        var result = _commands.SetPlaceholderText(
+            _fixture.Batch, 1, added.ShapeIndex!.Value, "Replacement text");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void SetPlaceholderImage_ReplacesNativePicturePlaceholder()
+    {
+        _fixture.CreateFreshPresentation();
+        var layoutResult = new LayoutCommands().SetLayout(
+            _fixture.Batch, 1, "ppLayoutPictureWithCaption");
+        Assert.True(layoutResult.Success, layoutResult.ErrorMessage);
+
+        var listed = _commands.ListPlaceholders(_fixture.Batch, 1);
+        Assert.True(listed.Success, listed.ErrorMessage);
+        var picturePlaceholder = Assert.Single(
+            listed.Placeholders!,
+            placeholder => placeholder.PlaceholderType == "ppPlaceholderPicture");
+
+        string imagePath = CoreTestHelper.CreateUniqueTestImageFile();
+        try
+        {
+            var result = _commands.SetPlaceholderImage(
+                _fixture.Batch, 1, picturePlaceholder.ShapeIndex, imagePath);
+
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.Null(result.ErrorMessage);
+
+            var saveResult = _presentationCommands.Save(_fixture.Batch);
+            Assert.True(saveResult.Success, saveResult.ErrorMessage);
+            _fixture.ReopenCurrentPresentation();
+
+            var after = _commands.ListPlaceholders(_fixture.Batch, 1);
+            Assert.True(after.Success, after.ErrorMessage);
+            var replaced = Assert.Single(
+                after.Placeholders!,
+                placeholder => placeholder.PlaceholderType == "ppPlaceholderPicture");
+            Assert.True(replaced.HasImage);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
     }
 }

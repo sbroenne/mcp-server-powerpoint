@@ -5,7 +5,7 @@ using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 namespace Sbroenne.PowerPointMcp.Core.Slide;
 
 /// <inheritdoc cref="ISlideCommands"/>
-public sealed class SlideCommands : ISlideCommands
+public sealed partial class SlideCommands : ISlideCommands
 {
     private const int MsoTrue = -1;
     private const int MsoFalse = 0;
