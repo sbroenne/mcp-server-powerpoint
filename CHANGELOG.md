@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.5] - 2026-08-25
+
+### Patch Changes
+
+- [#49](https://github.com/sbroenne/mcp-server-powerpoint/pull/49) [`262f1be`](https://github.com/sbroenne/mcp-server-powerpoint/commit/262f1bec45e78d4c94f6d78801bcabe3d27b67da) Thanks [@sbroenne](https://github.com/sbroenne)! - Add native PDF delivery, presentation page setup and footer controls, legacy slide comments and slide import, native placeholder editing, and deterministic accessibility audits with reading-order management.
+
 ## [0.1.4] - 2026-07-28
 
 ### Patch Changes
