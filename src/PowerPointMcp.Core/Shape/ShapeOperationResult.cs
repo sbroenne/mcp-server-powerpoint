@@ -119,4 +119,16 @@ public sealed class ShapeOperationResult
 
     /// <summary>Bevel inset in points, if applicable.</summary>
     public float? BevelInset { get; init; }
+
+    /// <summary>Native placeholders found on a slide.</summary>
+    public IReadOnlyList<PlaceholderInfo>? Placeholders { get; init; }
+
+    /// <summary>Native PowerPoint placeholder type name, if applicable.</summary>
+    public string? PlaceholderType { get; init; }
+
+    /// <summary>Text assigned to a placeholder, if applicable.</summary>
+    public string? PlaceholderText { get; init; }
+
+    /// <summary>Whether a placeholder contains an image fill.</summary>
+    public bool? HasImage { get; init; }
 }

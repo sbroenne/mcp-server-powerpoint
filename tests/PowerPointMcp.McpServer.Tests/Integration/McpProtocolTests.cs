@@ -35,8 +35,9 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     /// <summary>
     /// The MCP tool surface: one hand-written action-dispatch tool (Presentation — session
     /// lifecycle + template + document properties) plus one generated action-dispatch tool per
-    /// remaining Core domain (Slide, Shape, TextFrame, Table, Notes, Layout, Master, Animation,
-    /// SmartArt, Image, Chart, Export) — enumerated directly from every <c>[McpServerTool]</c> in
+    /// remaining Core domain (Slide, Shape, TextFrame, Table, Notes, Layout, PageSetup,
+    /// Accessibility, Master, Animation, SmartArt, Image, Chart, Export) — enumerated directly
+    /// from every <c>[McpServerTool]</c> in
     /// <c>src/PowerPointMcp.McpServer/Tools/*.cs</c> (hand-written) and the generated
     /// <c>PowerPointMcp.Generators.Mcp</c> output (one action-dispatch tool per domain, matching
     /// mcp-server-excel's architecture: a single tool per domain with an action enum, instead of
@@ -48,13 +49,15 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         // PresentationTools.cs (1, hand-written action-dispatch tool — session lifecycle,
         // template, and document properties; 12 actions)
         "presentation",
-        // Generated action-dispatch tools (12, one per remaining Core domain)
+        // Generated action-dispatch tools (14, one per remaining Core domain)
         "slide",
         "shape",
         "textframe",
         "table",
         "notes",
         "layout",
+        "pagesetup",
+        "accessibility",
         "master",
         "animation",
         "smartart",
@@ -100,8 +103,8 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// THE core protocol proof: exactly the 24 expected tools (12 hand-written + 12 generated
-    /// action-dispatch) are discoverable via <c>tools/list</c> — no more, no less.
+    /// THE core protocol proof: exactly the 15 expected tools (1 hand-written + 14 generated
+    /// action-dispatch tools) are discoverable via <c>tools/list</c> — no more, no less.
     /// </summary>
     [Fact]
     public async Task ListTools_ReturnsExactlyTheExpectedTools()

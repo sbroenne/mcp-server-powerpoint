@@ -7,6 +7,107 @@ namespace Sbroenne.PowerPointMcp.Core.Export;
 public sealed class ExportCommands : IExportCommands
 {
     /// <inheritdoc/>
+    public ExportOperationResult ExportToPdf(
+        IPresentationBatch batch,
+        string outputPath,
+        bool overwrite = false)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(outputPath);
+        if (string.IsNullOrWhiteSpace(outputPath))
+        {
+            return new ExportOperationResult
+            {
+                ErrorMessage = "Output path must not be empty."
+            };
+        }
+
+        string fullOutputPath;
+        try
+        {
+            fullOutputPath = Path.GetFullPath(outputPath);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return new ExportOperationResult
+            {
+                ErrorMessage = $"Invalid output path: {ex.Message}"
+            };
+        }
+        if (!string.Equals(Path.GetExtension(fullOutputPath), ".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            return new ExportOperationResult
+            {
+                ErrorMessage = "PDF output path must use the .pdf extension."
+            };
+        }
+
+        string? outputDirectory = Path.GetDirectoryName(fullOutputPath);
+        if (string.IsNullOrWhiteSpace(outputDirectory))
+        {
+            return new ExportOperationResult
+            {
+                ErrorMessage = $"Cannot determine output directory from path: {fullOutputPath}."
+            };
+        }
+
+        if (File.Exists(fullOutputPath))
+        {
+            if (!overwrite)
+            {
+                return new ExportOperationResult
+                {
+                    ErrorMessage = $"Output file already exists: {fullOutputPath}. Set overwrite=true to replace it."
+                };
+            }
+
+            try
+            {
+                File.Delete(fullOutputPath);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return new ExportOperationResult
+                {
+                    ErrorMessage = $"Could not replace output file '{fullOutputPath}': {ex.Message}"
+                };
+            }
+        }
+
+        try
+        {
+            Directory.CreateDirectory(outputDirectory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return new ExportOperationResult
+            {
+                ErrorMessage = $"Could not create output directory '{outputDirectory}': {ex.Message}"
+            };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            // PIA gap: SaveCopyAs has an Office.MsoTriState parameter, unavailable without office.dll.
+            ((dynamic)ctx.Presentation).SaveCopyAs(
+                fullOutputPath,
+                (int)PowerPoint.PpSaveAsFileType.ppSaveAsPDF);
+
+            if (!File.Exists(fullOutputPath) || new FileInfo(fullOutputPath).Length == 0)
+            {
+                throw new InvalidOperationException($"PowerPoint did not produce a non-empty PDF at '{fullOutputPath}'.");
+            }
+
+            return new ExportOperationResult
+            {
+                Success = true,
+                ExportedFilePath = fullOutputPath,
+                SlideCount = ctx.Presentation.Slides.Count
+            };
+        });
+    }
+
+    /// <inheritdoc/>
     public ExportOperationResult ExportSlideToImage(
         IPresentationBatch batch,
         int slideIndex,

@@ -1,8 +1,8 @@
 # Export & Visual Verification
 
-Reference for `export(action: "export-slide-to-image", ...)` and `export(action:
-"export-all-slides-to-images", ...)` — PowerPoint's native COM rendering used as the multimodal
-"look at the result" verification loop. This is the tool surface's differentiator: text-only
+Reference for PowerPoint's native PDF delivery and image rendering actions. The image actions
+provide the multimodal "look at the result" verification loop. This is the tool surface's
+differentiator: text-only
 inspection (`textframe(action: "get-text", ...)`, `shape(action: "get-count", ...)`,
 `chart(action: "get-chart-data", ...)`) cannot catch overlapping shapes, text overflow, bad chart
 proportions, or wrong colors — only a rendered image can.
@@ -28,6 +28,7 @@ confirms the API accepted the parameters, not that the result looks correct.
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
+| `export` | `export-to-pdf` | `session_id`, `output_path`, `overwrite` (default `false`) | Creates a PDF without changing the open presentation's file path. Refuses to replace an existing file unless `overwrite` is explicitly true. |
 | `export` | `export-slide-to-image` | `session_id`, `slide_index`, `output_path`, `format` (default `"PNG"`), `width`, `height` (optional pixels) | Renders exactly one slide to a single image file. |
 | `export` | `export-all-slides-to-images` | `session_id`, `output_directory`, `format` (default `"PNG"`) | Renders every slide; PowerPoint names files `Slide1.PNG`, `Slide2.PNG`, etc. in the given directory. |
 
@@ -41,6 +42,7 @@ confirms the API accepted the parameters, not that the result looks correct.
 
 | Situation | Use |
 |-----------|-----|
+| Delivering a finished deck as a PDF | `export(action: "export-to-pdf", ...)` after saving the presentation |
 | Just added/changed one slide | `export(action: "export-slide-to-image", ...)` on that slide only |
 | Finished building a whole deck | `export(action: "export-all-slides-to-images", ...)` once, review every image |
 | Iterating on a single slide's layout | `export-slide-to-image` repeatedly on that slide during the fix loop |

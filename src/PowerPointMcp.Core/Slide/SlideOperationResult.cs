@@ -44,4 +44,16 @@ public sealed class SlideOperationResult
 
     /// <summary>Name of the section, if applicable.</summary>
     public string? SectionName { get; init; }
+
+    /// <summary>Legacy comments on a slide, in 1-based comment order.</summary>
+    public IReadOnlyList<SlideCommentInfo>? Comments { get; init; }
+
+    /// <summary>Number of legacy comments on the slide.</summary>
+    public int? CommentCount { get; init; }
+
+    /// <summary>Number of slides imported by an import operation.</summary>
+    public int? ImportedSlideCount { get; init; }
+
+    /// <summary>New 1-based indexes assigned to imported slides.</summary>
+    public IReadOnlyList<int>? ImportedSlideIndexes { get; init; }
 }

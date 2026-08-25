@@ -119,11 +119,21 @@ of one flat tool per verb.
 
 Available command groups (in addition to `session` and `service`):
 
-`animation`, `chart`, `export`, `image`, `layout`, `master`, `notes`, `shape`, `slide`, `smartart`, `table`, `textframe`
+`accessibility`, `animation`, `chart`, `export`, `image`, `layout`, `master`, `notes`, `pagesetup`, `shape`, `slide`, `smartart`, `table`, `textframe`
 
 Run `pptcli <command> --help` for the live, authoritative list of actions and flags for that
 command — the table below is a summary generated from the same Core interfaces as the MCP tool
 surface, so it can lag a `--help` run for in-flight changes.
+
+
+### `accessibility` — Deterministic presentation accessibility checks and reading-order operations.
+
+Actions: `audit`, `get-reading-order`, `set-reading-order`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | (required for: get-reading-order, set-reading-order) |
+| `--shape-indexes` | (required for: set-reading-order) |
 
 
 ### `animation` — Animation commands: add/delete entrance, emphasis, and exit effects on a shape's slide timeline (Slide.TimeLine.MainSequence), and read/set a slide's transition (Slide.SlideShowTransition). Operates within an already-open , targeting a specific slide (and, for shape effects, a specific shape) by 1-based index.
@@ -168,14 +178,15 @@ Actions: `add-chart`, `get-chart-data`, `add-series`, `set-chart-title`, `get-ch
 | `--series-values` | (required for: replace-chart-data) |
 
 
-### `export` — Export commands: render presentation slides to raster image files. Operates within an already-open .
+### `export` — Export commands: render presentations to PDF or slides to raster image files. Operates within an already-open .
 
-Actions: `export-slide-to-image`, `export-all-slides-to-images`
+Actions: `export-to-pdf`, `export-slide-to-image`, `export-all-slides-to-images`
 
 | Flag | Description |
 |------|-------------|
+| `--output-path` | Full path for the output .pdf file. (required for: export-to-pdf, export-slide-to-image) |
+| `--overwrite` | Whether an existing PDF may be replaced. Defaults to false. |
 | `--slide-index` | 1-based index of the slide to export. (required for: export-slide-to-image) |
-| `--output-path` | Full path for the output image file (e.g. C:\output\slide1.png). (required for: export-slide-to-image) |
 | `--format` | PowerPoint filter name for the image format (e.g. "PNG", "JPG", "GIF").     Defaults to "PNG". |
 | `--width` | Optional output width in pixels; 0 or null uses PowerPoint's default. |
 | `--height` | Optional output height in pixels; 0 or null uses PowerPoint's default. |
@@ -249,9 +260,27 @@ Actions: `set-notes-text`, `get-notes-text`
 | `--text` | (required for: set-notes-text) |
 
 
-### `shape` — Shape commands: add rectangles/text boxes, count, delete, reposition/resize. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
+### `pagesetup` — Presentation-wide slide size, numbering, and footer settings.
 
-Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`
+Actions: `get-settings`, `set-size`, `set-first-slide-number`, `get-footer`, `set-footer`
+
+| Flag | Description |
+|------|-------------|
+| `--width` | (required for: set-size) |
+| `--height` | (required for: set-size) |
+| `--first-slide-number` | (required for: set-first-slide-number) |
+| `--footer-text` |  |
+| `--show-footer` |  |
+| `--show-slide-number` |  |
+| `--show-date-time` |  |
+| `--date-time-mode` |  |
+| `--fixed-date-time-text` |  |
+| `--show-on-title-slide` |  |
+
+
+### `shape` — Shape commands: create, inspect, format, group, link, and edit native placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
+
+Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`
 
 | Flag | Description |
 |------|-------------|
@@ -260,14 +289,14 @@ Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-con
 | `--top` | (required for: add-rectangle, add-text-box, add-auto-shape, set-position) |
 | `--width` | (required for: add-rectangle, add-text-box, add-auto-shape, set-size) |
 | `--height` | (required for: add-rectangle, add-text-box, add-auto-shape, set-size) |
-| `--text` | (required for: add-text-box) |
+| `--text` | (required for: add-text-box, set-placeholder-text) |
 | `--shape-type` | (required for: add-auto-shape) |
 | `--begin-x` | (required for: add-line, add-connector) |
 | `--begin-y` | (required for: add-line, add-connector) |
 | `--end-x` | (required for: add-line, add-connector) |
 | `--end-y` | (required for: add-line, add-connector) |
 | `--connector-type` | (required for: add-connector) |
-| `--shape-index` | (required for: delete, set-position, set-size, set-fill, get-fill, set-line, get-line, set-rotation, get-rotation, flip, set-z-order, set-shadow, get-shadow, set-glow, get-glow, set-reflection, get-reflection, set-soft-edge, get-soft-edge, set-bevel, get-bevel, ungroup, set-name, get-name, set-alt-text, get-alt-text, set-hyperlink, get-hyperlink, remove-hyperlink) |
+| `--shape-index` | (required for: delete, set-position, set-size, set-fill, get-fill, set-line, get-line, set-rotation, get-rotation, flip, set-z-order, set-shadow, get-shadow, set-glow, get-glow, set-reflection, get-reflection, set-soft-edge, get-soft-edge, set-bevel, get-bevel, ungroup, set-name, get-name, set-alt-text, get-alt-text, set-hyperlink, get-hyperlink, remove-hyperlink, set-placeholder-text, set-placeholder-image) |
 | `--red` | (required for: set-fill, set-glow) |
 | `--green` | (required for: set-fill, set-glow) |
 | `--blue` | (required for: set-fill, set-glow) |
@@ -291,15 +320,16 @@ Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-con
 | `--alt-text` | (required for: set-alt-text) |
 | `--address` | (required for: set-hyperlink) |
 | `--screen-tip` |  |
+| `--image-path` | (required for: set-placeholder-image) |
 
 
-### `slide` — Slide lifecycle commands: add, delete, count, duplicate, reorder, per-slide background color, and section management. First domain built on top of the presentation lifecycle commands, operating within an already-open IPresentationBatch.
+### `slide` — Slide lifecycle, background, section, legacy comment, and slide-import commands.
 
-Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-background-color`, `get-background-color`, `set-gradient-background`, `get-gradient-background`, `add-section`, `rename-section`, `delete-section`, `get-section-count`, `get-section-name`
+Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-background-color`, `get-background-color`, `set-gradient-background`, `get-gradient-background`, `add-section`, `rename-section`, `delete-section`, `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`, `clear-comments`, `import-from-file`
 
 | Flag | Description |
 |------|-------------|
-| `--slide-index` | (required for: delete, duplicate, move-to, set-background-color, get-background-color, set-gradient-background, get-gradient-background) |
+| `--slide-index` | (required for: delete, duplicate, move-to, set-background-color, get-background-color, set-gradient-background, get-gradient-background, list-comments, add-comment, delete-comment, clear-comments) |
 | `--to-position` | (required for: move-to) |
 | `--red` | (required for: set-background-color) |
 | `--green` | (required for: set-background-color) |
@@ -315,6 +345,16 @@ Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-backgr
 | `--section-index` | (required for: add-section, rename-section, delete-section, get-section-name) |
 | `--section-name` | (required for: rename-section) |
 | `--delete-slides` |  |
+| `--author` | (required for: add-comment) |
+| `--initials` | (required for: add-comment) |
+| `--text` | (required for: add-comment) |
+| `--left` |  |
+| `--top` |  |
+| `--comment-index` | (required for: delete-comment) |
+| `--source-file-path` | (required for: import-from-file) |
+| `--destination-slide-index` | (required for: import-from-file) |
+| `--source-start-slide` |  |
+| `--source-end-slide` |  |
 
 
 ### `smartart` — SmartArt commands: add a SmartArt diagram to a slide from PowerPoint's built-in layout gallery, and add/read/update/delete/count the diagram's nodes. Operates within an already-open , targeting a specific slide and shape by 1-based index.

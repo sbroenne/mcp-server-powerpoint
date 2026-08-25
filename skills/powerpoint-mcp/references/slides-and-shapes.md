@@ -1,7 +1,7 @@
 # Slides and Shapes
 
 Reference for the `slide` tool (`add-blank`, `get-count`, `delete`, `duplicate`, `move-to`,
-`set-background-color`, `get-background-color`, section management) and the `shape` tool
+`set-background-color`, `get-background-color`, sections, comments, import) and the `shape` tool
 (`add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`,
 `delete`, `set-position`, `set-size`, plus the fill/line/rotation/flip/z-order/shadow/glow/
 reflection/soft-edge/bevel/group/name/alt-text/hyperlink formatting actions below).
@@ -24,6 +24,11 @@ reflection/soft-edge/bevel/group/name/alt-text/hyperlink formatting actions belo
 | `slide` | `delete-section` | `session_id`, `section_index`, `delete_slides` (optional, default `false`) | Deletes a section. If `delete_slides` is true, its slides are deleted too; otherwise they're kept and merged into a neighboring section. **PowerPoint disallows deleting section 1 unless `delete_slides` is true** — delete/reorder other sections first if you need to remove the first one's boundary without losing its slides. |
 | `slide` | `get-section-count` | `session_id` | Returns the current number of sections (`sectionCount`, `0` if none exist). |
 | `slide` | `get-section-name` | `session_id`, `section_index` | Returns a section's name (`sectionName`). |
+| `slide` | `list-comments` | `session_id`, `slide_index` | Lists legacy comments exposed by native PowerPoint COM. Modern threaded comments are not available through this API. |
+| `slide` | `add-comment` | `session_id`, `slide_index`, `author`, `initials`, `text`, optional `left`/`top` | Adds a legacy comment. PowerPoint may replace author details with the signed-in Office identity. |
+| `slide` | `delete-comment` | `session_id`, `slide_index`, `comment_index` | Deletes one legacy comment by 1-based index. |
+| `slide` | `clear-comments` | `session_id`, `slide_index` | Deletes all legacy comments on the slide. |
+| `slide` | `import-from-file` | `session_id`, `source_file_path`, `destination_slide_index`, optional source range | Inserts an inclusive 1-based source range after the destination slide; it never replaces destination slides. |
 
 Slides always append at the end via `add-blank` — there is no "insert blank at position N" action;
 use `add-blank` then `move-to` if you need a blank slide inserted mid-deck. See `deck-builder.md`
@@ -58,6 +63,9 @@ slide(action: "rename-section", session_id: ..., section_index: 2, section_name:
 | `shape` | `delete` | `session_id`, `slide_index`, `shape_index` (1-based) | Removes one shape; later shapes on that slide shift down by one index. |
 | `shape` | `set-position` | `session_id`, `slide_index`, `shape_index`, `left`, `top` | Moves an existing shape. |
 | `shape` | `set-size` | `session_id`, `slide_index`, `shape_index`, `width`, `height` | Resizes an existing shape. |
+| `shape` | `list-placeholders` | `session_id`, `slide_index` | Returns each native placeholder's shape index, type, name, bounds, alt text, and content state. |
+| `shape` | `set-placeholder-text` | `session_id`, `slide_index`, `shape_index`, `text` | Replaces text in a native text placeholder; rejects ordinary shapes. |
+| `shape` | `set-placeholder-image` | `session_id`, `slide_index`, `shape_index`, `image_path` | Places an image in a compatible picture/content placeholder while preserving its native geometry and metadata. |
 
 All position/size values are **points** (see `deck-builder.md` for the 960×540pt 16:9 reference).
 

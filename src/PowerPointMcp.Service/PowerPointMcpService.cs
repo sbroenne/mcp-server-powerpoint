@@ -3,6 +3,7 @@ using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Core.Accessibility;
 using Sbroenne.PowerPointMcp.Core.Animation;
 using Sbroenne.PowerPointMcp.Core.Chart;
 using Sbroenne.PowerPointMcp.Core.Export;
@@ -10,6 +11,7 @@ using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Layout;
 using Sbroenne.PowerPointMcp.Core.Master;
 using Sbroenne.PowerPointMcp.Core.Notes;
+using Sbroenne.PowerPointMcp.Core.PageSetup;
 using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Shape;
 using Sbroenne.PowerPointMcp.Core.Slide;
@@ -60,6 +62,8 @@ public sealed class PowerPointMcpService : IDisposable
     private readonly MasterCommands _masterCommands = new();
     private readonly AnimationCommands _animationCommands = new();
     private readonly SmartArtCommands _smartArtCommands = new();
+    private readonly PageSetupCommands _pageSetupCommands = new();
+    private readonly AccessibilityCommands _accessibilityCommands = new();
 
     /// <summary>Gets the UTC time this daemon instance started.</summary>
     public DateTime StartTime => _startTime;
@@ -74,9 +78,10 @@ public sealed class PowerPointMcpService : IDisposable
     /// mirroring mcp-server-excel's architecture, where one shared Service class is consumed two
     /// ways: in-process (direct calls, no pipe) by the MCP server, and via
     /// named-pipe/StreamJsonRpc by the separate CLI daemon process. The generated domain MCP
-    /// tools (Slide, Shape, TextFrame, Table, Chart, Image, Notes, Layout, Master, Export) DO call
-    /// <see cref="ProcessAsync"/> in-process via <c>ServiceBridge.ForwardToService</c> — only the
-    /// hand-written <c>PresentationTools</c> bypass it and use <see cref="Sessions"/> directly.
+    /// tools (Slide, Shape, TextFrame, Table, Chart, Image, Notes, Layout, Master, Animation,
+    /// SmartArt, Export, PageSetup, Accessibility) DO call <see cref="ProcessAsync"/> in-process
+    /// via <c>ServiceBridge.ForwardToService</c> — only the hand-written
+    /// <c>PresentationTools</c> bypass it and use <see cref="Sessions"/> directly.
     /// </summary>
     public PresentationSessionRegistry Sessions => _sessions;
 
@@ -266,6 +271,12 @@ public sealed class PowerPointMcpService : IDisposable
                 "smartart" => DispatchSimple<SmartArtAction>(action, request,
                     ServiceRegistry.SmartArt.TryParseAction,
                     (a, batch) => ServiceRegistry.SmartArt.DispatchToCore(_smartArtCommands, a, batch, request.Args)),
+                "pagesetup" => DispatchSimple<PageSetupAction>(action, request,
+                    ServiceRegistry.PageSetup.TryParseAction,
+                    (a, batch) => ServiceRegistry.PageSetup.DispatchToCore(_pageSetupCommands, a, batch, request.Args)),
+                "accessibility" => DispatchSimple<AccessibilityAction>(action, request,
+                    ServiceRegistry.Accessibility.TryParseAction,
+                    (a, batch) => ServiceRegistry.Accessibility.DispatchToCore(_accessibilityCommands, a, batch, request.Args)),
                 _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
             };
 

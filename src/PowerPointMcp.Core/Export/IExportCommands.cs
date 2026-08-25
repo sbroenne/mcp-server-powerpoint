@@ -4,20 +4,29 @@ using Sbroenne.PowerPointMcp.Core.Attributes;
 namespace Sbroenne.PowerPointMcp.Core.Export;
 
 /// <summary>
-/// Export commands: render presentation slides to raster image files.
+/// Export commands: render presentations to PDF or slides to raster image files.
 /// Operates within an already-open <see cref="IPresentationBatch"/>.
 /// </summary>
 /// <remarks>
-/// Uses the PowerPoint COM <c>Slide.Export</c> and <c>Presentation.Export</c> APIs, which
-/// are the native mechanisms for slide→image conversion and do not require any additional
-/// rendering library. This is the visual-verification ("verify visually") differentiator
-/// over competing PowerPoint MCP servers that cannot produce images from slides.
+/// Uses PowerPoint's native PDF and image export APIs without an additional rendering library.
 /// </remarks>
 [ServiceCategory("export", "Export")]
 [McpTool("export", Title = "Export Operations", Destructive = true, Category = "content",
-    Description = "Export slides in an open presentation session to raster image files.")]
+    Description = "Export an open presentation to PDF or raster image files.")]
 public interface IExportCommands
 {
+    /// <summary>
+    /// Exports the open presentation to a PDF file using PowerPoint's native fixed-format export.
+    /// Refuses to replace an existing file unless <paramref name="overwrite"/> is true.
+    /// </summary>
+    /// <param name="batch">The open presentation batch to operate on.</param>
+    /// <param name="outputPath">Full path for the output <c>.pdf</c> file.</param>
+    /// <param name="overwrite">Whether an existing PDF may be replaced. Defaults to false.</param>
+    ExportOperationResult ExportToPdf(
+        IPresentationBatch batch,
+        string outputPath,
+        bool overwrite = false);
+
     /// <summary>
     /// Exports a single slide to an image file using PowerPoint's native COM rendering
     /// (<c>Slide.Export(FileName, FilterName, ScaleWidth, ScaleHeight)</c>).
