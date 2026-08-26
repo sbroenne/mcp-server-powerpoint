@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Service;
@@ -9,21 +10,27 @@ public sealed class SessionCommandContractTests
     [Fact]
     public async Task SessionHelp_ListsSaveAsAndSaveCopyAs()
     {
-        var originalOut = Console.Out;
-        using var output = new StringWriter();
-        Console.SetOut(output);
-        try
+        var startInfo = new ProcessStartInfo
         {
-            int exitCode = await Program.Main(["session", "--help"]);
+            FileName = Path.Combine(AppContext.BaseDirectory, "powerpointcli.exe"),
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        startInfo.ArgumentList.Add("session");
+        startInfo.ArgumentList.Add("--help");
 
-            Assert.Equal(0, exitCode);
-            Assert.Contains("save-as", output.ToString(), StringComparison.Ordinal);
-            Assert.Contains("save-copy-as", output.ToString(), StringComparison.Ordinal);
-        }
-        finally
-        {
-            Console.SetOut(originalOut);
-        }
+        using var process = Process.Start(startInfo);
+        Assert.NotNull(process);
+
+        string output = await process.StandardOutput.ReadToEndAsync();
+        string error = await process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+
+        Assert.True(process.ExitCode == 0, error);
+        Assert.Contains("save-as", output, StringComparison.Ordinal);
+        Assert.Contains("save-copy-as", output, StringComparison.Ordinal);
     }
 
     [Fact]
