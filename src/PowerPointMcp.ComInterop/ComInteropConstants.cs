@@ -16,8 +16,8 @@ public static class ComInteropConstants
     /// Grace period for POWERPNT.exe to exit the OS process list after Application.Quit()
     /// returns, before <see cref="Session.PresentationShutdownService"/> force-terminates it
     /// as a last resort. Sized comfortably above the ~90-100 second benign Office-cleanup
-    /// lingering window observed in real-COM MCP round-trip testing (see .squad/decisions.md,
-    /// 2026-07-01 McpServer Phase 1 MVP entry) so the happy path never force-kills.
+    /// lingering window observed in real-COM MCP round-trip testing so the happy path never
+    /// force-kills.
     /// </summary>
     public static readonly TimeSpan PowerPointProcessExitGracePeriod = TimeSpan.FromSeconds(150);
 

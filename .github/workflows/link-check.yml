@@ -1,0 +1,78 @@
+name: Link Check
+
+# External sites can be unavailable or rate-limit requests for reasons unrelated
+# to a pull request. Keep this check scheduled and file an issue instead of
+# making network-dependent validation a required merge check.
+
+on:
+  schedule:
+    - cron: "23 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  link-check:
+    name: Check links in built site
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: gh-pages/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r gh-pages/requirements.txt
+
+      - name: Generate star history chart
+        shell: pwsh
+        run: |
+          $history = @(Get-Content ./star-history.json -Raw | ConvertFrom-Json)
+          $latest = $history[-1]
+          $aggregate = Join-Path $env:RUNNER_TEMP 'star-history.json'
+          Copy-Item ./star-history.json $aggregate
+          ./scripts/Update-StarHistory.ps1 `
+            -Repository '${{ github.repository }}' `
+            -AggregatePath $aggregate `
+            -SnapshotDate $latest.date `
+            -SnapshotCount ([int]$latest.count) `
+            -OutputPath ./gh-pages/docs/assets/images/star-history.svg
+
+      - name: Build site
+        working-directory: gh-pages
+        run: mkdocs build --strict --clean
+
+      - name: Check links
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --base gh-pages/_site
+            --no-progress
+            --max-concurrency 4
+            --accept 200,206,429
+            --exclude '^https?://localhost'
+            --exclude '^https?://127\.0\.0\.1'
+            --exclude 'example\.com'
+            'gh-pages/_site/**/*.html'
+          fail: true
+          output: lychee-report.md
+
+      - name: File an issue when links are broken
+        if: failure() && steps.lychee.outcome == 'failure'
+        uses: peter-evans/create-issue-from-file@v6
+        with:
+          title: "Broken links on powerpointmcpserver.dev"
+          content-filepath: lychee-report.md
+          labels: documentation

@@ -41,8 +41,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     /// <c>src/PowerPointMcp.McpServer/Tools/*.cs</c> (hand-written) and the generated
     /// <c>PowerPointMcp.Generators.Mcp</c> output (one action-dispatch tool per domain, matching
     /// mcp-server-excel's architecture: a single tool per domain with an action enum, instead of
-    /// one tool per verb). If this set changes, update it deliberately alongside the tool surface
-    /// (see .squad/decisions.md for the tool-count history).
+    /// one tool per verb). If this set changes, update it deliberately alongside the tool surface.
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
@@ -174,6 +173,33 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
             Assert.False(string.IsNullOrEmpty(tool.Name), "Tool has empty name");
             Assert.False(string.IsNullOrEmpty(tool.Description), $"Tool {tool.Name} has no description");
         }
+    }
+
+    [Fact]
+    public async Task PresentationSchema_UsesCanonicalLifecycleActions()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var presentation = Assert.Single(tools, tool => tool.Name == "presentation");
+        var actionSchema = presentation.JsonSchema
+            .GetProperty("properties")
+            .GetProperty("action");
+        var actions = actionSchema
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("test", actions);
+        Assert.DoesNotContain("save", actions);
+
+        var properties = presentation.JsonSchema.GetProperty("properties");
+        Assert.True(properties.TryGetProperty("save", out var saveSchema));
+        var saveTypes = saveSchema.GetProperty("type")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+        Assert.Contains("boolean", saveTypes);
+        Assert.Contains("null", saveTypes);
     }
 
     /// <summary>

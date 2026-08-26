@@ -65,8 +65,8 @@ internal static class PresentationShutdownService
     /// </summary>
     /// <param name="presentation">Presentation COM object (can be null).</param>
     /// <param name="app">Application COM object (can be null).</param>
-    /// <param name="processId">
-    /// POWERPNT.exe process ID captured at startup, if any. Required for the process-exit
+    /// <param name="processIdentity">
+    /// POWERPNT.exe PID and creation time captured at startup, if any. Required for the process-exit
     /// poll/force-terminate step; if not supplied, that step is skipped entirely (the process
     /// may leak — captured only best-effort at batch startup).
     /// </param>
@@ -75,7 +75,7 @@ internal static class PresentationShutdownService
     public static void CloseAndQuit(
         PowerPoint.Presentation? presentation,
         PowerPoint.Application? app,
-        int? processId,
+        PowerPointProcessIdentity? processIdentity,
         ILogger? logger = null,
         string? filePath = null)
     {
@@ -98,9 +98,9 @@ internal static class PresentationShutdownService
         GC.WaitForPendingFinalizers();
         GC.Collect();
 
-        if (processId.HasValue)
+        if (processIdentity.HasValue)
         {
-            WaitForProcessExitOrEscalate(processId.Value, fileName, logger);
+            WaitForProcessExitOrEscalate(processIdentity.Value, fileName, logger);
         }
     }
 
@@ -186,19 +186,22 @@ internal static class PresentationShutdownService
         }
     }
 
-    private static void WaitForProcessExitOrEscalate(int processId, string fileName, ILogger logger)
+    private static void WaitForProcessExitOrEscalate(
+        PowerPointProcessIdentity identity,
+        string fileName,
+        ILogger logger)
     {
         var stopwatch = Stopwatch.StartNew();
         var delay = TimeSpan.FromMilliseconds(InitialPollDelayMs);
 
         while (stopwatch.Elapsed < ComInteropConstants.PowerPointProcessExitGracePeriod)
         {
-            if (!IsProcessAlive(processId))
+            if (!OwnedProcessGuard.IsAlive(identity))
             {
                 LogDebugSafe(
                     logger,
                     "PowerPoint process {ProcessId} for {FileName} exited normally after {Elapsed}ms - no force-termination needed",
-                    processId, fileName, stopwatch.ElapsedMilliseconds);
+                    identity.ProcessId, fileName, stopwatch.ElapsedMilliseconds);
                 return;
             }
 
@@ -209,12 +212,12 @@ internal static class PresentationShutdownService
             delay = TimeSpan.FromMilliseconds(Math.Min(delay.TotalMilliseconds * 2, MaxPollDelayMs));
         }
 
-        if (!IsProcessAlive(processId))
+        if (!OwnedProcessGuard.IsAlive(identity))
         {
             LogDebugSafe(
                 logger,
                 "PowerPoint process {ProcessId} for {FileName} exited right at the grace-period boundary - no force-termination needed",
-                processId, fileName);
+                identity.ProcessId, fileName);
             return;
         }
 
@@ -224,43 +227,49 @@ internal static class PresentationShutdownService
         logger.LogWarning(
             "PowerPoint process {ProcessId} for {FileName} did not exit within the {GraceSeconds}s grace period after Quit(). " +
             "Treating as a hung process and force-terminating.",
-            processId, fileName, ComInteropConstants.PowerPointProcessExitGracePeriod.TotalSeconds);
+            identity.ProcessId, fileName, ComInteropConstants.PowerPointProcessExitGracePeriod.TotalSeconds);
 
-        TryKillProcess(processId, fileName, logger);
+        TryKillProcess(identity, fileName, logger);
     }
 
-    private static bool IsProcessAlive(int processId)
+    private static void TryKillProcess(
+        PowerPointProcessIdentity identity,
+        string fileName,
+        ILogger logger)
     {
         try
         {
-            using var process = Process.GetProcessById(processId);
-            return !process.HasExited;
-        }
-        catch (ArgumentException)
-        {
-            return false;
-        }
-    }
-
-    private static void TryKillProcess(int processId, string fileName, ILogger logger)
-    {
-        try
-        {
-            using var process = Process.GetProcessById(processId);
-            if (!process.HasExited)
+            if (!OwnedProcessGuard.TryOpenMatchingProcess(identity, out var process))
             {
-                process.Kill();
-                process.WaitForExit(5000);
-                logger.LogWarning("Force-terminated hung PowerPoint process {ProcessId} for {FileName}", processId, fileName);
+                logger.LogError(
+                    "Could not validate ownership of PowerPoint process {ProcessId} for {FileName}; refusing to terminate it",
+                    identity.ProcessId,
+                    fileName);
+                return;
             }
-        }
-        catch (ArgumentException)
-        {
-            // Already exited between the check and the kill attempt - nothing to do.
+
+            using (process)
+            {
+                if (process != null)
+                {
+                    process.Kill();
+                    process.WaitForExit(5000);
+                    logger.LogWarning(
+                        "Force-terminated hung PowerPoint process {ProcessId} for {FileName}",
+                        identity.ProcessId,
+                        fileName);
+                }
+            }
+
+            PresentationSessionRegistry.UntrackPowerPointProcess(identity);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to force-terminate PowerPoint process {ProcessId} for {FileName} - process may leak", processId, fileName);
+            logger.LogError(
+                ex,
+                "Failed to force-terminate PowerPoint process {ProcessId} for {FileName} - process may leak",
+                identity.ProcessId,
+                fileName);
         }
     }
 

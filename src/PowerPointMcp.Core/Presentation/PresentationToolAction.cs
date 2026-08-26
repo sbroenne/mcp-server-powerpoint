@@ -9,8 +9,8 @@ namespace Sbroenne.PowerPointMcp.Core.Presentation;
 /// lifecycle, instead of one MCP tool per verb.
 /// </summary>
 /// <remarks>
-/// Session lifecycle (<see cref="Create"/>, <see cref="Open"/>, <see cref="Save"/>,
-/// <see cref="Close"/>, <see cref="List"/>) is handled directly against
+/// Session lifecycle (<see cref="Create"/>, <see cref="Open"/>, <see cref="Close"/>,
+/// <see cref="List"/>, <see cref="Test"/>) is handled directly against
 /// <see cref="Sbroenne.PowerPointMcp.ComInterop.Session.PresentationSessionRegistry"/> by the MCP
 /// tool, NOT via <see cref="IPresentationCommands.Open"/>/<see cref="IPresentationCommands.Create"/>
 /// (those Core methods are standalone file-validation utilities with different semantics — see
@@ -27,17 +27,17 @@ public enum PresentationToolAction
     [JsonStringEnumMemberName("open")]
     Open,
 
-    /// <summary>Save the presentation for an open session to its current file.</summary>
-    [JsonStringEnumMemberName("save")]
-    Save,
-
-    /// <summary>Close an open session and release its PowerPoint process.</summary>
+    /// <summary>Close an open session and optionally save before releasing its PowerPoint process.</summary>
     [JsonStringEnumMemberName("close")]
     Close,
 
     /// <summary>List all currently open presentation sessions.</summary>
     [JsonStringEnumMemberName("list")]
     List,
+
+    /// <summary>Validate that PowerPoint can open a presentation without retaining a session.</summary>
+    [JsonStringEnumMemberName("test")]
+    Test,
 
     /// <summary>Apply a template's masters/theme/layouts to the open presentation.</summary>
     [JsonStringEnumMemberName("apply-template")]
@@ -79,9 +79,9 @@ public static class PresentationToolActionExtensions
     {
         PresentationToolAction.Create => "create",
         PresentationToolAction.Open => "open",
-        PresentationToolAction.Save => "save",
         PresentationToolAction.Close => "close",
         PresentationToolAction.List => "list",
+        PresentationToolAction.Test => "test",
         PresentationToolAction.ApplyTemplate => "apply-template",
         PresentationToolAction.GetThemeName => "get-theme-name",
         PresentationToolAction.SetDocumentProperty => "set-document-property",

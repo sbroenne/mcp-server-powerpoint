@@ -32,6 +32,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  docs:
+    name: Docs Site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: gh-pages/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r gh-pages/requirements.txt
+
+      - name: Generate star history chart
+        shell: pwsh
+        run: |
+          $history = @(Get-Content ./star-history.json -Raw | ConvertFrom-Json)
+          $latest = $history[-1]
+          $aggregate = Join-Path $env:RUNNER_TEMP 'star-history.json'
+          Copy-Item ./star-history.json $aggregate
+          ./scripts/Update-StarHistory.ps1 `
+            -Repository '${{ github.repository }}' `
+            -AggregatePath $aggregate `
+            -SnapshotDate $latest.date `
+            -SnapshotCount ([int]$latest.count) `
+            -OutputPath ./gh-pages/docs/assets/images/star-history.svg
+
+      - name: Build with MkDocs
+        working-directory: gh-pages
+        run: mkdocs build --strict --clean
+
+      - name: Audit built site
+        working-directory: gh-pages
+        run: python audit_site.py
+
+      - name: Verify deploy path coverage
+        working-directory: gh-pages
+        run: python check_deploy_paths.py
+
   ci-gate:
     name: CI Gate
     runs-on: windows-latest
@@ -84,6 +129,9 @@ jobs:
         run: |
           & scripts/check-doc-counts.ps1
           if ($LASTEXITCODE -ne 0) { throw "A doc advertises a tool/operation count that does not match the code-derived canonical count." }
+
+      - name: Release metadata and Agent Skills packaging tests
+        run: dotnet test tests/PowerPointMcp.SkillGeneration.Tests --configuration Release --no-build -p:PowerPointMcpSkipCleanup=true
 
       # --- PowerPoint-free build smoke checks (absorbed from the old Build CLI /
       #     Build MCP Server workflows) ---

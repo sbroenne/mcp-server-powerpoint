@@ -11,9 +11,8 @@ namespace Sbroenne.PowerPointMcp.CLI.Infrastructure;
 /// </summary>
 /// <remarks>
 /// Structural port of Sbroenne.ExcelMcp.CLI.Infrastructure.ServiceCommandBase&lt;TSettings&gt;.
-/// PowerPointMCP now HAS an out-of-process daemon (<c>PowerPointMcp.Service</c>) — see squad
-/// decision 2026-07-07, which reverses the earlier "drop the Service — functional overkill" call
-/// (2026-07-06). The daemon holds one long-lived <c>IPresentationBatch</c> per session id across
+/// PowerPointMCP uses an out-of-process daemon (<c>PowerPointMcp.Service</c>) that holds one
+/// long-lived <c>IPresentationBatch</c> per session id across
 /// separate CLI process invocations, so a caller only pays PowerPoint's ~90-150s launch/teardown
 /// cost once per "session open"/"session create", not on every command. Each generated command
 /// class supplies <see cref="GetSessionId"/>/<see cref="GetAction"/>/<see cref="ValidActions"/>/

@@ -6,9 +6,8 @@ content tools. Activate this when the user asks to "create a deck", "build a pre
 
 ## Plan Before You Build
 
-Slides only append at the end — **there is no move/reorder action in this surface.**
-Decide the full slide order up front before adding slides, because re-ordering later means
-deleting and re-adding slides in the right sequence.
+New slides append at the end. Plan the order up front when possible, and use
+`slide(action: "move-to", ...)` when an existing slide needs a different 1-based position.
 
 1. `slide(action: "get-count", session_id: ...)` (or start from 0 for a new file) → know where
    you're starting from.
@@ -64,17 +63,15 @@ standard 16:9 slide (13.33in × 7.5in ≈ 960pt × 540pt):
 - Body area below title: `top=130` down to `height ≈ 350`.
 - Two-column split: each column `width ≈ 420` with a `40`pt gutter between them.
 
-There is no API in this surface to query the actual slide width/height — assume the 960×540pt
-16:9 default unless the user specifies otherwise, and always verify with `export(action:
-"export-slide-to-image", ...)` rather than guessing blind.
+Read the actual slide width and height with `pagesetup(action: "get-settings", ...)` before
+positioning content. Always verify with `export(action: "export-slide-to-image", ...)` rather
+than guessing blind.
 
 ## Ordering and Structure
 
 - Title/agenda slide first, section dividers between major topics, summary/closing slide last.
-- Keep related content together — build a whole section's slides consecutively rather than
-  jumping around, since there's no reorder tool to fix mistakes cheaply.
-- If a slide was created in the wrong position, the only fix is `slide(action: "delete", ...)` +
-  re-`add-blank` in the right order — plan ahead to avoid this.
+- Keep related content together and build a section's slides consecutively when practical.
+- If a slide was created in the wrong position, move it with `slide(action: "move-to", ...)`.
 
 ## After the Deck Is Built
 
@@ -82,5 +79,5 @@ There is no API in this surface to query the actual slide width/height — assum
    call renders every slide.
 2. Review each exported image; fix any slide with overlapping shapes, empty placeholders, or text
    overflow (reduce `text` length or increase shape height / reduce font size).
-3. `presentation(action: "save", sessionId: sessionId)`.
+3. `presentation(action: "close", sessionId: sessionId, save: true)`.
 4. Summarize: slide count, layouts used, and the output path.

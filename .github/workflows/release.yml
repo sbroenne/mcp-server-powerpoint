@@ -127,6 +127,10 @@ jobs:
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
+    - name: Stamp Release Metadata
+      run: ./scripts/Update-ReleaseVersionMetadata.ps1 -Version $env:VERSION
+      shell: pwsh
+
     - name: Restore
       run: dotnet restore src/PowerPointMcp.CLI/PowerPointMcp.CLI.csproj
 
@@ -205,16 +209,8 @@ jobs:
         Write-Output "Version: $version"
       shell: pwsh
 
-    - name: Update Project Versions
-      run: |
-        $version = $env:VERSION
-
-        # Update MCP Registry server.json (top-level version and package version)
-        $serverJsonPath = "src/PowerPointMcp.McpServer/.mcp/server.json"
-        $serverContent = Get-Content $serverJsonPath -Raw
-        $serverContent = $serverContent -replace '("version":\s*)"[\d\.]+"(\s*,\s*\n\s*"packages")' , "`$1`"$version`"`$2"
-        $serverContent = $serverContent -replace '("identifier":\s*"Sbroenne\.PowerPointMcp\.McpServer",\s*\n\s*"version":\s*)"[\d\.]+"', "`$1`"$version`""
-        Set-Content $serverJsonPath $serverContent
+    - name: Stamp Release Metadata
+      run: ./scripts/Update-ReleaseVersionMetadata.ps1 -Version $env:VERSION
       shell: pwsh
 
     - name: Restore
@@ -306,27 +302,8 @@ jobs:
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
-    - name: Update Project Versions
-      run: |
-        $version = $env:VERSION
-
-        # Update Directory.Build.props (single source of truth for all project versions)
-        $propsPath = "Directory.Build.props"
-        $content = Get-Content $propsPath -Raw
-        $content = $content -replace '<Version>[\d\.]+</Version>', "<Version>$version</Version>"
-        $content = $content -replace '<AssemblyVersion>[\d\.]+\.[\d\.]+</AssemblyVersion>', "<AssemblyVersion>$version.0</AssemblyVersion>"
-        $content = $content -replace '<FileVersion>[\d\.]+\.[\d\.]+</FileVersion>', "<FileVersion>$version.0</FileVersion>"
-        Set-Content $propsPath $content
-      shell: pwsh
-
-    - name: Update Extension Version
-      run: |
-        $version = $env:VERSION
-        cd vscode-extension
-        # --allow-same-version: this ephemeral bump is never committed back to the repo (the
-        # extension's package.json baseline stays fixed), so a future release version can
-        # coincidentally match it — npm version would otherwise fail with "Version not changed".
-        npm version "$version" --no-git-tag-version --allow-same-version
+    - name: Stamp Release Metadata
+      run: ./scripts/Update-ReleaseVersionMetadata.ps1 -Version $env:VERSION
       shell: pwsh
 
     - name: Sync Extension Changelog
@@ -385,6 +362,10 @@ jobs:
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
+    - name: Stamp Release Metadata
+      run: ./scripts/Update-ReleaseVersionMetadata.ps1 -Version $env:VERSION
+      shell: pwsh
+
     - name: Build MCPB Bundle
       run: |
         cd mcpb
@@ -402,7 +383,7 @@ jobs:
   # =============================================================================
   build-agent-skills:
     name: Agent Skills
-    needs: [version]
+    needs: [version, build-cli]
     runs-on: windows-latest
     permissions:
       contents: read
@@ -416,92 +397,67 @@ jobs:
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
-    - name: Create Skills Package
-      run: |
-        $version = $env:VERSION
-        $outputDir = "artifacts/skills"
-        $skillsDir = "skills"
+    - name: Download CLI Runtime
+      uses: actions/download-artifact@v4
+      with:
+        name: cli-build
+        path: cli-runtime
 
-        # Create output directory
-        New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
-
-        # Create staging directory
-        $stagingDir = Join-Path $env:TEMP "powerpoint-skills-$([guid]::NewGuid().ToString('N').Substring(0,8))"
-        New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
-
-        try {
-          # Create skills/ subdirectory (the standard location for npx skills add)
-          $skillsStagingDir = Join-Path $stagingDir "skills"
-          New-Item -ItemType Directory -Path $skillsStagingDir -Force | Out-Null
-
-          # Copy powerpoint-mcp skill (SKILL.md and references)
-          Copy-Item -Path "$skillsDir/powerpoint-mcp" -Destination "$skillsStagingDir/powerpoint-mcp" -Recurse
-
-          # Copy skills README to root of package
-          if (Test-Path "$skillsDir/README.md") {
-            Copy-Item -Path "$skillsDir/README.md" -Destination $stagingDir
-          }
-
-          # Create ZIP archive
-          $zipPath = Join-Path $outputDir "powerpoint-skills-v$version.zip"
-          Compress-Archive -Path "$stagingDir\*" -DestinationPath $zipPath -CompressionLevel Optimal
-          Write-Host "Created: $zipPath"
-
-        } finally {
-          Remove-Item $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
-        }
-
-        # Copy platform-specific files
-        if (Test-Path "$skillsDir/CLAUDE.md") {
-          Copy-Item -Path "$skillsDir/CLAUDE.md" -Destination $outputDir
-        }
-        if (Test-Path "$skillsDir/.cursorrules") {
-          Copy-Item -Path "$skillsDir/.cursorrules" -Destination $outputDir
-        }
-
-        # Generate manifest.json
-        $manifest = @{
-          name = "powerpoint-skills"
-          version = $version
-          description = "PowerPoint MCP Server Agent Skills for AI coding assistants"
-          platforms = @("github-copilot", "claude-code", "cursor", "windsurf", "gemini-cli", "goose", "codex", "opencode", "amp", "kilo", "roo", "trae")
-          skills = @(
-            @{
-              name = "powerpoint-mcp"
-              path = "skills/powerpoint-mcp"
-              description = "MCP Server skill - PowerPoint deck authoring for conversational AI (Claude Desktop, VS Code Chat)"
-              target = "MCP Server"
-            }
-          )
-          installation = @{
-            npx = "npx skills add sbroenne/mcp-server-powerpoint"
-            selectSkill = "npx skills add sbroenne/mcp-server-powerpoint --skill powerpoint-mcp"
-            installAll = "npx skills add sbroenne/mcp-server-powerpoint --skill '*'"
-          }
-          files = @(
-            @{ name = "CLAUDE.md"; type = "config"; description = "Claude Code project instructions" }
-            @{ name = ".cursorrules"; type = "config"; description = "Cursor project rules" }
-          )
-          repository = "https://github.com/sbroenne/mcp-server-powerpoint"
-          documentation = "https://powerpointmcpserver.dev/"
-          buildDate = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
-        }
-        $manifest | ConvertTo-Json -Depth 10 | Set-Content -Path "$outputDir/manifest.json" -Encoding UTF8
-        Write-Host "Created: manifest.json"
+    - name: Build Skills Package
+      run: ./scripts/Build-AgentSkills.ps1 -Version $env:VERSION -CliPath "cli-runtime\powerpointcli.exe"
       shell: pwsh
 
     - name: Upload Skills Artifact
       uses: actions/upload-artifact@v6
       with:
         name: agent-skills
-        path: artifacts/skills/powerpoint-skills-*.zip
+        path: artifacts/skills/*
 
   # =============================================================================
-  # Job 6: Create Git Tag
+  # Job 6: Generate checksums for standalone runtime archives
+  # =============================================================================
+  build-checksums:
+    name: Standalone Checksums
+    needs: [build-cli, build-mcp-server]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Download CLI Archive
+      uses: actions/download-artifact@v4
+      with:
+        name: cli-zip
+        path: artifacts/cli
+
+    - name: Download MCP Server Archive
+      uses: actions/download-artifact@v4
+      with:
+        name: mcp-server-zip
+        path: artifacts/mcp-server
+
+    - name: Generate SHA256SUMS
+      run: |
+        mkdir checksum-input
+        cp artifacts/cli/*.zip checksum-input/
+        cp artifacts/mcp-server/*.zip checksum-input/
+        (cd checksum-input && sha256sum *.zip | sort -k2) > SHA256SUMS
+        cat SHA256SUMS
+
+    - name: Upload Checksums Artifact
+      uses: actions/upload-artifact@v6
+      with:
+        name: standalone-checksums
+        path: SHA256SUMS
+
+  # =============================================================================
+  # Job 7: Create Git Tag
   # =============================================================================
   create-tag:
     name: Create Git Tag
-    needs: [version, build-cli, build-mcp-server, build-vscode, build-mcpb, build-agent-skills]
+    needs: [version, build-cli, build-mcp-server, build-vscode, build-mcpb, build-agent-skills, build-checksums]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -523,7 +479,7 @@ jobs:
           git push origin "$TAG"
 
   # =============================================================================
-  # Job 7: Wait for NuGet Propagation + MCP Registry
+  # Job 8: Wait for NuGet Propagation + MCP Registry
   # =============================================================================
   publish-mcp-registry:
     name: MCP Registry
@@ -541,14 +497,8 @@ jobs:
         echo "VERSION=$version" >> $env:GITHUB_ENV
       shell: pwsh
 
-    - name: Update server.json Version
-      run: |
-        $version = $env:VERSION
-        $serverJsonPath = "src/PowerPointMcp.McpServer/.mcp/server.json"
-        $serverContent = Get-Content $serverJsonPath -Raw
-        $serverContent = $serverContent -replace '("version":\s*)"[\d\.]+"(\s*,\s*\n\s*"packages")' , "`$1`"$version`"`$2"
-        $serverContent = $serverContent -replace '("identifier":\s*"Sbroenne\.PowerPointMcp\.McpServer",\s*\n\s*"version":\s*)"[\d\.]+"', "`$1`"$version`""
-        Set-Content $serverJsonPath $serverContent
+    - name: Stamp MCP Registry Metadata
+      run: ./scripts/Update-McpRegistryMetadata.ps1 -ServerJsonPath "src/PowerPointMcp.McpServer/.mcp/server.json" -Version $env:VERSION
       shell: pwsh
 
     - name: Wait for NuGet Propagation
@@ -560,6 +510,7 @@ jobs:
         Write-Output "Waiting for NuGet CDN propagation..."
         $maxAttempts = 3
         $pollInterval = 600  # 10 minutes
+        $propagated = $false
 
         # First check immediately; subsequent checks wait pollInterval seconds
         for ($i = 1; $i -le $maxAttempts; $i++) {
@@ -570,6 +521,7 @@ jobs:
               $content = [System.Text.Encoding]::UTF8.GetString($response.Content)
               if ($content -match "mcp-name:\s+io\.github\.sbroenne/mcp-server-powerpoint") {
                 Write-Output "README propagated successfully"
+                $propagated = $true
                 break
               }
             }
@@ -580,6 +532,9 @@ jobs:
             Write-Output "Waiting $pollInterval seconds before retry..."
             Start-Sleep -Seconds $pollInterval
           }
+        }
+        if (-not $propagated) {
+          throw "NuGet package metadata did not propagate after $maxAttempts attempts."
         }
       shell: pwsh
 
@@ -596,10 +551,9 @@ jobs:
         Set-Location src/PowerPointMcp.McpServer/.mcp
         ../../../mcp-publisher.exe publish --verbose
       shell: pwsh
-      continue-on-error: true
 
   # =============================================================================
-  # Job 8: Publish to External Registries (after all builds succeed)
+  # Job 9: Publish to External Registries (after all builds succeed)
   # =============================================================================
   publish:
     name: Publish to Registries
@@ -677,7 +631,7 @@ jobs:
       continue-on-error: true
 
   # =============================================================================
-  # Job 9: Create Unified GitHub Release
+  # Job 10: Create Unified GitHub Release
   # =============================================================================
   create-release:
     name: Create GitHub Release
@@ -742,6 +696,7 @@ jobs:
         for f in artifacts/vscode-vsix/*.vsix; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/mcpb-bundle/*.mcpb; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
         for f in artifacts/agent-skills/*.zip; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
+        for f in artifacts/standalone-checksums/SHA256SUMS; do [ -f "$f" ] && ARTIFACTS="$ARTIFACTS $f"; done
 
         echo "Creating release with artifacts:$ARTIFACTS"
 

@@ -32,6 +32,24 @@ cd gh-pages
 
 ## How generated pages work
 
-`hooks.py` regenerates `docs/_generated/*.md` from canonical repo sources on every build
-(`on_pre_build`). Those files are git-ignored — never edit them directly. Edit the source file
-instead (e.g. `CHANGELOG.md` at the repo root) and rebuild.
+`hooks.py` regenerates `_generated/*.md` from canonical repo sources on every build
+(`on_pre_build`). Keeping generated files outside `docs/` prevents MkDocs serve from rebuilding
+in a loop. The directory is git-ignored — never edit it directly. Edit the source file instead
+(e.g. `CHANGELOG.md` at the repo root) and rebuild.
+
+## Checks
+
+The `Docs Site` CI job builds with strict warnings, audits internal links, and verifies that the
+Pages workflow watches every canonical source mirrored by `hooks.py`. Run the same checks locally
+after a build:
+
+```powershell
+cd gh-pages
+.\.venv\Scripts\python.exe -m mkdocs build --strict --clean
+.\.venv\Scripts\python.exe audit_site.py
+.\.venv\Scripts\python.exe check_deploy_paths.py
+```
+
+The weekly `link-check.yml` workflow checks external links and files an issue when links break.
+It intentionally does not run on pull requests because external sites can rate-limit requests or
+be temporarily unavailable.

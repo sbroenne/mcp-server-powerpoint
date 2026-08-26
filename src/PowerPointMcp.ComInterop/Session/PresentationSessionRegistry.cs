@@ -24,16 +24,14 @@ public sealed record PresentationSessionInfo(
 /// <remarks>
 /// Used by the MCP Server as an in-process singleton (one long-lived session per tool-call
 /// sequence, no RPC needed since the MCP host and the STA thread live in the same process).
-/// Also reused by <c>PowerPointMcp.Service</c> (the CLI's out-of-process daemon, squad decision
-/// 2026-07-07 reversing the earlier "drop the Service" call) as the daemon's session table,
-/// mirroring mcp-server-excel's <c>SessionManager</c> — there each session maps to a live
+/// Also reused by <c>PowerPointMcp.Service</c> (the CLI's out-of-process daemon) as the daemon's
+/// session table, mirroring mcp-server-excel's <c>SessionManager</c> — there each session maps to a live
 /// <c>IPresentationBatch</c> held open across separate CLI process invocations, avoiding a
 /// PowerPoint relaunch on every command. Disposing a batch closes PowerPoint for that
 /// presentation, so any host embedding this registry MUST call <see cref="DisposeAll()"/> on
 /// shutdown to guarantee no lingering POWERPNT.exe process.
 ///
-/// ASYNC CLOSE (2026-07-01, see .squad/decisions/inbox/brett-async-close.md): Parker's shutdown
-/// hardening made <c>IPresentationBatch.Dispose()</c> legitimately block for up to
+/// ASYNC CLOSE: shutdown hardening made <c>IPresentationBatch.Dispose()</c> legitimately block for up to
 /// <see cref="ComInteropConstants.StaThreadJoinTimeout"/> (~210s) in the worst case — the bounded
 /// grace period + force-kill safety net that guarantees no orphaned POWERPNT.exe. An MCP tool
 /// call cannot block that long without risking a client-side timeout, so <see cref="Close"/>
@@ -54,49 +52,29 @@ public sealed class PresentationSessionRegistry : IDisposable
     /// </summary>
     private static readonly TimeSpan DisposeAllTimeout = ComInteropConstants.StaThreadJoinTimeout + TimeSpan.FromSeconds(30);
 
-    // --- Crash-safety PID tracking (ported from mcp-server-excel's SessionManager) ---
-    //
-    // PresentationBatch's normal Dispose()/shutdown path already force-kills its own tracked
-    // POWERPNT.exe on timeout (see PresentationBatch.TryKillProcess / PresentationShutdownService).
-    // That only runs if the process gets a chance to unwind normally. If the MCP Server or CLI
-    // daemon process itself terminates uncleanly (unhandled exception, Ctrl+C during a stuck STA
-    // call, OOM, etc.) nothing calls Dispose() and any live POWERPNT.exe is orphaned. This static,
-    // process-wide PID registry plus an AppDomain.ProcessExit handler is the safety net for that
-    // case - it runs during CLR teardown regardless of which code path caused the exit.
-    private static readonly System.Collections.Concurrent.ConcurrentBag<int> _trackedPowerPointPids = new();
+    private static readonly ConcurrentDictionary<PowerPointProcessIdentity, byte> TrackedPowerPointProcesses = new();
     private static int _processExitRegistered;
 
-    /// <summary>
-    /// Registers a POWERPNT.exe process ID for cleanup on unexpected process exit.
-    /// Called from <see cref="PresentationBatch"/> as soon as a PID is captured.
-    /// </summary>
-    public static void TrackPowerPointProcess(int processId)
-    {
-        _trackedPowerPointPids.Add(processId);
+    /// <summary>Raised when this host captures a new owned PowerPoint process identity.</summary>
+    internal static event Action<PowerPointProcessIdentity>? PowerPointProcessIdentityTracked;
 
-        // Register the handler exactly once (thread-safe).
+    internal static IReadOnlyList<PowerPointProcessIdentity> GetTrackedPowerPointProcesses() =>
+        TrackedPowerPointProcesses.Keys.ToArray();
+
+    /// <summary>Registers an owned PowerPoint identity for crash and daemon cleanup.</summary>
+    internal static void TrackPowerPointProcess(PowerPointProcessIdentity identity)
+    {
+        TrackedPowerPointProcesses.TryAdd(identity, 0);
+        PowerPointProcessIdentityTracked?.Invoke(identity);
+
         if (Interlocked.CompareExchange(ref _processExitRegistered, 1, 0) == 0)
         {
             AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
         }
     }
 
-    /// <summary>
-    /// Marks a POWERPNT.exe process as no longer needing crash-safety cleanup.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="System.Collections.Concurrent.ConcurrentBag{T}"/> doesn't support removal, so
-    /// this is intentionally a documented no-op: <see cref="OnProcessExit"/> checks
-    /// <c>Process.HasExited</c> before killing, so a PID that already exited normally is simply
-    /// skipped. The parameter documents API intent and mirrors mcp-server-excel's
-    /// <c>UntrackExcelProcess</c> exactly.
-    /// </remarks>
-#pragma warning disable IDE0060 // Intentional: parameter documents API intent; ConcurrentBag lacks Remove
-    public static void UntrackPowerPointProcess(int processId)
-#pragma warning restore IDE0060
-    {
-        // No-op - see remarks above.
-    }
+    internal static void UntrackPowerPointProcess(PowerPointProcessIdentity identity) =>
+        TrackedPowerPointProcesses.TryRemove(identity, out _);
 
     private static void OnProcessExit(object? sender, EventArgs e)
     {
@@ -104,39 +82,43 @@ public sealed class PresentationSessionRegistry : IDisposable
         int alreadyExitedCount = 0;
         int failedCount = 0;
 
-        foreach (var pid in _trackedPowerPointPids)
+        foreach (var identity in TrackedPowerPointProcesses.Keys)
         {
             try
             {
-                using var proc = System.Diagnostics.Process.GetProcessById(pid);
-                if (!proc.HasExited)
+                if (!OwnedProcessGuard.TryOpenMatchingProcess(identity, out var process))
                 {
-                    proc.Kill();
-                    killedCount++;
-                    // Cannot use ILogger here - this handler runs during AppDomain teardown.
-                    PresentationDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-KILLED] Force-killed PowerPoint process {pid}");
+                    failedCount++;
+                    continue;
                 }
-                else
+
+                using (process)
                 {
-                    alreadyExitedCount++;
+                    if (process != null)
+                    {
+                        process.Kill();
+                        killedCount++;
+                        PresentationDiagnostics.WriteStdErr(
+                            $"[DIAG-PROCESSEXIT-KILLED] Force-killed owned PowerPoint process {identity.ProcessId}");
+                    }
+                    else
+                    {
+                        alreadyExitedCount++;
+                    }
                 }
-            }
-            catch (ArgumentException)
-            {
-                // Process already exited.
-                alreadyExitedCount++;
             }
             catch (Exception ex)
             {
                 failedCount++;
-                PresentationDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-FAILED] Failed to kill PowerPoint process {pid}: {ex.Message}");
+                PresentationDiagnostics.WriteStdErr(
+                    $"[DIAG-PROCESSEXIT-FAILED] Failed to kill owned PowerPoint process {identity.ProcessId}: {ex.Message}");
             }
         }
 
         if (killedCount > 0 || failedCount > 0)
         {
             PresentationDiagnostics.WriteStdErr(
-                $"[DIAG-PROCESSEXIT-SUMMARY] Killed={killedCount}, AlreadyExited={alreadyExitedCount}, Failed={failedCount}, Total={_trackedPowerPointPids.Count}");
+                $"[DIAG-PROCESSEXIT-SUMMARY] Killed={killedCount}, AlreadyExited={alreadyExitedCount}, Failed={failedCount}, Total={TrackedPowerPointProcesses.Count}");
         }
     }
 

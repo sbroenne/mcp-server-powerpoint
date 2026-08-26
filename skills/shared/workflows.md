@@ -1,4 +1,4 @@
-# Canonical Workflow: Start Session → Build → Verify → Save → Close
+# Canonical Workflow: Start Session → Build → Verify → Save and Close
 
 The standard end-to-end loop for every PowerPoint MCP task. All 15 tools and 158 operations exist
 to support this loop for one of two starting points: a brand-new deck or an existing file.
@@ -9,8 +9,7 @@ to support this loop for one of two starting points: a brand-new deck or an exis
 1. presentation(action: "create", filePath: "C:\Decks\q4.pptx") → sessionId
 2. ... build slides (see deck-builder.md) ...
 3. export(action: "export-slide-to-image"/"export-all-slides-to-images", ...) → verify visually
-4. presentation(action: "save", sessionId: ...)
-5. presentation(action: "close", sessionId: ...)
+4. presentation(action: "close", sessionId: ..., save: true)
 ```
 
 ## Starting Point B — Existing Presentation
@@ -20,14 +19,13 @@ to support this loop for one of two starting points: a brand-new deck or an exis
 2. slide(action: "get-count", session_id: sessionId)           → know the current range
 3. ... read/modify slides ...
 4. export(action: "export-slide-to-image"/"export-all-slides-to-images", ...) → verify visually
-5. presentation(action: "save", sessionId: ...)
-6. presentation(action: "close", sessionId: ...)
+5. presentation(action: "close", sessionId: ..., save: true)
 ```
 
 ## Session Management
 
 - **One session per file, for the duration of the task.** Open/create once, do all the work,
-  save, close once.
+  save and close once.
 - **Do not create then open the same file again.** `presentation(action: "create", ...)` already
   returns a live session.
 - **Multiple presentations at once:** each `presentation(action: "open", ...)` or
@@ -46,7 +44,8 @@ to support this loop for one of two starting points: a brand-new deck or an exis
   writes.
 - **Batch text + formatting per shape.** For a given shape, call `textframe(action: "set-text",
   ...)`, then `set-font-size`/`set-bold`/`set-font-color` as needed.
-- **Save once per meaningful checkpoint**, not after every single tool call.
+- **Choose save behavior at close.** There is no standalone save action; render and inspect the
+  finished work, then close once with `save: true` or discard with `save: false`.
 
 ## The Discovery Actions
 
@@ -98,7 +97,6 @@ table(action: "set-cell-text", session_id: sessionId, slide_index: 3, shape_inde
 export(action: "export-all-slides-to-images", session_id: sessionId, output_directory: "C:\Decks\preview")
 accessibility(action: "audit", session_id: sessionId)
 
-presentation(action: "save", sessionId: sessionId)
 export(action: "export-to-pdf", session_id: sessionId, output_path: "C:\Decks\q4.pdf")
-presentation(action: "close", sessionId: sessionId)
+presentation(action: "close", sessionId: sessionId, save: true)
 ```

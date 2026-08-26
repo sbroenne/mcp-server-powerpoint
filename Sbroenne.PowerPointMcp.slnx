@@ -12,7 +12,10 @@
     <Project Path="src/PowerPointMcp.Service/PowerPointMcp.Service.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/PowerPointMcp.CLI.Tests/PowerPointMcp.CLI.Tests.csproj" />
+    <Project Path="tests/PowerPointMcp.ComInterop.Tests/PowerPointMcp.ComInterop.Tests.csproj" />
     <Project Path="tests/PowerPointMcp.Core.Tests/PowerPointMcp.Core.Tests.csproj" />
     <Project Path="tests/PowerPointMcp.McpServer.Tests/PowerPointMcp.McpServer.Tests.csproj" />
+    <Project Path="tests/PowerPointMcp.SkillGeneration.Tests/PowerPointMcp.SkillGeneration.Tests.csproj" />
   </Folder>
 </Solution>

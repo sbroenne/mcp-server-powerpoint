@@ -1,0 +1,7 @@
+{#- Improve the theme logo's alternative text and reserve its layout space. -#}
+{% if config.theme.logo %}
+  <img src="{{ config.theme.logo | url }}" alt="{{ config.site_name }}" width="256" height="256">
+{% else %}
+  {% set icon = config.theme.icon.logo or "material/library" %}
+  {% include ".icons/" ~ icon ~ ".svg" %}
+{% endif %}

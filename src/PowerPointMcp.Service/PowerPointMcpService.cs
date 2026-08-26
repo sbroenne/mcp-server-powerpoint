@@ -31,9 +31,8 @@ namespace Sbroenne.PowerPointMcp.Service;
 /// <c>ServiceRegistry.{Category}.DispatchToCore</c> methods.
 /// </summary>
 /// <remarks>
-/// Ported from mcp-server-excel's <c>ExcelMcpService</c> (squad decision 2026-07-07, reversing
-/// the 2026-07-06 "drop the Service" call): the daemon's whole reason for existing is to avoid
-/// PowerPoint's ~90-150s launch/teardown cost on every CLI invocation — a session created by
+/// Ported from mcp-server-excel's <c>ExcelMcpService</c>. The daemon exists to avoid PowerPoint's
+/// ~90-150s launch/teardown cost on every CLI invocation: a session created by
 /// "session open"/"session create" stays alive (PowerPoint process included) until "session
 /// close"/idle-timeout/daemon shutdown, and every subsequent CLI command that references the
 /// same session id reuses the same live PowerPoint process.
@@ -311,7 +310,9 @@ public sealed class PowerPointMcpService : IDisposable
     {
         var status = new ServiceStatus
         {
+            State = "running",
             Running = true,
+            Responsive = true,
             ProcessId = Environment.ProcessId,
             SessionCount = SessionCount,
             StartTime = _startTime
@@ -323,13 +324,22 @@ public sealed class PowerPointMcpService : IDisposable
 
     private ServiceResponse HandleSessionCommand(string action, ServiceRequest request)
     {
+        if (action is not ("create" or "open" or "close" or "list" or "test" or
+            "apply-template" or "get-theme-name" or "set-document-property" or
+            "get-document-property" or "set-custom-property" or "get-custom-property" or
+            "remove-custom-property"))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = $"Unknown session action: {action}" };
+        }
+
+        ValidateSessionActionArguments(action, request.Args);
         return action switch
         {
             "create" => HandleSessionCreate(request),
             "open" => HandleSessionOpen(request),
             "close" => HandleSessionClose(request),
-            "save" => HandleSessionSave(request),
             "list" => HandleSessionList(),
+            "test" => HandleSessionTest(request),
             "apply-template" => HandleSessionApplyTemplate(request),
             "get-theme-name" => HandleSessionGetThemeName(request),
             "set-document-property" => HandleSessionSetDocumentProperty(request),
@@ -337,8 +347,30 @@ public sealed class PowerPointMcpService : IDisposable
             "set-custom-property" => HandleSessionSetCustomProperty(request),
             "get-custom-property" => HandleSessionGetCustomProperty(request),
             "remove-custom-property" => HandleSessionRemoveCustomProperty(request),
-            _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown session action: {action}" }
+            _ => throw new InvalidOperationException($"Unhandled session action: {action}")
         };
+    }
+
+    private static void ValidateSessionActionArguments(string action, string? argsJson)
+    {
+        string[] allowedParameters = action switch
+        {
+            "create" or "open" or "test" => ["filePath"],
+            "close" => ["save"],
+            "apply-template" => ["templatePath"],
+            "set-document-property" or "set-custom-property" => ["propertyName", "value"],
+            "get-document-property" or "get-custom-property" or "remove-custom-property" => ["propertyName"],
+            _ => []
+        };
+        var allowed = new HashSet<string>(allowedParameters, StringComparer.Ordinal);
+        var unknown = ServiceRegistry.GetJsonPropertyNames(argsJson, includeNullValues: true)
+            .Where(parameter => !allowed.Contains(parameter))
+            .ToArray();
+        if (unknown.Length > 0)
+        {
+            throw new ArgumentException(
+                $"Unknown parameter(s) for session.{action}: {string.Join(", ", unknown)}.");
+        }
     }
 
     private ServiceResponse HandleSessionCreate(ServiceRequest request)
@@ -443,27 +475,15 @@ public sealed class PowerPointMcpService : IDisposable
         };
     }
 
-    private ServiceResponse HandleSessionSave(ServiceRequest request)
+    private ServiceResponse HandleSessionTest(ServiceRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.SessionId))
+        var args = ServiceRegistry.DeserializeArgs<SessionOpenArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.FilePath))
         {
-            return new ServiceResponse { Success = false, ErrorMessage = "sessionId is required" };
+            return new ServiceResponse { Success = false, ErrorMessage = "filePath is required" };
         }
 
-        if (!_sessions.TryGet(request.SessionId, out var batch))
-        {
-            return new ServiceResponse { Success = false, ErrorMessage = $"Session '{request.SessionId}' not found" };
-        }
-
-        try
-        {
-            batch.Save();
-            return new ServiceResponse { Success = true };
-        }
-        catch (Exception ex)
-        {
-            return CreateErrorResponse(ex, request.Command, request.SessionId);
-        }
+        return WrapPresentationResult(() => _presentationCommands.Open(args.FilePath), request);
     }
 
     private ServiceResponse HandleSessionList()

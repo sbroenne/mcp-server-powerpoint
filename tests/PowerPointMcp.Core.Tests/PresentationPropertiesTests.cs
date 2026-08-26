@@ -12,7 +12,7 @@ namespace Sbroenne.PowerPointMcp.Core.Tests;
 /// these tests only read/write document properties on an already-open presentation. They share
 /// ONE PowerPoint.Application instance across the whole class via
 /// <see cref="SharedPresentationFixture"/>, paying PowerPoint's documented ~90-100s post-Quit()
-/// process-exit lingering (Ripley's MCP round-trip finding, .squad/decisions.md 2026-07-01) ONCE
+/// process-exit lingering once
 /// at fixture disposal instead of once per [Fact]/[Theory] case. Before this split, this file's
 /// predecessor (16 test cases, including an 8-case [Theory]) each opened AND closed two separate
 /// PowerPoint sessions (one via <c>_commands.Create()</c>, one via

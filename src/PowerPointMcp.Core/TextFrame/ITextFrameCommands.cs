@@ -15,7 +15,11 @@ namespace Sbroenne.PowerPointMcp.Core.TextFrame;
 public interface ITextFrameCommands
 {
     /// <summary>Sets the text content of a shape's text frame.</summary>
-    TextFrameOperationResult SetText(IPresentationBatch batch, int slideIndex, int shapeIndex, string text);
+    TextFrameOperationResult SetText(
+        IPresentationBatch batch,
+        int slideIndex,
+        int shapeIndex,
+        [AllowEmptyString] string text);
 
     /// <summary>Gets the text content of a shape's text frame.</summary>
     TextFrameOperationResult GetText(IPresentationBatch batch, int slideIndex, int shapeIndex);

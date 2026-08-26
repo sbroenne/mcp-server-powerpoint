@@ -3,12 +3,12 @@
   "name": "io.github.sbroenne/mcp-server-powerpoint",
   "title": "MCP Server for PowerPoint",
   "description": "PowerPoint automation for AI: slides, shapes, tables, charts, images, notes. Windows only.",
-  "version": "0.1.0",
+  "version": "0.1.5",
   "packages": [
     {
       "registryType": "nuget",
       "identifier": "Sbroenne.PowerPointMcp.McpServer",
-      "version": "0.1.0",
+      "version": "0.1.5",
       "transport": {
         "type": "stdio"
       },

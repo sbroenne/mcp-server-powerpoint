@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Sbroenne.PowerPointMcp.ComInterop.Tests" />
+    <InternalsVisibleTo Include="powerpointcli" />
     <InternalsVisibleTo Include="Sbroenne.PowerPointMcp.Core.Tests" />
     <!-- PowerPointMcp.Core.Tests.csproj has no explicit <AssemblyName>, so its actual output
          assembly name defaults to "PowerPointMcp.Core.Tests" (no "Sbroenne." prefix) - unlike

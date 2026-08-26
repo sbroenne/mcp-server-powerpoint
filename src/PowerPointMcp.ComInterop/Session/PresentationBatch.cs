@@ -70,6 +70,7 @@ internal sealed class PresentationBatch : IPresentationBatch
     private readonly AutoResetEvent _workSignal = new(false);
     private int _disposed;
     private int? _powerPointProcessId;
+    private PowerPointProcessIdentity? _powerPointProcessIdentity;
     private bool _operationTimedOut;
 
     private PowerPoint.Application? _app;
@@ -128,9 +129,9 @@ internal sealed class PresentationBatch : IPresentationBatch
         {
             if (_staThread.IsAlive)
             {
-                if (!_staThread.Join(TimeSpan.FromSeconds(10)) && _powerPointProcessId.HasValue)
+                if (!_staThread.Join(TimeSpan.FromSeconds(10)) && _powerPointProcessIdentity.HasValue)
                 {
-                    TryKillProcess(_powerPointProcessId.Value);
+                    TryKillProcess(_powerPointProcessIdentity.Value);
                     _ = _staThread.Join(TimeSpan.FromSeconds(5));
                 }
             }
@@ -249,7 +250,11 @@ internal sealed class PresentationBatch : IPresentationBatch
                         if (processId != 0)
                         {
                             _powerPointProcessId = (int)processId;
-                            PresentationSessionRegistry.TrackPowerPointProcess(_powerPointProcessId.Value);
+                            using var process = System.Diagnostics.Process.GetProcessById(_powerPointProcessId.Value);
+                            _powerPointProcessIdentity = new PowerPointProcessIdentity(
+                                process.Id,
+                                process.StartTime.ToUniversalTime().ToFileTimeUtc());
+                            PresentationSessionRegistry.TrackPowerPointProcess(_powerPointProcessIdentity.Value);
                             break;
                         }
                     }
@@ -282,7 +287,17 @@ internal sealed class PresentationBatch : IPresentationBatch
             var cleanupApp = _app ?? startupApp;
             var cleanupPresentation = _presentation ?? startupPresentation;
 
-            PresentationShutdownService.CloseAndQuit(cleanupPresentation, cleanupApp, _powerPointProcessId, _logger, _presentationPath);
+            PresentationShutdownService.CloseAndQuit(
+                cleanupPresentation,
+                cleanupApp,
+                _powerPointProcessIdentity,
+                _logger,
+                _presentationPath);
+            if (_powerPointProcessIdentity is { } identity
+                && OwnedProcessGuard.TryConfirmExited(identity))
+            {
+                PresentationSessionRegistry.UntrackPowerPointProcess(identity);
+            }
 
             _presentation = null;
             _app = null;
@@ -425,20 +440,13 @@ internal sealed class PresentationBatch : IPresentationBatch
 
     public int? PowerPointProcessId => _powerPointProcessId;
 
+    public PowerPointProcessIdentity? PowerPointProcessIdentity => _powerPointProcessIdentity;
+
     public TimeSpan OperationTimeout => _operationTimeout;
 
     public bool IsPowerPointProcessAlive()
     {
-        if (!_powerPointProcessId.HasValue) return false;
-        try
-        {
-            using var process = System.Diagnostics.Process.GetProcessById(_powerPointProcessId.Value);
-            return !process.HasExited;
-        }
-        catch (ArgumentException)
-        {
-            return false;
-        }
+        return _powerPointProcessIdentity is { } identity && OwnedProcessGuard.IsAlive(identity);
     }
 
     public void Execute(Action<PresentationContext, CancellationToken> operation, CancellationToken cancellationToken = default)
@@ -585,9 +593,9 @@ internal sealed class PresentationBatch : IPresentationBatch
         _shutdownCts.Cancel();
         _workQueue.Writer.Complete();
 
-        if (_operationTimedOut && _powerPointProcessId.HasValue && _staThread.IsAlive)
+        if (_operationTimedOut && _powerPointProcessIdentity.HasValue && _staThread.IsAlive)
         {
-            TryKillProcess(_powerPointProcessId.Value);
+            TryKillProcess(_powerPointProcessIdentity.Value);
         }
 
         bool staThreadExited = _staThread.Join(ComInteropConstants.StaThreadJoinTimeout);
@@ -598,27 +606,35 @@ internal sealed class PresentationBatch : IPresentationBatch
         // finished even after that — e.g. Quit() itself is blocked on a modal dialog that
         // outlasts every other safety net — force-kill here so Dispose() never returns having
         // silently leaked the process.
-        if (!staThreadExited && _powerPointProcessId.HasValue)
+        if (!staThreadExited && _powerPointProcessIdentity.HasValue)
         {
-            TryKillProcess(_powerPointProcessId.Value);
+            TryKillProcess(_powerPointProcessIdentity.Value);
         }
 
         _shutdownCts.Dispose();
         _workSignal.Dispose();
     }
 
-    private static void TryKillProcess(int processId)
+    private static void TryKillProcess(PowerPointProcessIdentity identity)
     {
         try
         {
-            using var process = System.Diagnostics.Process.GetProcessById(processId);
-            if (!process.HasExited)
+            if (!OwnedProcessGuard.TryOpenMatchingProcess(identity, out var process))
             {
-                process.Kill();
-                process.WaitForExit(5000);
+                return;
             }
+
+            using (process)
+            {
+                if (process != null)
+                {
+                    process.Kill();
+                    process.WaitForExit(5000);
+                }
+            }
+
+            PresentationSessionRegistry.UntrackPowerPointProcess(identity);
         }
-        catch (ArgumentException) { /* already exited */ }
         catch (Exception) { /* best effort */ }
     }
 }

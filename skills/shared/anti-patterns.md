@@ -87,14 +87,13 @@ presentation(action: "close", sessionId: ...)   → changes since last save are 
 
 ### The Solution
 
-Always save before close when changes were made:
+Close with save enabled when changes were made:
 
 ```
 CORRECT:
 slide(action: "add-blank", session_id: ...)
 textframe(action: "set-text", session_id: ..., ...)
-presentation(action: "save", sessionId: ...)
-presentation(action: "close", sessionId: ...)
+presentation(action: "close", sessionId: ..., save: true)
 ```
 
 ## Expecting Close to Block
@@ -125,8 +124,7 @@ Trusting `success: true` from a shape/chart/table/image call as proof the slide 
 ```
 WRONG:
 chart(action: "add-chart", session_id: ..., slide_index: ..., ...)  → success: true
-presentation(action: "save", sessionId: ...)
-presentation(action: "close", sessionId: ...)
+presentation(action: "close", sessionId: ..., save: true)
 # Never looked at the rendered slide — chart could be mis-sized, overlapping, or have wrong data
 ```
 
@@ -139,8 +137,7 @@ CORRECT:
 chart(action: "add-chart", session_id: ..., slide_index: ..., ...)
 export(action: "export-slide-to-image", session_id: ..., slide_index: ..., output_path: ...)
 # Inspect the image, fix issues found
-presentation(action: "save", sessionId: ...)
-presentation(action: "close", sessionId: ...)
+presentation(action: "close", sessionId: ..., save: true)
 ```
 
 ## Delete-and-Rebuild for Small Changes
@@ -193,13 +190,11 @@ Close each session when its work is done, saving first if changes were made:
 CORRECT:
 s1 = presentation(action: "open", filePath: "file1.pptx")
 # ... work ...
-presentation(action: "save", sessionId: s1)
-presentation(action: "close", sessionId: s1)
+presentation(action: "close", sessionId: s1, save: true)
 
 s2 = presentation(action: "open", filePath: "file2.pptx")
 # ... work ...
-presentation(action: "save", sessionId: s2)
-presentation(action: "close", sessionId: s2)
+presentation(action: "close", sessionId: s2, save: true)
 ```
 
 ## Assuming Multi-Series Charts in a Single Create Call

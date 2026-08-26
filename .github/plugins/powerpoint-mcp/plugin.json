@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "powerpoint-mcp",
+  "version": "0.0.0",
+  "description": "Windows-only PowerPoint automation plugin that bootstraps the latest PowerPointMcp MCP runtime on first use.",
+  "author": {
+    "name": "Stefan Brönner",
+    "email": "3026464+sbroenne@users.noreply.github.com",
+    "url": "https://github.com/sbroenne"
+  },
+  "homepage": "https://powerpointmcpserver.dev/",
+  "repository": "https://github.com/sbroenne/mcp-server-powerpoint",
+  "license": "MIT",
+  "keywords": [
+    "powerpoint",
+    "windows",
+    "mcp",
+    "slides",
+    "presentations",
+    "charts",
+    "automation",
+    "com-interop"
+  ]
+}

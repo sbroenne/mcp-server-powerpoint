@@ -7,6 +7,7 @@ description: >
   Supports slides, shapes, text frames, tables, charts, images, speaker notes, layouts, and
   .potx template restyling. Triggers: pptcli, PowerPoint CLI, command line, batch, script,
   automation, CI/CD, scheduled, PowerShell, unattended, coding agent, deck processing.
+compatibility: Windows with Microsoft PowerPoint desktop installed.
 ---
 
 # PowerPoint Automation with pptcli
@@ -105,9 +106,9 @@ If you see "File not found" or "Path not found" - STOP and report to user. Don't
 ### Rule 7: Managing the Daemon Directly
 
 ```powershell
-pptcli service status         # Report whether the daemon is running, session count, uptime
+pptcli service status         # Report starting/running/unresponsive/stopped state
 pptcli service stop           # Graceful shutdown
-pptcli service stop --force   # Force-kill if a graceful shutdown doesn't respond
+pptcli service stop --force   # Stop only PID + start-time identities owned by this daemon
 ```
 
 ## CLI Command Reference

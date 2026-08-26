@@ -211,6 +211,7 @@ GitHub's exact public star count. Only date/count aggregates are retained.
 📖 **[Complete Feature Reference](https://powerpointmcpserver.dev/features/)** •
 **[Installation Guide](https://powerpointmcpserver.dev/installation/)** •
 **[Changelog](https://powerpointmcpserver.dev/changelog/)** •
+**[Native Feature Roadmap](docs/POWERPOINT-NATIVE-FEATURE-AUDIT.md)** •
 **[Contributing](https://powerpointmcpserver.dev/contributing/)** •
 **[Security](https://powerpointmcpserver.dev/security/)** •
 **[Privacy](https://powerpointmcpserver.dev/privacy/)**

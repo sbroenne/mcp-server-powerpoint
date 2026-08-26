@@ -4,5 +4,21 @@
 User-agent: *
 Allow: /
 
+# AI search and training crawlers are allowed to index the public documentation.
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
 # Sitemap location
 Sitemap: https://powerpointmcpserver.dev/sitemap.xml

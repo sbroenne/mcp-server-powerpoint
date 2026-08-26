@@ -10,8 +10,8 @@ namespace Sbroenne.PowerPointMcp.McpServer.Tools;
 /// execution wrapper, and consistent error-payload formatting.
 /// </summary>
 /// <remarks>
-/// Lean MVP port of mcp-server-excel's <c>ExcelToolsBase</c> (telemetry and service-bridge
-/// forwarding intentionally omitted — see .squad/decisions.md, Dallas's architecture pass).
+/// Lean MVP port of mcp-server-excel's <c>ExcelToolsBase</c>; telemetry and service-bridge
+/// forwarding are intentionally omitted because MCP dispatch runs in-process.
 ///
 /// Rule 1/1b boundary: Core commands return <c>{Domain}OperationResult</c> with a
 /// Success/ErrorMessage invariant. Expected bad input already surfaces as Success=false and is

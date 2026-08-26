@@ -1,10 +1,10 @@
 <#
 .SYNOPSIS
-    Stops the PowerPointMcp Service gracefully and kills PowerPoint processes before build.
+    Stops PowerPointMcp-owned processes safely before build.
 .DESCRIPTION
     Pre-build cleanup script that:
     1. Gracefully stops the PowerPointMcp Service via named pipe (service.shutdown)
-    2. Kills any remaining PowerPoint (POWERPNT.EXE) processes
+    2. Uses the daemon's PID-plus-start-time ownership record for forced cleanup
 
     This prevents file locking issues during build when the service or PowerPoint
     holds handles to assemblies or presentations.
@@ -19,6 +19,7 @@ param(
 )
 
 $ErrorActionPreference = 'SilentlyContinue'
+$script:CleanupSucceeded = $true
 
 function Write-Status($message) {
     if ($Verbose) {
@@ -40,7 +41,7 @@ function Stop-PowerPointMcpService {
 
     if ($powerpointcli) {
         Write-Status "Using CLI: $powerpointcli"
-        $output = & $powerpointcli service stop --quiet 2>&1
+        $output = & $powerpointcli service stop --force 2>&1
         $exitCode = $LASTEXITCODE
         if ($exitCode -eq 0) {
             # Parse JSON to check if service was running
@@ -55,7 +56,7 @@ function Stop-PowerPointMcpService {
                 Write-Status "Service stop completed (exit code 0)"
             }
         } else {
-            Write-Status "CLI service stop returned exit code $exitCode, falling back to process kill"
+            Write-Status "CLI service stop returned exit code $exitCode; trying graceful pipe shutdown"
             Stop-PowerPointMcpServiceFallback
         }
     } else {
@@ -97,27 +98,8 @@ function Stop-PowerPointMcpServiceFallback {
     }
     catch {
         Write-Status "Could not connect to pipe: $($_.Exception.Message)"
-        $serviceProcs = Get-Process -Name 'Sbroenne.PowerPointMcp.McpServer', 'Sbroenne.PowerPointMcp.Service' -ErrorAction SilentlyContinue
-        if ($serviceProcs) {
-            $serviceProcs | Stop-Process -Force -ErrorAction SilentlyContinue
-            Write-Host "  PowerPointMcp Service processes killed (pipe unavailable)" -ForegroundColor Yellow
-        }
-    }
-}
-
-# ----------------------------------------------
-# 2. Kill PowerPoint processes
-# ----------------------------------------------
-function Stop-PowerPointProcesses {
-    $pptProcs = Get-Process -Name 'POWERPNT' -ErrorAction SilentlyContinue
-    if ($pptProcs) {
-        $count = $pptProcs.Count
-        $pptProcs | Stop-Process -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Milliseconds 500
-        Write-Host "  Killed $count PowerPoint process(es)" -ForegroundColor Yellow
-    }
-    else {
-        Write-Status "No PowerPoint processes running"
+        Write-Warning "Could not stop the daemon safely. No processes were terminated because ownership could not be proven."
+        $script:CleanupSucceeded = $false
     }
 }
 
@@ -125,4 +107,8 @@ function Stop-PowerPointProcesses {
 # Run cleanup
 # ----------------------------------------------
 Stop-PowerPointMcpService
-Stop-PowerPointProcesses
+if ($script:CleanupSucceeded) {
+    exit 0
+}
+
+exit 1

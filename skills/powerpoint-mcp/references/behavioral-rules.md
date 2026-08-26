@@ -1,8 +1,8 @@
 # Behavioral Rules for PowerPoint MCP Operations
 
 These rules ensure efficient, reliable PowerPoint automation via a live PowerPoint desktop
-instance (COM). AI assistants should follow these guidelines when using the **13 PowerPoint MCP
-tools across 13 domains**.
+instance (COM). AI assistants should follow these guidelines when using the **15 PowerPoint MCP
+tools across 15 domains**.
 
 ## Core Execution Rules
 
@@ -22,8 +22,7 @@ Every editing workflow starts by establishing a session:
 ```
 1. presentation(action: "create", filePath: ...) OR presentation(action: "open", filePath: ...) → returns sessionId
 2. ... all other domain tools take session_id; presentation lifecycle/property actions take sessionId ...
-3. presentation(action: "save", sessionId: ...)   → persists changes to disk
-4. presentation(action: "close", sessionId: ...)  → releases the session; PowerPoint shuts down in background
+3. presentation(action: "close", sessionId: ..., save: true) → persists changes and releases the session
 ```
 
 - `presentation(action: "create", ...)` creates a new file **and leaves the session open**. Do
@@ -42,7 +41,7 @@ Every editing workflow starts by establishing a session:
 - **All 15 MCP tools are action-dispatch tools.** Every call includes an `action` parameter.
 - **`presentation` uses camelCase lifecycle/property parameters** — `filePath`, `sessionId`,
   `templatePath`, `propertyName`, `value`.
-- **The other 12 domain tools use `session_id` plus snake_case action parameters**, e.g.
+- **The other 14 domain tools use `session_id` plus snake_case action parameters**, e.g.
   `shape(action: "add-rectangle", session_id: ..., slide_index: 1, left: 50, top: 80, width: 100,
   height: 60)`.
 
@@ -59,18 +58,17 @@ This differs from most programming languages (0-based arrays) and from some othe
 servers. Passing `0` or a negative index returns `success: false`, never an exception — check the
 `errorMessage` and correct the index instead of blindly retrying.
 
-## Explicit Save Is Required
+## Explicit Save-on-Close Is Required
 
 Domain tool actions (`slide(action: "add-blank", ...)`, `textframe(action: "set-text", ...)`,
 `chart(action: "add-chart", ...)`, etc.) modify the **in-memory** presentation only. Nothing is
-written to disk until you call `presentation(action: "save", sessionId: ...)`. If you close a
-session without saving first, all changes since the last save are lost.
+written to disk unless you close with `save: true`. Closing with the default `save: false` discards
+all changes since the last save.
 
 ```
 1. slide(action: "add-blank", session_id: ...)                                      → slide added in memory
 2. textframe(action: "set-text", session_id: ..., slide_index: ..., shape_index: ...) → text set in memory
-3. presentation(action: "save", sessionId: ...)                                     → NOW persisted to disk
-4. presentation(action: "close", sessionId: ...)                                    → safe to close
+3. presentation(action: "close", sessionId: ..., save: true)                         → persisted and closed
 ```
 
 ## Close Is Asynchronous (Do NOT Wait For It)

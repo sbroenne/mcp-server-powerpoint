@@ -161,6 +161,28 @@ foreach ($check in $checks) {
     }
 }
 
+# Validate every numeric runtime-surface claim in the skill sources and generated copies. This
+# catches stale counts even when wording changes and ensures the root SKILL.md is covered.
+$skillCountPatterns = @(
+    @{ Name = 'tool'; Pattern = '(?i)\b(?<n>\d+)\s+(?:PowerPoint\s+)?(?:MCP\s+)?tools?\b'; Expected = $canonicalTools }
+    @{ Name = 'operation'; Pattern = '(?i)\b(?<n>\d+)\s+operations?\b'; Expected = $canonicalOps }
+    @{ Name = 'domain'; Pattern = '(?i)\b(?<n>\d+)\s+domains\b'; Expected = $canonicalTools }
+    @{ Name = 'domain tool'; Pattern = '(?i)\b(?<n>\d+)\s+domain(?:\s+action-dispatch)?\s+tools?\b'; Expected = $manifestTools }
+)
+$skillsRoot = Join-Path $rootDir 'skills'
+Get-ChildItem -LiteralPath $skillsRoot -Recurse -File -Filter '*.md' | ForEach-Object {
+    $relativePath = [System.IO.Path]::GetRelativePath($rootDir, $_.FullName)
+    $content = Get-Content -LiteralPath $_.FullName -Raw
+    foreach ($countPattern in $skillCountPatterns) {
+        foreach ($match in [regex]::Matches($content, $countPattern.Pattern)) {
+            $claimed = [int]$match.Groups['n'].Value
+            if ($claimed -ne $countPattern.Expected) {
+                Add-Failure ("${relativePath}: $($countPattern.Name) count is $claimed but should be $($countPattern.Expected) -> `"$($match.Value)`"")
+            }
+        }
+    }
+}
+
 # ---------------------------------------------------------------------------
 # 5. Per-domain op counts: cross-check the manifest's per-command action count
 #    against the two docs that enumerate every domain (README.md and the

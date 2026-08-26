@@ -159,8 +159,7 @@ public class Program
                     1. presentation(action=create, filePath) — create a new deck and open it; returns a sessionId.
                     2. presentation(action=open, filePath) — open an existing deck; returns a sessionId.
                     3. Pass that sessionId to all subsequent tools.
-                    4. presentation(action=save, sessionId) — persist changes.
-                    5. presentation(action=close, sessionId) — release the PowerPoint process when done.
+                    4. presentation(action=close, sessionId, save=true) — save and release the PowerPoint process when done.
 
                     Use presentation(action=list) to see which sessions are currently open.
                     Always provide full Windows paths (e.g. C:\\Users\\me\\Documents\\deck.pptx).

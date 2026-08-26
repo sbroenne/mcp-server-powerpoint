@@ -6,18 +6,16 @@ repo's C# source), follow these rules:
 
 ## Session Rules
 
-- Call `open_presentation(filePath)` before any editing tool; use the returned `sessionId` for
+- Call `presentation(action: "open", filePath: ...)` before any editing tool; use the returned `sessionId` for
   every subsequent call.
-- `create_presentation` creates a file on disk but does NOT open a session — always follow it
-  with `open_presentation` before adding content.
-- Call `save_presentation(sessionId)` before `close_presentation(sessionId)` to persist changes.
-- `close_presentation` returns immediately; it does not wait for the PowerPoint process to fully
+- `presentation(action: "create", ...)` creates a file and leaves its session open.
+- Close with `save: true` to persist changes.
+- `presentation(action: "close", ...)` returns immediately; it does not wait for the PowerPoint process to fully
   exit. Do not poll for process exit.
 
 ## Tool Shapes
 
-- Session-lifecycle tools (`create_presentation`, `open_presentation`, `save_presentation`,
-  `close_presentation`, `list_sessions`, `apply_template`, `get_theme_name`) are one-tool-per-verb
+- Session lifecycle, templates, and document properties use the `presentation` action-dispatch tool
   with camelCase arguments.
 - Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`, `notes`, `layout`,
   `master`, `animation`, `export`) are action-dispatch: call as `tool(action: "kebab-action",

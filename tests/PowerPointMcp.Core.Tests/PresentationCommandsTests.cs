@@ -184,8 +184,7 @@ public class PresentationCommandsTests
             }
 
             // PresentationShutdownService tolerates PowerPoint's documented ~90-100s post-Quit()
-            // Office-cleanup lingering (Ripley's MCP round-trip finding, .squad/decisions.md
-            // 2026-07-01) and never force-kills within that window — so poll generously here
+            // Office-cleanup lingering and never force-kills within that window, so poll generously here
             // rather than asserting an immediate exit.
             bool exited = false;
             var deadline = DateTime.UtcNow.AddSeconds(150);

@@ -69,8 +69,14 @@ public sealed class ServiceResponse
 /// <summary>Daemon status information, returned by "service.status".</summary>
 public sealed class ServiceStatus
 {
+    /// <summary>The canonical daemon state.</summary>
+    public string State { get; init; } = "running";
+
     /// <summary>Whether the daemon is currently running (always true for a live response).</summary>
     public bool Running { get; init; }
+
+    /// <summary>Whether the daemon answered the status request.</summary>
+    public bool Responsive { get; init; }
 
     /// <summary>The daemon process's OS process id.</summary>
     public int ProcessId { get; init; }
