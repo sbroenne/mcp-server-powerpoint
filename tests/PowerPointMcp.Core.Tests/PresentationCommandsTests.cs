@@ -273,6 +273,50 @@ public class PresentationCommandsTests
     }
 
     [Fact]
+    public void Final_SetSaveReopenClearSaveReopen_RoundTrips()
+    {
+        string path = CoreTestHelper.CreateUniqueTestFilePath();
+        try
+        {
+            using (var batch = PresentationSession.CreateNew(path))
+            {
+                var setResult = _commands.SetFinal(batch, true);
+                Assert.True(setResult.Success);
+                Assert.Null(setResult.ErrorMessage);
+                Assert.True(setResult.IsFinal);
+
+                var saveResult = _commands.Save(batch);
+                Assert.True(saveResult.Success);
+            }
+
+            using (var reopened = PresentationSession.BeginBatch(path))
+            {
+                var getResult = _commands.GetFinal(reopened);
+                Assert.True(getResult.Success);
+                Assert.Null(getResult.ErrorMessage);
+                Assert.True(getResult.IsFinal);
+
+                var clearResult = _commands.SetFinal(reopened, false);
+                Assert.True(clearResult.Success);
+                Assert.Null(clearResult.ErrorMessage);
+                Assert.False(clearResult.IsFinal);
+
+                var saveResult = _commands.Save(reopened);
+                Assert.True(saveResult.Success);
+            }
+            using var reopenedAgain = PresentationSession.BeginBatch(path);
+            var finalResult = _commands.GetFinal(reopenedAgain);
+            Assert.True(finalResult.Success);
+            Assert.Null(finalResult.ErrorMessage);
+            Assert.False(finalResult.IsFinal);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Open_ExistingFile_ReturnsSuccess_WithPresentationPath()
     {
         string path = CoreTestHelper.CreateUniqueTestFilePath();

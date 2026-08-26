@@ -3,7 +3,7 @@ using Sbroenne.PowerPointMcp.ComInterop.Session;
 namespace Sbroenne.PowerPointMcp.Core.Presentation;
 
 /// <summary>
-/// Presentation lifecycle commands: create, open, save, Save As, and Save Copy As.
+/// Presentation lifecycle, Save As/copy, template, metadata, and Mark as Final commands.
 /// </summary>
 /// <remarks>
 /// First Core command domain implemented, proving the ComInterop batch pattern end-to-end.
@@ -87,6 +87,22 @@ public interface IPresentationCommands
     /// presentation's styling.
     /// </summary>
     PresentationOperationResult GetThemeName(IPresentationBatch batch);
+
+    /// <summary>
+    /// Reads PowerPoint's Mark as Final state for the open presentation. This is an advisory
+    /// editing flag only; it is not authentication, encryption, or access control.
+    /// </summary>
+    /// <param name="batch">The open batch whose Mark as Final state will be read.</param>
+    PresentationOperationResult GetFinal(IPresentationBatch batch);
+
+    /// <summary>
+    /// Sets or clears PowerPoint's Mark as Final state for the open presentation. This is an
+    /// advisory editing flag only; it is not authentication, encryption, or access control.
+    /// Save the presentation to persist the change.
+    /// </summary>
+    /// <param name="batch">The open batch whose Mark as Final state will be updated.</param>
+    /// <param name="isFinal"><c>true</c> to mark the presentation as final; <c>false</c> to clear the flag.</param>
+    PresentationOperationResult SetFinal(IPresentationBatch batch, bool isFinal);
 
     /// <summary>
     /// Sets a built-in document metadata property (Title, Subject, Author, Keywords, Comments,

@@ -8,7 +8,8 @@ namespace Sbroenne.PowerPointMcp.McpServer.Tools;
 /// <summary>
 /// Single action-dispatch MCP tool for presentation lifecycle, template application, and
 /// document-property operations: create a file, open/close/test a session, list open
-/// sessions, apply a template, and read/write document properties.
+/// sessions, apply a template, read/write document properties, and manage the advisory Mark as
+/// Final editing flag.
 /// </summary>
 /// <remarks>
 /// Mirrors mcp-server-excel's <c>ExcelFileTool</c> shape (one hand-written tool named
@@ -29,27 +30,28 @@ public static class PresentationTools
     private static readonly PresentationCommands Commands = new();
 
     /// <summary>
-    /// Presentation lifecycle, template, and document-property operations for an already-open
-    /// or about-to-be-opened presentation.
+    /// Presentation lifecycle, template, document-property, and advisory Mark as Final operations
+    /// for an already-open or about-to-be-opened presentation.
     /// </summary>
     [McpServerTool(Name = "presentation")]
-    [Description("Presentation lifecycle (create, open, close, list sessions, test), Save As/copy, template restyling (apply-template, get-theme-name), and document-property (built-in and custom) operations. Actions: create, open, close, list, test, save-as, save-copy-as, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")]
+    [Description("Presentation lifecycle (create, open, close, list sessions, test), Save As/copy, template restyling, document-property operations, and PowerPoint's advisory Mark as Final editing flag. Mark as Final is not authentication, encryption, or access control. Actions: create, open, close, list, test, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")]
     public static string Presentation(
-        [Description("The action to perform. One of: create, open, close, list, test, save-as, save-copy-as, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] PresentationToolAction action,
+        [Description("The action to perform. One of: create, open, close, list, test, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] PresentationToolAction action,
         [Description("Full Windows path to the presentation file. Required for: create (new .pptx/.pptm file; containing directory must already exist), open or test (existing .pptx/.pptm/.ppt file).")] string? filePath = null,
-        [Description("The sessionId returned by create or open. Required for: close, save-as, save-copy-as, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? sessionId = null,
+        [Description("The sessionId returned by create or open. Required for: close, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? sessionId = null,
         [Description("Save the presentation before closing. Used for: close. Default: false.")] bool? save = null,
         [Description("Set true only when creating a macro-enabled .pptm file. Default: false. Used for: create.")] bool? isMacroEnabled = null,
         [Description("Full Windows destination path. Required for: save-as, save-copy-as. The containing directory must already exist.")] string? targetPath = null,
         [Description("Output format for save-as: auto, pptx, pptm, or ppt. Default: auto infers from targetPath.")] PresentationSaveFormat? format = null,
         [Description("Whether an existing destination file may be replaced. Used for: save-as, save-copy-as. Default: false.")] bool? overwrite = null,
         [Description("Full Windows path to a .potx/.potm/.pot template file (a .pptx/.pptm presentation may also be used as a template source). Required for: apply-template.")] string? templatePath = null,
+        [Description("Set true to mark the presentation as final or false to clear it. Required for: set-final. Mark as Final is an advisory editing flag only; it is not authentication, encryption, or access control.")] bool? isFinal = null,
         [Description("Document property name. For set/get-document-property, one of: Title, Subject, Author, Keywords, Comments, Category, Manager, Company (case-insensitive). For custom-property actions, any user-defined name. Required for: set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? propertyName = null,
         [Description("The new property value. Required for: set-document-property, set-custom-property.")] string? value = null,
         PresentationSessionRegistry? registry = null)
         => PowerPointToolsBase.ExecuteToolAction("presentation", action.ToActionString(), () =>
         {
-            ValidateActionParameters(action, filePath, sessionId, save, isMacroEnabled, targetPath, format, overwrite, templatePath, propertyName, value);
+            ValidateActionParameters(action, filePath, sessionId, save, isMacroEnabled, targetPath, format, overwrite, templatePath, isFinal, propertyName, value);
             var reg = registry!;
             return action switch
             {
@@ -62,6 +64,8 @@ public static class PresentationTools
                 PresentationToolAction.SaveCopyAs => HandleSaveCopyAs(sessionId, targetPath, overwrite == true, reg),
                 PresentationToolAction.ApplyTemplate => HandleApplyTemplate(sessionId, templatePath, reg),
                 PresentationToolAction.GetThemeName => HandleGetThemeName(sessionId, reg),
+                PresentationToolAction.GetFinal => HandleGetFinal(sessionId, reg),
+                PresentationToolAction.SetFinal => HandleSetFinal(sessionId, isFinal, reg),
                 PresentationToolAction.SetDocumentProperty => HandleSetDocumentProperty(sessionId, propertyName, value, reg),
                 PresentationToolAction.GetDocumentProperty => HandleGetDocumentProperty(sessionId, propertyName, reg),
                 PresentationToolAction.SetCustomProperty => HandleSetCustomProperty(sessionId, propertyName, value, reg),
@@ -81,6 +85,7 @@ public static class PresentationTools
         PresentationSaveFormat? format,
         bool? overwrite,
         string? templatePath,
+        bool? isFinal,
         string? propertyName,
         string? value)
     {
@@ -93,6 +98,7 @@ public static class PresentationTools
         if (format != null) supplied.Add("format");
         if (overwrite != null) supplied.Add("overwrite");
         if (templatePath != null) supplied.Add("templatePath");
+        if (isFinal != null) supplied.Add("isFinal");
         if (propertyName != null) supplied.Add("propertyName");
         if (value != null) supplied.Add("value");
 
@@ -104,7 +110,8 @@ public static class PresentationTools
             PresentationToolAction.SaveAs => ["sessionId", "targetPath", "format", "overwrite"],
             PresentationToolAction.SaveCopyAs => ["sessionId", "targetPath", "overwrite"],
             PresentationToolAction.ApplyTemplate => ["sessionId", "templatePath"],
-            PresentationToolAction.GetThemeName => ["sessionId"],
+            PresentationToolAction.GetThemeName or PresentationToolAction.GetFinal => ["sessionId"],
+            PresentationToolAction.SetFinal => ["sessionId", "isFinal"],
             PresentationToolAction.SetDocumentProperty or PresentationToolAction.SetCustomProperty => ["sessionId", "propertyName", "value"],
             PresentationToolAction.GetDocumentProperty or PresentationToolAction.GetCustomProperty or PresentationToolAction.RemoveCustomProperty => ["sessionId", "propertyName"],
             _ => []
@@ -338,6 +345,31 @@ public static class PresentationTools
         return SerializeResult(Commands.GetThemeName(batch));
     }
 
+    private static string HandleGetFinal(string? sessionId, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
+        {
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
+
+        return SerializeResult(Commands.GetFinal(batch));
+    }
+
+    private static string HandleSetFinal(string? sessionId, bool? isFinal, PresentationSessionRegistry registry)
+    {
+        if (!isFinal.HasValue)
+        {
+            return PowerPointToolsBase.ValidationError("isFinal is required for action=set-final.");
+        }
+
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
+        {
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
+
+        return SerializeResult(Commands.SetFinal(batch, isFinal.Value));
+    }
+
     /// <summary>
     /// Sets a built-in document metadata property (Title, Subject, Author, Keywords, Comments,
     /// Category, Manager, or Company) on the open presentation.
@@ -439,6 +471,7 @@ public static class PresentationTools
                 success = true,
                 presentationPath = result.PresentationPath,
                 themeName = result.ThemeName,
+                isFinal = result.IsFinal,
                 propertyName = result.PropertyName,
                 propertyValue = result.PropertyValue
             });
@@ -450,6 +483,7 @@ public static class PresentationTools
             errorMessage = result.ErrorMessage,
             presentationPath = result.PresentationPath,
             themeName = result.ThemeName,
+            isFinal = result.IsFinal,
             propertyName = result.PropertyName,
             propertyValue = result.PropertyValue,
             isError = true

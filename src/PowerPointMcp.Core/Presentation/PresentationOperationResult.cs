@@ -1,7 +1,7 @@
 namespace Sbroenne.PowerPointMcp.Core.Presentation;
 
 /// <summary>
-/// Result of a presentation lifecycle operation (open, create, close, save).
+/// Result of a presentation lifecycle, template, metadata, or Mark as Final operation.
 /// </summary>
 /// <remarks>
 /// Follows the same Success/ErrorMessage invariant used throughout mcp-server-excel
@@ -25,6 +25,12 @@ public sealed class PresentationOperationResult
     /// Null for operations that don't touch theming.
     /// </summary>
     public string? ThemeName { get; init; }
+
+    /// <summary>
+    /// PowerPoint's Mark as Final state. This advisory editing flag is not authentication,
+    /// encryption, or access control. Null for operations that do not read or update the flag.
+    /// </summary>
+    public bool? IsFinal { get; init; }
 
     /// <summary>
     /// The document property name acted on by the document-property/custom-property commands.

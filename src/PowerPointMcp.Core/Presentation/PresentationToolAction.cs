@@ -55,6 +55,14 @@ public enum PresentationToolAction
     [JsonStringEnumMemberName("get-theme-name")]
     GetThemeName,
 
+    /// <summary>Read the advisory Mark as Final editing flag.</summary>
+    [JsonStringEnumMemberName("get-final")]
+    GetFinal,
+
+    /// <summary>Set or clear the advisory Mark as Final editing flag.</summary>
+    [JsonStringEnumMemberName("set-final")]
+    SetFinal,
+
     /// <summary>Set a built-in document metadata property (Title, Author, etc.).</summary>
     [JsonStringEnumMemberName("set-document-property")]
     SetDocumentProperty,
@@ -94,6 +102,8 @@ public static class PresentationToolActionExtensions
         PresentationToolAction.SaveCopyAs => "save-copy-as",
         PresentationToolAction.ApplyTemplate => "apply-template",
         PresentationToolAction.GetThemeName => "get-theme-name",
+        PresentationToolAction.GetFinal => "get-final",
+        PresentationToolAction.SetFinal => "set-final",
         PresentationToolAction.SetDocumentProperty => "set-document-property",
         PresentationToolAction.GetDocumentProperty => "get-document-property",
         PresentationToolAction.SetCustomProperty => "set-custom-property",

@@ -20,7 +20,7 @@ The CLI mirrors the same domain model:
 
 | Tool | Ops | What it covers | MCP call shape | CLI shape |
 |------|-----|----------------|----------------|-----------|
-| `presentation` | 14 | Session lifecycle, Save As/copy, open testing, template application, built-in/custom document properties | `presentation(action="...", ...)` | `pptcli session <action> ...` |
+| `presentation` | 16 | Session lifecycle, Save As/copy, open testing, template application, advisory Mark as Final, built-in/custom document properties | `presentation(action="...", ...)` | `pptcli session <action> ...` |
 | `slide` | 19 | Slide lifecycle, backgrounds, sections, comments, import | `slide(action="...", session_id=..., ...)` | `pptcli slide <action> -s <SESSION_ID> ...` |
 | `shape` | 39 | Shapes, styling, grouping, hyperlinks, placeholders | `shape(action="...", session_id=..., ...)` | `pptcli shape <action> -s <SESSION_ID> ...` |
 | `textframe` | 20 | Text content and text formatting | `textframe(action="...", session_id=..., ...)` | `pptcli textframe <action> -s <SESSION_ID> ...` |

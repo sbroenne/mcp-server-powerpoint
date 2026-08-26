@@ -326,7 +326,8 @@ public sealed class PowerPointMcpService : IDisposable
     {
         if (action is not ("create" or "open" or "close" or "list" or "test" or
             "save-as" or "save-copy-as" or
-            "apply-template" or "get-theme-name" or "set-document-property" or
+            "apply-template" or "get-theme-name" or "get-final" or "set-final" or
+            "set-document-property" or
             "get-document-property" or "set-custom-property" or "get-custom-property" or
             "remove-custom-property"))
         {
@@ -345,6 +346,8 @@ public sealed class PowerPointMcpService : IDisposable
             "save-copy-as" => HandleSessionSaveCopyAs(request),
             "apply-template" => HandleSessionApplyTemplate(request),
             "get-theme-name" => HandleSessionGetThemeName(request),
+            "get-final" => HandleSessionGetFinal(request),
+            "set-final" => HandleSessionSetFinal(request),
             "set-document-property" => HandleSessionSetDocumentProperty(request),
             "get-document-property" => HandleSessionGetDocumentProperty(request),
             "set-custom-property" => HandleSessionSetCustomProperty(request),
@@ -363,6 +366,7 @@ public sealed class PowerPointMcpService : IDisposable
             "save-as" => ["targetPath", "format", "overwrite"],
             "save-copy-as" => ["targetPath", "overwrite"],
             "apply-template" => ["templatePath"],
+            "set-final" => ["isFinal"],
             "set-document-property" or "set-custom-property" => ["propertyName", "value"],
             "get-document-property" or "get-custom-property" or "remove-custom-property" => ["propertyName"],
             _ => []
@@ -458,7 +462,11 @@ public sealed class PowerPointMcpService : IDisposable
         {
             try
             {
-                batchToSave.Save();
+                var saveResult = _presentationCommands.Save(batchToSave);
+                if (!saveResult.Success)
+                {
+                    return new ServiceResponse { Success = false, ErrorMessage = saveResult.ErrorMessage };
+                }
             }
             catch (Exception ex)
             {
@@ -576,6 +584,32 @@ public sealed class PowerPointMcpService : IDisposable
         }
 
         return WrapPresentationResult(() => _presentationCommands.GetThemeName(batch!), request);
+    }
+
+    private ServiceResponse HandleSessionGetFinal(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        return WrapPresentationResult(() => _presentationCommands.GetFinal(batch!), request);
+    }
+
+    private ServiceResponse HandleSessionSetFinal(ServiceRequest request)
+    {
+        var args = ServiceRegistry.DeserializeArgs<SessionFinalArgs>(request.Args);
+        if (!args.IsFinal.HasValue)
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "isFinal is required" };
+        }
+
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        return WrapPresentationResult(() => _presentationCommands.SetFinal(batch!, args.IsFinal.Value), request);
     }
 
     private ServiceResponse HandleSessionSetDocumentProperty(ServiceRequest request)
@@ -699,6 +733,7 @@ public sealed class PowerPointMcpService : IDisposable
                 errorMessage = result.ErrorMessage,
                 presentationPath = result.PresentationPath,
                 themeName = result.ThemeName,
+                isFinal = result.IsFinal,
                 propertyName = result.PropertyName,
                 propertyValue = result.PropertyValue
             }, ServiceProtocol.JsonOptions);
@@ -865,6 +900,16 @@ public sealed class SessionApplyTemplateArgs
 {
     /// <summary>Full path to a .potx/.potm/.pot template file (or a .pptx/.pptm presentation used as a template source).</summary>
     public string? TemplatePath { get; set; }
+}
+
+/// <summary>Args for "session.set-final".</summary>
+public sealed class SessionFinalArgs
+{
+    /// <summary>
+    /// Whether to set or clear PowerPoint's advisory Mark as Final editing flag. This is not
+    /// authentication, encryption, or access control.
+    /// </summary>
+    public bool? IsFinal { get; set; }
 }
 
 /// <summary>Args for "session.set/get-document-property" and "session.set/get/remove-custom-property".</summary>
