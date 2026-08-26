@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit compares the current 15 tools and 160 operations with the restored
+This audit compares the current 15 tools and 162 operations with the restored
 `Microsoft.Office.Interop.PowerPoint` 15.0.4420.1018 assembly. It looks for useful PowerPoint
 features that fit the existing live-session model. It does not copy Excel-only worksheet, Power
 Query, Data Model, PivotTable, or calculation APIs.

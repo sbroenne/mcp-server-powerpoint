@@ -48,7 +48,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     private static readonly HashSet<string> ExpectedToolNames =
     [
         // PresentationTools.cs (1, hand-written action-dispatch tool — session lifecycle,
-        // template, Mark as Final, and document properties; 14 actions)
+        // Save As/copy, template, Mark as Final, and document properties; 16 actions)
         "presentation",
         // Generated action-dispatch tools (14, one per remaining Core domain)
         "slide",

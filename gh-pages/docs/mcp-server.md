@@ -1,6 +1,6 @@
 ---
 title: MCP Server
-description: Complete MCP tool reference for PowerPoint MCP Server — 15 tools with 160 operations across 15 domains, session model, and configuration examples.
+description: Complete MCP tool reference for PowerPoint MCP Server — 15 tools with 162 operations across 15 domains, session model, and configuration examples.
 ---
 
 # MCP Server

@@ -1,12 +1,12 @@
 ---
 title: Complete Feature Reference
-description: 15 MCP tools with 160 operations across 15 domains for live PowerPoint automation through single action-dispatch tools.
+description: 15 MCP tools with 162 operations across 15 domains for live PowerPoint automation through single action-dispatch tools.
 keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **15 MCP tools with 160 operations across 15 domains**.
+PowerPoint MCP Server exposes **15 MCP tools with 162 operations across 15 domains**.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
 `chart(action="add-chart", session_id="...", slide_index=2, ...)`.
@@ -38,7 +38,7 @@ The CLI mirrors the same domain model:
 
 ## Domain reference
 
-### `presentation` tool (14 operations)
+### `presentation` tool (16 operations)
 
 Use `presentation` for session lifecycle, Save As/copy, templates/themes, and document properties.
 `create` and `open` establish a session and return a `sessionId`; the remaining edit/read actions
