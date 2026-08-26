@@ -69,9 +69,9 @@ public sealed class PresentationCommands : IPresentationCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            // PowerPoint persists Mark as Final when Final is set to true, then makes the
-            // presentation read-only. Calling Save afterward fails with "Presentation cannot be
-            // modified", so save-on-close is a successful no-op while that native flag is set.
+            // SetFinal saves pending edits before enabling Final. PowerPoint then persists the
+            // flag and makes the presentation read-only, so a second Save would fail with
+            // "Presentation cannot be modified". Save-on-close is therefore a successful no-op.
             if (!ctx.Presentation.Final)
             {
                 ctx.Presentation.Save();
@@ -436,6 +436,11 @@ public sealed class PresentationCommands : IPresentationCommands
 
         return batch.Execute((ctx, ct) =>
         {
+            if (isFinal && !ctx.Presentation.Final)
+            {
+                ctx.Presentation.Save();
+            }
+
             ctx.Presentation.Final = isFinal;
 
             return new PresentationOperationResult

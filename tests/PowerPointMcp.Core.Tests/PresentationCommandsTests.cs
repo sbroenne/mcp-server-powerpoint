@@ -280,6 +280,9 @@ public class PresentationCommandsTests
         {
             using (var batch = PresentationSession.CreateNew(path))
             {
+                var propertyResult = _commands.SetDocumentProperty(batch, "Title", "Saved before final");
+                Assert.True(propertyResult.Success);
+
                 var setResult = _commands.SetFinal(batch, true);
                 Assert.True(setResult.Success);
                 Assert.Null(setResult.ErrorMessage);
@@ -295,6 +298,10 @@ public class PresentationCommandsTests
                 Assert.True(getResult.Success);
                 Assert.Null(getResult.ErrorMessage);
                 Assert.True(getResult.IsFinal);
+
+                var propertyResult = _commands.GetDocumentProperty(reopened, "Title");
+                Assert.True(propertyResult.Success);
+                Assert.Equal("Saved before final", propertyResult.PropertyValue);
 
                 var clearResult = _commands.SetFinal(reopened, false);
                 Assert.True(clearResult.Success);

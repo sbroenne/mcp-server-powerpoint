@@ -68,11 +68,12 @@ tool text stating clearly that it is an advisory editing flag, not access contro
 
 Tests should set, save, reopen, read, clear, save, and reopen again.
 
-Implemented with typed PIA access. PowerPoint persists the flag when it is set to `true` and then
-makes the presentation read-only, so save-on-close remains accepted as a successful no-op while
-the flag is set. Clearing the flag makes the presentation editable again and is persisted by the
-normal save-on-close workflow. The flag is advisory only; it is not authentication, encryption,
-or access control.
+Implemented with typed PIA access. Setting the flag to `true` first saves current changes, then
+PowerPoint persists the flag and makes the presentation read-only. Save-on-close remains accepted
+as a successful no-op while the flag is set without losing edits made before `set-final`.
+Clearing the flag makes the presentation editable again and is persisted by the normal
+save-on-close workflow. The flag is advisory only; it is not authentication, encryption, or
+access control.
 
 Reference: [Presentation.Final](https://learn.microsoft.com/office/vba/api/powerpoint.presentation.final).
 

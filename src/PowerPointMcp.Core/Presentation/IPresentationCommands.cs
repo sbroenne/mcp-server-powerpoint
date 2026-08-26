@@ -98,7 +98,8 @@ public interface IPresentationCommands
     /// <summary>
     /// Sets or clears PowerPoint's Mark as Final state for the open presentation. This is an
     /// advisory editing flag only; it is not authentication, encryption, or access control.
-    /// Save the presentation to persist the change.
+    /// Setting it saves current changes before PowerPoint makes the presentation read-only.
+    /// Clearing it must be followed by a save to persist the cleared state.
     /// </summary>
     /// <param name="batch">The open batch whose Mark as Final state will be updated.</param>
     /// <param name="isFinal"><c>true</c> to mark the presentation as final; <c>false</c> to clear the flag.</param>

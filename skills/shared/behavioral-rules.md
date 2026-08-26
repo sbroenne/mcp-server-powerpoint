@@ -86,10 +86,11 @@ and `presentation(action: "set-final", sessionId: ..., isFinal: true/false)` to 
 This flag only communicates that editing is discouraged. It is not authentication, encryption, or
 access control, and anyone can clear it.
 
-PowerPoint persists the flag when it is set to `true` and then makes the presentation read-only.
-Calling `presentation(action: "close", sessionId: ..., save: true)` remains valid and closes the
-session without attempting a forbidden second save. After clearing the flag with `isFinal: false`,
-close with `save: true` to persist the cleared state.
+Setting the flag to `true` first saves all current changes, then PowerPoint persists the flag and
+makes the presentation read-only. Calling
+`presentation(action: "close", sessionId: ..., save: true)` remains valid and closes the session
+without attempting a forbidden second save, so edits made before `set-final` are not lost. After
+clearing the flag with `isFinal: false`, close with `save: true` to persist the cleared state.
 
 ## Close Is Asynchronous (Do NOT Wait For It)
 

@@ -108,9 +108,10 @@ pptcli session set-final <session-id> false
 ```
 
 Mark as Final only communicates that editing is discouraged. It is not authentication,
-encryption, or access control. PowerPoint persists the flag when it is set to `true` and then
-makes the presentation read-only; `session close --save` remains valid. After clearing the flag,
-close with `--save` to persist the cleared state.
+encryption, or access control. Setting it to `true` first saves all current changes, then
+PowerPoint persists the flag and makes the presentation read-only; `session close --save` remains
+valid without losing edits made before `set-final`. After clearing the flag, close with `--save`
+to persist the cleared state.
 
 ### Rule 7: Report File Errors Immediately
 

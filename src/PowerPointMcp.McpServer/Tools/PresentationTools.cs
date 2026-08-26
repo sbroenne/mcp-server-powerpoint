@@ -45,7 +45,7 @@ public static class PresentationTools
         [Description("Output format for save-as: auto, pptx, pptm, or ppt. Default: auto infers from targetPath.")] PresentationSaveFormat? format = null,
         [Description("Whether an existing destination file may be replaced. Used for: save-as, save-copy-as. Default: false.")] bool? overwrite = null,
         [Description("Full Windows path to a .potx/.potm/.pot template file (a .pptx/.pptm presentation may also be used as a template source). Required for: apply-template.")] string? templatePath = null,
-        [Description("Set true to mark the presentation as final or false to clear it. Required for: set-final. Mark as Final is an advisory editing flag only; it is not authentication, encryption, or access control.")] bool? isFinal = null,
+        [Description("Set true to save current changes and mark the presentation as final, or false to clear the flag. Required for: set-final. Mark as Final is an advisory editing flag only; it is not authentication, encryption, or access control.")] bool? isFinal = null,
         [Description("Document property name. For set/get-document-property, one of: Title, Subject, Author, Keywords, Comments, Category, Manager, Company (case-insensitive). For custom-property actions, any user-defined name. Required for: set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? propertyName = null,
         [Description("The new property value. Required for: set-document-property, set-custom-property.")] string? value = null,
         PresentationSessionRegistry? registry = null)
