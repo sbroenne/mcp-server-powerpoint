@@ -1,5 +1,8 @@
+using System.Runtime.InteropServices;
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Presentation;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
 
@@ -25,9 +28,7 @@ public class PresentationCommandsTests
             {
                 batch.Execute((ctx, ct) =>
                 {
-                    ctx.Presentation.Slides.Add(
-                        2,
-                        Microsoft.Office.Interop.PowerPoint.PpSlideLayout.ppLayoutBlank);
+                    AddBlankSlide(ctx);
                 });
 
                 var result = _commands.SaveAs(
@@ -44,13 +45,148 @@ public class PresentationCommandsTests
             }
 
             using var reopened = PresentationSession.BeginBatch(targetPath);
-            int slideCount = reopened.Execute((ctx, ct) => ctx.Presentation.Slides.Count);
+            int slideCount = reopened.Execute((ctx, ct) => GetSlideCount(ctx));
             Assert.Equal(2, slideCount);
         }
         finally
         {
             File.Delete(originalPath);
             File.Delete(targetPath);
+        }
+    }
+
+    [Fact]
+    public void SaveAs_ComFailureAfterValidation_PreservesBatchAndRegistryPath()
+    {
+        string originalPath = CoreTestHelper.CreateUniqueTestFilePath();
+        string outputDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "PowerPointMcpTests",
+            $"save-as-failure-{Guid.NewGuid():N}");
+        string targetPath = Path.Combine(outputDirectory, "failed-save.pptx");
+        Directory.CreateDirectory(outputDirectory);
+        var registry = new PresentationSessionRegistry();
+
+        try
+        {
+            string sessionId = registry.Create(originalPath);
+            Assert.True(registry.TryGet(sessionId, out var batch));
+            batch.Save();
+
+            bool executeStarted = false;
+            var interceptingBatch = new BeforeExecuteBatch(batch, () =>
+            {
+                executeStarted = true;
+                Directory.Delete(outputDirectory);
+            });
+
+            Assert.Throws<COMException>(() => _commands.SaveAs(
+                interceptingBatch,
+                targetPath,
+                PresentationSaveFormat.Pptx));
+
+            Assert.True(executeStarted);
+            Assert.Equal(Path.GetFullPath(originalPath), batch.PresentationPath, ignoreCase: true);
+            Assert.Equal(
+                Path.GetFullPath(originalPath),
+                batch.Execute((ctx, ct) => ctx.PresentationPath),
+                ignoreCase: true);
+            var session = Assert.Single(registry.List());
+            Assert.Equal(sessionId, session.SessionId);
+            Assert.Equal(
+                Path.GetFullPath(originalPath),
+                session.PresentationPath,
+                ignoreCase: true);
+            Assert.False(File.Exists(targetPath));
+        }
+        finally
+        {
+            registry.Dispose();
+            File.Delete(originalPath);
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    private static void AddBlankSlide(PresentationContext context)
+    {
+        PowerPoint.Slides? slides = null;
+        PowerPoint.Slide? slide = null;
+        try
+        {
+            slides = context.Presentation.Slides;
+            slide = slides.Add(2, PowerPoint.PpSlideLayout.ppLayoutBlank);
+        }
+        finally
+        {
+            ComUtilities.Release(ref slide);
+            ComUtilities.Release(ref slides);
+        }
+    }
+
+    private static int GetSlideCount(PresentationContext context)
+    {
+        PowerPoint.Slides? slides = null;
+        try
+        {
+            slides = context.Presentation.Slides;
+            return slides.Count;
+        }
+        finally
+        {
+            ComUtilities.Release(ref slides);
+        }
+    }
+
+    private sealed class BeforeExecuteBatch(
+        IPresentationBatch inner,
+        Action beforeExecute) : IPresentationBatch
+    {
+        private int _beforeExecutePending = 1;
+
+        public string PresentationPath => inner.PresentationPath;
+        public bool HasTimedOutOperation => inner.HasTimedOutOperation;
+        public int? PowerPointProcessId => inner.PowerPointProcessId;
+        public PowerPointProcessIdentity? PowerPointProcessIdentity => inner.PowerPointProcessIdentity;
+        public TimeSpan OperationTimeout => inner.OperationTimeout;
+
+        public void Execute(
+            Action<PresentationContext, CancellationToken> operation,
+            CancellationToken cancellationToken = default)
+        {
+            RunBeforeExecute();
+            inner.Execute(operation, cancellationToken);
+        }
+
+        public T Execute<T>(
+            Func<PresentationContext, CancellationToken, T> operation,
+            CancellationToken cancellationToken = default)
+        {
+            RunBeforeExecute();
+            return inner.Execute(operation, cancellationToken);
+        }
+
+        public void Save(CancellationToken cancellationToken = default) =>
+            inner.Save(cancellationToken);
+
+        public void UpdatePresentationPath(string presentationPath) =>
+            inner.UpdatePresentationPath(presentationPath);
+
+        public bool IsPowerPointProcessAlive() =>
+            inner.IsPowerPointProcessAlive();
+
+        public void Dispose()
+        {
+        }
+
+        private void RunBeforeExecute()
+        {
+            if (Interlocked.Exchange(ref _beforeExecutePending, 0) == 1)
+            {
+                beforeExecute();
+            }
         }
     }
 

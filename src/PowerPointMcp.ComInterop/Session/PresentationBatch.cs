@@ -544,6 +544,11 @@ internal sealed class PresentationBatch : IPresentationBatch
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(PresentationBatch));
         ArgumentException.ThrowIfNullOrWhiteSpace(presentationPath);
+        if (Thread.CurrentThread != _staThread)
+        {
+            throw new InvalidOperationException(
+                "Presentation path updates must run inside this batch's serialized Execute callback.");
+        }
 
         string normalizedPath = Path.GetFullPath(presentationPath);
         var context = _context;

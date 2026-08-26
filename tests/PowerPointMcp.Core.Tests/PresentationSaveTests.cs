@@ -1,4 +1,7 @@
+using Sbroenne.PowerPointMcp.ComInterop;
+using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Presentation;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
 
@@ -14,9 +17,7 @@ public partial class PresentationPropertiesTests
         _fixture.Batch.Save();
         _fixture.Batch.Execute((ctx, ct) =>
         {
-            ctx.Presentation.Slides.Add(
-                2,
-                Microsoft.Office.Interop.PowerPoint.PpSlideLayout.ppLayoutBlank);
+            AddSaveTestBlankSlide(ctx);
         });
 
         var result = _commands.SaveCopyAs(_fixture.Batch, copyPath);
@@ -29,7 +30,7 @@ public partial class PresentationPropertiesTests
         Assert.Equal(Path.GetFullPath(originalPath), _fixture.Batch.PresentationPath, ignoreCase: true);
 
         _fixture.ReopenPresentation(copyPath);
-        int slideCount = _fixture.Batch.Execute((ctx, ct) => ctx.Presentation.Slides.Count);
+        int slideCount = _fixture.Batch.Execute((ctx, ct) => GetSaveTestSlideCount(ctx));
         Assert.Equal(2, slideCount);
     }
 
@@ -121,7 +122,7 @@ public partial class PresentationPropertiesTests
         _fixture.ReopenPresentation(copyPath);
         Assert.Equal(
             1,
-            _fixture.Batch.Execute((ctx, ct) => ctx.Presentation.Slides.Count));
+            _fixture.Batch.Execute((ctx, ct) => GetSaveTestSlideCount(ctx)));
 
         _fixture.CreateFreshPresentation();
         var saveAsResult = _commands.SaveAs(
@@ -135,6 +136,36 @@ public partial class PresentationPropertiesTests
         _fixture.ReopenPresentation(saveAsPath);
         Assert.Equal(
             1,
-            _fixture.Batch.Execute((ctx, ct) => ctx.Presentation.Slides.Count));
+            _fixture.Batch.Execute((ctx, ct) => GetSaveTestSlideCount(ctx)));
+    }
+
+    private static void AddSaveTestBlankSlide(PresentationContext context)
+    {
+        PowerPoint.Slides? slides = null;
+        PowerPoint.Slide? slide = null;
+        try
+        {
+            slides = context.Presentation.Slides;
+            slide = slides.Add(2, PowerPoint.PpSlideLayout.ppLayoutBlank);
+        }
+        finally
+        {
+            ComUtilities.Release(ref slide);
+            ComUtilities.Release(ref slides);
+        }
+    }
+
+    private static int GetSaveTestSlideCount(PresentationContext context)
+    {
+        PowerPoint.Slides? slides = null;
+        try
+        {
+            slides = context.Presentation.Slides;
+            return slides.Count;
+        }
+        finally
+        {
+            ComUtilities.Release(ref slides);
+        }
     }
 }

@@ -43,7 +43,9 @@ public interface IPresentationBatch : IDisposable
 
     /// <summary>
     /// Updates the tracked presentation path after PowerPoint Save As changes the active file
-    /// identity.
+    /// identity. Must be called from inside this batch's serialized <see cref="Execute(Action{PresentationContext, CancellationToken}, CancellationToken)"/>
+    /// or <see cref="Execute{T}(Func{PresentationContext, CancellationToken, T}, CancellationToken)"/>
+    /// callback immediately after the COM operation succeeds.
     /// </summary>
     /// <param name="presentationPath">New absolute presentation path.</param>
     void UpdatePresentationPath(string presentationPath);
