@@ -39,7 +39,7 @@ pptcli session close <SESSION_ID> --save
 # Check on / manage the daemon directly.
 pptcli service status
 pptcli service stop
-pptcli service stop --force   # force-kill if a graceful shutdown doesn't respond
+pptcli service stop --force   # stop only PID + start-time identities owned by this daemon
 ```
 
 Every `[ServiceCategory]`-annotated Core domain (Presentation, Slide, Shape, TextFrame, Table,
@@ -51,13 +51,18 @@ conflict, unrelated to session handling.)
 The daemon shuts down automatically after an idle period with no open sessions, or immediately
 via `pptcli service stop`.
 
+Each pipe has an atomic ownership record containing the daemon and PowerPoint process PID plus
+start time. Forced cleanup validates both values and refuses to terminate anything it cannot prove
+belongs to that daemon. `service status` reports `starting`, `running`, `unresponsive`, or
+`stopped` rather than treating every failed ping as stopped.
+
 ## Session commands
 
 | Command | Description |
 |---|---|
 | `pptcli session create <path>` | Create a new presentation, return a session id. |
 | `pptcli session open <path>` | Open an existing presentation, return a session id. |
-| `pptcli session save <id>` | Save the presentation without closing the session. |
+| `pptcli session test <path>` | Validate that PowerPoint can open a presentation without retaining a session. |
 | `pptcli session close <id> [--save]` | Close a session, optionally saving first. |
 | `pptcli session list` | List every session currently open in the daemon. |
 
@@ -66,8 +71,8 @@ via `pptcli service stop`.
 | Command | Description |
 |---|---|
 | `pptcli service start` | Auto-start the daemon if it isn't already running. |
-| `pptcli service status` | Report whether the daemon is running, its session count, and uptime. |
-| `pptcli service stop [--force]` | Gracefully shut down the daemon (or force-kill it). |
+| `pptcli service status` | Report the daemon state, responsiveness, session count, and uptime. |
+| `pptcli service stop [--force]` | Gracefully shut down the daemon, or stop only validated owned processes. |
 
 ## Links
 
@@ -75,4 +80,3 @@ via `pptcli service stop`.
 - Source: https://github.com/sbroenne/mcp-server-powerpoint
 
 Licensed under the MIT License.
-

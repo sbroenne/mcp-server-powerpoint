@@ -53,6 +53,9 @@ public interface IPresentationBatch : IDisposable
     /// <summary>Gets the PowerPoint process ID, if captured.</summary>
     int? PowerPointProcessId { get; }
 
+    /// <summary>Gets the PID plus creation time of the owned PowerPoint process, if captured.</summary>
+    PowerPointProcessIdentity? PowerPointProcessIdentity { get; }
+
     /// <summary>Gets the operation timeout for this batch.</summary>
     TimeSpan OperationTimeout { get; }
 }

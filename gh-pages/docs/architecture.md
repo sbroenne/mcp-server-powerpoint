@@ -28,6 +28,11 @@ behaves identically no matter which you use:
   sessions persist across invocations — ideal for scripted, high-throughput
   automation by coding agents.
 
+The CLI stores an atomic, pipe-scoped ownership record for the daemon and each
+PowerPoint process. Every identity includes both its PID and process start time,
+so forced cleanup cannot mistake a reused PID for a process owned by PowerPointMcp.
+If ownership cannot be proven, cleanup fails without terminating the process.
+
 ```mermaid
 flowchart TD
     A["AI assistants<br/>(Claude, Copilot, ChatGPT)"] -->|MCP protocol| B["MCP Server<br/>in-process service"]
@@ -52,8 +57,8 @@ from `presentation(action="open", filePath=...)` /
 `presentation(action="create", filePath=...)` (MCP Server) or
 `pptcli session open <path>` / `pptcli session create <path>` (CLI). Tools and
 commands operate on a session until it is explicitly closed, and nothing is
-written to disk until `presentation(action="save", sessionId=...)` /
-`pptcli session save <id>` is called.
+written to disk until `presentation(action="close", sessionId=..., save=true)` /
+`pptcli session close <id> --save` is called.
 
 Ready to install? See the [installation guide](installation.md), or dive into
 the [MCP Server](mcp-server.md) and [CLI](cli.md) references.

@@ -99,25 +99,25 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseSettings>
     }
 }
 
-/// <summary>Settings for the "session save" command.</summary>
-internal sealed class SessionSaveSettings : CommandSettings
+/// <summary>Settings for commands that require only a session id.</summary>
+internal sealed class SessionIdSettings : CommandSettings
 {
     [CommandArgument(0, "<SESSION_ID>")]
     [Description("Session id returned by 'session open'/'session create'.")]
     public string SessionId { get; init; } = string.Empty;
 }
 
-/// <summary>Saves the presentation open in a session without closing it.</summary>
-internal sealed class SessionSaveCommand : AsyncCommand<SessionSaveSettings>
+/// <summary>Validates that PowerPoint can open a presentation without retaining a session.</summary>
+internal sealed class SessionTestCommand : AsyncCommand<SessionOpenSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionSaveSettings settings, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, SessionOpenSettings settings, CancellationToken cancellationToken)
     {
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
         {
-            Command = "session.save",
-            SessionId = settings.SessionId,
+            Command = "session.test",
+            Args = JsonSerializer.Serialize(new { filePath = settings.FilePath }, ServiceProtocol.JsonOptions),
             Source = "cli"
         }, cancellationToken);
 
@@ -169,10 +169,10 @@ internal sealed class SessionApplyTemplateCommand : AsyncCommand<SessionApplyTem
 }
 
 /// <summary>Reads the design/theme name currently applied to the open presentation.</summary>
-internal sealed class SessionGetThemeNameCommand : AsyncCommand<SessionSaveSettings>
+internal sealed class SessionGetThemeNameCommand : AsyncCommand<SessionIdSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionSaveSettings settings, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, SessionIdSettings settings, CancellationToken cancellationToken)
     {
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest

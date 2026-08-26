@@ -7,16 +7,15 @@ namespace Sbroenne.PowerPointMcp.McpServer.Tools;
 
 /// <summary>
 /// Single action-dispatch MCP tool for presentation lifecycle, template application, and
-/// document-property operations: create a file, open/close a session, save, list open
+/// document-property operations: create a file, open/close/test a session, list open
 /// sessions, apply a template, and read/write document properties.
 /// </summary>
 /// <remarks>
 /// Mirrors mcp-server-excel's <c>ExcelFileTool</c> shape (one hand-written tool named
 /// "presentation" with an <see cref="PresentationToolAction"/> enum parameter and an OPTIONAL
 /// <c>sessionId</c>, since <c>create</c>/<c>open</c> establish a session rather than requiring
-/// one) instead of exposing one MCP tool per verb. Collapsed from 12 individually-named tools
-/// (create_presentation, open_presentation, ...) — see .squad/decisions.md for the rationale:
-/// PowerPoint's per-domain generator always requires a non-nullable sessionId, which doesn't fit
+/// one) instead of exposing one MCP tool per verb. PowerPoint's per-domain generator always
+/// requires a non-nullable sessionId, which doesn't fit
 /// session-establishing actions, so this domain stays hand-written like Excel's file tool.
 ///
 /// The <see cref="PresentationSessionRegistry"/> singleton is resolved from DI and injected into
@@ -34,26 +33,28 @@ public static class PresentationTools
     /// or about-to-be-opened presentation.
     /// </summary>
     [McpServerTool(Name = "presentation")]
-    [Description("Presentation lifecycle (create, open, save, close, list sessions), template restyling (apply-template, get-theme-name), and document-property (built-in and custom) operations. Actions: create, open, save, close, list, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")]
+    [Description("Presentation lifecycle (create, open, close, list sessions, test), template restyling (apply-template, get-theme-name), and document-property (built-in and custom) operations. Actions: create, open, close, list, test, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")]
     public static string Presentation(
-        [Description("The action to perform. One of: create, open, save, close, list, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] PresentationToolAction action,
-        [Description("Full Windows path to the presentation file. Required for: create (new .pptx/.pptm file; containing directory must already exist), open (existing .pptx/.pptm/.ppt file).")] string? filePath = null,
-        [Description("The sessionId returned by create or open. Required for: save, close, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? sessionId = null,
-        [Description("Set true only when creating a macro-enabled .pptm file. Default: false. Used for: create.")] bool isMacroEnabled = false,
+        [Description("The action to perform. One of: create, open, close, list, test, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] PresentationToolAction action,
+        [Description("Full Windows path to the presentation file. Required for: create (new .pptx/.pptm file; containing directory must already exist), open or test (existing .pptx/.pptm/.ppt file).")] string? filePath = null,
+        [Description("The sessionId returned by create or open. Required for: close, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? sessionId = null,
+        [Description("Save the presentation before closing. Used for: close. Default: false.")] bool? save = null,
+        [Description("Set true only when creating a macro-enabled .pptm file. Default: false. Used for: create.")] bool? isMacroEnabled = null,
         [Description("Full Windows path to a .potx/.potm/.pot template file (a .pptx/.pptm presentation may also be used as a template source). Required for: apply-template.")] string? templatePath = null,
         [Description("Document property name. For set/get-document-property, one of: Title, Subject, Author, Keywords, Comments, Category, Manager, Company (case-insensitive). For custom-property actions, any user-defined name. Required for: set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? propertyName = null,
         [Description("The new property value. Required for: set-document-property, set-custom-property.")] string? value = null,
         PresentationSessionRegistry? registry = null)
         => PowerPointToolsBase.ExecuteToolAction("presentation", action.ToActionString(), () =>
         {
+            ValidateActionParameters(action, filePath, sessionId, save, isMacroEnabled, templatePath, propertyName, value);
             var reg = registry!;
             return action switch
             {
-                PresentationToolAction.Create => HandleCreate(filePath, isMacroEnabled, reg),
+                PresentationToolAction.Create => HandleCreate(filePath, isMacroEnabled == true, reg),
                 PresentationToolAction.Open => HandleOpen(filePath, reg),
-                PresentationToolAction.Save => HandleSave(sessionId, reg),
-                PresentationToolAction.Close => HandleClose(sessionId, reg),
+                PresentationToolAction.Close => HandleClose(sessionId, save == true, reg),
                 PresentationToolAction.List => HandleList(reg),
+                PresentationToolAction.Test => HandleTest(filePath),
                 PresentationToolAction.ApplyTemplate => HandleApplyTemplate(sessionId, templatePath, reg),
                 PresentationToolAction.GetThemeName => HandleGetThemeName(sessionId, reg),
                 PresentationToolAction.SetDocumentProperty => HandleSetDocumentProperty(sessionId, propertyName, value, reg),
@@ -65,11 +66,49 @@ public static class PresentationTools
             };
         });
 
+    private static void ValidateActionParameters(
+        PresentationToolAction action,
+        string? filePath,
+        string? sessionId,
+        bool? save,
+        bool? isMacroEnabled,
+        string? templatePath,
+        string? propertyName,
+        string? value)
+    {
+        var supplied = new List<string>();
+        if (filePath != null) supplied.Add("filePath");
+        if (sessionId != null) supplied.Add("sessionId");
+        if (save != null) supplied.Add("save");
+        if (isMacroEnabled != null) supplied.Add("isMacroEnabled");
+        if (templatePath != null) supplied.Add("templatePath");
+        if (propertyName != null) supplied.Add("propertyName");
+        if (value != null) supplied.Add("value");
+
+        string[] allowedParameters = action switch
+        {
+            PresentationToolAction.Create => ["filePath", "isMacroEnabled"],
+            PresentationToolAction.Open or PresentationToolAction.Test => ["filePath"],
+            PresentationToolAction.Close => ["sessionId", "save"],
+            PresentationToolAction.ApplyTemplate => ["sessionId", "templatePath"],
+            PresentationToolAction.GetThemeName => ["sessionId"],
+            PresentationToolAction.SetDocumentProperty or PresentationToolAction.SetCustomProperty => ["sessionId", "propertyName", "value"],
+            PresentationToolAction.GetDocumentProperty or PresentationToolAction.GetCustomProperty or PresentationToolAction.RemoveCustomProperty => ["sessionId", "propertyName"],
+            _ => []
+        };
+        var allowed = new HashSet<string>(allowedParameters, StringComparer.Ordinal);
+        var inapplicable = supplied.Where(parameter => !allowed.Contains(parameter)).ToArray();
+        if (inapplicable.Length > 0)
+        {
+            throw new ArgumentException(
+                $"Parameter(s) not valid for action '{action.ToActionString()}': {string.Join(", ", inapplicable)}.");
+        }
+    }
+
     /// <summary>
     /// Creates a new, empty PowerPoint presentation, saves it to disk, and leaves the session
     /// OPEN — returns a sessionId immediately. No synchronous dispose happens here, so the call
-    /// cannot block on PowerPoint's slow shutdown sequence (see
-    /// .squad/decisions/inbox/ripley-create-presentation-blocks-on-dispose.md).
+    /// cannot block on PowerPoint's slow shutdown sequence.
     /// </summary>
     private static string HandleCreate(string? filePath, bool isMacroEnabled, PresentationSessionRegistry registry)
     {
@@ -132,41 +171,36 @@ public static class PresentationTools
     }
 
     /// <summary>
-    /// Saves the presentation associated with the given session.
-    /// </summary>
-    private static string HandleSave(string? sessionId, PresentationSessionRegistry registry)
-    {
-        if (string.IsNullOrWhiteSpace(sessionId))
-        {
-            return PowerPointToolsBase.ValidationError("sessionId is required for action=save.");
-        }
-
-        if (!registry.TryGet(sessionId, out var batch))
-        {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
-        }
-
-        var result = Commands.Save(batch);
-        return SerializeResult(result);
-    }
-
-    /// <summary>
     /// Closes a session: removes it from the registry immediately and starts disposing its batch
     /// (releasing the underlying PowerPoint process) on a background task.
     /// </summary>
     /// <remarks>
-    /// PowerPoint's own post-Quit cleanup can legitimately take up to ~150-210s (bounded grace
-    /// period + force-kill safety net — see .squad/decisions.md, Parker's shutdown hardening).
+    /// PowerPoint's own post-Quit cleanup can legitimately take up to ~150-210s because of the
+    /// bounded grace period and force-kill safety net.
     /// This does NOT wait for that; it returns as soon as the session is removed from the
     /// registry, so the MCP client is never blocked. The host still guarantees the PowerPoint
     /// process is fully cleaned up before it exits (see
     /// <see cref="PresentationSessionRegistry.DisposeAll()"/>).
     /// </remarks>
-    private static string HandleClose(string? sessionId, PresentationSessionRegistry registry)
+    private static string HandleClose(string? sessionId, bool save, PresentationSessionRegistry registry)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
             return PowerPointToolsBase.ValidationError("sessionId is required for action=close.");
+        }
+
+        if (save)
+        {
+            if (!registry.TryGet(sessionId, out var batch))
+            {
+                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            }
+
+            var saveResult = Commands.Save(batch);
+            if (!saveResult.Success)
+            {
+                return SerializeResult(saveResult);
+            }
         }
 
         var closed = registry.Close(sessionId);
@@ -182,6 +216,16 @@ public static class PresentationTools
             closed = true,
             message = "Session closed; PowerPoint is shutting down in the background."
         });
+    }
+
+    private static string HandleTest(string? filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return PowerPointToolsBase.ValidationError("filePath is required for action=test.");
+        }
+
+        return SerializeResult(Commands.Open(filePath));
     }
 
     /// <summary>

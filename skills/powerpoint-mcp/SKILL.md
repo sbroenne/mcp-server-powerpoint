@@ -6,36 +6,34 @@ description: >
   and export PowerPoint (.pptx/.pptm) presentations — slides, shapes, text boxes, tables, native
   charts, images, speaker notes, layouts, and image export for visual verification.
   Triggers: PowerPoint, presentation, deck, slides, pptx, pptm, speaker notes, chart, MCP.
+compatibility: Windows with Microsoft PowerPoint desktop installed.
 ---
 
 # PowerPoint MCP Server Skill
 
-Provides 24 PowerPoint MCP tools (12 session-lifecycle tools + 12 domain action-dispatch tools)
+Provides 15 PowerPoint MCP tools (one presentation tool + 14 domain action-dispatch tools)
 via the Model Context Protocol, driving a live PowerPoint desktop instance through the official
 `Microsoft.Office.Interop.PowerPoint` PIA. Tools are auto-discovered via MCP `tools/list` — this
 skill documents session lifecycle, indexing conventions, workflows, and gotchas that aren't
 obvious from tool schemas alone.
 
-Session-lifecycle tools (`create_presentation`, `open_presentation`, `save_presentation`,
-`close_presentation`, `list_sessions`, `apply_template`, `get_theme_name`,
-`set_document_property`, `get_document_property`, `set_custom_property`, `get_custom_property`,
-`remove_custom_property`) are one-tool-per-verb with camelCase arguments. Domain tools (`slide`,
-`shape`, `textframe`, `table`, `chart`, `image`, `notes`, `layout`, `master`, `smartart`,
-`animation`, `export`) are action-dispatch: one tool per domain, called as `tool(action:
+Session lifecycle, templates, and document properties use the `presentation` action-dispatch tool
+with camelCase arguments. Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`,
+`notes`, `layout`, `master`, `smartart`, `animation`, `export`, `pagesetup`, `accessibility`) are
+action-dispatch: one tool per domain, called as `tool(action:
 "kebab-action", session_id: ..., snake_case_param: ...)`.
 
 ## Workflow Checklist
 
 | Step | Tool | Action | When |
 |------|------|--------|------|
-| 1. Create (optional) | `create_presentation` | New file on disk, no session | Only for brand-new files |
-| 2. Open | `open_presentation` | Start a session, get `sessionId` | Always, before any edit |
+| 1. Create or open | `presentation(action: "create"/"open")` | Start a session, get `sessionId` | Always, before any edit |
 | 3. Build | `slide(action: "add-blank")`, `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector")`, `table(action: "add-table")`, `chart(action: "add-chart")`, `image(action: "add-picture"/"set-brightness-contrast"/"get-brightness-contrast"/"set-recolor"/"get-recolor"/"set-crop"/"get-crop")` | Add structure and content | As needed |
 | 4. Format | `textframe(action: "set-font-size"/"set-bold"/"set-font-color")`, `layout(action: "set-layout")` | Apply formatting | After adding content |
 | 5. Animate (optional) | `animation(action: "add-effect"/"set-transition")` | Add entrance/emphasis/exit effects or slide transitions | After content/layout are final |
 | 6. Annotate | `notes(action: "set-notes-text")` | Add speaker notes | After each slide's content is final |
 | 7. Verify | `export(action: "export-slide-to-image"/"export-all-slides-to-images")` | Visually confirm the result | After any visual change |
-| 8. Save & close | `save_presentation`, `close_presentation` | Persist and release the session | Always last |
+| 8. Save & close | `presentation(action: "close", save: true)` | Persist and release the session | Always last |
 
 ## Preconditions
 
@@ -47,9 +45,8 @@ Session-lifecycle tools (`create_presentation`, `open_presentation`, `save_prese
 
 ### Rule 1: Sessions Are Required for Every Edit
 
-All tools except `create_presentation` require a `sessionId` from `open_presentation`. See
-[Behavioral Rules](./references/behavioral-rules.md) for the full session lifecycle, including
-why `create_presentation` deliberately does NOT leave a session open.
+Every editing action requires the `sessionId` returned by `presentation(action: "create"/"open")`.
+See [Behavioral Rules](./references/behavioral-rules.md) for the full session lifecycle.
 
 ### Rule 2: Everything Is 1-Based
 
@@ -57,14 +54,14 @@ why `create_presentation` deliberately does NOT leave a session open.
 object model — not 0-based like most languages. See
 [Behavioral Rules](./references/behavioral-rules.md).
 
-### Rule 3: Save Is Explicit
+### Rule 3: Save-on-Close Is Explicit
 
-Nothing is written to disk until `save_presentation(sessionId)` is called. Closing an unsaved
-session discards all changes since the last save.
+Nothing is written to disk unless `presentation(action: "close", sessionId: ..., save: true)` is
+used. Closing with the default `save: false` discards all changes since the last save.
 
 ### Rule 4: Close Does Not Block
 
-`close_presentation` returns immediately after removing the session; PowerPoint's own process
+`presentation(action: "close", ...)` returns immediately after removing the session; PowerPoint's own process
 cleanup happens afterward in the background (can take up to a few minutes). Do not poll waiting
 for the OS process to exit.
 
@@ -82,7 +79,7 @@ Discover state yourself instead of asking the user:
 
 | Bad (Asking) | Good (Discovering) |
 |---------------|---------------------|
-| "Which presentation is open?" | `list_sessions()` |
+| "Which presentation is open?" | `presentation(action: "list")` |
 | "How many slides are there?" | `slide(action: "get-count", session_id: sessionId)` |
 | "What shapes are already on this slide?" | `shape(action: "get-count", session_id: sessionId, slide_index: slideIndex)` |
 
@@ -95,9 +92,9 @@ saved.
 
 | Task | Tool(s) |
 |------|---------|
-| Create/open/save/close/list sessions | `create_presentation`, `open_presentation`, `save_presentation`, `close_presentation`, `list_sessions` |
-| Apply template, read theme name | `apply_template`, `get_theme_name` |
-| Document metadata (built-in and custom properties) | `set_document_property`, `get_document_property`, `set_custom_property`, `get_custom_property`, `remove_custom_property` |
+| Create/open/test/close/list sessions | `presentation(action: "create"/"open"/"test"/"close"/"list")` |
+| Apply template, read theme name | `presentation(action: "apply-template"/"get-theme-name")` |
+| Document metadata (built-in and custom properties) | `presentation` property actions |
 | Add/count/delete/duplicate/reorder slides | `slide(action: "add-blank"/"get-count"/"delete"/"duplicate"/"move-to")` |
 | Per-slide background color, sections | `slide(action: "set-background-color"/"get-background-color"/"add-section"/"rename-section"/"delete-section"/"get-section-count"/"get-section-name")` |
 | Add/count/delete/move/resize shapes | `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector"/"get-count"/"delete"/"set-position"/"set-size")` |

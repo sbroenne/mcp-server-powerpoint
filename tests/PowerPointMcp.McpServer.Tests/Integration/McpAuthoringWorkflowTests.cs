@@ -17,10 +17,8 @@ namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
 /// Deliberately a single long test rather than many small ones: a live PowerPoint COM session is
 /// expensive to spin up and tear down (the quit/grace-period sequence dominates), so paying that
 /// cost more than once per test class would make the suite unreasonably slow. <c>create_presentation</c>
-/// itself is now fast and non-blocking (create-and-keep-open, returns an open sessionId — see
-/// .squad/decisions/inbox/brett-create-and-open.md). Every assertion here goes through a tools/call
-/// JSON response — never a direct method call — per Ripley's charter (integration tests only, no
-/// mocking, real COM).
+/// itself is now fast and non-blocking because it keeps the new session open. Every assertion here
+/// goes through a tools/call JSON response — never a direct method call — with real COM and no mocking.
 /// </remarks>
 [Collection("ProgramTransport")]
 [Trait("Category", "Integration")]
@@ -1082,13 +1080,15 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         Assert.All(exportedFiles, f => Assert.True(new FileInfo(f).Length > 0, $"{f} is empty"));
         _output.WriteLine($"✓ export.export-all-slides-to-images → {exportedFiles.Length} files in {exportAllDir}");
 
-        // 12. save_presentation, then close_presentation (fast/non-blocking), then list_sessions
-        // confirms the session is gone.
-        AssertSuccess(await Call("presentation", new() { ["action"] = "save", ["sessionId"] = sessionId }), "save_presentation");
-        _output.WriteLine("✓ save_presentation");
-
+        // 12. close_presentation with save (fast/non-blocking), then list_sessions confirms the
+        // session is gone.
         var closeStopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var closeResult = await Call("presentation", new() { ["action"] = "close", ["sessionId"] = sessionId });
+        var closeResult = await Call("presentation", new()
+        {
+            ["action"] = "close",
+            ["sessionId"] = sessionId,
+            ["save"] = true
+        });
         closeStopwatch.Stop();
         AssertSuccess(closeResult, "close_presentation");
         Assert.True(GetBool(closeResult, "closed"));

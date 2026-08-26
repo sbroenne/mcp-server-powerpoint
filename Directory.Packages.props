@@ -11,7 +11,7 @@
     <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.4.6" />
     <PackageVersion Include="Spectre.Console" Version="0.57.1" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
-    <!-- Roslyn source generators (CLI + skill-manifest generation only; see .squad/decisions.md) -->
+    <!-- Roslyn source generators for CLI and skill-manifest generation -->
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" />
     <!-- Skill-manifest MSBuild task (PowerPointMcp.Build.Tasks): renders skills/powerpoint-cli/SKILL.md

@@ -14,8 +14,6 @@ updates:
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
-      - "nuget"
-      - "automated"
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
@@ -49,8 +47,6 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
-      - "github-actions"
-      - "automated"
     commit-message:
       prefix: "chore(actions)"
       include: "scope"
@@ -58,5 +54,70 @@ updates:
       - "sbroenne"
     groups:
       github-actions:
+        patterns:
+          - "*"
+
+  # Documentation site (MkDocs)
+  - package-ecosystem: "pip"
+    directory: "/gh-pages"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "documentation"
+    commit-message:
+      prefix: "chore(docs-deps)"
+    reviewers:
+      - "sbroenne"
+    groups:
+      docs-dependencies:
+        patterns:
+          - "*"
+
+  # Changesets tooling at the repository root
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    reviewers:
+      - "sbroenne"
+    groups:
+      changesets:
+        patterns:
+          - "*"
+
+  # VS Code extension
+  - package-ecosystem: "npm"
+    directory: "/vscode-extension"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "chore(vscode-deps)"
+      include: "scope"
+    reviewers:
+      - "sbroenne"
+    groups:
+      vscode-extension:
         patterns:
           - "*"

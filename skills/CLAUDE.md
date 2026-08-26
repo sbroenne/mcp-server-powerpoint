@@ -31,7 +31,7 @@ exists (see `.github/copilot-instructions.md`).
    calls.
 2. **1-based indexing everywhere** — `slide_index`, `shape_index`, table `row`/`column` all start
    at 1.
-3. **Explicit save** — nothing persists to disk until `presentation(action: "save", sessionId: ...)`.
+3. **Explicit save-on-close** — persist changes with `presentation(action: "close", sessionId: ..., save: true)`.
 4. **Close is async** — `presentation(action: "close", sessionId: ...)` does not wait for the
    PowerPoint process to exit.
 5. **Verify visually** — use `export(action: "export-slide-to-image"/"export-all-slides-to-images",

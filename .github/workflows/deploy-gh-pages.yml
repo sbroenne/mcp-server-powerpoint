@@ -9,7 +9,7 @@ on:
       - 'CHANGELOG.md'
       - 'src/PowerPointMcp.McpServer/README.md'
       - 'src/PowerPointMcp.CLI/README.md'
-      - 'skills/README.md'
+      - 'skills/**'
       - '.github/workflows/deploy-gh-pages.yml'
       - 'scripts/Initialize-StarHistory.ps1'
       - 'scripts/Update-StarHistory.ps1'
@@ -139,6 +139,14 @@ jobs:
       - name: Build with MkDocs
         working-directory: gh-pages
         run: mkdocs build --strict --clean
+
+      - name: Audit built site
+        working-directory: gh-pages
+        run: python audit_site.py
+
+      - name: Verify deploy path coverage
+        working-directory: gh-pages
+        run: python check_deploy_paths.py
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

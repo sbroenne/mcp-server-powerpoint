@@ -18,13 +18,23 @@
 
   <!-- Social preview image (1200x630 branded card) -->
   {% set og_image = "https://powerpointmcpserver.dev/assets/images/og-card.png" %}
+  <meta property="og:title" content="{{ page.title if page else config.site_name }}">
+  <meta property="og:description" content="{{ page.meta.description if page and page.meta and page.meta.description else config.site_description }}">
+  <meta property="og:url" content="{{ page.canonical_url if page and page.canonical_url else config.site_url }}">
+  <meta property="og:type" content="website">
   <meta property="og:image" content="{{ og_image }}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="PowerPoint MCP Server — automate real PowerPoint with AI">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ page.title if page else config.site_name }}">
+  <meta name="twitter:description" content="{{ page.meta.description if page and page.meta and page.meta.description else config.site_description }}">
   <meta name="twitter:image" content="{{ og_image }}">
   <meta name="twitter:image:alt" content="PowerPoint MCP Server — automate real PowerPoint with AI">
+
+  {% if page and page.canonical_url %}
+  <link rel="alternate" type="text/markdown" href="{{ page.canonical_url }}index.md">
+  {% endif %}
 
   <!-- Structured data: SoftwareApplication -->
   <script type="application/ld+json">

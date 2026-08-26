@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <!-- Common properties for all projects -->
-    <Version>0.1.0</Version>
-    <AssemblyVersion>0.1.0.0</AssemblyVersion>
-    <FileVersion>0.1.0.0</FileVersion>
+    <Version>0.1.5</Version>
+    <AssemblyVersion>0.1.5.0</AssemblyVersion>
+    <FileVersion>0.1.5.0</FileVersion>
     <Authors>Stefan Broenner</Authors>
     <Company>Open Source Developer</Company>
     <Product>Sbroenne.PowerPointMcp</Product>
@@ -55,7 +55,8 @@
   </PropertyGroup>
 
   <!--
-    Pre-build cleanup: gracefully stop PowerPointMCP Service and kill PowerPoint processes.
+    Pre-build cleanup: gracefully stop PowerPointMCP Service and clean up only processes whose
+    PID and start time match the daemon's ownership record.
     Prevents file locking during build. Skipped in CI (no PowerPoint/Service there).
   -->
   <Target Name="StopPowerPointMcpProcesses" BeforeTargets="Build" Condition="'$(CI)' != 'true' AND '$(PowerPointMcpSkipCleanup)' != 'true'">

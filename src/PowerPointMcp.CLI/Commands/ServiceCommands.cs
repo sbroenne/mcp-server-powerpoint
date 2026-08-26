@@ -50,6 +50,8 @@ internal sealed class ServiceStopCommand : AsyncCommand<ServiceStopSettings>
     protected override async Task<int> ExecuteAsync(CommandContext context, ServiceStopSettings settings, CancellationToken cancellationToken)
     {
         var pipeName = settings.ResolvedPipeName;
+        var tracker = new DaemonProcessTracker(pipeName);
+        var trackedRecord = tracker.ReadRecord();
         using var client = new ServiceClient(pipeName);
 
         if (await client.PingAsync(cancellationToken))
@@ -57,8 +59,25 @@ internal sealed class ServiceStopCommand : AsyncCommand<ServiceStopSettings>
             var response = await client.SendAsync(new ServiceRequest { Command = "service.shutdown", Source = "cli" }, cancellationToken);
             if (response.Success)
             {
-                Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Daemon shutdown requested." }, ServiceProtocol.JsonOptions));
-                return 0;
+                var gracefulDeadline = OperationDeadline.Start(TimeSpan.FromSeconds(5));
+                while (!gracefulDeadline.IsExpired && DaemonAutoStart.IsDaemonMutexHeld(pipeName))
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(100), cancellationToken);
+                }
+
+                if (!DaemonAutoStart.IsDaemonMutexHeld(pipeName))
+                {
+                    Console.WriteLine(JsonSerializer.Serialize(
+                        new { success = true, message = "Daemon stopped." },
+                        ServiceProtocol.JsonOptions));
+                    return 0;
+                }
+
+                if (!settings.Force)
+                {
+                    return CliErrorOutput.WriteError(
+                        "Daemon accepted shutdown but did not exit before the graceful shutdown deadline.");
+                }
             }
 
             if (!settings.Force)
@@ -68,16 +87,39 @@ internal sealed class ServiceStopCommand : AsyncCommand<ServiceStopSettings>
         }
         else if (!settings.Force)
         {
+            if (DaemonAutoStart.IsDaemonMutexHeld(pipeName))
+            {
+                return CliErrorOutput.WriteError(
+                    "Daemon is running but unresponsive. Retry with --force to stop only its validated owned processes.");
+            }
+
+            if (DaemonAutoStart.IsDaemonStartupMutexHeld(pipeName))
+            {
+                return CliErrorOutput.WriteError("Daemon startup is still in progress.");
+            }
+
             return CliErrorOutput.WriteError("Daemon is not running.");
         }
 
-        if (settings.Force && DaemonProcessTracker.TryForceStopTrackedDaemon(pipeName))
+        if (settings.Force && trackedRecord != null)
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Daemon process force-killed." }, ServiceProtocol.JsonOptions));
-            return 0;
+            var cleanupDeadline = OperationDeadline.Start(TimeSpan.FromSeconds(10));
+            if (OwnedProcessCleanup.TryCleanup(trackedRecord, cleanupDeadline, out var error))
+            {
+                tracker.ClearIfMatches(trackedRecord.Daemon);
+                Console.WriteLine(JsonSerializer.Serialize(
+                    new { success = true, message = "Owned daemon processes stopped." },
+                    ServiceProtocol.JsonOptions));
+                return 0;
+            }
+
+            return CliErrorOutput.WriteError(error ?? "Owned daemon processes could not be stopped.");
         }
 
-        return CliErrorOutput.WriteError("Daemon is not running or could not be stopped.");
+        return CliErrorOutput.WriteError(
+            trackedRecord == null
+                ? "No owned daemon process record was found."
+                : "Daemon could not be stopped.");
     }
 }
 
@@ -92,7 +134,18 @@ internal sealed class ServiceStatusCommand : AsyncCommand<ServicePipeSettings>
 
         if (!await client.PingAsync(cancellationToken))
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = true, running = false }, ServiceProtocol.JsonOptions));
+            var daemonHeld = DaemonAutoStart.IsDaemonMutexHeld(pipeName);
+            var startupHeld = DaemonAutoStart.IsDaemonStartupMutexHeld(pipeName);
+            var state = daemonHeld ? "unresponsive" : startupHeld ? "starting" : "stopped";
+            Console.WriteLine(JsonSerializer.Serialize(
+                new
+                {
+                    success = true,
+                    state,
+                    running = daemonHeld,
+                    responsive = false,
+                },
+                ServiceProtocol.JsonOptions));
             return 0;
         }
 

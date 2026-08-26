@@ -9,11 +9,9 @@ using Xunit.Abstractions;
 namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
 
 /// <summary>
-/// Focused regression test for the create-and-open fix
-/// (.squad/decisions/inbox/brett-create-and-open.md): <c>create_presentation</c> must return a
+/// Focused regression test for the create-and-open fix: <c>create_presentation</c> must return a
 /// sessionId promptly instead of blocking on <c>IPresentationBatch.Dispose()</c>'s
-/// grace-period/force-kill sequence (previously ~90-210s, see
-/// .squad/decisions/inbox/ripley-create-presentation-blocks-on-dispose.md). Kept in its own file
+/// grace-period/force-kill sequence (previously ~90-210s). Kept in its own file
 /// and its own PowerPoint instance so the timing assertion is not skewed by any other test's COM
 /// activity in the shared "ProgramTransport" collection.
 /// </summary>

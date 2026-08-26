@@ -72,5 +72,5 @@ instructions.
 
 ## Related
 
-- [Documentation](https://powerpointmcpserver.dev/) (planned — Phase 4)
+- [Documentation](https://powerpointmcpserver.dev/)
 - [GitHub Repository](https://github.com/sbroenne/mcp-server-powerpoint)

@@ -2,10 +2,9 @@
 template: home.html
 title: Home
 description: >-
-  Control Microsoft PowerPoint with natural language through AI assistants
-  like GitHub Copilot and Claude. Automate slides, shapes, tables, charts and
-  export-to-verify visual checks — no PowerPoint object-model knowledge
-  required.
+  Control Microsoft PowerPoint with AI assistants like GitHub Copilot and
+  Claude. Automate slides, shapes, tables, charts, accessibility, and visual
+  checks in the real desktop app.
 keywords: "PowerPoint automation, MCP server, AI PowerPoint, slide automation, PowerPoint COM, GitHub Copilot PowerPoint, Claude PowerPoint, PowerPoint CLI, presentation automation"
 hide:
   - navigation

@@ -6,8 +6,8 @@ namespace Sbroenne.PowerPointMcp.Core.Tests;
 /// xUnit class fixture that keeps ONE live PowerPoint.Application instance (and its dedicated
 /// STA thread) alive for the lifetime of a whole test class, instead of every [Fact] paying its
 /// own PowerPoint launch + <see cref="PresentationShutdownService"/> teardown cost. Teardown
-/// legitimately includes PowerPoint's documented ~90-100s post-Quit() process-exit lingering
-/// (Ripley's MCP round-trip finding, .squad/decisions.md 2026-07-01) — that cost is now paid
+/// legitimately includes PowerPoint's documented ~90-100s post-Quit() process-exit lingering,
+/// so that cost is now paid
 /// ONCE per test class (at fixture disposal) instead of once per test method.
 /// </summary>
 /// <remarks>

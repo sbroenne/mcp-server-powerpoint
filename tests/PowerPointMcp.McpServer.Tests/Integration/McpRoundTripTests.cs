@@ -131,11 +131,11 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// Full session lifecycle via the MCP protocol: create → open → list_sessions shows it →
-    /// save → close. Every step is asserted through tools/call responses only.
+    /// Full session lifecycle via the MCP protocol: create → list_sessions shows it →
+    /// close with save. Every step is asserted through tools/call responses only.
     /// </summary>
     [Fact]
-    public async Task FullSessionLifecycle_ViaMcpProtocol_OpenListSaveClose()
+    public async Task FullSessionLifecycle_ViaMcpProtocol_CreateListCloseWithSave()
     {
         // 1. create_presentation returns an OPEN session (create-and-keep-open) → sessionId.
         var createResult = await CallToolAsync(
@@ -163,33 +163,23 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         }
         _output.WriteLine("✓ Step 2: list_sessions shows the open session");
 
-        // 3. save_presentation.
-        var saveResult = await CallToolAsync(
-            "presentation",
-            new Dictionary<string, object?>
-            {
-                ["action"] = "save",
-                ["sessionId"] = sessionId
-            });
-        AssertSuccess(saveResult, "save_presentation");
-        _output.WriteLine("✓ Step 3: save_presentation succeeded");
-
-        // 4. close_presentation — releases the PowerPoint process for this session.
+        // 3. close_presentation with save — persists and releases the PowerPoint process.
         var closeResult = await CallToolAsync(
             "presentation",
             new Dictionary<string, object?>
             {
                 ["action"] = "close",
-                ["sessionId"] = sessionId
+                ["sessionId"] = sessionId,
+                ["save"] = true
             });
-        AssertSuccess(closeResult, "close_presentation");
+        AssertSuccess(closeResult, "close_presentation with save");
         using (var closeJson = JsonDocument.Parse(closeResult))
         {
             Assert.True(closeJson.RootElement.GetProperty("closed").GetBoolean(), $"Expected closed=true: {closeResult}");
         }
-        _output.WriteLine("✓ Step 4: close_presentation succeeded");
+        _output.WriteLine("✓ Step 3: close_presentation with save succeeded");
 
-        // 5. list_sessions no longer shows the closed session.
+        // 4. list_sessions no longer shows the closed session.
         var listAfterCloseResult = await CallToolAsync("presentation", new() { ["action"] = "list" });
         AssertSuccess(listAfterCloseResult, "list_sessions (after close)");
         using (var listJson = JsonDocument.Parse(listAfterCloseResult))
@@ -199,7 +189,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
                 .Any(s => string.Equals(s.GetProperty("sessionId").GetString(), sessionId, StringComparison.Ordinal));
             Assert.False(stillFound, $"Session {sessionId} should be gone after close_presentation: {listAfterCloseResult}");
         }
-        _output.WriteLine("✓ Step 5: list_sessions confirms the session is closed");
+        _output.WriteLine("✓ Step 4: list_sessions confirms the session is closed");
     }
 
     private async Task<string> CallToolAsync(string toolName, Dictionary<string, object?> arguments)

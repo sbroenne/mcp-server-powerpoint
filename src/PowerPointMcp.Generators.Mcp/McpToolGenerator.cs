@@ -22,10 +22,7 @@ namespace Sbroenne.PowerPointMcp.Generators.Mcp;
 /// a session rather than requiring one), which this generator's fixed, non-nullable session_id
 /// parameter shape does not support.
 ///
-/// PowerPoint Core has no enum/TimeSpan/FileOrValue/IProgress&lt;T&gt; parameters (only plain
-/// primitives plus IReadOnlyList&lt;string&gt;/IReadOnlyList&lt;double&gt; for Chart), so this
-/// port is a deliberately simplified subset of Excel's generator: it emits every exposed
-/// parameter as a plain nullable type passed straight through to the already-generated
+/// The generator emits the union of action parameters and passes them through to the generated
 /// <c>ServiceRegistry.{Category}.RouteAction</c> method (MCP JSON-RPC natively supports array
 /// parameters, so no JSON-string encoding is needed here, unlike the CLI generator's
 /// string-flag surface).

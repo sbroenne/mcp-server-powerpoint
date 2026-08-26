@@ -3,13 +3,13 @@
 .SYNOPSIS
     Git pre-commit hook for PowerPointMcp: branch guard, Success-flag audit, COM leak audit,
     dynamic cast audit, Core interface completeness audit, build, targeted real-COM Core tests,
-    MCP protocol tests, and a TODO/FIXME scan.
+    MCP protocol tests, release packaging tests, and a TODO/FIXME scan.
 
 .DESCRIPTION
     Runs checks before allowing commits (ported and adapted from mcp-server-excel's
     scripts/pre-commit.ps1 — see .github/copilot-instructions.md for the full gate table):
 
-    0. Process cleanup   - kills stale POWERPNT.exe / McpServer / CLI processes to avoid file locks
+    0. Process cleanup   - stops only processes proven to belong to the CLI daemon
     1. Branch guard      - never commit directly to 'main'
     2. Success flag scan - flags any 'Success = true' followed nearby by a non-null ErrorMessage
                             assignment in touched Core files (Rule 1)
@@ -36,12 +36,11 @@
                             (RequiresPowerPoint=true) are excluded. The full suite runs only when
                             compiled runtime code (src/tests *.cs, *.csproj, *.slnx,
                             Directory.Build/Packages, global.json) changes.
-    6. TODO/FIXME/HACK scan - blocks unresolved markers in staged files
+    6. Release packaging tests - validates version metadata and generated Agent Skills packages
+    7. TODO/FIXME/HACK scan - blocks unresolved markers in staged files
 
-    NOTE: mcp-server-excel has additional release-packaging gates (NuGet pack, standalone ZIP,
-    VS Code extension, MCPB bundle, Agent Skills ZIP) that do not yet apply here because
-    PowerPoint's CLI/packaging surfaces are still maturing. Add those gates here as the
-    corresponding deliverables land — see .squad/decisions.md for the release-deliverables roadmap.
+    Full artifact construction remains in the release workflow; the local packaging tests cover
+    deterministic metadata and Agent Skills content without publishing anything.
 
 .NOTES
     This script is called by the Git pre-commit hook.
@@ -91,7 +90,7 @@ if ($currentBranch -eq "main") {
     Write-Host ""
     Write-Host "   To fix:" -ForegroundColor Cyan
     Write-Host "   1. git stash                                    # Save your changes" -ForegroundColor White
-    Write-Host "   2. git checkout -b squad/your-feature-name      # Create feature branch" -ForegroundColor White
+    Write-Host "   2. git checkout -b feature/your-feature-name    # Create feature branch" -ForegroundColor White
     Write-Host "   3. git stash pop                                # Restore changes" -ForegroundColor White
     Write-Host "   4. git add <files>                              # Stage changes" -ForegroundColor White
     Write-Host "   5. git commit -m 'your message'                 # Commit to feature branch" -ForegroundColor White
@@ -102,23 +101,13 @@ if ($currentBranch -eq "main") {
 Write-Host "Branch check passed - on '$currentBranch' (not main)" -ForegroundColor Green
 
 # --- 0. Process cleanup (avoid file locks on Release binaries / open .pptx files) -----------
-Write-Step "Killing stale PowerPoint and server processes..."
+Write-Step "Stopping owned PowerPointMcp processes..."
 
-$killedProcesses = @()
-foreach ($procName in @("POWERPNT", "Sbroenne.PowerPointMcp.McpServer", "Sbroenne.PowerPointMcp.CLI")) {
-    $procs = Get-Process -Name $procName -ErrorAction SilentlyContinue
-    if ($procs) {
-        $procs | Stop-Process -Force -ErrorAction SilentlyContinue
-        $killedProcesses += "$procName ($($procs.Count))"
-    }
-}
-
-if ($killedProcesses.Count -gt 0) {
-    Write-Host "   Killed: $($killedProcesses -join ', ')" -ForegroundColor Yellow
-    Start-Sleep -Milliseconds 500
-}
-else {
-    Write-Host "   No stale processes found" -ForegroundColor Gray
+$cleanupScript = Join-Path $rootDir "scripts\Stop-PowerPointMcpProcesses.ps1"
+& $cleanupScript
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "BLOCKED: Owned process cleanup failed." -ForegroundColor Red
+    exit 1
 }
 
 Stop-DotNetBuildServers
@@ -349,7 +338,24 @@ else {
     Write-Host "MCP Server protocol tests passed (COM session tests skipped for docs/tooling change)" -ForegroundColor Green
 }
 
-# --- 6. TODO/FIXME/HACK scan ------------------------------------------------------------------
+# --- 6. Release metadata and Agent Skills packaging tests --------------------------------------
+if (-not $hasCodeChanges) {
+    Write-Step "Skipping release packaging tests (no code changes detected - docs/changeset only)"
+}
+else {
+    Write-Step "Running release metadata and Agent Skills packaging tests..."
+
+    & dotnet test (Join-Path $rootDir "tests\PowerPointMcp.SkillGeneration.Tests") -c Release --no-build --nologo -p:PowerPointMcpSkipCleanup=true
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "BLOCKED: Release metadata or Agent Skills packaging tests failed." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "Release metadata and Agent Skills packaging tests passed" -ForegroundColor Green
+}
+
+# --- 7. TODO/FIXME/HACK scan ------------------------------------------------------------------
 Write-Step "Scanning staged files for TODO/FIXME/HACK markers..."
 
 $allStagedFiles = git diff --cached --name-only --diff-filter=ACM

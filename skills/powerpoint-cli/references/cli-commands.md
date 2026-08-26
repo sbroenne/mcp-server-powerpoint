@@ -1,296 +1,1156 @@
 # CLI Command Reference
 
-> Auto-generated from `pptcli --help`. Use these exact parameter names.
+> Auto-generated recursively from the built `pptcli` runtime. Do not edit by hand.
 
-## Global Commands
+## `pptcli accessibility`
 
-### session
+```text
+DESCRIPTION:
+Deterministic presentation accessibility checks and reading-order operations
 
-Open, create, save, close, or list presentation sessions held by the daemon.
+USAGE:
+    pptcli accessibility <ACTION> [OPTIONS]
 
-**Commands:** `open <FILE_PATH>`, `create <FILE_PATH>`, `close <SESSION_ID>`, `save <SESSION_ID>`, `list`
+ARGUMENTS:
+    <ACTION>    The action to perform
 
-| Command | Description |
-|---------|-------------|
-| `session open <FILE_PATH>` | Open an existing presentation and return a session id |
-| `session create <FILE_PATH>` | Create a new presentation and return a session id |
-| `session close <SESSION_ID>` | Close a session, optionally saving first |
-| `session save <SESSION_ID>` | Save the presentation open in a session |
-| `session list` | List every session currently open in the daemon |
+OPTIONS:
+    -h, --help                            Prints help information
+    -s, --session <SESSION>               Session ID from 'session open' command
+        --slide-index <SLIDEINDEX>        (required for: get-reading-order,
+                                          set-reading-order) (valid for:
+                                          get-reading-order, set-reading-order)
+        --shape-indexes <SHAPEINDEXES>    (required for: set-reading-order)
+                                          (valid for: set-reading-order) (JSON
+                                          format)
+    -o, --output <PATH>                   Write output to file instead of
+                                          stdout. For image results, decodes and
+                                          saves as binary file
+```
 
-### service
+## `pptcli animation`
 
-Start, stop, or check the status of the `pptcli` background daemon.
+```text
+DESCRIPTION:
+Animation commands: add/delete entrance, emphasis, and exit effects on a shape's
+slide timeline (Slide.TimeLine.MainSequence), and read/set a slide's transition
+(Slide.SlideShowTransition). Operates within an already-open , targeting a
+specific slide (and, for shape effects, a specific shape) by 1-based index
 
-**Commands:** `start`, `stop`, `status`
+USAGE:
+    pptcli animation <ACTION> [OPTIONS]
 
-| Command | Description |
-|---------|-------------|
-| `service start` | Start the daemon if it isn't already running |
-| `service stop` | Stop the running daemon |
-| `service status` | Report whether the daemon is running |
+ARGUMENTS:
+    <ACTION>    The action to perform
 
-## Domain Commands
+OPTIONS:
+    -h, --help                                         Prints help information
+    -s, --session <SESSION>                            Session ID from 'session
+                                                       open' command
+        --slide-index <SLIDEINDEX>                     (required)
+        --shape-index <SHAPEINDEX>                     (required for:
+                                                       add-effect) (valid for:
+                                                       add-effect)
+        --effect-name <EFFECTNAME>                     (required for:
+                                                       add-effect) (valid for:
+                                                       add-effect)
+        --is-exit <ISEXIT>                             When true, the effect is
+                                                       applied as the shape
+                                                       leaving the slide (exit)
+                                                       rather than the
+                                                       default entrance/emphasis
+                                                       behavior. (valid for:
+                                                       add-effect)
+        --trigger <TRIGGER>                            When the effect starts:
+                                                       "on-click" (default),
+                                                       "with-previous", or
+                                                       "after-previous". (valid
+                                                       for: add-effect)
+        --effect-index <EFFECTINDEX>                   (required for:
+                                                       delete-effect) (valid
+                                                       for: delete-effect)
+        --transition-name <TRANSITIONNAME>             (required for:
+                                                       set-transition) (valid
+                                                       for: set-transition)
+        --duration-seconds <DURATIONSECONDS>           (valid for:
+                                                       set-transition)
+        --advance-on-click <ADVANCEONCLICK>            (valid for:
+                                                       set-transition)
+        --advance-on-time <ADVANCEONTIME>              (valid for:
+                                                       set-transition)
+        --advance-time-seconds <ADVANCETIMESECONDS>    (valid for:
+                                                       set-transition)
+    -o, --output <PATH>                                Write output to file
+                                                       instead of stdout. For
+                                                       image results, decodes
+                                                       and saves as binary file
+```
 
-Every domain command below follows the shape `pptcli <domain> <ACTION> [OPTIONS]`, targeting an
-already-open session via `-s, --session <SESSION>` (obtained from `session open`/`session
-create`). All slide/shape/row/column indices are 1-based, matching PowerPoint's own COM object
-model.
+## `pptcli chart`
 
-### chart
+```text
+DESCRIPTION:
+Chart lifecycle and data operations
 
-Chart lifecycle and data operations.
+USAGE:
+    pptcli chart <ACTION> [OPTIONS]
 
-**Actions:** `add-chart`, `get-chart-data`, `add-series`, `set-chart-title`, `get-chart-title`, `set-axis-title`, `get-axis-title`, `set-legend-visibility`, `get-legend-visibility`
+ARGUMENTS:
+    <ACTION>    The action to perform
 
-| Parameter | Description |
-|-----------|-------------|
-| `--slide-index` | 1-based slide index. (required) |
-| `--chart-type` | Chart type: "bar", "line", or "pie". (required for: add-chart) |
-| `--left` | Left position in points. (required for: add-chart) |
-| `--top` | Top position in points. (required for: add-chart) |
-| `--width` | Width in points. (required for: add-chart) |
-| `--height` | Height in points. (required for: add-chart) |
-| `--categories` | Category labels (x-axis / pie slice labels). (required for: add-chart) (JSON format) |
-| `--series-name` | Name of the data series. (required for: add-chart, add-series) |
-| `--values` | Data values, one per category. (required for: add-chart, add-series) (JSON format) |
-| `--shape-index` | (required for: get-chart-data, add-series, set-chart-title, get-chart-title, set-axis-title, get-axis-title, set-legend-visibility, get-legend-visibility) |
-| `--title` | Chart or axis title text. (required for: set-chart-title, set-axis-title) |
-| `--axis-type` | Axis to target: "category" or "value". (required for: set-axis-title, get-axis-title) |
-| `--visible` | Whether the legend is shown. (required for: set-legend-visibility) |
+OPTIONS:
+    -h, --help                            Prints help information
+    -s, --session <SESSION>               Session ID from 'session open' command
+        --slide-index <SLIDEINDEX>        1-based slide index. (required)
+        --chart-type <CHARTTYPE>          Chart type: "bar", "line", or "pie".
+                                          (required for: add-chart) (valid for:
+                                          add-chart)
+        --left <LEFT>                     Left position in points. (required
+                                          for: add-chart) (valid for: add-chart)
+        --top <TOP>                       Top position in points. (required for:
+                                          add-chart) (valid for: add-chart)
+        --width <WIDTH>                   Width in points. (required for:
+                                          add-chart) (valid for: add-chart)
+        --height <HEIGHT>                 Height in points. (required for:
+                                          add-chart) (valid for: add-chart)
+        --categories <CATEGORIES>         Category labels (x-axis / pie slice
+                                          labels). (required for: add-chart,
+                                          replace-chart-data) (valid for:
+                                          add-chart, replace-chart-data) (JSON
+                                          format)
+        --series-name <SERIESNAME>        Name of the single data series.
+                                          (required for: add-chart, add-series)
+                                          (valid for: add-chart, add-series)
+        --values <VALUES>                 Data values, one per category.
+                                          (required for: add-chart, add-series)
+                                          (valid for: add-chart, add-series)
+                                          (JSON format)
+        --shape-index <SHAPEINDEX>        (required for: get-chart-data,
+                                          add-series, set-chart-title,
+                                          get-chart-title, set-axis-title,
+                                          get-axis-title, set-legend-visibility,
+                                          get-legend-visibility,
+                                          replace-chart-data) (valid for:
+                                          get-chart-data, add-series,
+                                          set-chart-title, get-chart-title,
+                                          set-axis-title, get-axis-title,
+                                          set-legend-visibility,
+                                          get-legend-visibility,
+                                          replace-chart-data)
+        --title <TITLE>                   (required for: set-chart-title,
+                                          set-axis-title) (valid for:
+                                          set-chart-title, set-axis-title)
+        --axis-type <AXISTYPE>            (required for: set-axis-title,
+                                          get-axis-title) (valid for:
+                                          set-axis-title, get-axis-title)
+        --visible <VISIBLE>               (required for: set-legend-visibility)
+                                          (valid for: set-legend-visibility)
+        --series-names <SERIESNAMES>      (required for: replace-chart-data)
+                                          (valid for: replace-chart-data) (JSON
+                                          format)
+        --series-values <SERIESVALUES>    (required for: replace-chart-data)
+                                          (valid for: replace-chart-data) (JSON
+                                          format)
+    -o, --output <PATH>                   Write output to file instead of
+                                          stdout. For image results, decodes and
+                                          saves as binary file
+```
 
-### export
+## `pptcli export`
 
-Export commands: render presentation slides to raster image files. Operates within an
-already-open session.
+```text
+DESCRIPTION:
+Export commands: render presentations to PDF or slides to raster image files.
+Operates within an already-open
 
-**Actions:** `export-slide-to-image`, `export-all-slides-to-images`
+USAGE:
+    pptcli export <ACTION> [OPTIONS]
 
-| Parameter | Description |
-|-----------|-------------|
-| `--slide-index` | 1-based index of the slide to export. (required for: export-slide-to-image) |
-| `--output-path` | Full path for the output image file (e.g. `C:\output\slide1.png`). (required for: export-slide-to-image) |
-| `--format` | PowerPoint filter name for the image format (e.g. "PNG", "JPG", "GIF"). Defaults to "PNG" |
-| `--width` | Optional output width in pixels; 0 or null uses PowerPoint's default |
-| `--height` | Optional output height in pixels; 0 or null uses PowerPoint's default |
-| `--output-directory` | Directory where slide images will be written. Created if it does not exist. PowerPoint names the output files `Slide1.{ext}`, `Slide2.{ext}`, etc. (required for: export-all-slides-to-images) |
+ARGUMENTS:
+    <ACTION>    The action to perform
 
-### image
+OPTIONS:
+    -h, --help                                  Prints help information
+    -s, --session <SESSION>                     Session ID from 'session open'
+                                                command
+        --output-path <OUTPUTPATH>              Full path for the output .pdf
+                                                file. (required for:
+                                                export-to-pdf,
+                                                export-slide-to-image) (valid
+                                                for: export-to-pdf,
+                                                export-slide-to-image)
+        --overwrite <OVERWRITE>                 Whether an existing PDF may be
+                                                replaced. Defaults to false.
+                                                (valid for: export-to-pdf)
+        --slide-index <SLIDEINDEX>              1-based index of the slide to
+                                                export. (required for:
+                                                export-slide-to-image) (valid
+                                                for: export-slide-to-image)
+        --format <FORMAT>                       PowerPoint filter name for the
+                                                image format (e.g. "PNG", "JPG",
+                                                "GIF").     Defaults to "PNG".
+                                                (valid for:
+                                                export-slide-to-image,
+                                                export-all-slides-to-images)
+        --width <WIDTH>                         Optional output width in pixels;
+                                                0 or null uses PowerPoint's
+                                                default. (valid for:
+                                                export-slide-to-image)
+        --height <HEIGHT>                       Optional output height in
+                                                pixels; 0 or null uses
+                                                PowerPoint's default. (valid
+                                                for: export-slide-to-image)
+        --output-directory <OUTPUTDIRECTORY>    Directory where slide images
+                                                will be written. Created if it
+                                                does not exist.     PowerPoint
+                                                names the output files
+                                                Slide1.{ext}, Slide2.{ext}, etc.
+                                                (required for:
+                                                export-all-slides-to-images)
+                                                (valid for:
+                                                export-all-slides-to-images)
+```
 
-Image commands: insert pictures and adjust picture formatting. Operates within an already-open
-session, targeting a specific slide and picture shape by their 1-based indices.
+## `pptcli image`
 
-**Actions:** `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`, `set-recolor`, `get-recolor`, `set-crop`, `get-crop`
+```text
+DESCRIPTION:
+Image commands: embed a picture file into a slide. Operates within an
+already-open IPresentationBatch, targeting a specific slide by its 1-based index
 
-| Parameter | Description |
-|-----------|-------------|
-| `--slide-index` | (required) |
-| `--shape-index` | (required for: set-brightness-contrast, get-brightness-contrast, set-recolor, get-recolor, set-crop, get-crop) |
-| `--image-path` | (required for: add-picture) |
-| `--left` | (required for: add-picture) |
-| `--top` | (required for: add-picture) |
-| `--width` | (required for: add-picture) |
-| `--height` | (required for: add-picture) |
-| `--brightness` | (required for: set-brightness-contrast) |
-| `--contrast` | (required for: set-brightness-contrast) |
-| `--color-type` | (required for: set-recolor) |
-| `--crop-left` | (required for: set-crop) |
-| `--crop-top` | (required for: set-crop) |
-| `--crop-right` | (required for: set-crop) |
-| `--crop-bottom` | (required for: set-crop) |
+USAGE:
+    pptcli image <ACTION> [OPTIONS]
 
-### layout
+ARGUMENTS:
+    <ACTION>    The action to perform
 
-Slide layout commands: apply/read a slide's built-in layout. Operates within an already-open
-session, targeting a specific slide by its 1-based index.
+OPTIONS:
+    -h, --help                        Prints help information
+    -s, --session <SESSION>           Session ID from 'session open' command
+        --slide-index <SLIDEINDEX>    (required)
+        --image-path <IMAGEPATH>      (required for: add-picture) (valid for:
+                                      add-picture)
+        --left <LEFT>                 (required for: add-picture) (valid for:
+                                      add-picture)
+        --top <TOP>                   (required for: add-picture) (valid for:
+                                      add-picture)
+        --width <WIDTH>               (required for: add-picture) (valid for:
+                                      add-picture)
+        --height <HEIGHT>             (required for: add-picture) (valid for:
+                                      add-picture)
+        --shape-index <SHAPEINDEX>    (required for: set-brightness-contrast,
+                                      get-brightness-contrast, set-recolor,
+                                      get-recolor, set-crop, get-crop) (valid
+                                      for: set-brightness-contrast,
+                                      get-brightness-contrast, set-recolor,
+                                      get-recolor, set-crop, get-crop)
+        --brightness <BRIGHTNESS>     (required for: set-brightness-contrast)
+                                      (valid for: set-brightness-contrast)
+        --contrast <CONTRAST>         (required for: set-brightness-contrast)
+                                      (valid for: set-brightness-contrast)
+        --color-type <COLORTYPE>      (required for: set-recolor) (valid for:
+                                      set-recolor)
+        --crop-left <CROPLEFT>        (required for: set-crop) (valid for:
+                                      set-crop)
+        --crop-top <CROPTOP>          (required for: set-crop) (valid for:
+                                      set-crop)
+        --crop-right <CROPRIGHT>      (required for: set-crop) (valid for:
+                                      set-crop)
+        --crop-bottom <CROPBOTTOM>    (required for: set-crop) (valid for:
+                                      set-crop)
+    -o, --output <PATH>               Write output to file instead of stdout.
+                                      For image results, decodes and saves as
+                                      binary file
+```
 
-**Actions:** `set-layout`, `get-layout`
+## `pptcli layout`
 
-| Parameter | Description |
-|-----------|-------------|
-| `--slide-index` | (required) |
-| `--layout-name` | (required for: set-layout) — a `PpSlideLayout` enum member name, e.g. `ppLayoutBlank`, `ppLayoutTitle` |
+```text
+DESCRIPTION:
+Slide layout commands: apply/read a slide's built-in layout. Operates within an
+already-open IPresentationBatch, targeting a specific slide by its 1-based index
 
-### master
+USAGE:
+    pptcli layout <ACTION> [OPTIONS]
 
-Slide master commands: read/edit the title and body placeholder fonts on the presentation's
-slide master, and read/edit the slide master's background fill color. Changes apply to every
-slide inheriting from the master (i.e. any slide that doesn't itself override the property).
+ARGUMENTS:
+    <ACTION>    The action to perform
 
-**Actions:** `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`, `get-background-color`, `set-background-color`
+OPTIONS:
+    -h, --help                          Prints help information
+    -s, --session <SESSION>             Session ID from 'session open' command
+        --slide-index <SLIDEINDEX>      (required for: set-layout, get-layout)
+                                        (valid for: set-layout, get-layout)
+        --layout-name <LAYOUTNAME>      (required for: set-layout) (valid for:
+                                        set-layout)
+        --master-index <MASTERINDEX>    (required for: list-layouts,
+                                        delete-layout) (valid for: list-layouts,
+                                        delete-layout)
+        --layout-index <LAYOUTINDEX>    (required for: delete-layout) (valid
+                                        for: delete-layout)
+    -o, --output <PATH>                 Write output to file instead of stdout.
+                                        For image results, decodes and saves as
+                                        binary file
+```
 
-| Parameter | Description |
-|-----------|-------------|
-| `--font-name` | Font name, e.g. "Arial". (optional for: set-title-font, set-body-font) |
-| `--font-size` | Font size in points. (optional for: set-title-font, set-body-font) |
-| `--bold` | Whether the font is bold. (optional for: set-title-font, set-body-font) |
-| `--red` | Red channel (0-255). (required for: set-background-color; pass together with green/blue for set-title-font/set-body-font color changes) |
-| `--green` | Green channel (0-255). |
-| `--blue` | Blue channel (0-255). |
+## `pptcli master`
 
-### animation
+```text
+DESCRIPTION:
+Slide master commands: read/edit the title and body placeholder fonts on the
+presentation's slide master, and read/edit the slide master's background fill
+color. Operates within an already-open . Changes here apply to every slide that
+inherits from the master (i.e. any slide that does not itself override the
+property), which is the practical "edit the master, not each slide" workflow
+PowerPoint's COM object model supports safely
 
-Animation commands: add/delete shape entrance, emphasis, and exit effects on a slide's
-timeline (`Slide.TimeLine.MainSequence`), and read/set a slide's transition
-(`Slide.SlideShowTransition`).
+USAGE:
+    pptcli master <ACTION> [OPTIONS]
 
-**Actions:** `add-effect`, `get-effect-count`, `delete-effect`, `get-transition`, `set-transition`
+ARGUMENTS:
+    <ACTION>    The action to perform
 
-| Parameter | Description |
-|-----------|-------------|
-| `--slide-index` | (required) |
-| `--shape-index` | (required for: add-effect) |
-| `--effect-name` | (required for: add-effect) — an `MsoAnimEffect` enum member name, e.g. `msoAnimEffectFade`, `msoAnimEffectFly` |
-| `--is-exit` | Whether the effect plays as the shape leaving the slide (default false = entrance/emphasis). (optional for: add-effect) |
-| `--trigger` | `"on-click"` (default), `"with-previous"`, or `"after-previous"`. (optional for: add-effect) |
-| `--effect-index` | (required for: delete-effect) |
-| `--transition-name` | (required for: set-transition) — a `PpEntryEffect` enum member name, e.g. `ppEffectFade`, `ppEffectCut` |
-| `--duration-seconds` | (optional for: set-transition) |
-| `--advance-on-click` | (optional for: set-transition) |
-| `--advance-on-time` | (optional for: set-transition) |
-| `--advance-time-seconds` | (optional for: set-transition) |
+OPTIONS:
+    -h, --help                                  Prints help information
+    -s, --session <SESSION>                     Session ID from 'session open'
+                                                command
+        --font-name <FONTNAME>                  (valid for: set-title-font,
+                                                set-body-font)
+        --font-size <FONTSIZE>                  (valid for: set-title-font,
+                                                set-body-font)
+        --bold <BOLD>                           (valid for: set-title-font,
+                                                set-body-font)
+        --red <RED>                             (required for:
+                                                set-background-color) (valid
+                                                for: set-title-font,
+                                                set-body-font,
+                                                set-background-color)
+        --green <GREEN>                         (required for:
+                                                set-background-color) (valid
+                                                for: set-title-font,
+                                                set-body-font,
+                                                set-background-color)
+        --blue <BLUE>                           (required for:
+                                                set-background-color) (valid
+                                                for: set-title-font,
+                                                set-body-font,
+                                                set-background-color)
+        --red1 <RED1>                           (required for:
+                                                set-gradient-background) (valid
+                                                for: set-gradient-background)
+        --green1 <GREEN1>                       (required for:
+                                                set-gradient-background) (valid
+                                                for: set-gradient-background)
+        --blue1 <BLUE1>                         (required for:
+                                                set-gradient-background) (valid
+                                                for: set-gradient-background)
+        --red2 <RED2>                           (required for:
+                                                set-gradient-background) (valid
+                                                for: set-gradient-background)
+        --green2 <GREEN2>                       (required for:
+                                                set-gradient-background) (valid
+                                                for: set-gradient-background)
+        --blue2 <BLUE2>                         (required for:
+                                                set-gradient-background) (valid
+                                                for: set-gradient-background)
+        --gradient-style <GRADIENTSTYLE>        (valid for:
+                                                set-gradient-background)
+        --gradient-variant <GRADIENTVARIANT>    (valid for:
+                                                set-gradient-background)
+        --master-index <MASTERINDEX>            (required for: delete-master)
+                                                (valid for: delete-master)
+    -o, --output <PATH>                         Write output to file instead of
+                                                stdout. For image results,
+                                                decodes and saves as binary file
+```
 
-### notes
+## `pptcli notes`
 
-Speaker notes commands: set/get the notes text for a slide. Operates within an already-open
-session, targeting a specific slide by its 1-based index.
+```text
+DESCRIPTION:
+Speaker notes commands: set/get the notes text for a slide. Operates within an
+already-open IPresentationBatch, targeting a specific slide by its 1-based index
 
-**Actions:** `set-notes-text`, `get-notes-text`
+USAGE:
+    pptcli notes <ACTION> [OPTIONS]
 
-| Parameter | Description |
-|-----------|-------------|
-| `--slide-index` | (required) |
-| `--text` | (required for: set-notes-text) |
+ARGUMENTS:
+    <ACTION>    The action to perform
 
-### presentation
+OPTIONS:
+    -h, --help                        Prints help information
+    -s, --session <SESSION>           Session ID from 'session open' command
+        --slide-index <SLIDEINDEX>    (required)
+        --text <TEXT>                 (required for: set-notes-text) (valid for:
+                                      set-notes-text)
+    -o, --output <PATH>               Write output to file instead of stdout.
+                                      For image results, decodes and saves as
+                                      binary file
+```
 
-Presentation lifecycle commands: create, open, save, apply-template, get-theme-name.
+## `pptcli pagesetup`
 
-**Actions:** `create`, `open`, `save`, `apply-template`, `get-theme-name`
+```text
+DESCRIPTION:
+Presentation-wide slide size, numbering, and footer settings
 
-| Parameter | Description |
-|-----------|-------------|
-| `--file-path` | (required for: create, open) |
-| `--is-macro-enabled` | IsMacroEnabled |
-| `--template-path` | Full path to a `.potx`/`.potm`/`.pot` template file (a `.pptx`/`.pptm` presentation may also be used as a template source, matching PowerPoint's own behavior). (required for: apply-template) |
+USAGE:
+    pptcli pagesetup <ACTION> [OPTIONS]
 
-> Prefer the top-level `session open`/`session create`/`session save` commands for everyday
-> session lifecycle management — `presentation <ACTION>` is the lower-level domain dispatch
-> underneath them, exposed mainly for `apply-template` and `get-theme-name`, which have no
-> `session`-level equivalent.
+ARGUMENTS:
+    <ACTION>    The action to perform
 
-### shape
+OPTIONS:
+    -h, --help                                        Prints help information
+    -s, --session <SESSION>                           Session ID from 'session
+                                                      open' command
+        --width <WIDTH>                               (required for: set-size)
+                                                      (valid for: set-size)
+        --height <HEIGHT>                             (required for: set-size)
+                                                      (valid for: set-size)
+        --first-slide-number <FIRSTSLIDENUMBER>       (required for:
+                                                      set-first-slide-number)
+                                                      (valid for:
+                                                      set-first-slide-number)
+        --footer-text <FOOTERTEXT>                    (valid for: set-footer)
+        --show-footer <SHOWFOOTER>                    (valid for: set-footer)
+        --show-slide-number <SHOWSLIDENUMBER>         (valid for: set-footer)
+        --show-date-time <SHOWDATETIME>               (valid for: set-footer)
+        --date-time-mode <DATETIMEMODE>               (valid for: set-footer)
+        --fixed-date-time-text <FIXEDDATETIMETEXT>    (valid for: set-footer)
+        --show-on-title-slide <SHOWONTITLESLIDE>      (valid for: set-footer)
+    -o, --output <PATH>                               Write output to file
+                                                      instead of stdout. For
+                                                      image results, decodes and
+                                                      saves as binary file
+```
 
-Shape commands: add rectangles/text boxes/auto-shapes/lines/connectors, count, delete,
-reposition/resize, and format (fill/line/rotation/flip/z-order/shadow/group/name/alt-text).
-Operates within an already-open session, targeting a specific slide by its 1-based index.
+## `pptcli service`
 
-**Actions:** `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`
+```text
+DESCRIPTION:
+Start, stop, or check the status of the pptcli background daemon
 
-| Parameter | Description |
-|-----------|-------------|
-| `--slide-index` | (required) |
-| `--left` | (required for: add-rectangle, add-text-box, add-auto-shape, set-position) |
-| `--top` | (required for: add-rectangle, add-text-box, add-auto-shape, set-position) |
-| `--width` | (required for: add-rectangle, add-text-box, add-auto-shape, set-size) |
-| `--height` | (required for: add-rectangle, add-text-box, add-auto-shape, set-size) |
-| `--text` | (required for: add-text-box) |
-| `--shape-type` | `MsoAutoShapeType` name, e.g. `msoShapeOval`, `msoShapeRightArrow`. (required for: add-auto-shape) |
-| `--begin-x` | (required for: add-line, add-connector) |
-| `--begin-y` | (required for: add-line, add-connector) |
-| `--end-x` | (required for: add-line, add-connector) |
-| `--end-y` | (required for: add-line, add-connector) |
-| `--connector-type` | `msoConnectorStraight`, `msoConnectorElbow`, or `msoConnectorCurve`. (required for: add-connector) |
-| `--shape-index` | (required for: delete, set-position, set-size, set-fill, get-fill, set-line, get-line, set-rotation, get-rotation, flip, set-z-order, set-shadow, get-shadow, ungroup, set-name, get-name, set-alt-text, get-alt-text) |
-| `--red` | 0-255. (required for: set-fill; optional for: set-line) |
-| `--green` | 0-255. (required for: set-fill; optional for: set-line) |
-| `--blue` | 0-255. (required for: set-fill; optional for: set-line) |
-| `--weight` | Line weight in points. (optional for: set-line) |
-| `--dash-style` | `MsoLineDashStyle` name: `msoLineSolid`, `msoLineSquareDot`, `msoLineRoundDot`, `msoLineDash`, `msoLineDashDot`, `msoLineDashDotDot`, `msoLineLongDash`, `msoLineLongDashDot`. (optional for: set-line) |
-| `--visible` | (required for: set-shadow; optional for: set-line) |
-| `--degrees` | Rotation in degrees clockwise from upright. (required for: set-rotation) |
-| `--direction` | `horizontal` or `vertical`. (required for: flip) |
-| `--z-order-command` | `bring-to-front`, `send-to-back`, `bring-forward`, or `send-backward`. (required for: set-z-order) |
-| `--shape-indexes` | JSON array of 1-based shape indices, at least 2. (required for: group) |
-| `--name` | (required for: set-name) |
-| `--alt-text` | (required for: set-alt-text) |
+USAGE:
+    pptcli service [OPTIONS] <COMMAND>
 
-### slide
+OPTIONS:
+    -h, --help    Prints help information
 
-Slide lifecycle commands: add, delete, count, duplicate, reorder, per-slide background color,
-and section management. First domain built on top of the presentation lifecycle commands,
-operating within an already-open session.
+COMMANDS:
+    start     Start the daemon if it isn't already running
+    stop      Stop the running daemon
+    status    Report whether the daemon is running
+```
 
-**Actions:** `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-background-color`, `get-background-color`, `add-section`, `rename-section`, `delete-section`, `get-section-count`, `get-section-name`
+### `pptcli service start`
 
-| Parameter | Description |
-|-----------|-------------|
-| `--slide-index` | (required for: delete, duplicate, move-to, set-background-color, get-background-color) |
-| `--to-position` | (required for: move-to) |
-| `--red` / `--green` / `--blue` | (required for: set-background-color, 0-255 per channel) |
-| `--section-index` | (required for: add-section, rename-section, delete-section, get-section-name) |
-| `--section-name` | (required for: rename-section; optional for: add-section) |
-| `--delete-slides` | Optional bool (delete-section); if true, deletes the section's slides too. PowerPoint disallows deleting section 1 without this. |
+```text
+DESCRIPTION:
+Start the daemon if it isn't already running
 
-### table
+USAGE:
+    pptcli service start [OPTIONS]
 
-Table commands: add a table shape, read/write cell text, insert/delete rows and columns, format
-cell fill and borders, and merge cells. Operates within an already-open session, targeting a
-specific slide and table shape by their 1-based indices.
+OPTIONS:
+    -h, --help                     Prints help information
+        --pipe-name <PIPE_NAME>    Override the daemon's named pipe (defaults to
+                                   a per-user pipe name)
+```
 
-**Actions:** `add-table`, `set-cell-text`, `get-cell-text`, `insert-row`, `delete-row`, `insert-column`, `delete-column`, `set-cell-fill`, `get-cell-fill`, `set-cell-border`, `get-cell-border`, `merge-cells`
+### `pptcli service status`
 
-| Parameter | Description |
-|-----------|-------------|
-| `--slide-index` | (required) |
-| `--rows` | (required for: add-table) |
-| `--columns` | (required for: add-table) |
-| `--left` | (required for: add-table) |
-| `--top` | (required for: add-table) |
-| `--width` | (required for: add-table) |
-| `--height` | (required for: add-table) |
-| `--shape-index` | (required for: set-cell-text, get-cell-text, insert-row, delete-row, insert-column, delete-column, set-cell-fill, get-cell-fill, set-cell-border, get-cell-border, merge-cells) |
-| `--row` | (required for: set-cell-text, get-cell-text, delete-row, set-cell-fill, get-cell-fill, set-cell-border, get-cell-border, merge-cells) |
-| `--column` | (required for: set-cell-text, get-cell-text, delete-column, set-cell-fill, get-cell-fill, set-cell-border, get-cell-border, merge-cells) |
-| `--text` | (required for: set-cell-text) |
-| `--before-row` | Optional row to insert before (insert-row); omit to append. |
-| `--before-column` | Optional column to insert before (insert-column); omit to append. |
-| `--red` / `--green` / `--blue` | (required for: set-cell-fill); optional for set-cell-border (0-255 per channel). |
-| `--border-type` | (required for: set-cell-border, get-cell-border) — `PpBorderType` name: `ppBorderTop`, `ppBorderLeft`, `ppBorderBottom`, `ppBorderRight`, `ppBorderDiagonalDown`, `ppBorderDiagonalUp`. |
-| `--weight` | Optional border line weight (set-cell-border). |
-| `--dash-style` | Optional `MsoLineDashStyle` name, e.g. `msoLineSolid`, `msoLineDash` (set-cell-border). |
-| `--visible` | Optional border visibility (set-cell-border). |
-| `--merge-to-row` / `--merge-to-column` | (required for: merge-cells) — the adjacent cell to merge into. |
+```text
+DESCRIPTION:
+Report whether the daemon is running
 
-### textframe
+USAGE:
+    pptcli service status [OPTIONS]
 
-Text frame commands: set/get text and font/paragraph formatting (size, bold, italic, underline,
-font name, color, alignment, bullets) for a shape's text range. Operates within an already-open
-session, targeting a specific shape by its 1-based slide and shape index.
+OPTIONS:
+    -h, --help                     Prints help information
+        --pipe-name <PIPE_NAME>    Override the daemon's named pipe (defaults to
+                                   a per-user pipe name)
+```
 
-**Actions:** `set-text`, `get-text`, `set-font-size`, `get-font-size`, `set-bold`, `get-bold`, `set-font-color`, `get-font-color`, `set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`
+### `pptcli service stop`
 
-| Parameter | Description |
-|-----------|-------------|
-| `--slide-index` | (required) |
-| `--shape-index` | (required) |
-| `--text` | (required for: set-text) |
-| `--font-size` | (required for: set-font-size) |
-| `--bold` | (required for: set-bold) |
-| `--red` | (required for: set-font-color) — 0-255 |
-| `--green` | (required for: set-font-color) — 0-255 |
-| `--blue` | (required for: set-font-color) — 0-255 |
-| `--italic` | (required for: set-italic) |
-| `--underline` | (required for: set-underline) |
-| `--font-name` | (required for: set-font-name) |
-| `--alignment` | `PpParagraphAlignment` name: `ppAlignLeft`, `ppAlignCenter`, `ppAlignRight`, `ppAlignJustify`, `ppAlignDistribute`, `ppAlignThaiDistribute`, `ppAlignJustifyLow`. (required for: set-alignment) |
-| `--enabled` | (required for: set-bullet) |
-| `--character` | Single-character bullet glyph. (optional for: set-bullet) |
+```text
+DESCRIPTION:
+Stop the running daemon
 
-## Common Options (All Domain Commands)
+USAGE:
+    pptcli service stop [OPTIONS]
 
-| Option | Description |
-|--------|-------------|
-| `-h, --help` | Prints help information |
-| `-s, --session <SESSION>` | Session ID from `session open`/`session create` |
-| `-o, --output <PATH>` | Write output to file instead of stdout. For image results, decodes and saves as a binary file |
+OPTIONS:
+    -h, --help                     Prints help information
+        --pipe-name <PIPE_NAME>    Override the daemon's named pipe (defaults to
+                                   a per-user pipe name)
+        --force                    Force-kill the daemon process if a graceful
+                                   RPC shutdown doesn't respond
+```
+
+## `pptcli session`
+
+```text
+DESCRIPTION:
+Open, create, close, test, or list presentation sessions held by the daemon;
+apply templates and read/write document properties
+
+USAGE:
+    pptcli session [OPTIONS] <COMMAND>
+
+OPTIONS:
+    -h, --help    Prints help information
+
+COMMANDS:
+    open <FILE_PATH>                                              Open an
+                                                                  existing
+                                                                  presentation
+                                                                  and return a
+                                                                  session id
+    create <FILE_PATH>                                            Create a new
+                                                                  presentation
+                                                                  and return a
+                                                                  session id
+    close <SESSION_ID>                                            Close a
+                                                                  session,
+                                                                  optionally
+                                                                  saving first
+    list                                                          List every
+                                                                  session
+                                                                  currently open
+                                                                  in the daemon
+    test <FILE_PATH>                                              Validate that
+                                                                  PowerPoint can
+                                                                  open a
+                                                                  presentation
+                                                                  without
+                                                                  retaining a
+                                                                  session
+    apply-template <SESSION_ID> <TEMPLATE_PATH>                   Apply a
+                                                                  template's
+                                                                  masters/theme/
+                                                                  layouts to the
+                                                                  open
+                                                                  presentation,
+                                                                  preserving
+                                                                  slide content
+    get-theme-name <SESSION_ID>                                   Read the
+                                                                  design/theme
+                                                                  name currently
+                                                                  applied to the
+                                                                  open
+                                                                  presentation
+    set-document-property <SESSION_ID> <PROPERTY_NAME> <VALUE>    Set a built-in
+                                                                  document
+                                                                  metadata
+                                                                  property
+                                                                  (Title,
+                                                                  Subject,
+                                                                  Author,
+                                                                  Keywords,
+                                                                  Comments,
+                                                                  Category,
+                                                                  Manager,
+                                                                  Company)
+    get-document-property <SESSION_ID> <PROPERTY_NAME>            Read a
+                                                                  built-in
+                                                                  document
+                                                                  metadata
+                                                                  property
+    set-custom-property <SESSION_ID> <PROPERTY_NAME> <VALUE>      Create or
+                                                                  update a
+                                                                  custom
+                                                                  (user-defined)
+                                                                  document
+                                                                  property
+    get-custom-property <SESSION_ID> <PROPERTY_NAME>              Read a custom
+                                                                  (user-defined)
+                                                                  document
+                                                                  property
+    remove-custom-property <SESSION_ID> <PROPERTY_NAME>           Remove a
+                                                                  custom
+                                                                  (user-defined)
+                                                                  document
+                                                                  property
+```
+
+### `pptcli session close`
+
+```text
+DESCRIPTION:
+Close a session, optionally saving first
+
+USAGE:
+    pptcli session close <SESSION_ID> [OPTIONS]
+
+ARGUMENTS:
+    <SESSION_ID>    Session id returned by 'session open'/'session create'
+
+OPTIONS:
+    -h, --help    Prints help information
+        --save    Save the presentation before closing it
+```
+
+### `pptcli session create`
+
+```text
+DESCRIPTION:
+Create a new presentation and return a session id
+
+USAGE:
+    pptcli session create <FILE_PATH> [OPTIONS]
+
+ARGUMENTS:
+    <FILE_PATH>    Full path to the .pptx/.pptm presentation file
+
+OPTIONS:
+    -h, --help    Prints help information
+```
+
+### `pptcli session get-theme-name`
+
+```text
+DESCRIPTION:
+Read the design/theme name currently applied to the open presentation
+
+USAGE:
+    pptcli session get-theme-name <SESSION_ID> [OPTIONS]
+
+ARGUMENTS:
+    <SESSION_ID>    Session id returned by 'session open'/'session create'
+
+OPTIONS:
+    -h, --help    Prints help information
+```
+
+### `pptcli session list`
+
+```text
+DESCRIPTION:
+List every session currently open in the daemon
+
+USAGE:
+    pptcli session list [OPTIONS]
+
+OPTIONS:
+    -h, --help    Prints help information
+```
+
+### `pptcli session open`
+
+```text
+DESCRIPTION:
+Open an existing presentation and return a session id
+
+USAGE:
+    pptcli session open <FILE_PATH> [OPTIONS]
+
+ARGUMENTS:
+    <FILE_PATH>    Full path to the .pptx/.pptm presentation file
+
+OPTIONS:
+    -h, --help    Prints help information
+```
+
+### `pptcli session test`
+
+```text
+DESCRIPTION:
+Validate that PowerPoint can open a presentation without retaining a session
+
+USAGE:
+    pptcli session test <FILE_PATH> [OPTIONS]
+
+ARGUMENTS:
+    <FILE_PATH>    Full path to the .pptx/.pptm presentation file
+
+OPTIONS:
+    -h, --help    Prints help information
+```
+
+## `pptcli shape`
+
+```text
+DESCRIPTION:
+Shape commands: create, inspect, format, group, link, and edit native
+placeholders. Operates within an already-open IPresentationBatch, targeting a
+specific slide by its 1-based index
+
+USAGE:
+    pptcli shape <ACTION> [OPTIONS]
+
+ARGUMENTS:
+    <ACTION>    The action to perform
+
+OPTIONS:
+    -h, --help                               Prints help information
+    -s, --session <SESSION>                  Session ID from 'session open'
+                                             command
+        --slide-index <SLIDEINDEX>           (required)
+        --left <LEFT>                        (required for: add-rectangle,
+                                             add-text-box, add-auto-shape,
+                                             set-position) (valid for:
+                                             add-rectangle, add-text-box,
+                                             add-auto-shape, set-position)
+        --top <TOP>                          (required for: add-rectangle,
+                                             add-text-box, add-auto-shape,
+                                             set-position) (valid for:
+                                             add-rectangle, add-text-box,
+                                             add-auto-shape, set-position)
+        --width <WIDTH>                      (required for: add-rectangle,
+                                             add-text-box, add-auto-shape,
+                                             set-size) (valid for:
+                                             add-rectangle, add-text-box,
+                                             add-auto-shape, set-size)
+        --height <HEIGHT>                    (required for: add-rectangle,
+                                             add-text-box, add-auto-shape,
+                                             set-size) (valid for:
+                                             add-rectangle, add-text-box,
+                                             add-auto-shape, set-size)
+        --text <TEXT>                        (required for: add-text-box,
+                                             set-placeholder-text) (valid for:
+                                             add-text-box, set-placeholder-text)
+        --shape-type <SHAPETYPE>             (required for: add-auto-shape)
+                                             (valid for: add-auto-shape)
+        --begin-x <BEGINX>                   (required for: add-line,
+                                             add-connector) (valid for:
+                                             add-line, add-connector)
+        --begin-y <BEGINY>                   (required for: add-line,
+                                             add-connector) (valid for:
+                                             add-line, add-connector)
+        --end-x <ENDX>                       (required for: add-line,
+                                             add-connector) (valid for:
+                                             add-line, add-connector)
+        --end-y <ENDY>                       (required for: add-line,
+                                             add-connector) (valid for:
+                                             add-line, add-connector)
+        --connector-type <CONNECTORTYPE>     (required for: add-connector)
+                                             (valid for: add-connector)
+        --shape-index <SHAPEINDEX>           (required for: delete,
+                                             set-position, set-size, set-fill,
+                                             get-fill, set-line, get-line,
+                                             set-rotation, get-rotation, flip,
+                                             set-z-order, set-shadow,
+                                             get-shadow, set-glow, get-glow,
+                                             set-reflection, get-reflection,
+                                             set-soft-edge, get-soft-edge,
+                                             set-bevel, get-bevel, ungroup,
+                                             set-name, get-name, set-alt-text,
+                                             get-alt-text, set-hyperlink,
+                                             get-hyperlink, remove-hyperlink,
+                                             set-placeholder-text,
+                                             set-placeholder-image) (valid for:
+                                             delete, set-position, set-size,
+                                             set-fill, get-fill, set-line,
+                                             get-line, set-rotation,
+                                             get-rotation, flip, set-z-order,
+                                             set-shadow, get-shadow, set-glow,
+                                             get-glow, set-reflection,
+                                             get-reflection, set-soft-edge,
+                                             get-soft-edge, set-bevel,
+                                             get-bevel, ungroup, set-name,
+                                             get-name, set-alt-text,
+                                             get-alt-text, set-hyperlink,
+                                             get-hyperlink, remove-hyperlink,
+                                             set-placeholder-text,
+                                             set-placeholder-image)
+        --red <RED>                          (required for: set-fill, set-glow)
+                                             (valid for: set-fill, set-line,
+                                             set-shadow, set-glow)
+        --green <GREEN>                      (required for: set-fill, set-glow)
+                                             (valid for: set-fill, set-line,
+                                             set-shadow, set-glow)
+        --blue <BLUE>                        (required for: set-fill, set-glow)
+                                             (valid for: set-fill, set-line,
+                                             set-shadow, set-glow)
+        --weight <WEIGHT>                    (valid for: set-line)
+        --dash-style <DASHSTYLE>             (valid for: set-line)
+        --visible <VISIBLE>                  (required for: set-shadow,
+                                             set-reflection) (valid for:
+                                             set-line, set-shadow,
+                                             set-reflection)
+        --degrees <DEGREES>                  (required for: set-rotation) (valid
+                                             for: set-rotation)
+        --direction <DIRECTION>              (required for: flip) (valid for:
+                                             flip)
+        --z-order-command <ZORDERCOMMAND>    (required for: set-z-order) (valid
+                                             for: set-z-order)
+        --transparency <TRANSPARENCY>        (valid for: set-shadow, set-glow,
+                                             set-reflection)
+        --blur <BLUR>                        (valid for: set-shadow,
+                                             set-reflection)
+        --offset-x <OFFSETX>                 (valid for: set-shadow)
+        --offset-y <OFFSETY>                 (valid for: set-shadow)
+        --radius <RADIUS>                    (required for: set-glow,
+                                             set-soft-edge) (valid for:
+                                             set-glow, set-soft-edge)
+        --size <SIZE>                        (valid for: set-reflection)
+        --bevel-type <BEVELTYPE>             (required for: set-bevel) (valid
+                                             for: set-bevel)
+        --depth <DEPTH>                      (valid for: set-bevel)
+        --inset <INSET>                      (valid for: set-bevel)
+        --shape-indexes <SHAPEINDEXES>       (required for: group) (valid for:
+                                             group) (JSON format)
+        --name <NAME>                        (required for: set-name) (valid
+                                             for: set-name)
+        --alt-text <ALTTEXT>                 (required for: set-alt-text) (valid
+                                             for: set-alt-text)
+        --address <ADDRESS>                  (required for: set-hyperlink)
+                                             (valid for: set-hyperlink)
+        --screen-tip <SCREENTIP>             (valid for: set-hyperlink)
+        --image-path <IMAGEPATH>             (required for:
+                                             set-placeholder-image) (valid for:
+                                             set-placeholder-image)
+    -o, --output <PATH>                      Write output to file instead of
+                                             stdout. For image results, decodes
+                                             and saves as binary file
+```
+
+## `pptcli slide`
+
+```text
+DESCRIPTION:
+Slide lifecycle, background, section, legacy comment, and slide-import commands
+
+USAGE:
+    pptcli slide <ACTION> [OPTIONS]
+
+ARGUMENTS:
+    <ACTION>    The action to perform
+
+OPTIONS:
+    -h, --help                                               Prints help
+                                                             information
+    -s, --session <SESSION>                                  Session ID from
+                                                             'session open'
+                                                             command
+        --slide-index <SLIDEINDEX>                           (required for:
+                                                             delete, duplicate,
+                                                             move-to,
+                                                             set-background-colo
+                                                             r,
+                                                             get-background-colo
+                                                             r,
+                                                             set-gradient-backgr
+                                                             ound,
+                                                             get-gradient-backgr
+                                                             ound,
+                                                             list-comments,
+                                                             add-comment,
+                                                             delete-comment,
+                                                             clear-comments)
+                                                             (valid for: delete,
+                                                             duplicate, move-to,
+                                                             set-background-colo
+                                                             r,
+                                                             get-background-colo
+                                                             r,
+                                                             set-gradient-backgr
+                                                             ound,
+                                                             get-gradient-backgr
+                                                             ound,
+                                                             list-comments,
+                                                             add-comment,
+                                                             delete-comment,
+                                                             clear-comments)
+        --to-position <TOPOSITION>                           (required for:
+                                                             move-to) (valid
+                                                             for: move-to)
+        --red <RED>                                          (required for:
+                                                             set-background-colo
+                                                             r) (valid for:
+                                                             set-background-colo
+                                                             r)
+        --green <GREEN>                                      (required for:
+                                                             set-background-colo
+                                                             r) (valid for:
+                                                             set-background-colo
+                                                             r)
+        --blue <BLUE>                                        (required for:
+                                                             set-background-colo
+                                                             r) (valid for:
+                                                             set-background-colo
+                                                             r)
+        --red1 <RED1>                                        (required for:
+                                                             set-gradient-backgr
+                                                             ound) (valid for:
+                                                             set-gradient-backgr
+                                                             ound)
+        --green1 <GREEN1>                                    (required for:
+                                                             set-gradient-backgr
+                                                             ound) (valid for:
+                                                             set-gradient-backgr
+                                                             ound)
+        --blue1 <BLUE1>                                      (required for:
+                                                             set-gradient-backgr
+                                                             ound) (valid for:
+                                                             set-gradient-backgr
+                                                             ound)
+        --red2 <RED2>                                        (required for:
+                                                             set-gradient-backgr
+                                                             ound) (valid for:
+                                                             set-gradient-backgr
+                                                             ound)
+        --green2 <GREEN2>                                    (required for:
+                                                             set-gradient-backgr
+                                                             ound) (valid for:
+                                                             set-gradient-backgr
+                                                             ound)
+        --blue2 <BLUE2>                                      (required for:
+                                                             set-gradient-backgr
+                                                             ound) (valid for:
+                                                             set-gradient-backgr
+                                                             ound)
+        --gradient-style <GRADIENTSTYLE>                     (valid for:
+                                                             set-gradient-backgr
+                                                             ound)
+        --gradient-variant <GRADIENTVARIANT>                 (valid for:
+                                                             set-gradient-backgr
+                                                             ound)
+        --section-index <SECTIONINDEX>                       (required for:
+                                                             add-section,
+                                                             rename-section,
+                                                             delete-section,
+                                                             get-section-name)
+                                                             (valid for:
+                                                             add-section,
+                                                             rename-section,
+                                                             delete-section,
+                                                             get-section-name)
+        --section-name <SECTIONNAME>                         (required for:
+                                                             rename-section)
+                                                             (valid for:
+                                                             add-section,
+                                                             rename-section)
+        --delete-slides <DELETESLIDES>                       (valid for:
+                                                             delete-section)
+        --author <AUTHOR>                                    (required for:
+                                                             add-comment) (valid
+                                                             for: add-comment)
+        --initials <INITIALS>                                (required for:
+                                                             add-comment) (valid
+                                                             for: add-comment)
+        --text <TEXT>                                        (required for:
+                                                             add-comment) (valid
+                                                             for: add-comment)
+        --left <LEFT>                                        (valid for:
+                                                             add-comment)
+        --top <TOP>                                          (valid for:
+                                                             add-comment)
+        --comment-index <COMMENTINDEX>                       (required for:
+                                                             delete-comment)
+                                                             (valid for:
+                                                             delete-comment)
+        --source-file-path <SOURCEFILEPATH>                  (required for:
+                                                             import-from-file)
+                                                             (valid for:
+                                                             import-from-file)
+        --destination-slide-index <DESTINATIONSLIDEINDEX>    (required for:
+                                                             import-from-file)
+                                                             (valid for:
+                                                             import-from-file)
+        --source-start-slide <SOURCESTARTSLIDE>              (valid for:
+                                                             import-from-file)
+        --source-end-slide <SOURCEENDSLIDE>                  (valid for:
+                                                             import-from-file)
+    -o, --output <PATH>                                      Write output to
+                                                             file instead of
+                                                             stdout. For image
+                                                             results, decodes
+                                                             and saves as binary
+                                                             file
+```
+
+## `pptcli smartart`
+
+```text
+DESCRIPTION:
+SmartArt commands: add a SmartArt diagram to a slide from PowerPoint's built-in
+layout gallery, and add/read/update/delete/count the diagram's nodes. Operates
+within an already-open , targeting a specific slide and shape by 1-based index
+
+USAGE:
+    pptcli smartart <ACTION> [OPTIONS]
+
+ARGUMENTS:
+    <ACTION>    The action to perform
+
+OPTIONS:
+    -h, --help                                   Prints help information
+    -s, --session <SESSION>                      Session ID from 'session open'
+                                                 command
+        --slide-index <SLIDEINDEX>               (required)
+        --layout-name <LAYOUTNAME>               (required for: add-smart-art)
+                                                 (valid for: add-smart-art)
+        --left <LEFT>                            (required for: add-smart-art)
+                                                 (valid for: add-smart-art)
+        --top <TOP>                              (required for: add-smart-art)
+                                                 (valid for: add-smart-art)
+        --width <WIDTH>                          (required for: add-smart-art)
+                                                 (valid for: add-smart-art)
+        --height <HEIGHT>                        (required for: add-smart-art)
+                                                 (valid for: add-smart-art)
+        --shape-index <SHAPEINDEX>               (required for: add-node,
+                                                 add-child-node, set-node-text,
+                                                 get-node-text, delete-node,
+                                                 get-node-count) (valid for:
+                                                 add-node, add-child-node,
+                                                 set-node-text, get-node-text,
+                                                 delete-node, get-node-count)
+        --text <TEXT>                            (required for: add-node,
+                                                 add-child-node, set-node-text)
+                                                 (valid for: add-node,
+                                                 add-child-node, set-node-text)
+        --parent-node-index <PARENTNODEINDEX>    (required for: add-child-node)
+                                                 (valid for: add-child-node)
+        --node-index <NODEINDEX>                 (required for: set-node-text,
+                                                 get-node-text, delete-node)
+                                                 (valid for: set-node-text,
+                                                 get-node-text, delete-node)
+    -o, --output <PATH>                          Write output to file instead of
+                                                 stdout. For image results,
+                                                 decodes and saves as binary
+                                                 file
+```
+
+## `pptcli table`
+
+```text
+DESCRIPTION:
+Table commands: add a table shape, read/write cell text, insert/delete rows and
+columns, format cell fill and borders, and merge cells. Operates within an
+already-open IPresentationBatch, targeting a specific slide and table shape by
+their 1-based indices
+
+USAGE:
+    pptcli table <ACTION> [OPTIONS]
+
+ARGUMENTS:
+    <ACTION>    The action to perform
+
+OPTIONS:
+    -h, --help                               Prints help information
+    -s, --session <SESSION>                  Session ID from 'session open'
+                                             command
+        --slide-index <SLIDEINDEX>           (required)
+        --rows <ROWS>                        (required for: add-table) (valid
+                                             for: add-table)
+        --columns <COLUMNS>                  (required for: add-table) (valid
+                                             for: add-table)
+        --left <LEFT>                        (required for: add-table) (valid
+                                             for: add-table)
+        --top <TOP>                          (required for: add-table) (valid
+                                             for: add-table)
+        --width <WIDTH>                      (required for: add-table) (valid
+                                             for: add-table)
+        --height <HEIGHT>                    (required for: add-table) (valid
+                                             for: add-table)
+        --shape-index <SHAPEINDEX>           (required for: set-cell-text,
+                                             get-cell-text, insert-row,
+                                             delete-row, insert-column,
+                                             delete-column, set-cell-fill,
+                                             get-cell-fill, set-cell-border,
+                                             get-cell-border, merge-cells)
+                                             (valid for: set-cell-text,
+                                             get-cell-text, insert-row,
+                                             delete-row, insert-column,
+                                             delete-column, set-cell-fill,
+                                             get-cell-fill, set-cell-border,
+                                             get-cell-border, merge-cells)
+        --row <ROW>                          (required for: set-cell-text,
+                                             get-cell-text, delete-row,
+                                             set-cell-fill, get-cell-fill,
+                                             set-cell-border, get-cell-border,
+                                             merge-cells) (valid for:
+                                             set-cell-text, get-cell-text,
+                                             delete-row, set-cell-fill,
+                                             get-cell-fill, set-cell-border,
+                                             get-cell-border, merge-cells)
+        --column <COLUMN>                    (required for: set-cell-text,
+                                             get-cell-text, delete-column,
+                                             set-cell-fill, get-cell-fill,
+                                             set-cell-border, get-cell-border,
+                                             merge-cells) (valid for:
+                                             set-cell-text, get-cell-text,
+                                             delete-column, set-cell-fill,
+                                             get-cell-fill, set-cell-border,
+                                             get-cell-border, merge-cells)
+        --text <TEXT>                        (required for: set-cell-text)
+                                             (valid for: set-cell-text)
+        --before-row <BEFOREROW>             (valid for: insert-row)
+        --before-column <BEFORECOLUMN>       (valid for: insert-column)
+        --red <RED>                          (required for: set-cell-fill)
+                                             (valid for: set-cell-fill,
+                                             set-cell-border)
+        --green <GREEN>                      (required for: set-cell-fill)
+                                             (valid for: set-cell-fill,
+                                             set-cell-border)
+        --blue <BLUE>                        (required for: set-cell-fill)
+                                             (valid for: set-cell-fill,
+                                             set-cell-border)
+        --border-type <BORDERTYPE>           (required for: set-cell-border,
+                                             get-cell-border) (valid for:
+                                             set-cell-border, get-cell-border)
+        --weight <WEIGHT>                    (valid for: set-cell-border)
+        --dash-style <DASHSTYLE>             (valid for: set-cell-border)
+        --visible <VISIBLE>                  (valid for: set-cell-border)
+        --merge-to-row <MERGETOROW>          (required for: merge-cells) (valid
+                                             for: merge-cells)
+        --merge-to-column <MERGETOCOLUMN>    (required for: merge-cells) (valid
+                                             for: merge-cells)
+    -o, --output <PATH>                      Write output to file instead of
+                                             stdout. For image results, decodes
+                                             and saves as binary file
+```
+
+## `pptcli textframe`
+
+```text
+DESCRIPTION:
+Text frame commands: set/get text and basic font formatting (size, bold, italic,
+underline, font name, color, alignment, bullets) for a shape's text range.
+Operates within an already-open IPresentationBatch, targeting a specific shape
+by its 1-based slide and shape index
+
+USAGE:
+    pptcli textframe <ACTION> [OPTIONS]
+
+ARGUMENTS:
+    <ACTION>    The action to perform
+
+OPTIONS:
+    -h, --help                        Prints help information
+    -s, --session <SESSION>           Session ID from 'session open' command
+        --slide-index <SLIDEINDEX>    (required)
+        --shape-index <SHAPEINDEX>    (required)
+        --text <TEXT>                 (required for: set-text) (valid for:
+                                      set-text)
+        --font-size <FONTSIZE>        (required for: set-font-size) (valid for:
+                                      set-font-size)
+        --bold <BOLD>                 (required for: set-bold) (valid for:
+                                      set-bold)
+        --red <RED>                   (required for: set-font-color) (valid for:
+                                      set-font-color)
+        --green <GREEN>               (required for: set-font-color) (valid for:
+                                      set-font-color)
+        --blue <BLUE>                 (required for: set-font-color) (valid for:
+                                      set-font-color)
+        --italic <ITALIC>             (required for: set-italic) (valid for:
+                                      set-italic)
+        --underline <UNDERLINE>       (required for: set-underline) (valid for:
+                                      set-underline)
+        --font-name <FONTNAME>        (required for: set-font-name) (valid for:
+                                      set-font-name)
+        --alignment <ALIGNMENT>       (required for: set-alignment) (valid for:
+                                      set-alignment)
+        --enabled <ENABLED>           (required for: set-bullet) (valid for:
+                                      set-bullet)
+        --character <CHARACTER>       (valid for: set-bullet)
+        --auto-size <AUTOSIZE>        (required for: set-auto-size) (valid for:
+                                      set-auto-size)
+    -o, --output <PATH>               Write output to file instead of stdout.
+                                      For image results, decodes and saves as
+                                      binary file
+```

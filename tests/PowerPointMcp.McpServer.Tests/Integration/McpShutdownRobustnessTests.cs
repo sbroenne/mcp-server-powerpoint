@@ -11,8 +11,7 @@ using static Sbroenne.PowerPointMcp.McpServer.Tests.Integration.McpToolCallHelpe
 namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
 
 /// <summary>
-/// Close/shutdown robustness coverage for Brett's async-close design
-/// (.squad/decisions/inbox/brett-async-close.md): double-close, concurrent closes of multiple
+/// Close/shutdown robustness coverage for the async-close design: double-close, concurrent closes of multiple
 /// sessions, and a close-then-immediate-host-shutdown race — all driven through the MCP protocol,
 /// with a final real-process check that no POWERPNT.exe spawned by this test survives host
 /// shutdown.
@@ -20,10 +19,9 @@ namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
 /// <remarks>
 /// Manages its own <see cref="ProgramTransportTestHost"/> lifecycle inline (rather than via
 /// <see cref="IAsyncLifetime"/>) so the test can control exactly when the host stops relative to
-/// the last <c>close_presentation</c> call — the "close-then-host-shutdown" race Brett flagged.
+/// the last <c>close_presentation</c> call to exercise the close-then-host-shutdown race.
 /// Only ONE <c>create_presentation</c> call is made (that call alone currently blocks
-/// synchronously for the full PowerPoint quit sequence — see
-/// .squad/decisions/inbox/ripley-create-presentation-blocks-on-dispose.md); the resulting file is
+/// synchronously for the full PowerPoint quit sequence); the resulting file is
 /// copied on disk (no COM) to produce independent files for each of the four sessions this test
 /// opens, keeping total runtime bounded while still exercising four real PowerPoint processes.
 /// </remarks>

@@ -20,7 +20,7 @@ The CLI mirrors the same domain model:
 
 | Tool | Ops | What it covers | MCP call shape | CLI shape |
 |------|-----|----------------|----------------|-----------|
-| `presentation` | 12 | Session lifecycle, template application, built-in/custom document properties | `presentation(action="...", ...)` | `pptcli session <action> ...` |
+| `presentation` | 12 | Session lifecycle, open testing, template application, built-in/custom document properties | `presentation(action="...", ...)` | `pptcli session <action> ...` |
 | `slide` | 19 | Slide lifecycle, backgrounds, sections, comments, import | `slide(action="...", session_id=..., ...)` | `pptcli slide <action> -s <SESSION_ID> ...` |
 | `shape` | 39 | Shapes, styling, grouping, hyperlinks, placeholders | `shape(action="...", session_id=..., ...)` | `pptcli shape <action> -s <SESSION_ID> ...` |
 | `textframe` | 20 | Text content and text formatting | `textframe(action="...", session_id=..., ...)` | `pptcli textframe <action> -s <SESSION_ID> ...` |
@@ -48,9 +48,9 @@ use that `sessionId`.
 |--------|---------------|
 | `create` | Create a new presentation file, save it immediately, and leave the session open. |
 | `open` | Open an existing presentation file and start a session. |
-| `save` | Save the presentation for an open session. |
-| `close` | Close an open session; PowerPoint shutdown continues in the background. |
+| `close` | Close an open session, optionally saving first; PowerPoint shutdown continues in the background. |
 | `list` | List all currently open sessions. |
+| `test` | Check whether PowerPoint can open a file without retaining a live session. |
 | `apply-template` | Apply a `.potx`/`.potm`/`.pot` or `.pptx`/`.pptm` template source while preserving slide content. |
 | `get-theme-name` | Read the currently applied design/theme name. |
 | `set-document-property` | Set a built-in document metadata property such as Title or Author. |
@@ -59,7 +59,7 @@ use that `sessionId`.
 | `get-custom-property` | Read a custom document property. |
 | `remove-custom-property` | Remove a custom document property. |
 
-**Exact action order:** `create`, `open`, `save`, `close`, `list`, `apply-template`,
+**Exact action order:** `create`, `open`, `close`, `list`, `test`, `apply-template`,
 `get-theme-name`, `set-document-property`, `get-document-property`, `set-custom-property`,
 `get-custom-property`, `remove-custom-property`
 
@@ -199,5 +199,5 @@ Use `export` for the project's export-to-verify loop.
   enum parameter.
 - **1-based indexing everywhere** — slides, shapes, rows, and columns all match PowerPoint's own
   object model.
-- **Sessions are explicit** — open/create once, do the work, save, then close.
+- **Sessions are explicit** — open/create once, do the work, then close with the chosen save behavior.
 - **Export to verify** — when a change is visual, render it and inspect the image.

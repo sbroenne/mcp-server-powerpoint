@@ -1,6 +1,7 @@
 using Sbroenne.PowerPointMcp.CLI.Commands;
 using Sbroenne.PowerPointMcp.CLI.Generated;
 using Sbroenne.PowerPointMcp.CLI.Infrastructure;
+using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Service;
 using Spectre.Console.Cli;
 
@@ -28,12 +29,12 @@ public static class Program
 
             config.AddBranch("session", session =>
             {
-                session.SetDescription("Open, create, save, close, or list presentation sessions held by the daemon; apply templates and read/write document properties.");
+                session.SetDescription("Open, create, close, test, or list presentation sessions held by the daemon; apply templates and read/write document properties.");
                 session.AddCommand<SessionOpenCommand>("open").WithDescription("Open an existing presentation and return a session id.");
                 session.AddCommand<SessionCreateCommand>("create").WithDescription("Create a new presentation and return a session id.");
                 session.AddCommand<SessionCloseCommand>("close").WithDescription("Close a session, optionally saving first.");
-                session.AddCommand<SessionSaveCommand>("save").WithDescription("Save the presentation open in a session.");
                 session.AddCommand<SessionListCommand>("list").WithDescription("List every session currently open in the daemon.");
+                session.AddCommand<SessionTestCommand>("test").WithDescription("Validate that PowerPoint can open a presentation without retaining a session.");
                 session.AddCommand<SessionApplyTemplateCommand>("apply-template").WithDescription("Apply a template's masters/theme/layouts to the open presentation, preserving slide content.");
                 session.AddCommand<SessionGetThemeNameCommand>("get-theme-name").WithDescription("Read the design/theme name currently applied to the open presentation.");
                 session.AddCommand<SessionSetDocumentPropertyCommand>("set-document-property").WithDescription("Set a built-in document metadata property (Title, Subject, Author, Keywords, Comments, Category, Manager, Company).");
@@ -81,24 +82,102 @@ public static class Program
         }
 
         pipeName ??= DaemonAutoStart.GetPipeName();
-
-        using var service = new PowerPointMcpService();
-
-        Console.CancelKeyPress += (_, e) =>
-        {
-            e.Cancel = true;
-            service.RequestShutdown();
-        };
-
+        using var daemonMutex = new Semaphore(
+            initialCount: 1,
+            maximumCount: 1,
+            DaemonAutoStart.GetDaemonMutexName(pipeName));
+        var daemonLockAcquired = false;
         try
         {
-            await service.RunAsync(pipeName, idleTimeout);
+            daemonLockAcquired = daemonMutex.WaitOne(TimeSpan.Zero);
+
+            if (!daemonLockAcquired)
+            {
+                Console.Error.WriteLine($"A daemon is already running for pipe '{pipeName}'.");
+                return 1;
+            }
+
+            var tracker = new DaemonProcessTracker(pipeName);
+            var trackingSnapshot = DaemonProcessTracker.ReadProcessSnapshot(pipeName);
+            if (trackingSnapshot.Status == DaemonProcessTracker.TrackingRecordStatus.Invalid)
+            {
+                Console.Error.WriteLine(
+                    $"The daemon tracking record is invalid and was preserved: {tracker.RecordPath}");
+                return 1;
+            }
+
+            var staleRecord = tracker.ReadRecord();
+            if (staleRecord != null
+                && !OwnedProcessCleanup.TryCleanup(
+                    staleRecord,
+                    OperationDeadline.Start(TimeSpan.FromSeconds(10)),
+                    out var cleanupError))
+            {
+                Console.Error.WriteLine(cleanupError);
+                return 1;
+            }
+
+            if (staleRecord != null)
+            {
+                tracker.ClearIfMatches(staleRecord.Daemon);
+            }
+
+            var daemonIdentity = tracker.RegisterCurrentProcess();
+            PresentationSessionRegistry.PowerPointProcessIdentityTracked += tracker.RecordPowerPointProcess;
+
+            var service = new PowerPointMcpService();
+
+            Console.CancelKeyPress += (_, e) =>
+            {
+                e.Cancel = true;
+                service.RequestShutdown();
+            };
+
+            try
+            {
+                await service.RunAsync(pipeName, idleTimeout);
+            }
+            finally
+            {
+                service.Dispose();
+                PresentationSessionRegistry.PowerPointProcessIdentityTracked -= tracker.RecordPowerPointProcess;
+
+                var finalRecord = tracker.ReadRecord();
+                if (finalRecord != null && CanClearTrackingRecord(finalRecord))
+                {
+                    tracker.ClearIfMatches(daemonIdentity);
+                }
+            }
+
+            return 0;
         }
         finally
         {
-            DaemonProcessTracker.Clear(pipeName);
+            if (daemonLockAcquired)
+            {
+                daemonMutex.Release();
+            }
+        }
+    }
+
+    private static bool CanClearTrackingRecord(DaemonTrackingRecord record)
+    {
+        foreach (var identity in record.PowerPointProcesses)
+        {
+            if (!DaemonProcessTracker.TryOpenMatchingProcess(identity, out var process))
+            {
+                return false;
+            }
+
+            using (process)
+            {
+                if (process != null)
+                {
+                    return false;
+                }
+            }
         }
 
-        return 0;
+        return true;
     }
 }

@@ -91,6 +91,7 @@ public sealed class ParameterInfo
     public bool IsFromString { get; }
     public string? ExposedName { get; }
     public bool IsRequired { get; }
+    public bool AllowsEmptyString { get; }
     public bool IsEnum { get; }
     public string? XmlDocDescription { get; }
 
@@ -99,12 +100,15 @@ public sealed class ParameterInfo
     /// Used by MCP generator to emit typed enum parameters instead of strings.
     /// </summary>
     public string? EnumTypeName { get; }
+    public IReadOnlyList<EnumAliasInfo> EnumAliases { get; }
 
     public ParameterInfo(string name, string typeName, bool hasDefault, string? defaultValue,
         bool isFileOrValue = false, string? fileSuffix = null,
         bool isFromString = false, string? exposedName = null,
         bool isRequired = false, bool isEnum = false,
-        string? xmlDocDescription = null, string? enumTypeName = null)
+        string? xmlDocDescription = null, string? enumTypeName = null,
+        IReadOnlyList<EnumAliasInfo>? enumAliases = null,
+        bool allowsEmptyString = false)
     {
         Name = name;
         TypeName = typeName;
@@ -115,10 +119,24 @@ public sealed class ParameterInfo
         IsFromString = isFromString;
         ExposedName = exposedName;
         IsRequired = isRequired;
+        AllowsEmptyString = allowsEmptyString;
         IsEnum = isEnum;
         XmlDocDescription = xmlDocDescription;
         EnumTypeName = enumTypeName;
+        EnumAliases = enumAliases ?? [];
     }
+}
+
+public sealed class EnumAliasInfo
+{
+    public EnumAliasInfo(string alias, string memberName)
+    {
+        Alias = alias;
+        MemberName = memberName;
+    }
+
+    public string Alias { get; }
+    public string MemberName { get; }
 }
 
 /// <summary>
@@ -136,6 +154,7 @@ public sealed class ExposedParameter
 
     /// <summary>Total number of actions in the service (for computing "required for all" vs subset).</summary>
     public int TotalActionCount { get; set; }
+    public List<string> ApplicableByActions { get; } = new();
 
     public ExposedParameter(string name, string typeName, string? description = null, string? defaultValue = null)
     {
@@ -154,16 +173,23 @@ public sealed class ExposedParameter
     {
         get
         {
-            if (RequiredByActions.Count == 0)
+            var suffixes = new List<string>();
+            if (RequiredByActions.Count > 0)
+            {
+                suffixes.Add(RequiredByActions.Count == TotalActionCount
+                    ? "(required)"
+                    : $"(required for: {string.Join(", ", RequiredByActions)})");
+            }
+            if (ApplicableByActions.Count > 0 && ApplicableByActions.Count < TotalActionCount)
+            {
+                suffixes.Add($"(valid for: {string.Join(", ", ApplicableByActions)})");
+            }
+
+            if (suffixes.Count == 0)
                 return Description;
 
-            var suffix = RequiredByActions.Count == TotalActionCount
-                ? "(required)"
-                : $"(required for: {string.Join(", ", RequiredByActions)})";
-
-            return string.IsNullOrEmpty(Description)
-                ? suffix
-                : $"{Description} {suffix}";
+            var suffix = string.Join(" ", suffixes);
+            return string.IsNullOrEmpty(Description) ? suffix : $"{Description} {suffix}";
         }
     }
 }

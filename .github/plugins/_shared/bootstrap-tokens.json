@@ -1,0 +1,16 @@
+{
+  "powerpoint-cli": {
+    "plugin_name": "powerpoint-cli",
+    "runtime_exe": "powerpointcli.exe",
+    "asset_prefix": "PowerPointMcp-CLI-",
+    "release_description": "powerpointcli release",
+    "ready_message": "✅ powerpointcli runtime ready."
+  },
+  "powerpoint-mcp": {
+    "plugin_name": "powerpoint-mcp",
+    "runtime_exe": "mcp-powerpoint.exe",
+    "asset_prefix": "PowerPointMcp-MCP-Server-",
+    "release_description": "PowerPointMcp MCP server release",
+    "ready_message": "✅ PowerPointMcp MCP runtime ready."
+  }
+}
