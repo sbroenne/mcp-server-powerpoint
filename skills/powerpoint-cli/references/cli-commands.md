@@ -495,7 +495,8 @@ OPTIONS:
 ```text
 DESCRIPTION:
 Open, create, close, test, Save As/copy, or list presentation sessions held by
-the daemon; apply templates and read/write document properties
+the daemon; apply templates, manage the advisory Mark as Final flag, and
+read/write document properties
 
 USAGE:
     pptcli session [OPTIONS] <COMMAND>
@@ -556,6 +557,26 @@ COMMANDS:
                                                                   applied to the
                                                                   open
                                                                   presentation
+    get-final <SESSION_ID>                                        Read
+                                                                  PowerPoint's
+                                                                  advisory Mark
+                                                                  as Final
+                                                                  editing flag;
+                                                                  it is not
+                                                                  authentication
+                                                                  , encryption,
+                                                                  or access
+                                                                  control
+    set-final <SESSION_ID> <IS_FINAL>                             Set or clear
+                                                                  PowerPoint's
+                                                                  advisory Mark
+                                                                  as Final
+                                                                  editing flag;
+                                                                  it is not
+                                                                  authentication
+                                                                  , encryption,
+                                                                  or access
+                                                                  control
     set-document-property <SESSION_ID> <PROPERTY_NAME> <VALUE>    Set a built-in
                                                                   document
                                                                   metadata
@@ -618,6 +639,23 @@ USAGE:
 
 ARGUMENTS:
     <FILE_PATH>    Full path to the .pptx/.pptm presentation file
+
+OPTIONS:
+    -h, --help    Prints help information
+```
+
+### `pptcli session get-final`
+
+```text
+DESCRIPTION:
+Read PowerPoint's advisory Mark as Final editing flag; it is not authentication,
+encryption, or access control
+
+USAGE:
+    pptcli session get-final <SESSION_ID> [OPTIONS]
+
+ARGUMENTS:
+    <SESSION_ID>    Session id returned by 'session open'/'session create'
 
 OPTIONS:
     -h, --help    Prints help information

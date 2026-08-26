@@ -67,7 +67,7 @@ Unified Service Architecture.
 5. **McpServer** (`src/PowerPointMcp.McpServer`) - Model Context Protocol stdio host. 15 tools
    total: one hand-written `presentation` action-dispatch tool plus 14 generated action-dispatch
    tools (`slide`, `shape`, `textframe`, `table`, `notes`, `layout`, `master`, `animation`,
-   `image`, `chart`, `smartart`, `export`, `pagesetup`, `accessibility`), covering 160 operations
+   `image`, `chart`, `smartart`, `export`, `pagesetup`, `accessibility`), covering 162 operations
    across 15 domains. See
    `tests/PowerPointMcp.McpServer.Tests/Integration/McpProtocolTests.cs`'s `ExpectedToolNames` for
    the ground-truth tool list.

@@ -99,11 +99,25 @@ pptcli session close $session.sessionId --save
 
 Slide content is preserved; only masters/theme/layouts change.
 
-### Rule 6: Report File Errors Immediately
+### Rule 6: Mark as Final Is Advisory, Not Security
+
+```powershell
+pptcli session get-final <session-id>
+pptcli session set-final <session-id> true
+pptcli session set-final <session-id> false
+```
+
+Mark as Final only communicates that editing is discouraged. It is not authentication,
+encryption, or access control. Setting it to `true` first saves all current changes, then
+PowerPoint persists the flag and makes the presentation read-only; `session close --save` remains
+valid without losing edits made before `set-final`. After clearing the flag, close with `--save`
+to persist the cleared state.
+
+### Rule 7: Report File Errors Immediately
 
 If you see "File not found" or "Path not found" - STOP and report to user. Don't retry.
 
-### Rule 7: Managing the Daemon Directly
+### Rule 8: Managing the Daemon Directly
 
 ```powershell
 pptcli service status         # Report starting/running/unresponsive/stopped state

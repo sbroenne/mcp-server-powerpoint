@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit compares the current 15 tools and 160 operations with the restored
+This audit compares the current 15 tools and 162 operations with the restored
 `Microsoft.Office.Interop.PowerPoint` 15.0.4420.1018 assembly. It looks for useful PowerPoint
 features that fit the existing live-session model. It does not copy Excel-only worksheet, Power
 Query, Data Model, PivotTable, or calculation APIs.
@@ -67,6 +67,13 @@ References: [Presentation.SaveAs](https://learn.microsoft.com/office/vba/api/pow
 tool text stating clearly that it is an advisory editing flag, not access control.
 
 Tests should set, save, reopen, read, clear, save, and reopen again.
+
+Implemented with typed PIA access. Setting the flag to `true` first saves current changes, then
+PowerPoint persists the flag and makes the presentation read-only. Save-on-close remains accepted
+as a successful no-op while the flag is set without losing edits made before `set-final`.
+Clearing the flag makes the presentation editable again and is persisted by the normal
+save-on-close workflow. The flag is advisory only; it is not authentication, encryption, or
+access control.
 
 Reference: [Presentation.Final](https://learn.microsoft.com/office/vba/api/powerpoint.presentation.final).
 

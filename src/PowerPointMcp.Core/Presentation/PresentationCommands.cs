@@ -66,13 +66,23 @@ public sealed class PresentationCommands : IPresentationCommands
     public PresentationOperationResult Save(IPresentationBatch batch)
     {
         ArgumentNullException.ThrowIfNull(batch);
-        batch.Save();
 
-        return new PresentationOperationResult
+        return batch.Execute((ctx, ct) =>
         {
-            Success = true,
-            PresentationPath = batch.PresentationPath
-        };
+            // SetFinal saves pending edits before enabling Final. PowerPoint then persists the
+            // flag and makes the presentation read-only, so a second Save would fail with
+            // "Presentation cannot be modified". Save-on-close is therefore a successful no-op.
+            if (!ctx.Presentation.Final)
+            {
+                ctx.Presentation.Save();
+            }
+
+            return new PresentationOperationResult
+            {
+                Success = true,
+                PresentationPath = batch.PresentationPath
+            };
+        });
     }
 
     /// <inheritdoc/>
@@ -402,6 +412,42 @@ public sealed class PresentationCommands : IPresentationCommands
                 Success = true,
                 PresentationPath = batch.PresentationPath,
                 ThemeName = themeName
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public PresentationOperationResult GetFinal(IPresentationBatch batch)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) => new PresentationOperationResult
+        {
+            Success = true,
+            PresentationPath = batch.PresentationPath,
+            IsFinal = ctx.Presentation.Final
+        });
+    }
+
+    /// <inheritdoc/>
+    public PresentationOperationResult SetFinal(IPresentationBatch batch, bool isFinal)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            if (isFinal && !ctx.Presentation.Final)
+            {
+                ctx.Presentation.Save();
+            }
+
+            ctx.Presentation.Final = isFinal;
+
+            return new PresentationOperationResult
+            {
+                Success = true,
+                PresentationPath = batch.PresentationPath,
+                IsFinal = ctx.Presentation.Final
             };
         });
     }

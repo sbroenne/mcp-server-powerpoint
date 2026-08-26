@@ -17,8 +17,9 @@ via the Model Context Protocol, driving a live PowerPoint desktop instance throu
 skill documents session lifecycle, indexing conventions, workflows, and gotchas that aren't
 obvious from tool schemas alone.
 
-Session lifecycle, templates, and document properties use the `presentation` action-dispatch tool
-with camelCase arguments. Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`,
+Session lifecycle, templates, the advisory Mark as Final flag, and document properties use the
+`presentation` action-dispatch tool with camelCase arguments. Domain tools (`slide`, `shape`,
+`textframe`, `table`, `chart`, `image`,
 `notes`, `layout`, `master`, `smartart`, `animation`, `export`, `pagesetup`, `accessibility`) are
 action-dispatch: one tool per domain, called as `tool(action:
 "kebab-action", session_id: ..., snake_case_param: ...)`.
@@ -94,6 +95,7 @@ saved.
 |------|---------|
 | Create/open/test/close/list sessions | `presentation(action: "create"/"open"/"test"/"close"/"list")` |
 | Apply template, read theme name | `presentation(action: "apply-template"/"get-theme-name")` |
+| Read/set advisory Mark as Final state | `presentation(action: "get-final"/"set-final")` |
 | Document metadata (built-in and custom properties) | `presentation` property actions |
 | Add/count/delete/duplicate/reorder slides | `slide(action: "add-blank"/"get-count"/"delete"/"duplicate"/"move-to")` |
 | Per-slide background color, sections | `slide(action: "set-background-color"/"get-background-color"/"add-section"/"rename-section"/"delete-section"/"get-section-count"/"get-section-name")` |

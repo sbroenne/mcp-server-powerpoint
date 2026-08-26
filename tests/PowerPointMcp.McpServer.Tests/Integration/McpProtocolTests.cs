@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using System.IO.Pipelines;
+using System.Text.Json;
 using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 using Xunit.Abstractions;
 
 namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
@@ -46,7 +48,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     private static readonly HashSet<string> ExpectedToolNames =
     [
         // PresentationTools.cs (1, hand-written action-dispatch tool — session lifecycle,
-        // template, and document properties; 12 actions)
+        // Save As/copy, template, Mark as Final, and document properties; 16 actions)
         "presentation",
         // Generated action-dispatch tools (14, one per remaining Core domain)
         "slide",
@@ -215,6 +217,84 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         Assert.Equal(
             new HashSet<string?> { "auto", "pptx", "pptm", "ppt" },
             formatValues);
+    }
+
+    [Fact]
+    public async Task PresentationSchema_ExposesFinalActionsAndAdvisoryContract()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var presentation = Assert.Single(tools, tool => tool.Name == "presentation");
+        var properties = presentation.JsonSchema.GetProperty("properties");
+        var actions = properties
+            .GetProperty("action")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("get-final", actions);
+        Assert.Contains("set-final", actions);
+
+        var isFinalSchema = properties.GetProperty("isFinal");
+        var isFinalTypes = isFinalSchema
+            .GetProperty("type")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+        Assert.Contains("boolean", isFinalTypes);
+        Assert.Contains("null", isFinalTypes);
+
+        var contractText = $"{presentation.Description} {isFinalSchema.GetProperty("description").GetString()}";
+        Assert.Contains("advisory", contractText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not authentication", contractText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("encryption", contractText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("access control", contractText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task PresentationFinalActions_RejectUnknownSessionsAndInapplicableParameters()
+    {
+        var unknownGet = await CallPresentationAsync(new()
+        {
+            ["action"] = "get-final",
+            ["sessionId"] = "missing-session"
+        });
+        Assert.False(unknownGet.GetProperty("success").GetBoolean());
+        Assert.Contains("Unknown sessionId", unknownGet.GetProperty("errorMessage").GetString());
+
+        var unknownSet = await CallPresentationAsync(new()
+        {
+            ["action"] = "set-final",
+            ["sessionId"] = "missing-session",
+            ["isFinal"] = true
+        });
+        Assert.False(unknownSet.GetProperty("success").GetBoolean());
+        Assert.Contains("Unknown sessionId", unknownSet.GetProperty("errorMessage").GetString());
+
+        var missingValue = await CallPresentationAsync(new()
+        {
+            ["action"] = "set-final",
+            ["sessionId"] = "missing-session"
+        });
+        Assert.False(missingValue.GetProperty("success").GetBoolean());
+        Assert.Contains("isFinal is required", missingValue.GetProperty("errorMessage").GetString());
+
+        var inapplicableValue = await CallPresentationAsync(new()
+        {
+            ["action"] = "get-final",
+            ["sessionId"] = "missing-session",
+            ["isFinal"] = false
+        });
+        Assert.False(inapplicableValue.GetProperty("success").GetBoolean());
+        Assert.Contains("not valid for action 'get-final'", inapplicableValue.GetProperty("errorMessage").GetString());
+    }
+
+    private async Task<JsonElement> CallPresentationAsync(Dictionary<string, object?> arguments)
+    {
+        var result = await _client!.CallToolAsync("presentation", arguments, cancellationToken: _cts.Token);
+        var text = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
+        using var json = JsonDocument.Parse(text);
+        return json.RootElement.Clone();
     }
 
     /// <summary>

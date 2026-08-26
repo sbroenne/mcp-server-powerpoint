@@ -263,6 +263,42 @@ internal sealed class SessionGetThemeNameCommand : AsyncCommand<SessionIdSetting
     }
 }
 
+/// <summary>Reads PowerPoint's advisory Mark as Final editing flag.</summary>
+internal sealed class SessionGetFinalCommand : AsyncCommand<SessionIdSettings>
+{
+    /// <inheritdoc/>
+    protected override async Task<int> ExecuteAsync(CommandContext context, SessionIdSettings settings, CancellationToken cancellationToken)
+        => await SessionCommandHelpers.SendFinalCommandAsync(
+            "session.get-final",
+            settings.SessionId,
+            isFinal: null,
+            cancellationToken);
+}
+
+/// <summary>Settings for the "session set-final" command.</summary>
+internal sealed class SessionSetFinalSettings : CommandSettings
+{
+    [CommandArgument(0, "<SESSION_ID>")]
+    [Description("Session id returned by 'session open'/'session create'.")]
+    public string SessionId { get; init; } = string.Empty;
+
+    [CommandArgument(1, "<IS_FINAL>")]
+    [Description("True to mark the presentation as final; false to clear it. This is an advisory editing flag, not authentication, encryption, or access control.")]
+    public bool IsFinal { get; init; }
+}
+
+/// <summary>Sets or clears PowerPoint's advisory Mark as Final editing flag.</summary>
+internal sealed class SessionSetFinalCommand : AsyncCommand<SessionSetFinalSettings>
+{
+    /// <inheritdoc/>
+    protected override async Task<int> ExecuteAsync(CommandContext context, SessionSetFinalSettings settings, CancellationToken cancellationToken)
+        => await SessionCommandHelpers.SendFinalCommandAsync(
+            "session.set-final",
+            settings.SessionId,
+            settings.IsFinal,
+            cancellationToken);
+}
+
 /// <summary>Settings shared by the document/custom property "get" commands.</summary>
 internal sealed class SessionPropertyGetSettings : CommandSettings
 {
@@ -350,6 +386,28 @@ internal static class SessionCommandHelpers
             Args = JsonSerializer.Serialize(
                 new { targetPath, format, overwrite },
                 ServiceProtocol.JsonOptions),
+            Source = "cli"
+        }, cancellationToken);
+
+        if (!response.Success)
+        {
+            return CliErrorOutput.WriteServiceError(response);
+        }
+
+        Console.WriteLine(response.Result ?? JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions));
+        return 0;
+    }
+
+    public static async Task<int> SendFinalCommandAsync(string command, string sessionId, bool? isFinal, CancellationToken cancellationToken)
+    {
+        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        var response = await client.SendAsync(new ServiceRequest
+        {
+            Command = command,
+            SessionId = sessionId,
+            Args = isFinal.HasValue
+                ? JsonSerializer.Serialize(new { isFinal = isFinal.Value }, ServiceProtocol.JsonOptions)
+                : null,
             Source = "cli"
         }, cancellationToken);
 

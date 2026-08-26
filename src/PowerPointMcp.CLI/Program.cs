@@ -29,7 +29,7 @@ public static class Program
 
             config.AddBranch("session", session =>
             {
-                session.SetDescription("Open, create, close, test, Save As/copy, or list presentation sessions held by the daemon; apply templates and read/write document properties.");
+                session.SetDescription("Open, create, close, test, Save As/copy, or list presentation sessions held by the daemon; apply templates, manage the advisory Mark as Final flag, and read/write document properties.");
                 session.AddCommand<SessionOpenCommand>("open").WithDescription("Open an existing presentation and return a session id.");
                 session.AddCommand<SessionCreateCommand>("create").WithDescription("Create a new presentation and return a session id.");
                 session.AddCommand<SessionCloseCommand>("close").WithDescription("Close a session, optionally saving first.");
@@ -39,6 +39,8 @@ public static class Program
                 session.AddCommand<SessionSaveCopyAsCommand>("save-copy-as").WithDescription("Save a copy without changing the active presentation or session path.");
                 session.AddCommand<SessionApplyTemplateCommand>("apply-template").WithDescription("Apply a template's masters/theme/layouts to the open presentation, preserving slide content.");
                 session.AddCommand<SessionGetThemeNameCommand>("get-theme-name").WithDescription("Read the design/theme name currently applied to the open presentation.");
+                session.AddCommand<SessionGetFinalCommand>("get-final").WithDescription("Read PowerPoint's advisory Mark as Final editing flag; it is not authentication, encryption, or access control.");
+                session.AddCommand<SessionSetFinalCommand>("set-final").WithDescription("Set or clear PowerPoint's advisory Mark as Final editing flag; it is not authentication, encryption, or access control.");
                 session.AddCommand<SessionSetDocumentPropertyCommand>("set-document-property").WithDescription("Set a built-in document metadata property (Title, Subject, Author, Keywords, Comments, Category, Manager, Company).");
                 session.AddCommand<SessionGetDocumentPropertyCommand>("get-document-property").WithDescription("Read a built-in document metadata property.");
                 session.AddCommand<SessionSetCustomPropertyCommand>("set-custom-property").WithDescription("Create or update a custom (user-defined) document property.");

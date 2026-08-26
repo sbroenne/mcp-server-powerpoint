@@ -79,6 +79,19 @@ all changes since the last save.
   the active session path unchanged.
 - Both reject an existing destination unless `overwrite: true` is supplied.
 
+## Mark as Final Is Advisory, Not Security
+
+Use `presentation(action: "get-final", sessionId: ...)` to read PowerPoint's Mark as Final state
+and `presentation(action: "set-final", sessionId: ..., isFinal: true/false)` to set or clear it.
+This flag only communicates that editing is discouraged. It is not authentication, encryption, or
+access control, and anyone can clear it.
+
+Setting the flag to `true` first saves all current changes, then PowerPoint persists the flag and
+makes the presentation read-only. Calling
+`presentation(action: "close", sessionId: ..., save: true)` remains valid and closes the session
+without attempting a forbidden second save, so edits made before `set-final` are not lost. After
+clearing the flag with `isFinal: false`, close with `save: true` to persist the cleared state.
+
 ## Close Is Asynchronous (Do NOT Wait For It)
 
 `presentation(action: "close", sessionId: ...)` returns as soon as the session is removed from the
