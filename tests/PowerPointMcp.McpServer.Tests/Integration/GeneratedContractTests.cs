@@ -1,4 +1,7 @@
+using System.Text.Json;
+using Sbroenne.PowerPointMcp.Core.Chart;
 using Sbroenne.PowerPointMcp.Generated;
+using Sbroenne.PowerPointMcp.McpServer.Tools;
 
 namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
 
@@ -124,5 +127,66 @@ public sealed class GeneratedContractTests
                 shapeIndex: 1,
                 tagName: "OWNER",
                 tagValue: "not-applicable"));
+    }
+
+    [Fact]
+    public void ChartCli_RoutesQuickFormattingActions()
+    {
+        string[] expectedActions =
+        [
+            "get-style",
+            "set-style",
+            "get-color-style",
+            "set-color-style",
+            "get-data-table",
+            "set-data-table"
+        ];
+
+        foreach (string action in expectedActions)
+        {
+            Assert.Contains(action, ServiceRegistry.Chart.ValidActions);
+        }
+
+        Assert.Equal(
+            "chart.get-style",
+            ServiceRegistry.Chart.RouteCliArgs("get-style", slideIndex: 1, shapeIndex: 1).Command);
+        Assert.Equal(
+            "chart.set-style",
+            ServiceRegistry.Chart.RouteCliArgs("set-style", slideIndex: 1, shapeIndex: 1, style: 2).Command);
+        Assert.Equal(
+            "chart.get-color-style",
+            ServiceRegistry.Chart.RouteCliArgs("get-color-style", slideIndex: 1, shapeIndex: 1).Command);
+        Assert.Equal(
+            "chart.set-color-style",
+            ServiceRegistry.Chart.RouteCliArgs("set-color-style", slideIndex: 1, shapeIndex: 1, colorStyle: 2).Command);
+        Assert.Equal(
+            "chart.get-data-table",
+            ServiceRegistry.Chart.RouteCliArgs("get-data-table", slideIndex: 1, shapeIndex: 1).Command);
+        Assert.Equal(
+            "chart.set-legend-visibility",
+            ServiceRegistry.Chart.RouteCliArgs("set-legend-visibility", slideIndex: 1, shapeIndex: 1, visible: true).Command);
+        Assert.Equal(
+            "chart.set-data-table",
+            ServiceRegistry.Chart.RouteCliArgs("set-data-table", slideIndex: 1, shapeIndex: 1, visible: true).Command);
+    }
+
+    [Fact]
+    public void ChartQuickFormattingResult_SerializesPairedReadWriteFields()
+    {
+        var result = new ChartOperationResult
+        {
+            Success = true,
+            ShapeIndex = 1,
+            ChartStyle = 2,
+            ColorStyle = 3,
+            HasDataTable = true
+        };
+
+        using var document = JsonDocument.Parse(PowerPointToolsBase.Serialize(result));
+        JsonElement root = document.RootElement;
+
+        Assert.Equal(2, root.GetProperty("chartStyle").GetInt32());
+        Assert.Equal(3, root.GetProperty("colorStyle").GetInt32());
+        Assert.True(root.GetProperty("hasDataTable").GetBoolean());
     }
 }

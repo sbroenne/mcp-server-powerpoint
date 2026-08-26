@@ -264,7 +264,7 @@ def _write_llm_outputs(config) -> None:
         "# PowerPoint MCP Server",
         "",
         "> PowerPoint MCP Server automates the real Microsoft PowerPoint desktop "
-        "application through its COM API. It exposes 15 tools and 158 operations "
+        "application through its COM API. It exposes 15 tools and 180 operations "
         "to AI assistants over the Model Context Protocol and to scripts through "
         "the `pptcli` command line. Windows-only; requires Microsoft PowerPoint.",
         "",

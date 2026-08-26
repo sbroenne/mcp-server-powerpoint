@@ -32,7 +32,7 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 
 ## Capabilities
 
-**15 tools with 174 operations across 15 domains:**
+**15 tools with 180 operations across 15 domains:**
 
 | Tool | Ops | Coverage |
 | --- | --- | --- |
@@ -48,7 +48,7 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 | `master` | 10 | title/body placeholder fonts, solid + gradient master backgrounds |
 | `animation` | 5 | shape effects, transition read/write |
 | `image` | 7 | add picture, brightness/contrast, recolor, crop |
-| `chart` | 10 | charts, series, chart/axis titles, legend visibility, data replacement |
+| `chart` | 16 | charts, series, titles, legend, data replacement, styles, colors, data tables |
 | `smartart` | 7 | SmartArt insertion and node editing |
 | `export` | 3 | export to PDF or images |
 

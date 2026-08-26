@@ -4,11 +4,11 @@ using Sbroenne.PowerPointMcp.Core.Attributes;
 namespace Sbroenne.PowerPointMcp.Core.Chart;
 
 /// <summary>
-/// Chart lifecycle and data operations.
+/// Chart lifecycle, data, and quick-formatting operations.
 /// </summary>
 [ServiceCategory("chart", "Chart")]
 [McpTool("chart", Title = "Chart Operations", Destructive = true, Category = "content",
-    Description = "Add a native chart shape, add data series, set titles/legend, and read chart data in an open presentation session.")]
+    Description = "Add a native chart shape, edit data, titles, legend, built-in style, color style, and data-table visibility in an open presentation session.")]
 public interface IChartCommands
 {
     /// <summary>
@@ -58,6 +58,7 @@ public interface IChartCommands
     ChartOperationResult GetAxisTitle(IPresentationBatch batch, int slideIndex, int shapeIndex, string axisType);
 
     /// <summary>Shows or hides the chart's legend.</summary>
+    /// <param name="visible">True to show the chart element; false to hide it.</param>
     ChartOperationResult SetLegendVisibility(IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible);
 
     /// <summary>Gets whether the chart's legend is visible.</summary>
@@ -80,4 +81,31 @@ public interface IChartCommands
         IReadOnlyList<string> categories,
         IReadOnlyList<string> seriesNames,
         IReadOnlyList<double> seriesValues);
+
+    /// <summary>Gets the chart's built-in visual style number.</summary>
+    ChartOperationResult GetStyle(IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Sets the chart's built-in visual style and returns the accepted value. Values outside the
+    /// range verified against installed PowerPoint are rejected before COM.
+    /// </summary>
+    /// <param name="style">Built-in chart style number, verified against PowerPoint from 1 through 48.</param>
+    ChartOperationResult SetStyle(IPresentationBatch batch, int slideIndex, int shapeIndex, int style);
+
+    /// <summary>Gets the chart's built-in color style number.</summary>
+    ChartOperationResult GetColorStyle(IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Sets the chart's built-in color style and returns the accepted value. Values outside the
+    /// range verified against installed PowerPoint are rejected before COM.
+    /// </summary>
+    /// <param name="colorStyle">Built-in chart color style number, verified against PowerPoint from 1 through 26.</param>
+    ChartOperationResult SetColorStyle(IPresentationBatch batch, int slideIndex, int shapeIndex, int colorStyle);
+
+    /// <summary>Gets whether the chart's data table is visible.</summary>
+    ChartOperationResult GetDataTable(IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>Shows or hides the chart's data table and returns its resulting visibility.</summary>
+    /// <param name="visible">True to show the chart element; false to hide it.</param>
+    ChartOperationResult SetDataTable(IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible);
 }

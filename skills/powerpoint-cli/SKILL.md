@@ -170,9 +170,9 @@ Actions: `add-effect`, `get-effect-count`, `delete-effect`, `get-transition`, `s
 | `--advance-time-seconds` |  |
 
 
-### `chart` — Chart lifecycle and data operations.
+### `chart` — Chart lifecycle, data, and quick-formatting operations.
 
-Actions: `add-chart`, `get-chart-data`, `add-series`, `set-chart-title`, `get-chart-title`, `set-axis-title`, `get-axis-title`, `set-legend-visibility`, `get-legend-visibility`, `replace-chart-data`
+Actions: `add-chart`, `get-chart-data`, `add-series`, `set-chart-title`, `get-chart-title`, `set-axis-title`, `get-axis-title`, `set-legend-visibility`, `get-legend-visibility`, `replace-chart-data`, `get-style`, `set-style`, `get-color-style`, `set-color-style`, `get-data-table`, `set-data-table`
 
 | Flag | Description |
 |------|-------------|
@@ -185,12 +185,14 @@ Actions: `add-chart`, `get-chart-data`, `add-series`, `set-chart-title`, `get-ch
 | `--categories` | Category labels (x-axis / pie slice labels). (required for: add-chart, replace-chart-data) |
 | `--series-name` | Name of the single data series. (required for: add-chart, add-series) |
 | `--values` | Data values, one per category. (required for: add-chart, add-series) |
-| `--shape-index` | (required for: get-chart-data, add-series, set-chart-title, get-chart-title, set-axis-title, get-axis-title, set-legend-visibility, get-legend-visibility, replace-chart-data) |
+| `--shape-index` | (required for: get-chart-data, add-series, set-chart-title, get-chart-title, set-axis-title, get-axis-title, set-legend-visibility, get-legend-visibility, replace-chart-data, get-style, set-style, get-color-style, set-color-style, get-data-table, set-data-table) |
 | `--title` | (required for: set-chart-title, set-axis-title) |
 | `--axis-type` | (required for: set-axis-title, get-axis-title) |
-| `--visible` | (required for: set-legend-visibility) |
+| `--visible` | True to show the chart element; false to hide it. (required for: set-legend-visibility, set-data-table) |
 | `--series-names` | (required for: replace-chart-data) |
 | `--series-values` | (required for: replace-chart-data) |
+| `--style` | Built-in chart style number, verified against PowerPoint from 1 through 48. (required for: set-style) |
+| `--color-style` | Built-in chart color style number, verified against PowerPoint from 1 through 26. (required for: set-color-style) |
 
 
 ### `export` — Export commands: render presentations to PDF or slides to raster image files. Operates within an already-open .

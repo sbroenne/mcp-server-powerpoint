@@ -18,6 +18,12 @@ public sealed class ChartCommands : IChartCommands
     private const int XlLine = 4;
     private const int XlPie = 5;
     private const int MsoTrue = -1; // MsoTriState.msoTrue for Office.Core-backed tri-state members (for example Shape.HasChart).
+    // Every value in these ranges is exercised against real PowerPoint by ChartCommandsTests.
+    // Reject outside values before COM because extreme variants can terminate the PowerPoint RPC session.
+    private const int FirstValidatedChartStyle = 1;
+    private const int LastValidatedChartStyle = 48;
+    private const int FirstValidatedColorStyle = 1;
+    private const int LastValidatedColorStyle = 26;
 
     /// <inheritdoc/>
     public ChartOperationResult AddChart(IPresentationBatch batch, int slideIndex, string chartType, float left, float top, float width, float height, IReadOnlyList<string> categories, string seriesName, IReadOnlyList<double> values)
@@ -110,7 +116,7 @@ public sealed class ChartCommands : IChartCommands
             // NOTE: HasChart is MsoTriState (an int), not a C# bool — msoTrue = -1.
             // Reason: read via dynamic late binding for consistent MsoTriState handling with the
             // rest of this file's chart-shape checks.
-            if ((int)((dynamic)shape).HasChart != MsoTrue)
+            if (!IsChart(shape))
             {
                 return new ChartOperationResult
                 {
@@ -193,7 +199,7 @@ public sealed class ChartCommands : IChartCommands
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             // Reason: read via dynamic late binding for consistent MsoTriState handling with the
             // rest of this file's chart-shape checks.
-            if ((int)((dynamic)shape).HasChart != MsoTrue)
+            if (!IsChart(shape))
             {
                 return new ChartOperationResult
                 {
@@ -316,7 +322,7 @@ public sealed class ChartCommands : IChartCommands
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             // Reason: read via dynamic late binding for consistent MsoTriState handling with the
             // rest of this file's chart-shape checks.
-            if ((int)((dynamic)shape).HasChart != MsoTrue)
+            if (!IsChart(shape))
             {
                 return new ChartOperationResult
                 {
@@ -416,7 +422,7 @@ public sealed class ChartCommands : IChartCommands
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             // Reason: read via dynamic late binding for consistent MsoTriState handling with the
             // rest of this file's chart-shape checks.
-            if ((int)((dynamic)shape).HasChart != MsoTrue)
+            if (!IsChart(shape))
             {
                 return new ChartOperationResult
                 {
@@ -456,7 +462,7 @@ public sealed class ChartCommands : IChartCommands
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             // Reason: read via dynamic late binding for consistent MsoTriState handling with the
             // rest of this file's chart-shape checks.
-            if ((int)((dynamic)shape).HasChart != MsoTrue)
+            if (!IsChart(shape))
             {
                 return new ChartOperationResult
                 {
@@ -508,7 +514,7 @@ public sealed class ChartCommands : IChartCommands
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             // Reason: read via dynamic late binding for consistent MsoTriState handling with the
             // rest of this file's chart-shape checks.
-            if ((int)((dynamic)shape).HasChart != MsoTrue)
+            if (!IsChart(shape))
             {
                 return new ChartOperationResult
                 {
@@ -572,7 +578,7 @@ public sealed class ChartCommands : IChartCommands
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             // Reason: read via dynamic late binding for consistent MsoTriState handling with the
             // rest of this file's chart-shape checks.
-            if ((int)((dynamic)shape).HasChart != MsoTrue)
+            if (!IsChart(shape))
             {
                 return new ChartOperationResult
                 {
@@ -625,7 +631,7 @@ public sealed class ChartCommands : IChartCommands
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             // Reason: read via dynamic late binding for consistent MsoTriState handling with the
             // rest of this file's chart-shape checks.
-            if ((int)((dynamic)shape).HasChart != MsoTrue)
+            if (!IsChart(shape))
             {
                 return new ChartOperationResult
                 {
@@ -667,7 +673,7 @@ public sealed class ChartCommands : IChartCommands
             PowerPoint.Shape shape = slide.Shapes[shapeIndex];
             // Reason: read via dynamic late binding for consistent MsoTriState handling with the
             // rest of this file's chart-shape checks.
-            if ((int)((dynamic)shape).HasChart != MsoTrue)
+            if (!IsChart(shape))
             {
                 return new ChartOperationResult
                 {
@@ -688,12 +694,254 @@ public sealed class ChartCommands : IChartCommands
         });
     }
 
+    /// <inheritdoc/>
+    public ChartOperationResult GetStyle(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return ExecuteWithChart(batch, slideIndex, shapeIndex, chart =>
+        {
+            int style = ReadChartVariant(chart.ChartStyle, nameof(chart.ChartStyle));
+            return new ChartOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                ChartStyle = style
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ChartOperationResult SetStyle(IPresentationBatch batch, int slideIndex, int shapeIndex, int style)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        if (style is < FirstValidatedChartStyle or > LastValidatedChartStyle)
+        {
+            return InvalidChartVariantResult(
+                shapeIndex,
+                style,
+                "chart style",
+                FirstValidatedChartStyle,
+                LastValidatedChartStyle);
+        }
+
+        return ExecuteWithChart(batch, slideIndex, shapeIndex, chart =>
+            SetChartVariant(
+                shapeIndex,
+                style,
+                "chart style",
+                () => chart.ChartStyle,
+                value => chart.ChartStyle = value,
+                acceptedStyle => new ChartOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    ChartStyle = acceptedStyle
+                }));
+    }
+
+    /// <inheritdoc/>
+    public ChartOperationResult GetColorStyle(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return ExecuteWithChart(batch, slideIndex, shapeIndex, chart =>
+        {
+            int colorStyle = ReadChartVariant(chart.ChartColor, nameof(chart.ChartColor));
+            return new ChartOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                ColorStyle = colorStyle
+            };
+        });
+    }
+
+    /// <inheritdoc/>
+    public ChartOperationResult SetColorStyle(IPresentationBatch batch, int slideIndex, int shapeIndex, int colorStyle)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        if (colorStyle is < FirstValidatedColorStyle or > LastValidatedColorStyle)
+        {
+            return InvalidChartVariantResult(
+                shapeIndex,
+                colorStyle,
+                "chart color style",
+                FirstValidatedColorStyle,
+                LastValidatedColorStyle);
+        }
+
+        return ExecuteWithChart(batch, slideIndex, shapeIndex, chart =>
+            SetChartVariant(
+                shapeIndex,
+                colorStyle,
+                "chart color style",
+                () => chart.ChartColor,
+                value => chart.ChartColor = value,
+                acceptedColorStyle => new ChartOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = shapeIndex,
+                    ColorStyle = acceptedColorStyle
+                }));
+    }
+
+    /// <inheritdoc/>
+    public ChartOperationResult GetDataTable(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return ExecuteWithChart(batch, slideIndex, shapeIndex, chart => new ChartOperationResult
+        {
+            Success = true,
+            ShapeIndex = shapeIndex,
+            HasDataTable = chart.HasDataTable
+        });
+    }
+
+    /// <inheritdoc/>
+    public ChartOperationResult SetDataTable(IPresentationBatch batch, int slideIndex, int shapeIndex, bool visible)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return ExecuteWithChart(batch, slideIndex, shapeIndex, chart =>
+        {
+            chart.HasDataTable = visible;
+            return new ChartOperationResult
+            {
+                Success = true,
+                ShapeIndex = shapeIndex,
+                HasDataTable = chart.HasDataTable
+            };
+        });
+    }
+
     private static PowerPoint.XlAxisType? ResolveAxisType(string axisType) => axisType.ToLowerInvariant() switch
     {
         "category" => PowerPoint.XlAxisType.xlCategory,
         "value" => PowerPoint.XlAxisType.xlValue,
         _ => null
     };
+
+    private static ChartOperationResult ExecuteWithChart(
+        IPresentationBatch batch,
+        int slideIndex,
+        int shapeIndex,
+        Func<PowerPoint.Chart, ChartOperationResult> operation)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Slides? slides = null;
+            PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
+            PowerPoint.Shape? shape = null;
+            PowerPoint.Chart? chart = null;
+            try
+            {
+                slides = ctx.Presentation.Slides;
+                var slideValidation = ValidateSlideIndex(slides.Count, slideIndex);
+                if (slideValidation is not null) return slideValidation;
+
+                slide = slides[slideIndex];
+                shapes = slide.Shapes;
+                var shapeValidation = ValidateShapeIndex(shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = shapes[shapeIndex];
+                if (!IsChart(shape))
+                {
+                    return new ChartOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Shape {shapeIndex} on slide {slideIndex} is not a chart."
+                    };
+                }
+
+                chart = shape.Chart;
+                return operation(chart);
+            }
+            finally
+            {
+                if (chart is not null) ComUtilities.Release(ref chart);
+                if (shape is not null) ComUtilities.Release(ref shape);
+                if (shapes is not null) ComUtilities.Release(ref shapes);
+                if (slide is not null) ComUtilities.Release(ref slide);
+                if (slides is not null) ComUtilities.Release(ref slides);
+            }
+        });
+    }
+
+    private static bool IsChart(PowerPoint.Shape shape)
+    {
+        // Shape.HasChart is typed as Office.MsoTriState rather than a PowerPoint PIA type.
+        // Reason: office.dll is deliberately not referenced; keep late binding to this one read.
+        return (int)((dynamic)shape).HasChart == MsoTrue;
+    }
+
+    private static int ReadChartVariant(object value, string propertyName)
+    {
+        // The restored PowerPoint PIA exposes ChartStyle and ChartColor as object because both are
+        // COM VARIANT properties. Installed PowerPoint returns an integral value for each.
+        if (value is null)
+        {
+            throw new InvalidOperationException($"PowerPoint returned a null {propertyName} variant.");
+        }
+
+        try
+        {
+            return Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture);
+        }
+        catch (Exception ex) when (ex is FormatException or InvalidCastException or OverflowException)
+        {
+            throw new InvalidOperationException(
+                $"PowerPoint returned an unsupported {propertyName} variant of type '{value.GetType().FullName}'.",
+                ex);
+        }
+    }
+
+    private static ChartOperationResult SetChartVariant(
+        int shapeIndex,
+        int requestedValue,
+        string displayName,
+        Func<object> getter,
+        Action<object> setter,
+        Func<int, ChartOperationResult> successResult)
+    {
+        object originalValue = getter();
+        _ = ReadChartVariant(originalValue, displayName);
+
+        setter(requestedValue);
+
+        int acceptedValue = ReadChartVariant(getter(), displayName);
+        if (acceptedValue != requestedValue)
+        {
+            setter(originalValue);
+            return InvalidChartVariantResult(shapeIndex, requestedValue, displayName);
+        }
+
+        return successResult(acceptedValue);
+    }
+
+    private static ChartOperationResult InvalidChartVariantResult(
+        int shapeIndex,
+        int requestedValue,
+        string displayName,
+        int? firstAcceptedValue = null,
+        int? lastAcceptedValue = null)
+    {
+        string acceptedRange = firstAcceptedValue.HasValue && lastAcceptedValue.HasValue
+            ? $" Accepted values verified against PowerPoint: {firstAcceptedValue}-{lastAcceptedValue}."
+            : string.Empty;
+
+        return new ChartOperationResult
+        {
+            Success = false,
+            ErrorMessage = $"{requestedValue} is not an accepted {displayName} in the installed PowerPoint version.{acceptedRange}",
+            ShapeIndex = shapeIndex
+        };
+    }
 
     private static void EnsureChartDataReady(PowerPoint.Chart chart)
     {

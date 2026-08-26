@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit compares the current 15 tools and 174 operations with the restored
+This audit compares the current 15 tools and 180 operations with the restored
 `Microsoft.Office.Interop.PowerPoint` 15.0.4420.1018 assembly. It looks for useful PowerPoint
 features that fit the existing live-session model. It does not copy Excel-only worksheet, Power
 Query, Data Model, PivotTable, or calculation APIs.
@@ -105,9 +105,11 @@ The restored `PowerPoint.Chart` type exposes `ChartStyle` and `ChartColor` as CO
 properties and `HasDataTable` as `bool`. These properties operate on the chart object already
 acquired by the current chart commands.
 
-Add paired getters and setters so tests and callers can verify every write. Validate style and
-color inputs against values accepted by the installed PowerPoint version rather than copying an
-unverified numeric range from documentation.
+Implemented with paired getters and setters so tests and callers can verify every write. Direct
+PIA characterization tests establish that installed PowerPoint accepts chart style 48 and color
+style 26, then rejects the first following values (49 and 27) without changing the chart. Range
+tests exercise every accepted value, and commands reject values outside those observed ranges
+before COM so the chart and session remain unchanged.
 
 Tests should set each property, read it back, save/reopen, and confirm invalid values fail without
 altering the chart.
@@ -188,7 +190,7 @@ real-PowerPoint tests:
 1. Save As and Save Copy As.
 2. Mark as Final.
 3. String tags.
-4. Chart quick formatting.
+4. Chart quick formatting. (Implemented.)
 5. Linked pictures and link management.
 6. Audio and video.
 7. Run-level text and advanced chart formatting only after separate contract reviews.

@@ -34,4 +34,13 @@ public sealed class ChartOperationResult
 
     /// <summary>Whether the chart's legend is currently visible.</summary>
     public bool? LegendVisible { get; init; }
+
+    /// <summary>The chart's built-in visual style number.</summary>
+    public int? ChartStyle { get; init; }
+
+    /// <summary>The chart's built-in color style number.</summary>
+    public int? ColorStyle { get; init; }
+
+    /// <summary>Whether the chart's data table is currently visible.</summary>
+    public bool? HasDataTable { get; init; }
 }
