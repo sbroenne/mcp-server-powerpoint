@@ -4,6 +4,12 @@ obj/
 *.user
 Directory.Build.props.user
 
+# Agent Plugin launchers are source files, not .NET build output.
+!/.github/plugins/*/bin/
+!/.github/plugins/*/bin/**
+!/.github/plugins/*/com.github.copilot/bin/
+!/.github/plugins/*/com.github.copilot/bin/**
+
 ## Node (changesets tooling only — see docs/RELEASE-STRATEGY.md)
 node_modules/
 
