@@ -99,4 +99,30 @@ public sealed class GeneratedContractTests
                 ContractValue.FirstValue,
                 "value"));
     }
+
+    [Fact]
+    public void TagActions_AreGeneratedForSlideAndShape()
+    {
+        string[] expected = ["set-tag", "get-tag", "list-tags", "delete-tag"];
+
+        Assert.All(expected, action => Assert.Contains(action, ServiceRegistry.Slide.ValidActions));
+        Assert.All(expected, action => Assert.Contains(action, ServiceRegistry.Shape.ValidActions));
+    }
+
+    [Fact]
+    public void TagActions_EnforceRequiredAndApplicableParameters()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Slide.ValidateActionArguments(
+                "set-tag",
+                """{"slideIndex":1,"tagName":"OWNER"}"""));
+
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Shape.RouteCliArgs(
+                "get-tag",
+                slideIndex: 1,
+                shapeIndex: 1,
+                tagName: "OWNER",
+                tagValue: "not-applicable"));
+    }
 }

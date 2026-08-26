@@ -441,6 +441,86 @@ internal static class SessionCommandHelpers
     }
 }
 
+/// <summary>Settings for presentation tag reads and deletes.</summary>
+internal class SessionTagGetSettings : CommandSettings
+{
+    [CommandArgument(0, "<SESSION_ID>")]
+    [Description("Session id returned by 'session open'/'session create'.")]
+    public string SessionId { get; init; } = string.Empty;
+
+    [CommandArgument(1, "<TAG_NAME>")]
+    [Description("Case-insensitive tag name. Letter casing is normalized to invariant uppercase; whitespace is preserved.")]
+    public string TagName { get; init; } = string.Empty;
+}
+
+/// <summary>Settings for setting a presentation string tag.</summary>
+internal sealed class SessionTagSetSettings : SessionTagGetSettings
+{
+    [CommandArgument(2, "<TAG_VALUE>")]
+    [Description("String tag value, preserved exactly.")]
+    public string TagValue { get; init; } = string.Empty;
+}
+
+/// <summary>Creates or updates a presentation string tag.</summary>
+internal sealed class SessionSetTagCommand : AsyncCommand<SessionTagSetSettings>
+{
+    /// <inheritdoc/>
+    protected override async Task<int> ExecuteAsync(CommandContext context, SessionTagSetSettings settings, CancellationToken cancellationToken)
+        => await SessionTagCommandHelpers.SendAsync("session.set-tag", settings.SessionId, settings.TagName, settings.TagValue, cancellationToken);
+}
+
+/// <summary>Gets a presentation string tag.</summary>
+internal sealed class SessionGetTagCommand : AsyncCommand<SessionTagGetSettings>
+{
+    /// <inheritdoc/>
+    protected override async Task<int> ExecuteAsync(CommandContext context, SessionTagGetSettings settings, CancellationToken cancellationToken)
+        => await SessionTagCommandHelpers.SendAsync("session.get-tag", settings.SessionId, settings.TagName, tagValue: null, cancellationToken);
+}
+
+/// <summary>Lists presentation string tags in native 1-based order.</summary>
+internal sealed class SessionListTagsCommand : AsyncCommand<SessionIdSettings>
+{
+    /// <inheritdoc/>
+    protected override async Task<int> ExecuteAsync(CommandContext context, SessionIdSettings settings, CancellationToken cancellationToken)
+        => await SessionTagCommandHelpers.SendAsync("session.list-tags", settings.SessionId, tagName: null, tagValue: null, cancellationToken);
+}
+
+/// <summary>Deletes a presentation string tag.</summary>
+internal sealed class SessionDeleteTagCommand : AsyncCommand<SessionTagGetSettings>
+{
+    /// <inheritdoc/>
+    protected override async Task<int> ExecuteAsync(CommandContext context, SessionTagGetSettings settings, CancellationToken cancellationToken)
+        => await SessionTagCommandHelpers.SendAsync("session.delete-tag", settings.SessionId, settings.TagName, tagValue: null, cancellationToken);
+}
+
+internal static class SessionTagCommandHelpers
+{
+    public static async Task<int> SendAsync(
+        string command,
+        string sessionId,
+        string? tagName,
+        string? tagValue,
+        CancellationToken cancellationToken)
+    {
+        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        var response = await client.SendAsync(new ServiceRequest
+        {
+            Command = command,
+            SessionId = sessionId,
+            Args = JsonSerializer.Serialize(new { tagName, tagValue }, ServiceProtocol.JsonOptions),
+            Source = "cli"
+        }, cancellationToken);
+
+        if (!response.Success)
+        {
+            return CliErrorOutput.WriteServiceError(response);
+        }
+
+        Console.WriteLine(response.Result ?? JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions));
+        return 0;
+    }
+}
+
 /// <summary>Lists every session currently open in the daemon.</summary>
 internal sealed class SessionListCommand : AsyncCommand
 {

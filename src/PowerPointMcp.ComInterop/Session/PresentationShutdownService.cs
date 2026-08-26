@@ -77,12 +77,14 @@ internal static class PresentationShutdownService
         PowerPoint.Application? app,
         PowerPointProcessIdentity? processIdentity,
         ILogger? logger = null,
-        string? filePath = null)
+        string? filePath = null,
+        Action? afterPresentationClose = null)
     {
         logger ??= NullLogger.Instance;
         string fileName = string.IsNullOrEmpty(filePath) ? "unknown" : Path.GetFileName(filePath);
 
         ClosePresentation(presentation, fileName, logger);
+        afterPresentationClose?.Invoke();
         ComUtilities.Release(ref presentation);
 
         if (app != null)

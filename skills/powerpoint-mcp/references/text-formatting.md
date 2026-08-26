@@ -129,4 +129,3 @@ automatically instead of manually tuning size — `ppAutoSizeTextToFitShape` shr
 fit a fixed box, `ppAutoSizeShapeToFitText` grows the box to fit the text. Without auto-size set
 (`ppAutoSizeNone`, the default), text can overflow: shorten the text, reduce `font_size`, or grow
 the shape with `shape(action: "set-size", ...)`.
-

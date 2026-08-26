@@ -19,6 +19,7 @@ Skills. The website and installed guidance therefore describe the same behavior.
 ## Domain guidance
 
 - [Slides and Shapes](slides-and-shapes.md)
+- [String Tags](tags.md)
 - [Text Formatting](text-formatting.md)
 - [Tables](tables.md)
 - [Charts](charts.md)

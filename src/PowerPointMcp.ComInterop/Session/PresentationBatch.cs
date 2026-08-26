@@ -286,13 +286,20 @@ internal sealed class PresentationBatch : IPresentationBatch
         {
             var cleanupApp = _app ?? startupApp;
             var cleanupPresentation = _presentation ?? startupPresentation;
+            var cleanupContext = _context;
+            Action? releaseOwnedComOwners =
+                cleanupContext is null ? null : cleanupContext.ReleaseOwnedComOwners;
+
+            cleanupContext?.ReleaseOwnedComResources();
+            _context = null;
 
             PresentationShutdownService.CloseAndQuit(
                 cleanupPresentation,
                 cleanupApp,
                 _powerPointProcessIdentity,
                 _logger,
-                _presentationPath);
+                _presentationPath,
+                releaseOwnedComOwners);
             if (_powerPointProcessIdentity is { } identity
                 && OwnedProcessGuard.TryConfirmExited(identity))
             {
@@ -301,8 +308,6 @@ internal sealed class PresentationBatch : IPresentationBatch
 
             _presentation = null;
             _app = null;
-            _context = null;
-
             try { OleMessageFilter.Revoke(); }
             catch (Exception ex) { _logger.LogWarning(ex, "OleMessageFilter.Revoke() failed during STA cleanup"); }
         }
@@ -554,9 +559,7 @@ internal sealed class PresentationBatch : IPresentationBatch
         var context = _context;
         if (context != null)
         {
-            Volatile.Write(
-                ref _context,
-                new PresentationContext(normalizedPath, context.App, context.Presentation));
+            context.UpdatePresentationPath(normalizedPath);
         }
 
         Volatile.Write(ref _presentationPath, normalizedPath);
@@ -595,8 +598,11 @@ internal sealed class PresentationBatch : IPresentationBatch
             var oldPresentation = _presentation;
             if (oldPresentation != null)
             {
+                ctx.ReleaseOwnedComResources();
+                _context = null;
                 try { oldPresentation.Close(); }
                 catch { /* best effort - proceed with opening the next presentation regardless */ }
+                ctx.ReleaseOwnedComOwners();
                 ComUtilities.Release(ref oldPresentation);
             }
 

@@ -1,3 +1,5 @@
+using Sbroenne.PowerPointMcp.Core.Tags;
+
 namespace Sbroenne.PowerPointMcp.Core.Presentation;
 
 /// <summary>
@@ -43,4 +45,19 @@ public sealed class PresentationOperationResult
     /// commands. Null for operations that don't touch document properties.
     /// </summary>
     public string? PropertyValue { get; init; }
+
+    /// <summary>Normalized tag name for tag operations.</summary>
+    public string? TagName { get; init; }
+
+    /// <summary>Tag value for tag operations. Values are returned without case normalization.</summary>
+    public string? TagValue { get; init; }
+
+    /// <summary>1-based index of the tag in PowerPoint's native collection order.</summary>
+    public int? TagIndex { get; init; }
+
+    /// <summary>Number of string tags on the presentation.</summary>
+    public int? TagCount { get; init; }
+
+    /// <summary>Presentation tags in native 1-based collection order.</summary>
+    public IReadOnlyList<TagInfo>? Tags { get; init; }
 }

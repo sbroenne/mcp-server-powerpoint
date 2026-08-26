@@ -295,7 +295,7 @@ Actions: `get-settings`, `set-size`, `set-first-slide-number`, `get-footer`, `se
 
 ### `shape` — Shape commands: create, inspect, format, group, link, and edit native placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
 
-Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`
+Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
 | Flag | Description |
 |------|-------------|
@@ -311,7 +311,7 @@ Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-con
 | `--end-x` | (required for: add-line, add-connector) |
 | `--end-y` | (required for: add-line, add-connector) |
 | `--connector-type` | (required for: add-connector) |
-| `--shape-index` | (required for: delete, set-position, set-size, set-fill, get-fill, set-line, get-line, set-rotation, get-rotation, flip, set-z-order, set-shadow, get-shadow, set-glow, get-glow, set-reflection, get-reflection, set-soft-edge, get-soft-edge, set-bevel, get-bevel, ungroup, set-name, get-name, set-alt-text, get-alt-text, set-hyperlink, get-hyperlink, remove-hyperlink, set-placeholder-text, set-placeholder-image) |
+| `--shape-index` | (required for: delete, set-position, set-size, set-fill, get-fill, set-line, get-line, set-rotation, get-rotation, flip, set-z-order, set-shadow, get-shadow, set-glow, get-glow, set-reflection, get-reflection, set-soft-edge, get-soft-edge, set-bevel, get-bevel, ungroup, set-name, get-name, set-alt-text, get-alt-text, set-hyperlink, get-hyperlink, remove-hyperlink, set-placeholder-text, set-placeholder-image, set-tag, get-tag, list-tags, delete-tag) |
 | `--red` | (required for: set-fill, set-glow) |
 | `--green` | (required for: set-fill, set-glow) |
 | `--blue` | (required for: set-fill, set-glow) |
@@ -336,15 +336,17 @@ Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-con
 | `--address` | (required for: set-hyperlink) |
 | `--screen-tip` |  |
 | `--image-path` | (required for: set-placeholder-image) |
+| `--tag-name` | (required for: set-tag, get-tag, delete-tag) |
+| `--tag-value` | (required for: set-tag) |
 
 
 ### `slide` — Slide lifecycle, background, section, legacy comment, and slide-import commands.
 
-Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-background-color`, `get-background-color`, `set-gradient-background`, `get-gradient-background`, `add-section`, `rename-section`, `delete-section`, `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`, `clear-comments`, `import-from-file`
+Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-background-color`, `get-background-color`, `set-gradient-background`, `get-gradient-background`, `add-section`, `rename-section`, `delete-section`, `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`, `clear-comments`, `import-from-file`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
 | Flag | Description |
 |------|-------------|
-| `--slide-index` | (required for: delete, duplicate, move-to, set-background-color, get-background-color, set-gradient-background, get-gradient-background, list-comments, add-comment, delete-comment, clear-comments) |
+| `--slide-index` | (required for: delete, duplicate, move-to, set-background-color, get-background-color, set-gradient-background, get-gradient-background, list-comments, add-comment, delete-comment, clear-comments, set-tag, get-tag, list-tags, delete-tag) |
 | `--to-position` | (required for: move-to) |
 | `--red` | (required for: set-background-color) |
 | `--green` | (required for: set-background-color) |
@@ -370,6 +372,8 @@ Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-backgr
 | `--destination-slide-index` | (required for: import-from-file) |
 | `--source-start-slide` |  |
 | `--source-end-slide` |  |
+| `--tag-name` | (required for: set-tag, get-tag, delete-tag) |
+| `--tag-value` | (required for: set-tag) |
 
 
 ### `smartart` — SmartArt commands: add a SmartArt diagram to a slide from PowerPoint's built-in layout gallery, and add/read/update/delete/count the diagram's nodes. Operates within an already-open , targeting a specific slide and shape by 1-based index.

@@ -147,4 +147,16 @@ public interface IPresentationCommands
     /// <param name="batch">The open batch whose presentation metadata will be updated.</param>
     /// <param name="propertyName">The custom property's name.</param>
     PresentationOperationResult RemoveCustomProperty(IPresentationBatch batch, string propertyName);
+
+    /// <summary>Creates or updates a case-insensitive string tag on the presentation.</summary>
+    PresentationOperationResult SetTag(IPresentationBatch batch, string tagName, string tagValue);
+
+    /// <summary>Gets a presentation string tag by its case-insensitive name.</summary>
+    PresentationOperationResult GetTag(IPresentationBatch batch, string tagName);
+
+    /// <summary>Lists presentation string tags in their native 1-based collection order.</summary>
+    PresentationOperationResult ListTags(IPresentationBatch batch);
+
+    /// <summary>Deletes a presentation string tag by its case-insensitive name.</summary>
+    PresentationOperationResult DeleteTag(IPresentationBatch batch, string tagName);
 }

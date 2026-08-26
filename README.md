@@ -44,13 +44,14 @@ layout regressions that text-only automation simply cannot detect.
 
 ## 🎯 What You Can Do
 
-**15 MCP tools with 162 operations across 15 domains:**
+**15 MCP tools with 174 operations across 15 domains:**
 
-- 🗂️ **Presentation** (16 ops) — create, open, Save As, Save Copy As, close, list sessions, apply a
+- 🗂️ **Presentation** (20 ops) — create, open, Save As, Save Copy As, close, list sessions, apply a
   `.potx`/`.pptx` template's masters/theme/layouts, read the current theme name, set/read
-  PowerPoint's advisory Mark as Final flag, and read/write built-in and custom document properties
-- 📑 **Slide** (19 ops) — lifecycle, backgrounds, sections, comments, and slide import
-- ▭ **Shape** (39 ops) — shapes, styling, grouping, hyperlinks, and placeholder editing
+  PowerPoint's advisory Mark as Final flag, read/write built-in and custom document properties,
+  and manage string tags
+- 📑 **Slide** (23 ops) — lifecycle, backgrounds, sections, comments, slide import, and string tags
+- ▭ **Shape** (43 ops) — shapes, styling, grouping, hyperlinks, placeholder editing, and string tags
 - ✏️ **TextFrame** (20 ops) — text, font size/name/color, bold, italic, underline, alignment, bullets
 - 📊 **Table** (12 ops) — add, cell text, insert/delete rows &amp; columns, cell fill/border, merge cells
 - 🗣️ **Notes** (2 ops) — set/get speaker notes

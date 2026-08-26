@@ -297,6 +297,60 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         return json.RootElement.Clone();
     }
 
+    [Fact]
+    public async Task TagSchemas_ExposeAllOwnerActionsAndStrictParameters()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+
+        var presentation = Assert.Single(tools, tool => tool.Name == "presentation");
+        AssertTagSchema(
+            presentation.JsonSchema,
+            expectedProperties: ["action", "sessionId", "tagName", "tagValue"],
+            forbiddenProperties: ["slide_index", "shape_index", "binary_value"]);
+
+        var slide = Assert.Single(tools, tool => tool.Name == "slide");
+        AssertTagSchema(
+            slide.JsonSchema,
+            expectedProperties: ["action", "session_id", "slide_index", "tag_name", "tag_value"],
+            forbiddenProperties: ["shape_index", "binary_value"]);
+
+        var shape = Assert.Single(tools, tool => tool.Name == "shape");
+        AssertTagSchema(
+            shape.JsonSchema,
+            expectedProperties: ["action", "session_id", "slide_index", "shape_index", "tag_name", "tag_value"],
+            forbiddenProperties: ["binary_value"]);
+    }
+
+    private static void AssertTagSchema(
+        System.Text.Json.JsonElement schema,
+        IReadOnlyList<string> expectedProperties,
+        IReadOnlyList<string> forbiddenProperties)
+    {
+        var actions = schema
+            .GetProperty("properties")
+            .GetProperty("action")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("set-tag", actions);
+        Assert.Contains("get-tag", actions);
+        Assert.Contains("list-tags", actions);
+        Assert.Contains("delete-tag", actions);
+
+        var properties = schema.GetProperty("properties");
+        foreach (string property in expectedProperties)
+        {
+            Assert.True(properties.TryGetProperty(property, out _), $"Expected schema property '{property}'.");
+        }
+
+        foreach (string property in forbiddenProperties)
+        {
+            Assert.False(properties.TryGetProperty(property, out _), $"Unexpected schema property '{property}'.");
+        }
+    }
+
     /// <summary>
     /// Server info/instructions surfaced via the MCP protocol match Program.cs's configuration.
     /// </summary>

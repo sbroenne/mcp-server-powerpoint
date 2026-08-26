@@ -820,4 +820,72 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
             File.Delete(imagePath);
         }
     }
+
+    [Fact]
+    public void Tags_CrudIsCaseInsensitive_EnumeratesOneBased_AndPersists()
+    {
+        _fixture.CreateFreshPresentation();
+        Assert.True(_commands.AddRectangle(_fixture.Batch, 1, 10f, 10f, 100f, 50f).Success);
+
+        var firstSet = _commands.SetTag(_fixture.Batch, 1, 1, " ReviewState ", "MiXeD Value");
+        Assert.True(firstSet.Success, firstSet.ErrorMessage);
+        Assert.Equal(" REVIEWSTATE ", firstSet.TagName);
+        Assert.Equal("MiXeD Value", firstSet.TagValue);
+        Assert.Equal(1, firstSet.TagCount);
+
+        var updated = _commands.SetTag(_fixture.Batch, 1, 1, " reviewstate ", "Updated Value");
+        Assert.True(updated.Success, updated.ErrorMessage);
+        Assert.Equal(1, updated.TagCount);
+
+        Assert.True(_commands.SetTag(_fixture.Batch, 1, 1, "Owner", "Alice").Success);
+        Assert.True(_commands.SetTag(_fixture.Batch, 1, 1, "ReviewState", "Unspaced Value").Success);
+
+        var get = _commands.GetTag(_fixture.Batch, 1, 1, " ReViEwStAtE ");
+        Assert.True(get.Success, get.ErrorMessage);
+        Assert.Equal(" REVIEWSTATE ", get.TagName);
+        Assert.Equal("Updated Value", get.TagValue);
+        Assert.Equal(1, get.TagIndex);
+
+        var unspacedGet = _commands.GetTag(_fixture.Batch, 1, 1, "reviewstate");
+        Assert.True(unspacedGet.Success, unspacedGet.ErrorMessage);
+        Assert.Equal("Unspaced Value", unspacedGet.TagValue);
+        Assert.Equal(3, unspacedGet.TagIndex);
+
+        var listed = _commands.ListTags(_fixture.Batch, 1, 1);
+        Assert.True(listed.Success, listed.ErrorMessage);
+        Assert.Equal(3, listed.TagCount);
+        Assert.Equal([1, 2, 3], listed.Tags!.Select(tag => tag.TagIndex));
+        Assert.Equal([" REVIEWSTATE ", "OWNER", "REVIEWSTATE"], listed.Tags!.Select(tag => tag.Name));
+
+        Assert.True(_presentationCommands.Save(_fixture.Batch).Success);
+        _fixture.ReopenCurrentPresentation();
+        Assert.Equal("Updated Value", _commands.GetTag(_fixture.Batch, 1, 1, " reviewstate ").TagValue);
+
+        var deleted = _commands.DeleteTag(_fixture.Batch, 1, 1, " REVIEWSTATE ");
+        Assert.True(deleted.Success, deleted.ErrorMessage);
+        Assert.Equal(2, deleted.TagCount);
+        Assert.False(_commands.GetTag(_fixture.Batch, 1, 1, " reviewstate ").Success);
+        Assert.False(_commands.DeleteTag(_fixture.Batch, 1, 1, " reviewstate ").Success);
+        Assert.True(_commands.GetTag(_fixture.Batch, 1, 1, "reviewstate").Success);
+
+        Assert.True(_commands.ListTags(_fixture.Batch, 1, 1).Success);
+        Assert.Equal(1, _commands.GetCount(_fixture.Batch, 1).ShapeCount);
+    }
+
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(99, 1)]
+    [InlineData(1, 0)]
+    [InlineData(1, 99)]
+    public void Tags_WithInvalidOwnerIndex_ReturnFailure(int slideIndex, int shapeIndex)
+    {
+        _fixture.CreateFreshPresentation();
+        Assert.True(_commands.AddRectangle(_fixture.Batch, 1, 10f, 10f, 100f, 50f).Success);
+
+        Assert.False(_commands.SetTag(_fixture.Batch, slideIndex, shapeIndex, "name", "value").Success);
+        Assert.False(_commands.GetTag(_fixture.Batch, slideIndex, shapeIndex, "name").Success);
+        Assert.False(_commands.ListTags(_fixture.Batch, slideIndex, shapeIndex).Success);
+        Assert.False(_commands.DeleteTag(_fixture.Batch, slideIndex, shapeIndex, "name").Success);
+        Assert.Equal(1, _commands.GetCount(_fixture.Batch, 1).ShapeCount);
+    }
 }

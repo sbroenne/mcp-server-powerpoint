@@ -5,7 +5,7 @@ using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 namespace Sbroenne.PowerPointMcp.Core.Presentation;
 
 /// <inheritdoc cref="IPresentationCommands"/>
-public sealed class PresentationCommands : IPresentationCommands
+public sealed partial class PresentationCommands : IPresentationCommands
 {
     /// <inheritdoc/>
     public PresentationOperationResult Create(string filePath, bool isMacroEnabled = false)
