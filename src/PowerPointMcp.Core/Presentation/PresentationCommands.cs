@@ -75,6 +75,263 @@ public sealed class PresentationCommands : IPresentationCommands
         };
     }
 
+    /// <inheritdoc/>
+    public PresentationOperationResult SaveAs(
+        IPresentationBatch batch,
+        string targetPath,
+        PresentationSaveFormat format = PresentationSaveFormat.Auto,
+        bool overwrite = false)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        var pathValidation = ValidateOutputPath(batch, targetPath, overwrite);
+        if (pathValidation.Error != null)
+        {
+            return pathValidation.Error;
+        }
+
+        string normalizedPath = pathValidation.Path!;
+        PresentationSaveFormat? resolvedFormat = ResolveSaveFormat(normalizedPath, format);
+        if (resolvedFormat == null)
+        {
+            return ValidationError(
+                batch,
+                $"Cannot infer a supported presentation format from extension '{Path.GetExtension(normalizedPath)}'. Supported extensions: .pptx, .pptm, .ppt.");
+        }
+
+        var extensionError = ValidateSaveExtension(batch, normalizedPath, resolvedFormat);
+        if (extensionError != null)
+        {
+            return extensionError;
+        }
+
+        var result = batch.Execute((ctx, ct) =>
+        {
+            // PIA gap: the restored typed SaveAs method exposes an optional Office.MsoTriState
+            // parameter, but this project intentionally does not reference office.dll. Keep late
+            // binding limited to this invocation while still passing typed PpSaveAsFileType.
+            ((dynamic)ctx.Presentation).SaveAs(
+                normalizedPath,
+                ToPowerPointFileType(resolvedFormat.Value));
+
+            batch.UpdatePresentationPath(normalizedPath);
+            return new PresentationOperationResult
+            {
+                Success = true,
+                PresentationPath = normalizedPath
+            };
+        });
+
+        return result;
+    }
+
+    /// <inheritdoc/>
+    public PresentationOperationResult SaveCopyAs(
+        IPresentationBatch batch,
+        string targetPath,
+        bool overwrite = false)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        var pathValidation = ValidateOutputPath(batch, targetPath, overwrite);
+        if (pathValidation.Error != null)
+        {
+            return pathValidation.Error;
+        }
+
+        string normalizedPath = pathValidation.Path!;
+        string outputExtension = Path.GetExtension(normalizedPath);
+        PresentationSaveFormat? format = ResolveSaveFormat(
+            normalizedPath,
+            PresentationSaveFormat.Auto);
+        if (format == null)
+        {
+            return ValidationError(
+                batch,
+                $"Save Copy As does not support presentation extension '{outputExtension}'. Supported extensions: .pptx, .pptm, .ppt.");
+        }
+
+        string writePath = GetWritePath(normalizedPath, overwrite);
+        try
+        {
+            var result = batch.Execute((ctx, ct) =>
+            {
+                string currentExtension = Path.GetExtension(batch.PresentationPath);
+                if (!string.Equals(currentExtension, outputExtension, StringComparison.OrdinalIgnoreCase))
+                {
+                    return ValidationError(
+                        batch,
+                        $"Save Copy As preserves the current presentation format. Output extension must be '{currentExtension}'.");
+                }
+
+                // PIA gap: the restored typed SaveCopyAs method exposes an optional
+                // Office.MsoTriState parameter, but this project intentionally does not reference
+                // office.dll. Keep late binding limited to this invocation while still passing
+                // typed PpSaveAsFileType.
+                ((dynamic)ctx.Presentation).SaveCopyAs(
+                    writePath,
+                    ToPowerPointFileType(format.Value));
+
+                return new PresentationOperationResult
+                {
+                    Success = true,
+                    PresentationPath = normalizedPath
+                };
+            });
+
+            if (!result.Success)
+            {
+                return result;
+            }
+
+            CommitOutput(writePath, normalizedPath);
+            return result;
+        }
+        finally
+        {
+            DeleteTemporaryOutput(writePath, normalizedPath);
+        }
+    }
+
+    private static (string? Path, PresentationOperationResult? Error) ValidateOutputPath(
+        IPresentationBatch batch,
+        string targetPath,
+        bool overwrite)
+    {
+        if (string.IsNullOrWhiteSpace(targetPath))
+        {
+            return (null, ValidationError(batch, "A destination path is required."));
+        }
+
+        string normalizedPath;
+        try
+        {
+            normalizedPath = Path.GetFullPath(targetPath);
+        }
+        catch (ArgumentException)
+        {
+            return (null, ValidationError(batch, $"Invalid destination path: '{targetPath}'."));
+        }
+        catch (NotSupportedException)
+        {
+            return (null, ValidationError(batch, $"Invalid destination path: '{targetPath}'."));
+        }
+        catch (PathTooLongException)
+        {
+            return (null, ValidationError(batch, $"Destination path is too long: '{targetPath}'."));
+        }
+
+        string? directory = Path.GetDirectoryName(normalizedPath);
+        if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+        {
+            return (null, ValidationError(batch, $"Destination directory does not exist: '{directory}'."));
+        }
+
+        if (Directory.Exists(normalizedPath))
+        {
+            return (null, ValidationError(batch, $"Destination path is a directory: '{normalizedPath}'."));
+        }
+
+        if (File.Exists(normalizedPath) && !overwrite)
+        {
+            return (null, ValidationError(batch, $"Destination file already exists: '{normalizedPath}'. Set overwrite=true to replace it."));
+        }
+
+        return (normalizedPath, null);
+    }
+
+    private static PresentationSaveFormat? ResolveSaveFormat(
+        string outputPath,
+        PresentationSaveFormat format)
+    {
+        if (format != PresentationSaveFormat.Auto)
+        {
+            return Enum.IsDefined(format) ? format : null;
+        }
+
+        return Path.GetExtension(outputPath).ToLowerInvariant() switch
+        {
+            ".pptx" => PresentationSaveFormat.Pptx,
+            ".pptm" => PresentationSaveFormat.Pptm,
+            ".ppt" => PresentationSaveFormat.Ppt,
+            _ => null
+        };
+    }
+
+    private static PresentationOperationResult? ValidateSaveExtension(
+        IPresentationBatch batch,
+        string outputPath,
+        PresentationSaveFormat? format)
+    {
+        string expectedExtension = format switch
+        {
+            PresentationSaveFormat.Pptx => ".pptx",
+            PresentationSaveFormat.Pptm => ".pptm",
+            PresentationSaveFormat.Ppt => ".ppt",
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, "Unsupported Save As format.")
+        };
+
+        return string.Equals(
+            Path.GetExtension(outputPath),
+            expectedExtension,
+            StringComparison.OrdinalIgnoreCase)
+            ? null
+            : ValidationError(
+                batch,
+                $"Save As format '{format}' requires the '{expectedExtension}' file extension.");
+    }
+
+    private static PowerPoint.PpSaveAsFileType ToPowerPointFileType(PresentationSaveFormat format)
+    {
+        return format switch
+        {
+            PresentationSaveFormat.Pptx => PowerPoint.PpSaveAsFileType.ppSaveAsOpenXMLPresentation,
+            PresentationSaveFormat.Pptm => PowerPoint.PpSaveAsFileType.ppSaveAsOpenXMLPresentationMacroEnabled,
+            PresentationSaveFormat.Ppt => PowerPoint.PpSaveAsFileType.ppSaveAsPresentation,
+            _ => throw new ArgumentOutOfRangeException(nameof(format), format, "Unsupported Save As format.")
+        };
+    }
+
+    private static string GetWritePath(string normalizedPath, bool overwrite)
+    {
+        if (!overwrite || !File.Exists(normalizedPath))
+        {
+            return normalizedPath;
+        }
+
+        string directory = Path.GetDirectoryName(normalizedPath)!;
+        string fileName = Path.GetFileNameWithoutExtension(normalizedPath);
+        string extension = Path.GetExtension(normalizedPath);
+        return Path.Combine(directory, $".{fileName}.{Guid.NewGuid():N}.tmp{extension}");
+    }
+
+    private static void CommitOutput(string writePath, string normalizedPath)
+    {
+        if (!string.Equals(writePath, normalizedPath, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Move(writePath, normalizedPath, overwrite: true);
+        }
+    }
+
+    private static void DeleteTemporaryOutput(string writePath, string normalizedPath)
+    {
+        if (!string.Equals(writePath, normalizedPath, StringComparison.OrdinalIgnoreCase) &&
+            File.Exists(writePath))
+        {
+            File.Delete(writePath);
+        }
+    }
+
+    private static PresentationOperationResult ValidationError(
+        IPresentationBatch batch,
+        string message)
+        => new()
+        {
+            Success = false,
+            ErrorMessage = message,
+            PresentationPath = batch.PresentationPath
+        };
+
     private static readonly string[] AcceptedTemplateExtensions = [".potx", ".potm", ".pot", ".pptx", ".pptm", ".ppt"];
 
     /// <inheritdoc/>

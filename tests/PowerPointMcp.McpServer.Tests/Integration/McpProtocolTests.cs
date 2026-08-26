@@ -190,6 +190,8 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
             .ToHashSet(StringComparer.Ordinal);
 
         Assert.Contains("test", actions);
+        Assert.Contains("save-as", actions);
+        Assert.Contains("save-copy-as", actions);
         Assert.DoesNotContain("save", actions);
 
         var properties = presentation.JsonSchema.GetProperty("properties");
@@ -200,6 +202,19 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
             .ToHashSet(StringComparer.Ordinal);
         Assert.Contains("boolean", saveTypes);
         Assert.Contains("null", saveTypes);
+
+        Assert.True(properties.TryGetProperty("targetPath", out _));
+        Assert.True(properties.TryGetProperty("overwrite", out _));
+        var formatValues = properties
+            .GetProperty("format")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .Where(value => value != null)
+            .ToHashSet(StringComparer.Ordinal);
+        Assert.Equal(
+            new HashSet<string?> { "auto", "pptx", "pptm", "ppt" },
+            formatValues);
     }
 
     /// <summary>

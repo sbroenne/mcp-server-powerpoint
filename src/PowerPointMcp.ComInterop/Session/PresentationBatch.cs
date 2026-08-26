@@ -434,7 +434,7 @@ internal sealed class PresentationBatch : IPresentationBatch
         }
     }
 
-    public string PresentationPath => _presentationPath;
+    public string PresentationPath => Volatile.Read(ref _presentationPath);
 
     public bool HasTimedOutOperation => _operationTimedOut;
 
@@ -538,6 +538,28 @@ internal sealed class PresentationBatch : IPresentationBatch
             ctx.Presentation.Save();
             return 0;
         }, cancellationToken);
+    }
+
+    public void UpdatePresentationPath(string presentationPath)
+    {
+        ObjectDisposedException.ThrowIf(_disposed != 0, nameof(PresentationBatch));
+        ArgumentException.ThrowIfNullOrWhiteSpace(presentationPath);
+        if (Thread.CurrentThread != _staThread)
+        {
+            throw new InvalidOperationException(
+                "Presentation path updates must run inside this batch's serialized Execute callback.");
+        }
+
+        string normalizedPath = Path.GetFullPath(presentationPath);
+        var context = _context;
+        if (context != null)
+        {
+            Volatile.Write(
+                ref _context,
+                new PresentationContext(normalizedPath, context.App, context.Presentation));
+        }
+
+        Volatile.Write(ref _presentationPath, normalizedPath);
     }
 
     /// <summary>

@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit compares the current 15 tools and 158 operations with the restored
+This audit compares the current 15 tools and 160 operations with the restored
 `Microsoft.Office.Interop.PowerPoint` 15.0.4420.1018 assembly. It looks for useful PowerPoint
 features that fit the existing live-session model. It does not copy Excel-only worksheet, Power
 Query, Data Model, PivotTable, or calculation APIs.
@@ -35,25 +35,23 @@ The existing legacy comment operations are therefore correctly scoped.
 | 5 | Linked pictures | optional `link_to_file` on `image: add-picture`; `shape: get-link-info`, `update-link`, `break-link`, `set-link-auto-update` | Enables linked-asset workflows and repair | `LinkFormat` is valid only for linked shapes |
 | 6 | Audio and video | new `media` domain with `add-media`, `get-media-info` | Large PowerPoint-specific capability gap | Needs small licensed test fixtures and narrowly scoped Office enum handling |
 
-### 1. Save As and Save Copy As
+### 1. Save As and Save Copy As — implemented
 
 The restored PIA exposes:
 
 - `_Presentation.SaveAs(string, PpSaveAsFileType, MsoTriState)`
 - `_Presentation.SaveCopyAs(string, PpSaveAsFileType, MsoTriState)`
 
-All parameters after the file name are optional in the restored metadata. Use the typed
-`PpSaveAsFileType` enum and omit the Office enum unless font embedding is explicitly added later.
-If the compiler cannot bind `SaveCopyAs` without the Office assembly, keep any late-bound call
-limited to that one invocation and document the PIA limitation.
+The restored signatures include an optional `Office.MsoTriState` parameter, but this project does
+not reference `office.dll`, so the compiler cannot bind either method. The implementation keeps
+late binding limited to these two invocations, passes typed `PpSaveAsFileType` values, and leaves
+font embedding at PowerPoint's default.
 
-`save-as` changes the active file identity. Add an internal
-`IPresentationBatch.UpdatePresentationPath` operation, update it only after COM succeeds, and make
-the session registry report the new path. `save-copy-as` must leave the active session and original
-path unchanged. Both operations need extension/format validation and an overwrite guard before COM
-is called.
+`save-as` updates the batch and session registry path only after COM succeeds. `save-copy-as`
+preserves the active session and original path. Both operations validate supported extensions,
+format matches, destination directories, and overwrite intent before COM.
 
-Tests:
+Real-PowerPoint tests cover:
 
 - save as to `.pptx`, reopen the new path, and verify content
 - save copy, verify both files exist, and verify the session still points to the original

@@ -42,7 +42,7 @@ Every editing workflow starts by establishing a session:
 
 - **All 15 MCP tools are action-dispatch tools.** Every call includes an `action` parameter.
 - **`presentation` uses camelCase lifecycle/property parameters** — `filePath`, `sessionId`,
-  `templatePath`, `propertyName`, `value`.
+  `targetPath`, `format`, `overwrite`, `templatePath`, `propertyName`, `value`.
 - **The other 14 domain tools use `session_id` plus snake_case action parameters**, e.g.
   `shape(action: "add-rectangle", session_id: ..., slide_index: 1, left: 50, top: 80, width: 100,
   height: 60)`.
@@ -72,6 +72,14 @@ all changes since the last save.
 2. textframe(action: "set-text", session_id: ..., slide_index: ..., shape_index: ...) → text set in memory
 3. presentation(action: "close", sessionId: ..., save: true)                         → persisted and closed
 ```
+
+`save-as` and `save-copy-as` are explicit delivery operations, not a generic save action:
+
+- `save-as` writes `.pptx`, `.pptm`, or `.ppt`, then changes the active session path only after
+  PowerPoint succeeds.
+- `save-copy-as` requires the destination extension to match the active presentation and leaves
+  the active session path unchanged.
+- Both reject an existing destination unless `overwrite: true` is supplied.
 
 ## Close Is Asynchronous (Do NOT Wait For It)
 

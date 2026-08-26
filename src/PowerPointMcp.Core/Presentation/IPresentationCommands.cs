@@ -3,7 +3,7 @@ using Sbroenne.PowerPointMcp.ComInterop.Session;
 namespace Sbroenne.PowerPointMcp.Core.Presentation;
 
 /// <summary>
-/// Presentation lifecycle commands: create, close, save.
+/// Presentation lifecycle commands: create, open, save, Save As, and Save Copy As.
 /// </summary>
 /// <remarks>
 /// First Core command domain implemented, proving the ComInterop batch pattern end-to-end.
@@ -52,6 +52,25 @@ public interface IPresentationCommands
     /// Saves the presentation currently open in the given batch.
     /// </summary>
     PresentationOperationResult Save(IPresentationBatch batch);
+
+    /// <summary>
+    /// Saves the active presentation under a new path and format, then moves the active session
+    /// to that path.
+    /// </summary>
+    PresentationOperationResult SaveAs(
+        IPresentationBatch batch,
+        string targetPath,
+        PresentationSaveFormat format = PresentationSaveFormat.Auto,
+        bool overwrite = false);
+
+    /// <summary>
+    /// Saves a copy without changing the active presentation or session path. The output extension
+    /// must match the active presentation.
+    /// </summary>
+    PresentationOperationResult SaveCopyAs(
+        IPresentationBatch batch,
+        string targetPath,
+        bool overwrite = false);
 
     /// <summary>
     /// Applies a PowerPoint template's masters/theme/layouts to the presentation currently open

@@ -33,20 +33,23 @@ public static class PresentationTools
     /// or about-to-be-opened presentation.
     /// </summary>
     [McpServerTool(Name = "presentation")]
-    [Description("Presentation lifecycle (create, open, close, list sessions, test), template restyling (apply-template, get-theme-name), and document-property (built-in and custom) operations. Actions: create, open, close, list, test, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")]
+    [Description("Presentation lifecycle (create, open, close, list sessions, test), Save As/copy, template restyling (apply-template, get-theme-name), and document-property (built-in and custom) operations. Actions: create, open, close, list, test, save-as, save-copy-as, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")]
     public static string Presentation(
-        [Description("The action to perform. One of: create, open, close, list, test, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] PresentationToolAction action,
+        [Description("The action to perform. One of: create, open, close, list, test, save-as, save-copy-as, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] PresentationToolAction action,
         [Description("Full Windows path to the presentation file. Required for: create (new .pptx/.pptm file; containing directory must already exist), open or test (existing .pptx/.pptm/.ppt file).")] string? filePath = null,
-        [Description("The sessionId returned by create or open. Required for: close, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? sessionId = null,
+        [Description("The sessionId returned by create or open. Required for: close, save-as, save-copy-as, apply-template, get-theme-name, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? sessionId = null,
         [Description("Save the presentation before closing. Used for: close. Default: false.")] bool? save = null,
         [Description("Set true only when creating a macro-enabled .pptm file. Default: false. Used for: create.")] bool? isMacroEnabled = null,
+        [Description("Full Windows destination path. Required for: save-as, save-copy-as. The containing directory must already exist.")] string? targetPath = null,
+        [Description("Output format for save-as: auto, pptx, pptm, or ppt. Default: auto infers from targetPath.")] PresentationSaveFormat? format = null,
+        [Description("Whether an existing destination file may be replaced. Used for: save-as, save-copy-as. Default: false.")] bool? overwrite = null,
         [Description("Full Windows path to a .potx/.potm/.pot template file (a .pptx/.pptm presentation may also be used as a template source). Required for: apply-template.")] string? templatePath = null,
         [Description("Document property name. For set/get-document-property, one of: Title, Subject, Author, Keywords, Comments, Category, Manager, Company (case-insensitive). For custom-property actions, any user-defined name. Required for: set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? propertyName = null,
         [Description("The new property value. Required for: set-document-property, set-custom-property.")] string? value = null,
         PresentationSessionRegistry? registry = null)
         => PowerPointToolsBase.ExecuteToolAction("presentation", action.ToActionString(), () =>
         {
-            ValidateActionParameters(action, filePath, sessionId, save, isMacroEnabled, templatePath, propertyName, value);
+            ValidateActionParameters(action, filePath, sessionId, save, isMacroEnabled, targetPath, format, overwrite, templatePath, propertyName, value);
             var reg = registry!;
             return action switch
             {
@@ -55,6 +58,8 @@ public static class PresentationTools
                 PresentationToolAction.Close => HandleClose(sessionId, save == true, reg),
                 PresentationToolAction.List => HandleList(reg),
                 PresentationToolAction.Test => HandleTest(filePath),
+                PresentationToolAction.SaveAs => HandleSaveAs(sessionId, targetPath, format, overwrite == true, reg),
+                PresentationToolAction.SaveCopyAs => HandleSaveCopyAs(sessionId, targetPath, overwrite == true, reg),
                 PresentationToolAction.ApplyTemplate => HandleApplyTemplate(sessionId, templatePath, reg),
                 PresentationToolAction.GetThemeName => HandleGetThemeName(sessionId, reg),
                 PresentationToolAction.SetDocumentProperty => HandleSetDocumentProperty(sessionId, propertyName, value, reg),
@@ -72,6 +77,9 @@ public static class PresentationTools
         string? sessionId,
         bool? save,
         bool? isMacroEnabled,
+        string? targetPath,
+        PresentationSaveFormat? format,
+        bool? overwrite,
         string? templatePath,
         string? propertyName,
         string? value)
@@ -81,6 +89,9 @@ public static class PresentationTools
         if (sessionId != null) supplied.Add("sessionId");
         if (save != null) supplied.Add("save");
         if (isMacroEnabled != null) supplied.Add("isMacroEnabled");
+        if (targetPath != null) supplied.Add("targetPath");
+        if (format != null) supplied.Add("format");
+        if (overwrite != null) supplied.Add("overwrite");
         if (templatePath != null) supplied.Add("templatePath");
         if (propertyName != null) supplied.Add("propertyName");
         if (value != null) supplied.Add("value");
@@ -90,6 +101,8 @@ public static class PresentationTools
             PresentationToolAction.Create => ["filePath", "isMacroEnabled"],
             PresentationToolAction.Open or PresentationToolAction.Test => ["filePath"],
             PresentationToolAction.Close => ["sessionId", "save"],
+            PresentationToolAction.SaveAs => ["sessionId", "targetPath", "format", "overwrite"],
+            PresentationToolAction.SaveCopyAs => ["sessionId", "targetPath", "overwrite"],
             PresentationToolAction.ApplyTemplate => ["sessionId", "templatePath"],
             PresentationToolAction.GetThemeName => ["sessionId"],
             PresentationToolAction.SetDocumentProperty or PresentationToolAction.SetCustomProperty => ["sessionId", "propertyName", "value"],
@@ -226,6 +239,49 @@ public static class PresentationTools
         }
 
         return SerializeResult(Commands.Open(filePath));
+    }
+
+    private static string HandleSaveAs(
+        string? sessionId,
+        string? targetPath,
+        PresentationSaveFormat? format,
+        bool overwrite,
+        PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
+        {
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
+
+        if (string.IsNullOrWhiteSpace(targetPath))
+        {
+            return PowerPointToolsBase.ValidationError("targetPath is required for action=save-as.");
+        }
+
+        return SerializeResult(Commands.SaveAs(
+            batch,
+            targetPath,
+            format ?? PresentationSaveFormat.Auto,
+            overwrite));
+    }
+
+    private static string HandleSaveCopyAs(
+        string? sessionId,
+        string? targetPath,
+        bool overwrite,
+        PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
+        {
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
+
+        if (string.IsNullOrWhiteSpace(targetPath))
+        {
+            return PowerPointToolsBase.ValidationError("targetPath is required for action=save-copy-as.");
+        }
+
+        return SerializeResult(Commands.SaveCopyAs(batch, targetPath, overwrite));
     }
 
     /// <summary>

@@ -1,6 +1,6 @@
 # Canonical Workflow: Start Session → Build → Verify → Save and Close
 
-The standard end-to-end loop for every PowerPoint MCP task. All 15 tools and 158 operations exist
+The standard end-to-end loop for every PowerPoint MCP task. All 15 tools and 160 operations exist
 to support this loop for one of two starting points: a brand-new deck or an existing file.
 
 ## Starting Point A — New Presentation
@@ -44,8 +44,12 @@ to support this loop for one of two starting points: a brand-new deck or an exis
   writes.
 - **Batch text + formatting per shape.** For a given shape, call `textframe(action: "set-text",
   ...)`, then `set-font-size`/`set-bold`/`set-font-color` as needed.
-- **Choose save behavior at close.** There is no standalone save action; render and inspect the
-  finished work, then close once with `save: true` or discard with `save: false`.
+- **Choose the right persistence action.** There is no standalone generic save action. Use
+  `presentation(action: "save-as", sessionId: ..., targetPath: ..., format: "auto",
+  overwrite: false)` when the active presentation should move to a new path. Use
+  `presentation(action: "save-copy-as", sessionId: ..., targetPath: ..., overwrite: false)` when
+  the active presentation and session path must remain unchanged. Otherwise, render and inspect
+  the finished work, then close once with `save: true` or discard with `save: false`.
 
 ## The Discovery Actions
 

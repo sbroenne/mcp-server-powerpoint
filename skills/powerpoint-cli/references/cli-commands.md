@@ -494,8 +494,8 @@ OPTIONS:
 
 ```text
 DESCRIPTION:
-Open, create, close, test, or list presentation sessions held by the daemon;
-apply templates and read/write document properties
+Open, create, close, test, Save As/copy, or list presentation sessions held by
+the daemon; apply templates and read/write document properties
 
 USAGE:
     pptcli session [OPTIONS] <COMMAND>
@@ -528,6 +528,20 @@ COMMANDS:
                                                                   without
                                                                   retaining a
                                                                   session
+    save-as <SESSION_ID> <TARGET_PATH>                            Save the
+                                                                  active
+                                                                  presentation
+                                                                  under a new
+                                                                  path and move
+                                                                  the session to
+                                                                  it
+    save-copy-as <SESSION_ID> <TARGET_PATH>                       Save a copy
+                                                                  without
+                                                                  changing the
+                                                                  active
+                                                                  presentation
+                                                                  or session
+                                                                  path
     apply-template <SESSION_ID> <TEMPLATE_PATH>                   Apply a
                                                                   template's
                                                                   masters/theme/
