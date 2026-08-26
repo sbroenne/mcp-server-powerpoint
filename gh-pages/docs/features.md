@@ -1,12 +1,12 @@
 ---
 title: Complete Feature Reference
-description: 15 MCP tools with 174 operations across 15 domains for live PowerPoint automation through single action-dispatch tools.
+description: 15 MCP tools with 180 operations across 15 domains for live PowerPoint automation through single action-dispatch tools.
 keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **15 MCP tools with 174 operations across 15 domains**.
+PowerPoint MCP Server exposes **15 MCP tools with 180 operations across 15 domains**.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
 `chart(action="add-chart", session_id="...", slide_index=2, ...)`.
@@ -32,7 +32,7 @@ The CLI mirrors the same domain model:
 | `master` | 10 | Slide master fonts and backgrounds | `master(action="...", session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
 | `animation` | 5 | Shape effects and slide transitions | `animation(action="...", session_id=..., ...)` | `pptcli animation <action> -s <SESSION_ID> ...` |
 | `image` | 7 | Picture insertion and picture adjustments (brightness/contrast, recolor, crop) | `image(action="...", session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
-| `chart` | 10 | Native charts, titles, axes, legend, data replacement | `chart(action="...", session_id=..., ...)` | `pptcli chart <action> -s <SESSION_ID> ...` |
+| `chart` | 16 | Native charts, titles, legend, data replacement, styles, colors, data tables | `chart(action="...", session_id=..., ...)` | `pptcli chart <action> -s <SESSION_ID> ...` |
 | `smartart` | 7 | SmartArt diagrams and node editing | `smartart(action="...", session_id=..., ...)` | `pptcli smartart <action> -s <SESSION_ID> ...` |
 | `export` | 3 | PDF delivery and export-to-verify image rendering | `export(action="...", session_id=..., ...)` | `pptcli export <action> -s <SESSION_ID> ...` |
 
@@ -175,13 +175,14 @@ Use `image` for inserting and adjusting pictures.
 **Exact action order:** `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`,
 `set-recolor`, `get-recolor`, `set-crop`, `get-crop`
 
-### `chart` tool (10 operations)
+### `chart` tool (16 operations)
 
 Use `chart` for native PowerPoint charts.
 
 **Exact action order:** `add-chart`, `get-chart-data`, `add-series`, `set-chart-title`,
 `get-chart-title`, `set-axis-title`, `get-axis-title`, `set-legend-visibility`,
-`get-legend-visibility`, `replace-chart-data`
+`get-legend-visibility`, `replace-chart-data`, `get-style`, `set-style`, `get-color-style`,
+`set-color-style`, `get-data-table`, `set-data-table`
 
 ### `smartart` tool (7 operations)
 

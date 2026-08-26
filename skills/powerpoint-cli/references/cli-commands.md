@@ -90,7 +90,7 @@ OPTIONS:
 
 ```text
 DESCRIPTION:
-Chart lifecycle and data operations
+Chart lifecycle, data, and quick-formatting operations
 
 USAGE:
     pptcli chart <ACTION> [OPTIONS]
@@ -130,27 +130,45 @@ OPTIONS:
                                           get-chart-title, set-axis-title,
                                           get-axis-title, set-legend-visibility,
                                           get-legend-visibility,
-                                          replace-chart-data) (valid for:
+                                          replace-chart-data, get-style,
+                                          set-style, get-color-style,
+                                          set-color-style, get-data-table,
+                                          set-data-table) (valid for:
                                           get-chart-data, add-series,
                                           set-chart-title, get-chart-title,
                                           set-axis-title, get-axis-title,
                                           set-legend-visibility,
                                           get-legend-visibility,
-                                          replace-chart-data)
+                                          replace-chart-data, get-style,
+                                          set-style, get-color-style,
+                                          set-color-style, get-data-table,
+                                          set-data-table)
         --title <TITLE>                   (required for: set-chart-title,
                                           set-axis-title) (valid for:
                                           set-chart-title, set-axis-title)
         --axis-type <AXISTYPE>            (required for: set-axis-title,
                                           get-axis-title) (valid for:
                                           set-axis-title, get-axis-title)
-        --visible <VISIBLE>               (required for: set-legend-visibility)
-                                          (valid for: set-legend-visibility)
+        --visible <VISIBLE>               True to show the chart element; false
+                                          to hide it. (required for:
+                                          set-legend-visibility, set-data-table)
+                                          (valid for: set-legend-visibility,
+                                          set-data-table)
         --series-names <SERIESNAMES>      (required for: replace-chart-data)
                                           (valid for: replace-chart-data) (JSON
                                           format)
         --series-values <SERIESVALUES>    (required for: replace-chart-data)
                                           (valid for: replace-chart-data) (JSON
                                           format)
+        --style <STYLE>                   Built-in chart style number, verified
+                                          against PowerPoint from 1 through 48.
+                                          (required for: set-style) (valid for:
+                                          set-style)
+        --color-style <COLORSTYLE>        Built-in chart color style number,
+                                          verified against PowerPoint from 1
+                                          through 26. (required for:
+                                          set-color-style) (valid for:
+                                          set-color-style)
     -o, --output <PATH>                   Write output to file instead of
                                           stdout. For image results, decodes and
                                           saves as binary file

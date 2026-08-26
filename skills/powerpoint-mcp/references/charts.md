@@ -17,6 +17,12 @@ embedded chart data sheet.
 | `chart` | `get-axis-title` | `session_id`, `slide_index`, `shape_index`, `axis_type` (`"category"` or `"value"`) | Returns the axis title text. |
 | `chart` | `set-legend-visibility` | `session_id`, `slide_index`, `shape_index`, `visible` (bool) | Shows/hides the chart's legend. |
 | `chart` | `get-legend-visibility` | `session_id`, `slide_index`, `shape_index` | Returns `legendVisible`. |
+| `chart` | `set-style` | `session_id`, `slide_index`, `shape_index`, `style` (integer, 1-48) | Applies a built-in chart layout/style and returns `chartStyle`. |
+| `chart` | `get-style` | `session_id`, `slide_index`, `shape_index` | Returns the current `chartStyle`. |
+| `chart` | `set-color-style` | `session_id`, `slide_index`, `shape_index`, `color_style` (integer, 1-26) | Applies a built-in chart color palette and returns `colorStyle`. |
+| `chart` | `get-color-style` | `session_id`, `slide_index`, `shape_index` | Returns the current `colorStyle`. |
+| `chart` | `set-data-table` | `session_id`, `slide_index`, `shape_index`, `visible` (bool) | Shows or hides the chart's data table and returns `hasDataTable`. |
+| `chart` | `get-data-table` | `session_id`, `slide_index`, `shape_index` | Returns `hasDataTable`. |
 
 ## Supported Chart Types
 
@@ -91,6 +97,26 @@ chart(action: "set-legend-visibility", session_id: ..., slide_index: ..., shape_
 
 `set-legend-visibility` with `visible: true` is recommended whenever a chart has more than one
 series — without a visible legend, a multi-series chart's colors are unlabeled.
+
+## Quick Formatting
+
+Use the paired style, color-style, and data-table actions to make a chart visually consistent and
+then verify the saved state:
+
+```
+chart(action: "set-style", session_id: ..., slide_index: ..., shape_index: ..., style: 10)
+chart(action: "get-style", session_id: ..., slide_index: ..., shape_index: ...)
+chart(action: "set-color-style", session_id: ..., slide_index: ..., shape_index: ..., color_style: 4)
+chart(action: "get-color-style", session_id: ..., slide_index: ..., shape_index: ...)
+chart(action: "set-data-table", session_id: ..., slide_index: ..., shape_index: ..., visible: true)
+chart(action: "get-data-table", session_id: ..., slide_index: ..., shape_index: ...)
+```
+
+Direct PIA characterization tests verify that installed PowerPoint accepts style 48 and color style
+26, then rejects the first following values (49 and 27) without changing the chart. Range tests
+exercise every accepted value. Commands return `Success=false` before PowerPoint is called for
+values outside those observed ranges, so invalid input does not change the chart or destabilize the
+presentation session.
 
 ## Sizing and Placement
 

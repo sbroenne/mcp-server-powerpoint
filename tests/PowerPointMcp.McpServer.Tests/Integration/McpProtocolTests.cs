@@ -351,6 +351,33 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         }
     }
 
+    [Fact]
+    public async Task ChartSchema_ExposesQuickFormattingActionsAndParameters()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var chart = Assert.Single(tools, tool => tool.Name == "chart");
+        var properties = chart.JsonSchema.GetProperty("properties");
+        var actions = properties
+            .GetProperty("action")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("get-style", actions);
+        Assert.Contains("set-style", actions);
+        Assert.Contains("get-color-style", actions);
+        Assert.Contains("set-color-style", actions);
+        Assert.Contains("get-data-table", actions);
+        Assert.Contains("set-data-table", actions);
+        Assert.True(properties.TryGetProperty("style", out _));
+        Assert.True(properties.TryGetProperty("color_style", out _));
+        var visible = properties.GetProperty("visible");
+        string visibleDescription = visible.GetProperty("description").GetString()!;
+        Assert.Contains("set-legend-visibility", visibleDescription);
+        Assert.Contains("set-data-table", visibleDescription);
+    }
+
     /// <summary>
     /// Server info/instructions surfaced via the MCP protocol match Program.cs's configuration.
     /// </summary>
