@@ -15,6 +15,46 @@ public class PresentationCommandsTests
     private readonly PresentationCommands _commands = new();
 
     [Fact]
+    public void SaveAs_Pptx_ReopensWithEditedContentAndUpdatesSessionPath()
+    {
+        string originalPath = CoreTestHelper.CreateUniqueTestFilePath();
+        string targetPath = CoreTestHelper.CreateUniqueTestFilePath();
+        try
+        {
+            using (var batch = PresentationSession.CreateNew(originalPath))
+            {
+                batch.Execute((ctx, ct) =>
+                {
+                    ctx.Presentation.Slides.Add(
+                        2,
+                        Microsoft.Office.Interop.PowerPoint.PpSlideLayout.ppLayoutBlank);
+                });
+
+                var result = _commands.SaveAs(
+                    batch,
+                    targetPath,
+                    PresentationSaveFormat.Pptx);
+
+                Assert.True(result.Success);
+                Assert.Null(result.ErrorMessage);
+                Assert.Equal(Path.GetFullPath(targetPath), result.PresentationPath, ignoreCase: true);
+                Assert.Equal(Path.GetFullPath(targetPath), batch.PresentationPath, ignoreCase: true);
+                string contextPath = batch.Execute((ctx, ct) => ctx.PresentationPath);
+                Assert.Equal(Path.GetFullPath(targetPath), contextPath, ignoreCase: true);
+            }
+
+            using var reopened = PresentationSession.BeginBatch(targetPath);
+            int slideCount = reopened.Execute((ctx, ct) => ctx.Presentation.Slides.Count);
+            Assert.Equal(2, slideCount);
+        }
+        finally
+        {
+            File.Delete(originalPath);
+            File.Delete(targetPath);
+        }
+    }
+
+    [Fact]
     public void Create_SavesRealPptxFile_ThatPowerPointCanReopen()
     {
         string path = CoreTestHelper.CreateUniqueTestFilePath();

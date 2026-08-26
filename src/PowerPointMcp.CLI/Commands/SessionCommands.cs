@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using Sbroenne.PowerPointMcp.CLI.Infrastructure;
+using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Service;
 using Spectre.Console.Cli;
 
@@ -129,6 +130,76 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionOpenSettings>
         Console.WriteLine(response.Result ?? JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions));
         return 0;
     }
+}
+
+/// <summary>Settings for the "session save-as" command.</summary>
+internal sealed class SessionSaveAsSettings : CommandSettings
+{
+    [CommandArgument(0, "<SESSION_ID>")]
+    [Description("Session id returned by 'session open'/'session create'.")]
+    public string SessionId { get; init; } = string.Empty;
+
+    [CommandArgument(1, "<TARGET_PATH>")]
+    [Description("Full destination path in an existing directory.")]
+    public string TargetPath { get; init; } = string.Empty;
+
+    [CommandOption("--format")]
+    [Description("Output format: auto, pptx, pptm, or ppt. Default: auto.")]
+    public PresentationSaveFormat Format { get; init; } = PresentationSaveFormat.Auto;
+
+    [CommandOption("--overwrite")]
+    [Description("Replace an existing destination file.")]
+    public bool Overwrite { get; init; }
+}
+
+/// <summary>Settings for the "session save-copy-as" command.</summary>
+internal sealed class SessionSaveCopyAsSettings : CommandSettings
+{
+    [CommandArgument(0, "<SESSION_ID>")]
+    [Description("Session id returned by 'session open'/'session create'.")]
+    public string SessionId { get; init; } = string.Empty;
+
+    [CommandArgument(1, "<TARGET_PATH>")]
+    [Description("Full destination path in an existing directory.")]
+    public string TargetPath { get; init; } = string.Empty;
+
+    [CommandOption("--overwrite")]
+    [Description("Replace an existing destination file.")]
+    public bool Overwrite { get; init; }
+}
+
+/// <summary>Saves the active presentation under a new path and moves the session to it.</summary>
+internal sealed class SessionSaveAsCommand : AsyncCommand<SessionSaveAsSettings>
+{
+    /// <inheritdoc/>
+    protected override async Task<int> ExecuteAsync(
+        CommandContext context,
+        SessionSaveAsSettings settings,
+        CancellationToken cancellationToken)
+        => await SessionCommandHelpers.SendSaveCommandAsync(
+            "session.save-as",
+            settings.SessionId,
+            settings.TargetPath,
+            settings.Format,
+            settings.Overwrite,
+            cancellationToken);
+}
+
+/// <summary>Saves a copy without changing the active presentation or session path.</summary>
+internal sealed class SessionSaveCopyAsCommand : AsyncCommand<SessionSaveCopyAsSettings>
+{
+    /// <inheritdoc/>
+    protected override async Task<int> ExecuteAsync(
+        CommandContext context,
+        SessionSaveCopyAsSettings settings,
+        CancellationToken cancellationToken)
+        => await SessionCommandHelpers.SendSaveCommandAsync(
+            "session.save-copy-as",
+            settings.SessionId,
+            settings.TargetPath,
+            format: null,
+            settings.Overwrite,
+            cancellationToken);
 }
 
 /// <summary>Settings for the "session apply-template" command.</summary>
@@ -263,6 +334,34 @@ internal sealed class SessionRemoveCustomPropertyCommand : AsyncCommand<SessionP
 /// <summary>Shared daemon round-trip logic for the document/custom-property session commands.</summary>
 internal static class SessionCommandHelpers
 {
+    public static async Task<int> SendSaveCommandAsync(
+        string command,
+        string sessionId,
+        string targetPath,
+        PresentationSaveFormat? format,
+        bool overwrite,
+        CancellationToken cancellationToken)
+    {
+        using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
+        var response = await client.SendAsync(new ServiceRequest
+        {
+            Command = command,
+            SessionId = sessionId,
+            Args = JsonSerializer.Serialize(
+                new { targetPath, format, overwrite },
+                ServiceProtocol.JsonOptions),
+            Source = "cli"
+        }, cancellationToken);
+
+        if (!response.Success)
+        {
+            return CliErrorOutput.WriteServiceError(response);
+        }
+
+        Console.WriteLine(response.Result ?? JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions));
+        return 0;
+    }
+
     public static async Task<int> SendPropertyCommandAsync(string command, string sessionId, string propertyName, string? value, CancellationToken cancellationToken)
     {
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);

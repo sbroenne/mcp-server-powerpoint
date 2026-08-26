@@ -39,6 +39,14 @@ public enum PresentationToolAction
     [JsonStringEnumMemberName("test")]
     Test,
 
+    /// <summary>Save the active presentation under a new path and move the session to it.</summary>
+    [JsonStringEnumMemberName("save-as")]
+    SaveAs,
+
+    /// <summary>Save a copy without changing the active presentation or session path.</summary>
+    [JsonStringEnumMemberName("save-copy-as")]
+    SaveCopyAs,
+
     /// <summary>Apply a template's masters/theme/layouts to the open presentation.</summary>
     [JsonStringEnumMemberName("apply-template")]
     ApplyTemplate,
@@ -82,6 +90,8 @@ public static class PresentationToolActionExtensions
         PresentationToolAction.Close => "close",
         PresentationToolAction.List => "list",
         PresentationToolAction.Test => "test",
+        PresentationToolAction.SaveAs => "save-as",
+        PresentationToolAction.SaveCopyAs => "save-copy-as",
         PresentationToolAction.ApplyTemplate => "apply-template",
         PresentationToolAction.GetThemeName => "get-theme-name",
         PresentationToolAction.SetDocumentProperty => "set-document-property",

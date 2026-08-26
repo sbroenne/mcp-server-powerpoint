@@ -71,6 +71,27 @@ public sealed class SharedPresentationFixture : IDisposable
         _batch.ReopenPresentation(_currentPath, createNewFile: false);
     }
 
+    /// <summary>
+    /// Reopens a specific presentation in the shared PowerPoint process and tracks it for cleanup.
+    /// </summary>
+    public void ReopenPresentation(string path)
+    {
+        string fullPath = Path.GetFullPath(path);
+        _batch.ReopenPresentation(fullPath, createNewFile: false);
+        _currentPath = fullPath;
+        TrackCreatedPath(fullPath);
+    }
+
+    /// <summary>Tracks an additional test output for cleanup when the fixture is disposed.</summary>
+    public void TrackCreatedPath(string path)
+    {
+        string fullPath = Path.GetFullPath(path);
+        if (!_createdPaths.Contains(fullPath, StringComparer.OrdinalIgnoreCase))
+        {
+            _createdPaths.Add(fullPath);
+        }
+    }
+
     public void Dispose()
     {
         Batch.Dispose();

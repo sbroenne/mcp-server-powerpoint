@@ -41,6 +41,13 @@ public interface IPresentationBatch : IDisposable
     /// </summary>
     void Save(CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Updates the tracked presentation path after PowerPoint Save As changes the active file
+    /// identity.
+    /// </summary>
+    /// <param name="presentationPath">New absolute presentation path.</param>
+    void UpdatePresentationPath(string presentationPath);
+
     /// <summary>Checks if the underlying PowerPoint process is still alive.</summary>
     bool IsPowerPointProcessAlive();
 

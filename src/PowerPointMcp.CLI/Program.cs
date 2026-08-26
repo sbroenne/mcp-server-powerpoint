@@ -29,12 +29,14 @@ public static class Program
 
             config.AddBranch("session", session =>
             {
-                session.SetDescription("Open, create, close, test, or list presentation sessions held by the daemon; apply templates and read/write document properties.");
+                session.SetDescription("Open, create, close, test, Save As/copy, or list presentation sessions held by the daemon; apply templates and read/write document properties.");
                 session.AddCommand<SessionOpenCommand>("open").WithDescription("Open an existing presentation and return a session id.");
                 session.AddCommand<SessionCreateCommand>("create").WithDescription("Create a new presentation and return a session id.");
                 session.AddCommand<SessionCloseCommand>("close").WithDescription("Close a session, optionally saving first.");
                 session.AddCommand<SessionListCommand>("list").WithDescription("List every session currently open in the daemon.");
                 session.AddCommand<SessionTestCommand>("test").WithDescription("Validate that PowerPoint can open a presentation without retaining a session.");
+                session.AddCommand<SessionSaveAsCommand>("save-as").WithDescription("Save the active presentation under a new path and move the session to it.");
+                session.AddCommand<SessionSaveCopyAsCommand>("save-copy-as").WithDescription("Save a copy without changing the active presentation or session path.");
                 session.AddCommand<SessionApplyTemplateCommand>("apply-template").WithDescription("Apply a template's masters/theme/layouts to the open presentation, preserving slide content.");
                 session.AddCommand<SessionGetThemeNameCommand>("get-theme-name").WithDescription("Read the design/theme name currently applied to the open presentation.");
                 session.AddCommand<SessionSetDocumentPropertyCommand>("set-document-property").WithDescription("Set a built-in document metadata property (Title, Subject, Author, Keywords, Comments, Category, Manager, Company).");

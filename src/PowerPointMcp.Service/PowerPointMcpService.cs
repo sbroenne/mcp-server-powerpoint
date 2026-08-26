@@ -325,6 +325,7 @@ public sealed class PowerPointMcpService : IDisposable
     private ServiceResponse HandleSessionCommand(string action, ServiceRequest request)
     {
         if (action is not ("create" or "open" or "close" or "list" or "test" or
+            "save-as" or "save-copy-as" or
             "apply-template" or "get-theme-name" or "set-document-property" or
             "get-document-property" or "set-custom-property" or "get-custom-property" or
             "remove-custom-property"))
@@ -340,6 +341,8 @@ public sealed class PowerPointMcpService : IDisposable
             "close" => HandleSessionClose(request),
             "list" => HandleSessionList(),
             "test" => HandleSessionTest(request),
+            "save-as" => HandleSessionSaveAs(request),
+            "save-copy-as" => HandleSessionSaveCopyAs(request),
             "apply-template" => HandleSessionApplyTemplate(request),
             "get-theme-name" => HandleSessionGetThemeName(request),
             "set-document-property" => HandleSessionSetDocumentProperty(request),
@@ -357,6 +360,8 @@ public sealed class PowerPointMcpService : IDisposable
         {
             "create" or "open" or "test" => ["filePath"],
             "close" => ["save"],
+            "save-as" => ["targetPath", "format", "overwrite"],
+            "save-copy-as" => ["targetPath", "overwrite"],
             "apply-template" => ["templatePath"],
             "set-document-property" or "set-custom-property" => ["propertyName", "value"],
             "get-document-property" or "get-custom-property" or "remove-custom-property" => ["propertyName"],
@@ -502,6 +507,49 @@ public sealed class PowerPointMcpService : IDisposable
             Success = true,
             Result = JsonSerializer.Serialize(new { success = true, sessions, count = sessions.Count }, ServiceProtocol.JsonOptions)
         };
+    }
+
+    private ServiceResponse HandleSessionSaveAs(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionSaveAsArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.TargetPath))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "targetPath is required" };
+        }
+
+        return WrapPresentationResult(
+            () => _presentationCommands.SaveAs(
+                batch!,
+                args.TargetPath,
+                args.Format,
+                args.Overwrite),
+            request);
+    }
+
+    private ServiceResponse HandleSessionSaveCopyAs(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionSaveCopyAsArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.TargetPath))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "targetPath is required" };
+        }
+
+        return WrapPresentationResult(
+            () => _presentationCommands.SaveCopyAs(
+                batch!,
+                args.TargetPath,
+                args.Overwrite),
+            request);
     }
 
     private ServiceResponse HandleSessionApplyTemplate(ServiceRequest request)
@@ -787,6 +835,29 @@ public sealed class SessionCloseArgs
 {
     /// <summary>Whether to save the presentation before closing it.</summary>
     public bool Save { get; set; }
+}
+
+/// <summary>Args for "session.save-as".</summary>
+public sealed class SessionSaveAsArgs
+{
+    /// <summary>Full destination path in an existing directory.</summary>
+    public string? TargetPath { get; set; }
+
+    /// <summary>Output format inferred from the extension by default.</summary>
+    public PresentationSaveFormat Format { get; set; } = PresentationSaveFormat.Auto;
+
+    /// <summary>Whether an existing destination may be replaced.</summary>
+    public bool Overwrite { get; set; }
+}
+
+/// <summary>Args for "session.save-copy-as".</summary>
+public sealed class SessionSaveCopyAsArgs
+{
+    /// <summary>Full destination path in an existing directory.</summary>
+    public string? TargetPath { get; set; }
+
+    /// <summary>Whether an existing destination may be replaced.</summary>
+    public bool Overwrite { get; set; }
 }
 
 /// <summary>Args for "session.apply-template".</summary>

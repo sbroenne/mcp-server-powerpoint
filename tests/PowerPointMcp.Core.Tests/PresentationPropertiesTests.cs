@@ -21,7 +21,7 @@ namespace Sbroenne.PowerPointMcp.Core.Tests;
 /// </remarks>
 [Trait("Category", "Integration")]
 [Trait("Feature", "Presentation")]
-public class PresentationPropertiesTests : IClassFixture<SharedPresentationFixture>
+public partial class PresentationPropertiesTests : IClassFixture<SharedPresentationFixture>
 {
     private readonly SharedPresentationFixture _fixture;
     private readonly PresentationCommands _commands = new();
