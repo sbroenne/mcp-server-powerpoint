@@ -40,9 +40,9 @@ The CLI mirrors the same domain model:
 
 ### `presentation` tool (16 operations)
 
-Use `presentation` for session lifecycle, Save As/copy, templates/themes, and document properties.
-`create` and `open` establish a session and return a `sessionId`; the remaining edit/read actions
-use that `sessionId`.
+Use `presentation` for session lifecycle, Save As/copy, templates/themes, Mark as Final, and
+document properties. `create` and `open` establish a session and return a `sessionId`; the
+remaining edit/read actions use that `sessionId`.
 
 | Action | What it does |
 |--------|---------------|
@@ -55,6 +55,8 @@ use that `sessionId`.
 | `save-copy-as` | Save a copy using the active presentation's current format without changing the active presentation or session path. Existing files require `overwrite=true`. |
 | `apply-template` | Apply a `.potx`/`.potm`/`.pot` or `.pptx`/`.pptm` template source while preserving slide content. |
 | `get-theme-name` | Read the currently applied design/theme name. |
+| `get-final` | Read PowerPoint's advisory Mark as Final editing flag. It is not authentication, encryption, or access control. |
+| `set-final` | Save current changes, then set or clear PowerPoint's advisory Mark as Final editing flag. |
 | `set-document-property` | Set a built-in document metadata property such as Title or Author. |
 | `get-document-property` | Read a built-in document metadata property. |
 | `set-custom-property` | Create or update a custom document property. |
@@ -62,8 +64,8 @@ use that `sessionId`.
 | `remove-custom-property` | Remove a custom document property. |
 
 **Exact action order:** `create`, `open`, `close`, `list`, `test`, `save-as`, `save-copy-as`,
-`apply-template`, `get-theme-name`, `set-document-property`, `get-document-property`,
-`set-custom-property`, `get-custom-property`, `remove-custom-property`
+`apply-template`, `get-theme-name`, `get-final`, `set-final`, `set-document-property`,
+`get-document-property`, `set-custom-property`, `get-custom-property`, `remove-custom-property`
 
 ### `slide` tool (19 operations)
 
