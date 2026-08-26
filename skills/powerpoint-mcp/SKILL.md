@@ -17,9 +17,9 @@ via the Model Context Protocol, driving a live PowerPoint desktop instance throu
 skill documents session lifecycle, indexing conventions, workflows, and gotchas that aren't
 obvious from tool schemas alone.
 
-Session lifecycle, templates, the advisory Mark as Final flag, and document properties use the
-`presentation` action-dispatch tool with camelCase arguments. Domain tools (`slide`, `shape`,
-`textframe`, `table`, `chart`, `image`,
+Session lifecycle, Save As/copy, templates, the advisory Mark as Final flag, document properties,
+and presentation tags use the `presentation` action-dispatch tool with camelCase arguments.
+Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`,
 `notes`, `layout`, `master`, `smartart`, `animation`, `export`, `pagesetup`, `accessibility`) are
 action-dispatch: one tool per domain, called as `tool(action:
 "kebab-action", session_id: ..., snake_case_param: ...)`.
@@ -97,6 +97,7 @@ saved.
 | Apply template, read theme name | `presentation(action: "apply-template"/"get-theme-name")` |
 | Read/set advisory Mark as Final state | `presentation(action: "get-final"/"set-final")` |
 | Document metadata (built-in and custom properties) | `presentation` property actions |
+| String metadata on presentations, slides, or shapes | owner-specific `set-tag`/`get-tag`/`list-tags`/`delete-tag` actions |
 | Add/count/delete/duplicate/reorder slides | `slide(action: "add-blank"/"get-count"/"delete"/"duplicate"/"move-to")` |
 | Per-slide background color, sections | `slide(action: "set-background-color"/"get-background-color"/"add-section"/"rename-section"/"delete-section"/"get-section-count"/"get-section-name")` |
 | Add/count/delete/move/resize shapes | `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector"/"get-count"/"delete"/"set-position"/"set-size")` |
@@ -120,6 +121,7 @@ See `references/` for detailed guidance:
 - [Canonical create → build → verify → save → close workflow](./references/workflows.md)
 - [Deck builder — assembling a multi-slide deck](./references/deck-builder.md)
 - [Slides and shapes — add/position/size/delete](./references/slides-and-shapes.md)
+- [String tags — presentation, slide, and shape metadata](./references/tags.md)
 - [Text formatting — set-text, font size/bold/color](./references/text-formatting.md)
 - [Tables — add-table, cell text, row/column edits, fill/border formatting, merge](./references/tables.md)
 - [Charts — add-chart/add-series categories/series/values, titles, legend](./references/charts.md)

@@ -1,3 +1,5 @@
+using Sbroenne.PowerPointMcp.Core.Tags;
+
 namespace Sbroenne.PowerPointMcp.Core.Slide;
 
 /// <summary>
@@ -56,4 +58,19 @@ public sealed class SlideOperationResult
 
     /// <summary>New 1-based indexes assigned to imported slides.</summary>
     public IReadOnlyList<int>? ImportedSlideIndexes { get; init; }
+
+    /// <summary>Normalized tag name for tag operations.</summary>
+    public string? TagName { get; init; }
+
+    /// <summary>Tag value for tag operations. Values are returned without case normalization.</summary>
+    public string? TagValue { get; init; }
+
+    /// <summary>1-based index of the tag in PowerPoint's native collection order.</summary>
+    public int? TagIndex { get; init; }
+
+    /// <summary>Number of string tags on the slide.</summary>
+    public int? TagCount { get; init; }
+
+    /// <summary>Slide tags in native 1-based collection order.</summary>
+    public IReadOnlyList<TagInfo>? Tags { get; init; }
 }

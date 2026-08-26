@@ -133,4 +133,16 @@ public interface ISlideCommands
         int destinationSlideIndex,
         int sourceStartSlide = 1,
         int? sourceEndSlide = null);
+
+    /// <summary>Creates or updates a case-insensitive string tag on a slide.</summary>
+    SlideOperationResult SetTag(IPresentationBatch batch, int slideIndex, string tagName, [AllowEmptyString] string tagValue);
+
+    /// <summary>Gets a slide string tag by its case-insensitive name.</summary>
+    SlideOperationResult GetTag(IPresentationBatch batch, int slideIndex, string tagName);
+
+    /// <summary>Lists slide string tags in their native 1-based collection order.</summary>
+    SlideOperationResult ListTags(IPresentationBatch batch, int slideIndex);
+
+    /// <summary>Deletes a slide string tag by its case-insensitive name.</summary>
+    SlideOperationResult DeleteTag(IPresentationBatch batch, int slideIndex, string tagName);
 }

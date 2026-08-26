@@ -1,3 +1,5 @@
+using Sbroenne.PowerPointMcp.Core.Tags;
+
 namespace Sbroenne.PowerPointMcp.Core.Shape;
 
 /// <summary>
@@ -131,4 +133,19 @@ public sealed class ShapeOperationResult
 
     /// <summary>Whether a placeholder contains an image fill.</summary>
     public bool? HasImage { get; init; }
+
+    /// <summary>Normalized tag name for tag operations.</summary>
+    public string? TagName { get; init; }
+
+    /// <summary>Tag value for tag operations. Values are returned without case normalization.</summary>
+    public string? TagValue { get; init; }
+
+    /// <summary>1-based index of the tag in PowerPoint's native collection order.</summary>
+    public int? TagIndex { get; init; }
+
+    /// <summary>Number of string tags on the shape.</summary>
+    public int? TagCount { get; init; }
+
+    /// <summary>Shape tags in native 1-based collection order.</summary>
+    public IReadOnlyList<TagInfo>? Tags { get; init; }
 }

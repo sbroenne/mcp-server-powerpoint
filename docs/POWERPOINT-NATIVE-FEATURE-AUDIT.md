@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit compares the current 15 tools and 162 operations with the restored
+This audit compares the current 15 tools and 174 operations with the restored
 `Microsoft.Office.Interop.PowerPoint` 15.0.4420.1018 assembly. It looks for useful PowerPoint
 features that fit the existing live-session model. It does not copy Excel-only worksheet, Power
 Query, Data Model, PivotTable, or calculation APIs.
@@ -61,7 +61,7 @@ Real-PowerPoint tests cover:
 References: [Presentation.SaveAs](https://learn.microsoft.com/office/vba/api/powerpoint.presentation.saveas),
 [Presentation.SaveCopyAs](https://learn.microsoft.com/office/vba/api/powerpoint.presentation.savecopyas).
 
-### 2. Mark as Final
+### 2. Mark as Final — implemented
 
 `_Presentation.Final` is a typed `bool` property. Expose it as `get-final` and `set-final`, with
 tool text stating clearly that it is an advisory editing flag, not access control.
@@ -77,7 +77,7 @@ access control.
 
 Reference: [Presentation.Final](https://learn.microsoft.com/office/vba/api/powerpoint.presentation.final).
 
-### 3. Presentation, slide, and shape tags
+### 3. Presentation, slide, and shape tags (implemented)
 
 The restored PIA exposes typed `Tags` collections on `_Presentation`, `_Slide`, and `Shape`.
 `Tags.Add(name, value)`, `Tags.Item[name]`, `Tags.Name(index)`, `Tags.Value(index)`,
@@ -89,6 +89,13 @@ adds file-size and safety concerns without a clear automation need.
 
 Tests should cover add/update, name-based lookup, 1-based enumeration, delete, missing tags, and
 persistence after save/reopen for each owner type.
+
+Implemented with invariant-uppercase names for deterministic case-insensitive identity; name
+whitespace and values are preserved exactly. One shared typed Core helper performs traversal and
+validation.
+PowerPoint reuses owner and `Tags` proxies across commands, so `PresentationContext` caches them
+by owner identity and releases tags before deterministic presentation teardown. It retains one
+owner acquisition for teardown and each command releases any repeated owner acquisition.
 
 Reference: [Tags object](https://learn.microsoft.com/office/vba/api/powerpoint.tags).
 

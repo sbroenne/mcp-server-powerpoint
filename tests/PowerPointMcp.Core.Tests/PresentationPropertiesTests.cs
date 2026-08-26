@@ -147,4 +147,99 @@ public partial class PresentationPropertiesTests : IClassFixture<SharedPresentat
         Assert.False(result.Success);
         Assert.Contains("DoesNotExist", result.ErrorMessage);
     }
+
+    [Fact]
+    public void Tags_CrudIsCaseInsensitive_EnumeratesOneBased_AndPersists()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var firstSet = _commands.SetTag(batch, " ReviewState ", "MiXeD Value");
+        Assert.True(firstSet.Success, firstSet.ErrorMessage);
+        Assert.Equal(" REVIEWSTATE ", firstSet.TagName);
+        Assert.Equal("MiXeD Value", firstSet.TagValue);
+        Assert.Equal(1, firstSet.TagCount);
+
+        var updated = _commands.SetTag(batch, " reviewstate ", "Updated Value");
+        Assert.True(updated.Success, updated.ErrorMessage);
+        Assert.Equal(1, updated.TagCount);
+
+        var secondSet = _commands.SetTag(batch, "Owner", "Alice");
+        Assert.True(secondSet.Success, secondSet.ErrorMessage);
+        Assert.Equal(2, secondSet.TagCount);
+
+        var unspacedSet = _commands.SetTag(batch, "ReviewState", "Unspaced Value");
+        Assert.True(unspacedSet.Success, unspacedSet.ErrorMessage);
+        Assert.Equal(3, unspacedSet.TagCount);
+
+        var get = _commands.GetTag(batch, " ReViEwStAtE ");
+        Assert.True(get.Success, get.ErrorMessage);
+        Assert.Equal(" REVIEWSTATE ", get.TagName);
+        Assert.Equal("Updated Value", get.TagValue);
+        Assert.Equal(1, get.TagIndex);
+
+        var unspacedGet = _commands.GetTag(batch, "reviewstate");
+        Assert.True(unspacedGet.Success, unspacedGet.ErrorMessage);
+        Assert.Equal("REVIEWSTATE", unspacedGet.TagName);
+        Assert.Equal("Unspaced Value", unspacedGet.TagValue);
+        Assert.Equal(3, unspacedGet.TagIndex);
+
+        var listed = _commands.ListTags(batch);
+        Assert.True(listed.Success, listed.ErrorMessage);
+        Assert.Equal(3, listed.TagCount);
+        Assert.Collection(
+            listed.Tags!,
+            tag =>
+            {
+                Assert.Equal(1, tag.TagIndex);
+                Assert.Equal(" REVIEWSTATE ", tag.Name);
+                Assert.Equal("Updated Value", tag.Value);
+            },
+            tag =>
+            {
+                Assert.Equal(2, tag.TagIndex);
+                Assert.Equal("OWNER", tag.Name);
+                Assert.Equal("Alice", tag.Value);
+            },
+            tag =>
+            {
+                Assert.Equal(3, tag.TagIndex);
+                Assert.Equal("REVIEWSTATE", tag.Name);
+                Assert.Equal("Unspaced Value", tag.Value);
+            });
+
+        Assert.True(_commands.Save(batch).Success);
+        _fixture.ReopenCurrentPresentation();
+
+        var persisted = _commands.GetTag(batch, " reviewstate ");
+        Assert.True(persisted.Success, persisted.ErrorMessage);
+        Assert.Equal("Updated Value", persisted.TagValue);
+
+        var deleted = _commands.DeleteTag(batch, " REVIEWSTATE ");
+        Assert.True(deleted.Success, deleted.ErrorMessage);
+        Assert.Equal(2, deleted.TagCount);
+
+        var missingGet = _commands.GetTag(batch, " reviewstate ");
+        Assert.False(missingGet.Success);
+        Assert.Contains("REVIEWSTATE", missingGet.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+
+        var missingDelete = _commands.DeleteTag(batch, " reviewstate ");
+        Assert.False(missingDelete.Success);
+
+        Assert.True(_commands.ListTags(batch).Success);
+        Assert.True(_commands.GetTag(batch, "owner").Success);
+        Assert.True(_commands.GetTag(batch, "reviewstate").Success);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Tags_WithBlankName_ReturnFailure(string tagName)
+    {
+        _fixture.CreateFreshPresentation();
+
+        Assert.False(_commands.SetTag(_fixture.Batch, tagName, "value").Success);
+        Assert.False(_commands.GetTag(_fixture.Batch, tagName).Success);
+        Assert.False(_commands.DeleteTag(_fixture.Batch, tagName).Success);
+    }
 }

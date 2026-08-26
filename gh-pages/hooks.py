@@ -50,6 +50,7 @@ SKILL_SOURCES = {
     "anti-patterns.md": "Anti-Patterns",
     "deck-builder.md": "Deck Builder",
     "slides-and-shapes.md": "Slides and Shapes",
+    "tags.md": "String Tags",
     "text-formatting.md": "Text Formatting",
     "tables.md": "Tables",
     "charts.md": "Charts",

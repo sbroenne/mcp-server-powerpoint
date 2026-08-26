@@ -114,4 +114,3 @@ Charts are the highest-value target for `export(action: "export-slide-to-image",
 data-entry mistakes (wrong values, mismatched category count) are invisible from a
 `get-chart-data` call alone but obvious in the rendered image. Always export and inspect after
 `add-chart`/`add-series` (see `export-and-verify.md`).
-

@@ -81,7 +81,23 @@ public enum PresentationToolAction
 
     /// <summary>Remove a custom (user-defined) document property.</summary>
     [JsonStringEnumMemberName("remove-custom-property")]
-    RemoveCustomProperty
+    RemoveCustomProperty,
+
+    /// <summary>Create or update a case-insensitive presentation string tag.</summary>
+    [JsonStringEnumMemberName("set-tag")]
+    SetTag,
+
+    /// <summary>Get a presentation string tag by case-insensitive name.</summary>
+    [JsonStringEnumMemberName("get-tag")]
+    GetTag,
+
+    /// <summary>List presentation string tags in native 1-based order.</summary>
+    [JsonStringEnumMemberName("list-tags")]
+    ListTags,
+
+    /// <summary>Delete a presentation string tag by case-insensitive name.</summary>
+    [JsonStringEnumMemberName("delete-tag")]
+    DeleteTag
 }
 
 /// <summary>
@@ -109,6 +125,10 @@ public static class PresentationToolActionExtensions
         PresentationToolAction.SetCustomProperty => "set-custom-property",
         PresentationToolAction.GetCustomProperty => "get-custom-property",
         PresentationToolAction.RemoveCustomProperty => "remove-custom-property",
+        PresentationToolAction.SetTag => "set-tag",
+        PresentationToolAction.GetTag => "get-tag",
+        PresentationToolAction.ListTags => "list-tags",
+        PresentationToolAction.DeleteTag => "delete-tag",
         _ => throw new ArgumentOutOfRangeException(nameof(action), action, "Unknown PresentationToolAction")
     };
 }

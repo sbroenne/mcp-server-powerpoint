@@ -7,9 +7,9 @@ namespace Sbroenne.PowerPointMcp.McpServer.Tools;
 
 /// <summary>
 /// Single action-dispatch MCP tool for presentation lifecycle, template application, and
-/// document-property operations: create a file, open/close/test a session, list open
-/// sessions, apply a template, read/write document properties, and manage the advisory Mark as
-/// Final editing flag.
+/// document-property and string-tag operations: create a file, open/close/test a session, list
+/// open sessions, Save As/copy, apply a template, read/write document properties, manage the
+/// advisory Mark as Final flag, and manage string tags.
 /// </summary>
 /// <remarks>
 /// Mirrors mcp-server-excel's <c>ExcelFileTool</c> shape (one hand-written tool named
@@ -30,15 +30,15 @@ public static class PresentationTools
     private static readonly PresentationCommands Commands = new();
 
     /// <summary>
-    /// Presentation lifecycle, template, document-property, and advisory Mark as Final operations
-    /// for an already-open or about-to-be-opened presentation.
+    /// Presentation lifecycle, Save As/copy, template, document-property, advisory Mark as Final,
+    /// and string-tag operations for an already-open or about-to-be-opened presentation.
     /// </summary>
     [McpServerTool(Name = "presentation")]
-    [Description("Presentation lifecycle (create, open, close, list sessions, test), Save As/copy, template restyling, document-property operations, and PowerPoint's advisory Mark as Final editing flag. Mark as Final is not authentication, encryption, or access control. Actions: create, open, close, list, test, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")]
+    [Description("Presentation lifecycle, Save As/copy, template, document-property, advisory Mark as Final, and string-tag operations. Mark as Final is not authentication, encryption, or access control. Actions: create, open, close, list, test, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property, set-tag, get-tag, list-tags, delete-tag.")]
     public static string Presentation(
-        [Description("The action to perform. One of: create, open, close, list, test, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] PresentationToolAction action,
+        [Description("The action to perform. One of: create, open, close, list, test, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property, set-tag, get-tag, list-tags, delete-tag.")] PresentationToolAction action,
         [Description("Full Windows path to the presentation file. Required for: create (new .pptx/.pptm file; containing directory must already exist), open or test (existing .pptx/.pptm/.ppt file).")] string? filePath = null,
-        [Description("The sessionId returned by create or open. Required for: close, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? sessionId = null,
+        [Description("The sessionId returned by create or open. Required for: close, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property, set-tag, get-tag, list-tags, delete-tag.")] string? sessionId = null,
         [Description("Save the presentation before closing. Used for: close. Default: false.")] bool? save = null,
         [Description("Set true only when creating a macro-enabled .pptm file. Default: false. Used for: create.")] bool? isMacroEnabled = null,
         [Description("Full Windows destination path. Required for: save-as, save-copy-as. The containing directory must already exist.")] string? targetPath = null,
@@ -48,10 +48,12 @@ public static class PresentationTools
         [Description("Set true to save current changes and mark the presentation as final, or false to clear the flag. Required for: set-final. Mark as Final is an advisory editing flag only; it is not authentication, encryption, or access control.")] bool? isFinal = null,
         [Description("Document property name. For set/get-document-property, one of: Title, Subject, Author, Keywords, Comments, Category, Manager, Company (case-insensitive). For custom-property actions, any user-defined name. Required for: set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property.")] string? propertyName = null,
         [Description("The new property value. Required for: set-document-property, set-custom-property.")] string? value = null,
+        [Description("Case-insensitive string tag name. Letter casing is normalized to invariant uppercase; whitespace is preserved. Required for: set-tag, get-tag, delete-tag.")] string? tagName = null,
+        [Description("String tag value, preserved exactly without case normalization. Required for: set-tag.")] string? tagValue = null,
         PresentationSessionRegistry? registry = null)
         => PowerPointToolsBase.ExecuteToolAction("presentation", action.ToActionString(), () =>
         {
-            ValidateActionParameters(action, filePath, sessionId, save, isMacroEnabled, targetPath, format, overwrite, templatePath, isFinal, propertyName, value);
+            ValidateActionParameters(action, filePath, sessionId, save, isMacroEnabled, targetPath, format, overwrite, templatePath, isFinal, propertyName, value, tagName, tagValue);
             var reg = registry!;
             return action switch
             {
@@ -71,6 +73,10 @@ public static class PresentationTools
                 PresentationToolAction.SetCustomProperty => HandleSetCustomProperty(sessionId, propertyName, value, reg),
                 PresentationToolAction.GetCustomProperty => HandleGetCustomProperty(sessionId, propertyName, reg),
                 PresentationToolAction.RemoveCustomProperty => HandleRemoveCustomProperty(sessionId, propertyName, reg),
+                PresentationToolAction.SetTag => HandleSetTag(sessionId, tagName, tagValue, reg),
+                PresentationToolAction.GetTag => HandleGetTag(sessionId, tagName, reg),
+                PresentationToolAction.ListTags => HandleListTags(sessionId, reg),
+                PresentationToolAction.DeleteTag => HandleDeleteTag(sessionId, tagName, reg),
                 _ => PowerPointToolsBase.ValidationError($"Unknown action: {action}")
             };
         });
@@ -87,7 +93,9 @@ public static class PresentationTools
         string? templatePath,
         bool? isFinal,
         string? propertyName,
-        string? value)
+        string? value,
+        string? tagName,
+        string? tagValue)
     {
         var supplied = new List<string>();
         if (filePath != null) supplied.Add("filePath");
@@ -101,6 +109,8 @@ public static class PresentationTools
         if (isFinal != null) supplied.Add("isFinal");
         if (propertyName != null) supplied.Add("propertyName");
         if (value != null) supplied.Add("value");
+        if (tagName != null) supplied.Add("tagName");
+        if (tagValue != null) supplied.Add("tagValue");
 
         string[] allowedParameters = action switch
         {
@@ -114,6 +124,9 @@ public static class PresentationTools
             PresentationToolAction.SetFinal => ["sessionId", "isFinal"],
             PresentationToolAction.SetDocumentProperty or PresentationToolAction.SetCustomProperty => ["sessionId", "propertyName", "value"],
             PresentationToolAction.GetDocumentProperty or PresentationToolAction.GetCustomProperty or PresentationToolAction.RemoveCustomProperty => ["sessionId", "propertyName"],
+            PresentationToolAction.SetTag => ["sessionId", "tagName", "tagValue"],
+            PresentationToolAction.GetTag or PresentationToolAction.DeleteTag => ["sessionId", "tagName"],
+            PresentationToolAction.ListTags => ["sessionId"],
             _ => []
         };
         var allowed = new HashSet<string>(allowedParameters, StringComparer.Ordinal);
@@ -462,6 +475,70 @@ public static class PresentationTools
         return SerializeResult(Commands.RemoveCustomProperty(batch, propertyName));
     }
 
+    private static string HandleSetTag(
+        string? sessionId,
+        string? tagName,
+        string? tagValue,
+        PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
+        {
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
+
+        if (string.IsNullOrWhiteSpace(tagName))
+        {
+            return PowerPointToolsBase.ValidationError("tagName is required for action=set-tag.");
+        }
+
+        if (tagValue is null)
+        {
+            return PowerPointToolsBase.ValidationError("tagValue is required for action=set-tag.");
+        }
+
+        return SerializeResult(Commands.SetTag(batch, tagName, tagValue));
+    }
+
+    private static string HandleGetTag(string? sessionId, string? tagName, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
+        {
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
+
+        if (string.IsNullOrWhiteSpace(tagName))
+        {
+            return PowerPointToolsBase.ValidationError("tagName is required for action=get-tag.");
+        }
+
+        return SerializeResult(Commands.GetTag(batch, tagName));
+    }
+
+    private static string HandleListTags(string? sessionId, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
+        {
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
+
+        return SerializeResult(Commands.ListTags(batch));
+    }
+
+    private static string HandleDeleteTag(string? sessionId, string? tagName, PresentationSessionRegistry registry)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
+        {
+            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+        }
+
+        if (string.IsNullOrWhiteSpace(tagName))
+        {
+            return PowerPointToolsBase.ValidationError("tagName is required for action=delete-tag.");
+        }
+
+        return SerializeResult(Commands.DeleteTag(batch, tagName));
+    }
+
     private static string SerializeResult(PresentationOperationResult result)
     {
         if (result.Success)
@@ -473,7 +550,12 @@ public static class PresentationTools
                 themeName = result.ThemeName,
                 isFinal = result.IsFinal,
                 propertyName = result.PropertyName,
-                propertyValue = result.PropertyValue
+                propertyValue = result.PropertyValue,
+                tagName = result.TagName,
+                tagValue = result.TagValue,
+                tagIndex = result.TagIndex,
+                tagCount = result.TagCount,
+                tags = result.Tags
             });
         }
 
@@ -486,6 +568,11 @@ public static class PresentationTools
             isFinal = result.IsFinal,
             propertyName = result.PropertyName,
             propertyValue = result.PropertyValue,
+            tagName = result.TagName,
+            tagValue = result.TagValue,
+            tagIndex = result.TagIndex,
+            tagCount = result.TagCount,
+            tags = result.Tags,
             isError = true
         });
     }

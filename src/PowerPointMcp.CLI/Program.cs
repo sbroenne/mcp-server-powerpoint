@@ -46,6 +46,10 @@ public static class Program
                 session.AddCommand<SessionSetCustomPropertyCommand>("set-custom-property").WithDescription("Create or update a custom (user-defined) document property.");
                 session.AddCommand<SessionGetCustomPropertyCommand>("get-custom-property").WithDescription("Read a custom (user-defined) document property.");
                 session.AddCommand<SessionRemoveCustomPropertyCommand>("remove-custom-property").WithDescription("Remove a custom (user-defined) document property.");
+                session.AddCommand<SessionSetTagCommand>("set-tag").WithDescription("Create or update a case-insensitive presentation string tag.");
+                session.AddCommand<SessionGetTagCommand>("get-tag").WithDescription("Read a presentation string tag by case-insensitive name.");
+                session.AddCommand<SessionListTagsCommand>("list-tags").WithDescription("List presentation string tags in native 1-based order.");
+                session.AddCommand<SessionDeleteTagCommand>("delete-tag").WithDescription("Delete a presentation string tag by case-insensitive name.");
             });
 
             config.AddBranch("service", service =>

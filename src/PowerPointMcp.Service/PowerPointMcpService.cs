@@ -329,7 +329,7 @@ public sealed class PowerPointMcpService : IDisposable
             "apply-template" or "get-theme-name" or "get-final" or "set-final" or
             "set-document-property" or
             "get-document-property" or "set-custom-property" or "get-custom-property" or
-            "remove-custom-property"))
+            "remove-custom-property" or "set-tag" or "get-tag" or "list-tags" or "delete-tag"))
         {
             return new ServiceResponse { Success = false, ErrorMessage = $"Unknown session action: {action}" };
         }
@@ -353,6 +353,10 @@ public sealed class PowerPointMcpService : IDisposable
             "set-custom-property" => HandleSessionSetCustomProperty(request),
             "get-custom-property" => HandleSessionGetCustomProperty(request),
             "remove-custom-property" => HandleSessionRemoveCustomProperty(request),
+            "set-tag" => HandleSessionSetTag(request),
+            "get-tag" => HandleSessionGetTag(request),
+            "list-tags" => HandleSessionListTags(request),
+            "delete-tag" => HandleSessionDeleteTag(request),
             _ => throw new InvalidOperationException($"Unhandled session action: {action}")
         };
     }
@@ -369,6 +373,8 @@ public sealed class PowerPointMcpService : IDisposable
             "set-final" => ["isFinal"],
             "set-document-property" or "set-custom-property" => ["propertyName", "value"],
             "get-document-property" or "get-custom-property" or "remove-custom-property" => ["propertyName"],
+            "set-tag" => ["tagName", "tagValue"],
+            "get-tag" or "delete-tag" => ["tagName"],
             _ => []
         };
         var allowed = new HashSet<string>(allowedParameters, StringComparer.Ordinal);
@@ -692,6 +698,68 @@ public sealed class PowerPointMcpService : IDisposable
         return WrapPresentationResult(() => _presentationCommands.RemoveCustomProperty(batch!, args.PropertyName), request);
     }
 
+    private ServiceResponse HandleSessionSetTag(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionTagArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.TagName))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "tagName is required" };
+        }
+        if (args.TagValue is null)
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "tagValue is required" };
+        }
+
+        return WrapPresentationResult(() => _presentationCommands.SetTag(batch!, args.TagName, args.TagValue), request);
+    }
+
+    private ServiceResponse HandleSessionGetTag(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionTagArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.TagName))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "tagName is required" };
+        }
+
+        return WrapPresentationResult(() => _presentationCommands.GetTag(batch!, args.TagName), request);
+    }
+
+    private ServiceResponse HandleSessionListTags(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        return WrapPresentationResult(() => _presentationCommands.ListTags(batch!), request);
+    }
+
+    private ServiceResponse HandleSessionDeleteTag(ServiceRequest request)
+    {
+        if (!TryGetBatch(request, out var batch, out var error))
+        {
+            return error!;
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionTagArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.TagName))
+        {
+            return new ServiceResponse { Success = false, ErrorMessage = "tagName is required" };
+        }
+
+        return WrapPresentationResult(() => _presentationCommands.DeleteTag(batch!, args.TagName), request);
+    }
+
     /// <summary>
     /// Resolves <paramref name="request"/>'s sessionId to a live batch, mirroring the
     /// validation used by <see cref="DispatchSimple{TAction}"/> for the fully-generated
@@ -735,7 +803,12 @@ public sealed class PowerPointMcpService : IDisposable
                 themeName = result.ThemeName,
                 isFinal = result.IsFinal,
                 propertyName = result.PropertyName,
-                propertyValue = result.PropertyValue
+                propertyValue = result.PropertyValue,
+                tagName = result.TagName,
+                tagValue = result.TagValue,
+                tagIndex = result.TagIndex,
+                tagCount = result.TagCount,
+                tags = result.Tags
             }, ServiceProtocol.JsonOptions);
 
             return new ServiceResponse { Success = result.Success, Result = json, ErrorMessage = result.Success ? null : result.ErrorMessage };
@@ -920,4 +993,14 @@ public sealed class SessionPropertyArgs
 
     /// <summary>The new property value. Used for set-document-property and set-custom-property.</summary>
     public string? Value { get; set; }
+}
+
+/// <summary>Args for presentation string-tag actions.</summary>
+public sealed class SessionTagArgs
+{
+    /// <summary>Case-insensitive tag name.</summary>
+    public string? TagName { get; set; }
+
+    /// <summary>Tag value for set-tag. Preserved exactly.</summary>
+    public string? TagValue { get; set; }
 }

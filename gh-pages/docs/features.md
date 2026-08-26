@@ -1,12 +1,12 @@
 ---
 title: Complete Feature Reference
-description: 15 MCP tools with 162 operations across 15 domains for live PowerPoint automation through single action-dispatch tools.
+description: 15 MCP tools with 174 operations across 15 domains for live PowerPoint automation through single action-dispatch tools.
 keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **15 MCP tools with 162 operations across 15 domains**.
+PowerPoint MCP Server exposes **15 MCP tools with 174 operations across 15 domains**.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
 `chart(action="add-chart", session_id="...", slide_index=2, ...)`.
@@ -20,9 +20,9 @@ The CLI mirrors the same domain model:
 
 | Tool | Ops | What it covers | MCP call shape | CLI shape |
 |------|-----|----------------|----------------|-----------|
-| `presentation` | 16 | Session lifecycle, Save As/copy, open testing, template application, advisory Mark as Final, built-in/custom document properties | `presentation(action="...", ...)` | `pptcli session <action> ...` |
-| `slide` | 19 | Slide lifecycle, backgrounds, sections, comments, import | `slide(action="...", session_id=..., ...)` | `pptcli slide <action> -s <SESSION_ID> ...` |
-| `shape` | 39 | Shapes, styling, grouping, hyperlinks, placeholders | `shape(action="...", session_id=..., ...)` | `pptcli shape <action> -s <SESSION_ID> ...` |
+| `presentation` | 20 | Session lifecycle, Save As/copy, templates, advisory Mark as Final, document properties, string tags | `presentation(action="...", ...)` | `pptcli session <action> ...` |
+| `slide` | 23 | Slide lifecycle, backgrounds, sections, comments, import, string tags | `slide(action="...", session_id=..., ...)` | `pptcli slide <action> -s <SESSION_ID> ...` |
+| `shape` | 43 | Shapes, styling, grouping, hyperlinks, placeholders, string tags | `shape(action="...", session_id=..., ...)` | `pptcli shape <action> -s <SESSION_ID> ...` |
 | `textframe` | 20 | Text content and text formatting | `textframe(action="...", session_id=..., ...)` | `pptcli textframe <action> -s <SESSION_ID> ...` |
 | `table` | 12 | Table creation and cell editing/formatting | `table(action="...", session_id=..., ...)` | `pptcli table <action> -s <SESSION_ID> ...` |
 | `notes` | 2 | Speaker notes | `notes(action="...", session_id=..., ...)` | `pptcli notes <action> -s <SESSION_ID> ...` |
@@ -38,7 +38,7 @@ The CLI mirrors the same domain model:
 
 ## Domain reference
 
-### `presentation` tool (16 operations)
+### `presentation` tool (20 operations)
 
 Use `presentation` for session lifecycle, Save As/copy, templates/themes, Mark as Final, and
 document properties. `create` and `open` establish a session and return a `sessionId`; the
@@ -62,12 +62,17 @@ remaining edit/read actions use that `sessionId`.
 | `set-custom-property` | Create or update a custom document property. |
 | `get-custom-property` | Read a custom document property. |
 | `remove-custom-property` | Remove a custom document property. |
+| `set-tag` | Create or update a case-insensitive presentation string tag. |
+| `get-tag` | Read a presentation string tag by case-insensitive name. |
+| `list-tags` | List presentation string tags in native 1-based order. |
+| `delete-tag` | Delete a presentation string tag by case-insensitive name. |
 
 **Exact action order:** `create`, `open`, `close`, `list`, `test`, `save-as`, `save-copy-as`,
 `apply-template`, `get-theme-name`, `get-final`, `set-final`, `set-document-property`,
-`get-document-property`, `set-custom-property`, `get-custom-property`, `remove-custom-property`
+`get-document-property`, `set-custom-property`, `get-custom-property`, `remove-custom-property`,
+`set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
-### `slide` tool (19 operations)
+### `slide` tool (23 operations)
 
 | Action | What it does |
 |--------|---------------|
@@ -95,9 +100,9 @@ remaining edit/read actions use that `sessionId`.
 `set-background-color`, `get-background-color`, `set-gradient-background`,
 `get-gradient-background`, `add-section`, `rename-section`, `delete-section`,
 `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`,
-`clear-comments`, `import-from-file`
+`clear-comments`, `import-from-file`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
-### `shape` tool (39 operations)
+### `shape` tool (43 operations)
 
 Use `shape` for shape creation, geometry, styling, effects, grouping, naming, alt text, and
 hyperlinks.
@@ -108,7 +113,8 @@ hyperlinks.
 `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`,
 `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`,
 `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`,
-`list-placeholders`, `set-placeholder-text`, `set-placeholder-image`
+`list-placeholders`, `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`,
+`list-tags`, `delete-tag`
 
 ### `textframe` tool (20 operations)
 

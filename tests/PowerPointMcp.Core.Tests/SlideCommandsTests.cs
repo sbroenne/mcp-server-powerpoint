@@ -487,4 +487,67 @@ public class SlideCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.False(invalidDestination.Success);
         Assert.False(string.IsNullOrWhiteSpace(invalidDestination.ErrorMessage));
     }
+
+    [Fact]
+    public void Tags_CrudIsCaseInsensitive_EnumeratesOneBased_AndPersists()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var firstSet = _commands.SetTag(_fixture.Batch, 1, " ReviewState ", "MiXeD Value");
+        Assert.True(firstSet.Success, firstSet.ErrorMessage);
+        Assert.Equal(" REVIEWSTATE ", firstSet.TagName);
+        Assert.Equal("MiXeD Value", firstSet.TagValue);
+        Assert.Equal(1, firstSet.TagCount);
+
+        var updated = _commands.SetTag(_fixture.Batch, 1, " reviewstate ", "Updated Value");
+        Assert.True(updated.Success, updated.ErrorMessage);
+        Assert.Equal(1, updated.TagCount);
+
+        Assert.True(_commands.SetTag(_fixture.Batch, 1, "Owner", "Alice").Success);
+        Assert.True(_commands.SetTag(_fixture.Batch, 1, "ReviewState", "Unspaced Value").Success);
+
+        var get = _commands.GetTag(_fixture.Batch, 1, " ReViEwStAtE ");
+        Assert.True(get.Success, get.ErrorMessage);
+        Assert.Equal(" REVIEWSTATE ", get.TagName);
+        Assert.Equal("Updated Value", get.TagValue);
+        Assert.Equal(1, get.TagIndex);
+
+        var unspacedGet = _commands.GetTag(_fixture.Batch, 1, "reviewstate");
+        Assert.True(unspacedGet.Success, unspacedGet.ErrorMessage);
+        Assert.Equal("Unspaced Value", unspacedGet.TagValue);
+        Assert.Equal(3, unspacedGet.TagIndex);
+
+        var listed = _commands.ListTags(_fixture.Batch, 1);
+        Assert.True(listed.Success, listed.ErrorMessage);
+        Assert.Equal(3, listed.TagCount);
+        Assert.Equal([1, 2, 3], listed.Tags!.Select(tag => tag.TagIndex));
+        Assert.Equal([" REVIEWSTATE ", "OWNER", "REVIEWSTATE"], listed.Tags!.Select(tag => tag.Name));
+
+        Assert.True(_presentationCommands.Save(_fixture.Batch).Success);
+        _fixture.ReopenCurrentPresentation();
+        Assert.Equal("Updated Value", _commands.GetTag(_fixture.Batch, 1, " reviewstate ").TagValue);
+
+        var deleted = _commands.DeleteTag(_fixture.Batch, 1, " REVIEWSTATE ");
+        Assert.True(deleted.Success, deleted.ErrorMessage);
+        Assert.Equal(2, deleted.TagCount);
+        Assert.False(_commands.GetTag(_fixture.Batch, 1, " reviewstate ").Success);
+        Assert.False(_commands.DeleteTag(_fixture.Batch, 1, " reviewstate ").Success);
+        Assert.True(_commands.GetTag(_fixture.Batch, 1, "reviewstate").Success);
+
+        Assert.True(_commands.ListTags(_fixture.Batch, 1).Success);
+        Assert.Equal(1, _commands.GetCount(_fixture.Batch).SlideCount);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(99)]
+    public void Tags_WithInvalidSlideIndex_ReturnFailure(int slideIndex)
+    {
+        _fixture.CreateFreshPresentation();
+
+        Assert.False(_commands.SetTag(_fixture.Batch, slideIndex, "name", "value").Success);
+        Assert.False(_commands.GetTag(_fixture.Batch, slideIndex, "name").Success);
+        Assert.False(_commands.ListTags(_fixture.Batch, slideIndex).Success);
+        Assert.False(_commands.DeleteTag(_fixture.Batch, slideIndex, "name").Success);
+    }
 }

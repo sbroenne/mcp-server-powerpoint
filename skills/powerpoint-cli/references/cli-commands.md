@@ -609,6 +609,27 @@ COMMANDS:
                                                                   (user-defined)
                                                                   document
                                                                   property
+    set-tag <SESSION_ID> <TAG_NAME> <TAG_VALUE>                   Create or
+                                                                  update a
+                                                                  case-insensiti
+                                                                  ve
+                                                                  presentation
+                                                                  string tag
+    get-tag <SESSION_ID> <TAG_NAME>                               Read a
+                                                                  presentation
+                                                                  string tag by
+                                                                  case-insensiti
+                                                                  ve name
+    list-tags <SESSION_ID>                                        List
+                                                                  presentation
+                                                                  string tags in
+                                                                  native 1-based
+                                                                  order
+    delete-tag <SESSION_ID> <TAG_NAME>                            Delete a
+                                                                  presentation
+                                                                  string tag by
+                                                                  case-insensiti
+                                                                  ve name
 ```
 
 ### `pptcli session close`
@@ -685,6 +706,22 @@ List every session currently open in the daemon
 
 USAGE:
     pptcli session list [OPTIONS]
+
+OPTIONS:
+    -h, --help    Prints help information
+```
+
+### `pptcli session list-tags`
+
+```text
+DESCRIPTION:
+List presentation string tags in native 1-based order
+
+USAGE:
+    pptcli session list-tags <SESSION_ID> [OPTIONS]
+
+ARGUMENTS:
+    <SESSION_ID>    Session id returned by 'session open'/'session create'
 
 OPTIONS:
     -h, --help    Prints help information
@@ -793,10 +830,11 @@ OPTIONS:
                                              get-alt-text, set-hyperlink,
                                              get-hyperlink, remove-hyperlink,
                                              set-placeholder-text,
-                                             set-placeholder-image) (valid for:
-                                             delete, set-position, set-size,
-                                             set-fill, get-fill, set-line,
-                                             get-line, set-rotation,
+                                             set-placeholder-image, set-tag,
+                                             get-tag, list-tags, delete-tag)
+                                             (valid for: delete, set-position,
+                                             set-size, set-fill, get-fill,
+                                             set-line, get-line, set-rotation,
                                              get-rotation, flip, set-z-order,
                                              set-shadow, get-shadow, set-glow,
                                              get-glow, set-reflection,
@@ -807,7 +845,8 @@ OPTIONS:
                                              get-alt-text, set-hyperlink,
                                              get-hyperlink, remove-hyperlink,
                                              set-placeholder-text,
-                                             set-placeholder-image)
+                                             set-placeholder-image, set-tag,
+                                             get-tag, list-tags, delete-tag)
         --red <RED>                          (required for: set-fill, set-glow)
                                              (valid for: set-fill, set-line,
                                              set-shadow, set-glow)
@@ -855,6 +894,11 @@ OPTIONS:
         --image-path <IMAGEPATH>             (required for:
                                              set-placeholder-image) (valid for:
                                              set-placeholder-image)
+        --tag-name <TAGNAME>                 (required for: set-tag, get-tag,
+                                             delete-tag) (valid for: set-tag,
+                                             get-tag, delete-tag)
+        --tag-value <TAGVALUE>               (required for: set-tag) (valid for:
+                                             set-tag)
     -o, --output <PATH>                      Write output to file instead of
                                              stdout. For image results, decodes
                                              and saves as binary file
@@ -892,8 +936,11 @@ OPTIONS:
                                                              list-comments,
                                                              add-comment,
                                                              delete-comment,
-                                                             clear-comments)
-                                                             (valid for: delete,
+                                                             clear-comments,
+                                                             set-tag, get-tag,
+                                                             list-tags,
+                                                             delete-tag) (valid
+                                                             for: delete,
                                                              duplicate, move-to,
                                                              set-background-colo
                                                              r,
@@ -906,7 +953,10 @@ OPTIONS:
                                                              list-comments,
                                                              add-comment,
                                                              delete-comment,
-                                                             clear-comments)
+                                                             clear-comments,
+                                                             set-tag, get-tag,
+                                                             list-tags,
+                                                             delete-tag)
         --to-position <TOPOSITION>                           (required for:
                                                              move-to) (valid
                                                              for: move-to)
@@ -1007,6 +1057,15 @@ OPTIONS:
                                                              import-from-file)
         --source-end-slide <SOURCEENDSLIDE>                  (valid for:
                                                              import-from-file)
+        --tag-name <TAGNAME>                                 (required for:
+                                                             set-tag, get-tag,
+                                                             delete-tag) (valid
+                                                             for: set-tag,
+                                                             get-tag,
+                                                             delete-tag)
+        --tag-value <TAGVALUE>                               (required for:
+                                                             set-tag) (valid
+                                                             for: set-tag)
     -o, --output <PATH>                                      Write output to
                                                              file instead of
                                                              stdout. For image

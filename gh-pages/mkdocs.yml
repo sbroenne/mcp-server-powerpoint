@@ -103,6 +103,7 @@ nav:
       - Anti-patterns: reference/anti-patterns.md
       - Deck builder: reference/deck-builder.md
       - Slides and shapes: reference/slides-and-shapes.md
+      - String tags: reference/tags.md
       - Text formatting: reference/text-formatting.md
       - Tables: reference/tables.md
       - Charts: reference/charts.md

@@ -193,4 +193,16 @@ public interface IShapeCommands
         int slideIndex,
         int shapeIndex,
         string imagePath);
+
+    /// <summary>Creates or updates a case-insensitive string tag on a shape.</summary>
+    ShapeOperationResult SetTag(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, string tagName, [AllowEmptyString] string tagValue);
+
+    /// <summary>Gets a shape string tag by its case-insensitive name.</summary>
+    ShapeOperationResult GetTag(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, string tagName);
+
+    /// <summary>Lists shape string tags in their native 1-based collection order.</summary>
+    ShapeOperationResult ListTags(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>Deletes a shape string tag by its case-insensitive name.</summary>
+    ShapeOperationResult DeleteTag(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, string tagName);
 }
