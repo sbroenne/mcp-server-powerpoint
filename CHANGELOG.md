@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.1.6] - 2026-08-27
+
+### Patch Changes
+
+- [#58](https://github.com/sbroenne/mcp-server-powerpoint/pull/58) [`c877caf`](https://github.com/sbroenne/mcp-server-powerpoint/commit/c877caf475c72ecb34da3cb6c477a502b5fb1d3c) Thanks [@sbroenne](https://github.com/sbroenne)! - Add generated `media` MCP and CLI commands for embedded, link-only, or linked-and-saved audio/video
+  insertion and native PowerPoint media metadata read-back. Generated Core validation failures now
+  propagate as failed service responses while preserving their original structured result payload
+  for service clients.
+
+- [#53](https://github.com/sbroenne/mcp-server-powerpoint/pull/53) [`59efa7b`](https://github.com/sbroenne/mcp-server-powerpoint/commit/59efa7b7dcc289dd840d1f5439fc347ac9846768) Thanks [@sbroenne](https://github.com/sbroenne)! - Add `save-as` and `save-copy-as` presentation operations to the MCP server and CLI. Save As moves
+  the active session to the new file only after PowerPoint succeeds, while Save Copy As preserves the
+  active file and session path. Both operations validate formats, paths, and explicit overwrite intent.
+
+- [#52](https://github.com/sbroenne/mcp-server-powerpoint/pull/52) [`3ae9291`](https://github.com/sbroenne/mcp-server-powerpoint/commit/3ae9291bc5b11bf065e2a2bb214f1c6e74ccf008) Thanks [@sbroenne](https://github.com/sbroenne)! - Add typed `get-final` and `set-final` presentation operations to the MCP server and CLI, with
+  persistent round-trip behavior and clear guidance that Mark as Final is advisory rather than
+  security.
+
+- [#57](https://github.com/sbroenne/mcp-server-powerpoint/pull/57) [`fa11f78`](https://github.com/sbroenne/mcp-server-powerpoint/commit/fa11f785d7dbffc3e4723bb95fd4cdc4ed6a0a83) Thanks [@sbroenne](https://github.com/sbroenne)! - Add linked-picture insertion and shape-level link inspection, refresh, automatic-update where
+  supported by PowerPoint, and break-link operations while preserving embedded pictures as the
+  default.
+
+- [#54](https://github.com/sbroenne/mcp-server-powerpoint/pull/54) [`d046fdf`](https://github.com/sbroenne/mcp-server-powerpoint/commit/d046fdfb654dc9d38bbdc811b2e006bf6de904a7) Thanks [@sbroenne](https://github.com/sbroenne)! - Add case-insensitive string tags to presentations, slides, and shapes through matching MCP and CLI
+  `set-tag`, `get-tag`, `list-tags`, and `delete-tag` actions.
+
+- [#56](https://github.com/sbroenne/mcp-server-powerpoint/pull/56) [`a66c481`](https://github.com/sbroenne/mcp-server-powerpoint/commit/a66c481baee6cda13bde1e9be304417839cc7e70) Thanks [@sbroenne](https://github.com/sbroenne)! - Add chart style, color style, and data-table visibility controls to both the MCP server and CLI,
+  with paired read operations so automation can verify every visual change.
+
+- [#51](https://github.com/sbroenne/mcp-server-powerpoint/pull/51) [`fe66372`](https://github.com/sbroenne/mcp-server-powerpoint/commit/fe6637252a33a0b9f3fc09786b3cfa96e21f916b) Thanks [@sbroenne](https://github.com/sbroenne)! - PowerPoint MCP now rejects unknown or mis-cased CLI and MCP arguments, saves presentations when
+  their sessions close, safely owns daemon cleanup, and ships verified Agent Skills and plugins.
+
 ## [0.1.5] - 2026-08-25
 
 ### Patch Changes
