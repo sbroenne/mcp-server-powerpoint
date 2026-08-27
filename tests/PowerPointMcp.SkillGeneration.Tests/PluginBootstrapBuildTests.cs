@@ -376,6 +376,9 @@ public sealed class PluginBootstrapBuildTests
             Assert.False(File.Exists(Path.Combine(publishedRepoDir, "marketplace.json")));
 
             using var manifest = JsonDocument.Parse(File.ReadAllText(canonicalManifestPath));
+            Assert.Equal(
+                "Windows-only Agent Plugins for PowerPoint automation with PowerPointMcp.",
+                manifest.RootElement.GetProperty("metadata").GetProperty("description").GetString());
             var plugins = manifest.RootElement.GetProperty("plugins");
             Assert.Equal(2, plugins.GetArrayLength());
 
@@ -443,6 +446,10 @@ public sealed class PluginBootstrapBuildTests
             Assert.Equal(
                 File.ReadAllText(sourceInstructionsPath),
                 File.ReadAllText(publishedInstructionsPath));
+
+            var publishedReadmeLines = File.ReadAllLines(Path.Combine(publishedRepoDir, "README.md"));
+            Assert.Equal("# PowerPointMcp Agent Plugins", publishedReadmeLines[0]);
+            Assert.Contains("Windows-only Agent Plugins for PowerPointMcp.", publishedReadmeLines);
         }
         finally
         {

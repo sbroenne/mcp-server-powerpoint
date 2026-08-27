@@ -1,6 +1,6 @@
-# PowerPointMcp Copilot CLI Plugins
+# PowerPointMcp Agent Plugins
 
-Windows-only GitHub Copilot CLI plugins for PowerPointMcp.
+Windows-only Agent Plugins for PowerPointMcp.
 
 This repository is the publish target for plugin artifacts from [`sbroenne/mcp-server-powerpoint`](https://github.com/sbroenne/mcp-server-powerpoint).
 
