@@ -1,5 +1,5 @@
 ---
-"powerpointmcp": minor
+"powerpointmcp": patch
 ---
 
 Add `save-as` and `save-copy-as` presentation operations to the MCP server and CLI. Save As moves

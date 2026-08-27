@@ -1,5 +1,5 @@
 ---
-"powerpointmcp": minor
+"powerpointmcp": patch
 ---
 
 Add generated `media` MCP and CLI commands for embedded, link-only, or linked-and-saved audio/video
