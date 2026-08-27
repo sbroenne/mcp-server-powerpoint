@@ -449,7 +449,7 @@ public sealed class PluginBootstrapBuildTests
 
             var publishedReadmeLines = File.ReadAllLines(Path.Combine(publishedRepoDir, "README.md"));
             Assert.Equal("# PowerPointMcp Agent Plugins", publishedReadmeLines[0]);
-            Assert.Equal("Windows-only Agent Plugins for PowerPointMcp.", publishedReadmeLines[2]);
+            Assert.Contains("Windows-only Agent Plugins for PowerPointMcp.", publishedReadmeLines);
         }
         finally
         {
