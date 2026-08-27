@@ -182,6 +182,7 @@ public sealed class MediaCommandsTests : IClassFixture<SharedPresentationFixture
     [Fact]
     public void AddMedia_WithMalformedPath_ReturnsFailure()
     {
+        _fixture.CreateFreshPresentation();
         var result = _commands.AddMedia(
             _fixture.Batch, 1, "invalid\0media.wav", false, true,
             0f, 0f, 100f, 100f);
