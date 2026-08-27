@@ -22,7 +22,7 @@ applyTo: "src/**/*.cs"
 ComInterop (STA thread, OLE message filter, PresentationBatch work queue)
     ↓
 Core (domain commands: Presentation, Slide, Shape, TextFrame, Table, Notes, Layout, Master,
-      Animation, Image, Chart, Export — all but Presentation carry a [ServiceCategory] attribute)
+      Animation, Image, Media, Chart, Export — all but Presentation carry a [ServiceCategory] attribute)
     ↓
 Service (PowerPointMcpService: session registry + dispatch, shared codebase)
     ↓                                              ↓

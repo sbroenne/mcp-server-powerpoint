@@ -24,6 +24,7 @@ Skills. The website and installed guidance therefore describe the same behavior.
 - [Tables](tables.md)
 - [Charts](charts.md)
 - [Images](images.md)
+- [Media](media.md)
 - [SmartArt](smart-art.md)
 - [Speaker Notes](speaker-notes.md)
 - [Layouts](layouts.md)

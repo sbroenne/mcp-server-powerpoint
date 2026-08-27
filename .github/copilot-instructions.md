@@ -48,7 +48,7 @@ Unified Service Architecture.
 1. **ComInterop** (`src/PowerPointMcp.ComInterop`) - STA thread + OLE message filter + channel-based
    work queue (`PresentationBatch`), ported from `mcp-server-excel`'s `ExcelBatch` pattern.
 2. **Core** (`src/PowerPointMcp.Core`) - PowerPoint domain commands, one folder per domain
-   (Presentation, Slide, Shape, TextFrame, Table, Notes, Layout, Master, Animation, Image, Chart,
+   (Presentation, Slide, Shape, TextFrame, Table, Notes, Layout, Master, Animation, Image, Media, Chart,
    Export). Domains other than Presentation carry a `[ServiceCategory]` marker attribute that the
    generators discover.
 3. **Generators** (`src/PowerPointMcp.Generators.Mcp`, `src/PowerPointMcp.Generators.Cli`,
@@ -64,11 +64,11 @@ Unified Service Architecture.
    background daemon process** over a named pipe (`ServiceClient`/`IPowerPointDaemonRpc`,
    auto-started on first `session open`/`session create`), so sessions persist across CLI
    invocations without paying PowerPoint's ~90-150s launch cost every command.
-5. **McpServer** (`src/PowerPointMcp.McpServer`) - Model Context Protocol stdio host. 15 tools
-   total: one hand-written `presentation` action-dispatch tool plus 14 generated action-dispatch
+5. **McpServer** (`src/PowerPointMcp.McpServer`) - Model Context Protocol stdio host. 16 tools
+   total: one hand-written `presentation` action-dispatch tool plus 15 generated action-dispatch
    tools (`slide`, `shape`, `textframe`, `table`, `notes`, `layout`, `master`, `animation`,
-   `image`, `chart`, `smartart`, `export`, `pagesetup`, `accessibility`), covering 184 operations
-   across 15 domains. See
+   `image`, `media`, `chart`, `smartart`, `export`, `pagesetup`, `accessibility`), covering 186 operations
+   across 16 domains. See
    `tests/PowerPointMcp.McpServer.Tests/Integration/McpProtocolTests.cs`'s `ExpectedToolNames` for
    the ground-truth tool list.
 6. **CLI** (`src/PowerPointMcp.CLI`) - `pptcli`, built on the same generators as the MCP surface

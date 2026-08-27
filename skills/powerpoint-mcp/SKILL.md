@@ -4,14 +4,14 @@ description: >
   PowerPoint MCP Server skill for Windows presentation automation via a live PowerPoint desktop
   instance (COM/PIA). Use when an assistant needs rich MCP tools to create, open, build, format,
   and export PowerPoint (.pptx/.pptm) presentations — slides, shapes, text boxes, tables, native
-  charts, images, speaker notes, layouts, and image export for visual verification.
+  charts, images, audio, video, speaker notes, layouts, and image export for visual verification.
   Triggers: PowerPoint, presentation, deck, slides, pptx, pptm, speaker notes, chart, MCP.
 compatibility: Windows with Microsoft PowerPoint desktop installed.
 ---
 
 # PowerPoint MCP Server Skill
 
-Provides 15 PowerPoint MCP tools (one presentation tool + 14 domain action-dispatch tools)
+Provides 16 PowerPoint MCP tools (one presentation tool + 15 domain action-dispatch tools)
 via the Model Context Protocol, driving a live PowerPoint desktop instance through the official
 `Microsoft.Office.Interop.PowerPoint` PIA. Tools are auto-discovered via MCP `tools/list` — this
 skill documents session lifecycle, indexing conventions, workflows, and gotchas that aren't
@@ -19,7 +19,7 @@ obvious from tool schemas alone.
 
 Session lifecycle, Save As/copy, templates, the advisory Mark as Final flag, document properties,
 and presentation tags use the `presentation` action-dispatch tool with camelCase arguments.
-Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`,
+Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`, `media`,
 `notes`, `layout`, `master`, `smartart`, `animation`, `export`, `pagesetup`, `accessibility`) are
 action-dispatch: one tool per domain, called as `tool(action:
 "kebab-action", session_id: ..., snake_case_param: ...)`.
@@ -29,7 +29,7 @@ action-dispatch: one tool per domain, called as `tool(action:
 | Step | Tool | Action | When |
 |------|------|--------|------|
 | 1. Create or open | `presentation(action: "create"/"open")` | Start a session, get `sessionId` | Always, before any edit |
-| 3. Build | `slide(action: "add-blank")`, `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector")`, `table(action: "add-table")`, `chart(action: "add-chart")`, `image(action: "add-picture"/"set-brightness-contrast"/"get-brightness-contrast"/"set-recolor"/"get-recolor"/"set-crop"/"get-crop")` | Add structure and content | As needed |
+| 3. Build | `slide(action: "add-blank")`, `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector")`, `table(action: "add-table")`, `chart(action: "add-chart")`, `image(action: "add-picture")`, `media(action: "add-media")` | Add structure and content | As needed |
 | 4. Format | `textframe(action: "set-font-size"/"set-bold"/"set-font-color")`, `layout(action: "set-layout")` | Apply formatting | After adding content |
 | 5. Animate (optional) | `animation(action: "add-effect"/"set-transition")` | Add entrance/emphasis/exit effects or slide transitions | After content/layout are final |
 | 6. Annotate | `notes(action: "set-notes-text")` | Add speaker notes | After each slide's content is final |
@@ -107,6 +107,7 @@ saved.
 | Native charts | `chart(action: "add-chart"/"get-chart-data"/"add-series"/"replace-chart-data"/"set-chart-title"/"get-chart-title"/"set-axis-title"/"get-axis-title"/"set-legend-visibility"/"get-legend-visibility"/"set-style"/"get-style"/"set-color-style"/"get-color-style"/"set-data-table"/"get-data-table")` |
 | SmartArt diagrams | `smartart(action: "add-smart-art"/"add-node"/"add-child-node"/"set-node-text"/"get-node-text"/"delete-node"/"get-node-count")` |
 | Images (embedded by default; optional file links) | `image(action: "add-picture"/"set-brightness-contrast"/"get-brightness-contrast"/"set-recolor"/"get-recolor"/"set-crop"/"get-crop")` |
+| Audio and video | `media(action: "add-media"/"get-media-info")` |
 | Speaker notes | `notes(action: "set-notes-text"/"get-notes-text")` |
 | Slide layouts | `layout(action: "set-layout"/"get-layout")` |
 | Slide master title/body font, background color | `master(action: "get-title-font"/"set-title-font"/"get-body-font"/"set-body-font"/"get-background-color"/"set-background-color")` |
@@ -127,6 +128,7 @@ See `references/` for detailed guidance:
 - [Charts — add-chart/add-series categories/series/values, titles, legend](./references/charts.md)
 - [SmartArt — add-smart-art layouts, node addressing, hierarchy diagrams](./references/smart-art.md)
 - [Images — picture insertion and picture-format adjustments](./references/images.md)
+- [Audio and video — embedded/linked insertion and media metadata](./references/media.md)
 - [Speaker notes — set/get notes](./references/speaker-notes.md)
 - [Layouts — set/get slide layout](./references/layouts.md)
 - [Slide master — title/body font and background color](./references/master.md)

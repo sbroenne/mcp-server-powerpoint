@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Sbroenne.PowerPointMcp.CLI" />
+    <InternalsVisibleTo Include="Sbroenne.PowerPointMcp.McpServer.Tests" />
   </ItemGroup>
 
   <ItemGroup>

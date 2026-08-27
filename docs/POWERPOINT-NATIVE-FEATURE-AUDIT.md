@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit compares the current 15 tools and 184 operations with the restored
+This audit compares the current 16 tools and 186 operations with the restored
 `Microsoft.Office.Interop.PowerPoint` 15.0.4420.1018 assembly. It looks for useful PowerPoint
 features that fit the existing live-session model. It does not copy Excel-only worksheet, Power
 Query, Data Model, PivotTable, or calculation APIs.
@@ -17,7 +17,7 @@ The existing surface already covers the main editing workflow:
 
 - presentation sessions, templates, themes, and document properties
 - slides, sections, legacy comments, and slide import
-- shapes, placeholders, hyperlinks, text, tables, images, charts, and SmartArt
+- shapes, placeholders, hyperlinks, text, tables, images, audio/video, charts, and SmartArt
 - speaker notes, layouts, masters, page setup, animations, and transitions
 - accessibility checks, reading order, PDF export, and rendered slide images
 
@@ -33,7 +33,7 @@ The existing legacy comment operations are therefore correctly scoped.
 | 3 | String tags | `set-tag`, `get-tag`, `list-tags`, `delete-tag` on presentation, slide, and shape | Safe PowerPoint-native metadata without XML complexity | Tag names are case-insensitive in PowerPoint and need normalization tests |
 | 4 | Chart quick formatting | `get-style`, `set-style`, `get-color-style`, `set-color-style`, `get-data-table`, `set-data-table` | Useful visual control on the already acquired chart object | Style/color values are COM variants and need range tests against real PowerPoint |
 | 5 | Linked pictures | optional `link_to_file` on `image: add-picture`; `shape: get-link-info`, `update-link`, `break-link`, `set-link-auto-update` | Enables linked-asset workflows and repair | `LinkFormat` is valid only for linked shapes |
-| 6 | Audio and video | new `media` domain with `add-media`, `get-media-info` | Large PowerPoint-specific capability gap | Needs small licensed test fixtures and narrowly scoped Office enum handling |
+| 6 | Audio and video (delivered) | `media: add-media`, `get-media-info` | Closes a PowerPoint-specific capability gap | Uses repository-owned synthetic WAV and H.264 MP4 fixtures |
 
 ### 1. Save As and Save Copy As — implemented
 
@@ -155,6 +155,13 @@ touch timing, codecs, and presentation-mode behavior.
 Tests need small repository-owned audio and video fixtures, embedded and linked cases, media type
 read-back, shape count, save/reopen, and cleanup.
 
+Implemented by the generated `media` domain. The Core command keeps PowerPoint shapes and
+`PpMediaType` read-back typed, while narrowly late-binding the `AddMediaObject2` and `Shape.Type`
+boundaries that require Office enums unavailable without `office.dll`. Tests write embedded,
+deterministic PCM WAV and one-second black H.264 Constrained Baseline MP4 bytes. Both fixtures have
+no third-party authored media; a host without a compatible decoder fails insertion explicitly
+instead of silently skipping core behavior.
+
 References: [Shapes.AddMediaObject2](https://learn.microsoft.com/office/vba/api/powerpoint.shapes.addmediaobject2),
 [Shape.MediaType](https://learn.microsoft.com/office/vba/api/powerpoint.shape.mediatype).
 
@@ -201,7 +208,7 @@ real-PowerPoint tests:
 3. String tags.
 4. Chart quick formatting. (Implemented.)
 5. Linked pictures and link management.
-6. Audio and video.
+6. Audio and video. Delivered by the `media` domain.
 7. Run-level text and advanced chart formatting only after separate contract reviews.
 
 No accepted item requires a matching change in `mcp-server-excel`; Excel already has Save As,

@@ -400,6 +400,48 @@ OPTIONS:
                                                 decodes and saves as binary file
 ```
 
+## `pptcli media`
+
+```text
+DESCRIPTION:
+Media commands: insert audio or video files and inspect their PowerPoint media
+metadata. Operates within an already-open presentation session using 1-based
+slide and shape indexes
+
+USAGE:
+    pptcli media <ACTION> [OPTIONS]
+
+ARGUMENTS:
+    <ACTION>    The action to perform
+
+OPTIONS:
+    -h, --help                                     Prints help information
+    -s, --session <SESSION>                        Session ID from 'session
+                                                   open' command
+        --slide-index <SLIDEINDEX>                 (required)
+        --media-path <MEDIAPATH>                   (required for: add-media)
+                                                   (valid for: add-media)
+        --link-to-file <LINKTOFILE>                (required for: add-media)
+                                                   (valid for: add-media)
+        --save-with-document <SAVEWITHDOCUMENT>    (required for: add-media)
+                                                   (valid for: add-media)
+        --left <LEFT>                              (required for: add-media)
+                                                   (valid for: add-media)
+        --top <TOP>                                (required for: add-media)
+                                                   (valid for: add-media)
+        --width <WIDTH>                            (required for: add-media)
+                                                   (valid for: add-media)
+        --height <HEIGHT>                          (required for: add-media)
+                                                   (valid for: add-media)
+        --shape-index <SHAPEINDEX>                 (required for:
+                                                   get-media-info) (valid for:
+                                                   get-media-info)
+    -o, --output <PATH>                            Write output to file instead
+                                                   of stdout. For image results,
+                                                   decodes and saves as binary
+                                                   file
+```
+
 ## `pptcli notes`
 
 ```text

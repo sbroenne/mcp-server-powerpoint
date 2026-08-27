@@ -10,6 +10,7 @@ using Sbroenne.PowerPointMcp.Core.Export;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Layout;
 using Sbroenne.PowerPointMcp.Core.Master;
+using Sbroenne.PowerPointMcp.Core.Media;
 using Sbroenne.PowerPointMcp.Core.Notes;
 using Sbroenne.PowerPointMcp.Core.PageSetup;
 using Sbroenne.PowerPointMcp.Core.Presentation;
@@ -63,6 +64,7 @@ public sealed class PowerPointMcpService : IDisposable
     private readonly SmartArtCommands _smartArtCommands = new();
     private readonly PageSetupCommands _pageSetupCommands = new();
     private readonly AccessibilityCommands _accessibilityCommands = new();
+    private readonly MediaCommands _mediaCommands = new();
 
     /// <summary>Gets the UTC time this daemon instance started.</summary>
     public DateTime StartTime => _startTime;
@@ -77,7 +79,7 @@ public sealed class PowerPointMcpService : IDisposable
     /// mirroring mcp-server-excel's architecture, where one shared Service class is consumed two
     /// ways: in-process (direct calls, no pipe) by the MCP server, and via
     /// named-pipe/StreamJsonRpc by the separate CLI daemon process. The generated domain MCP
-    /// tools (Slide, Shape, TextFrame, Table, Chart, Image, Notes, Layout, Master, Animation,
+    /// tools (Slide, Shape, TextFrame, Table, Chart, Image, Media, Notes, Layout, Master, Animation,
     /// SmartArt, Export, PageSetup, Accessibility) DO call <see cref="ProcessAsync"/> in-process
     /// via <c>ServiceBridge.ForwardToService</c> — only the hand-written
     /// <c>PresentationTools</c> bypass it and use <see cref="Sessions"/> directly.
@@ -255,6 +257,9 @@ public sealed class PowerPointMcpService : IDisposable
                 "image" => DispatchSimple<ImageAction>(action, request,
                     ServiceRegistry.Image.TryParseAction,
                     (a, batch) => ServiceRegistry.Image.DispatchToCore(_imageCommands, a, batch, request.Args)),
+                "media" => DispatchSimple<MediaAction>(action, request,
+                    ServiceRegistry.Media.TryParseAction,
+                    (a, batch) => ServiceRegistry.Media.DispatchToCore(_mediaCommands, a, batch, request.Args)),
                 "notes" => DispatchSimple<NotesAction>(action, request,
                     ServiceRegistry.Notes.TryParseAction,
                     (a, batch) => ServiceRegistry.Notes.DispatchToCore(_notesCommands, a, batch, request.Args)),
@@ -823,11 +828,32 @@ public sealed class PowerPointMcpService : IDisposable
 
     private delegate bool TryParseDelegate<TAction>(string action, out TAction result);
 
-    private static ServiceResponse WrapResult(string? dispatchResult)
+    internal static ServiceResponse WrapResult(string? dispatchResult)
     {
-        return dispatchResult == null
-            ? new ServiceResponse { Success = true }
-            : new ServiceResponse { Success = true, Result = dispatchResult };
+        if (dispatchResult is null)
+        {
+            return new ServiceResponse { Success = true };
+        }
+
+        using var document = JsonDocument.Parse(dispatchResult);
+        JsonElement root = document.RootElement;
+        if (root.TryGetProperty("success", out JsonElement success) &&
+            success.ValueKind == JsonValueKind.False)
+        {
+            string? errorMessage =
+                root.TryGetProperty("errorMessage", out JsonElement error) &&
+                error.ValueKind == JsonValueKind.String
+                    ? error.GetString()
+                    : null;
+
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorMessage = errorMessage ?? "Operation failed."
+            };
+        }
+
+        return new ServiceResponse { Success = true, Result = dispatchResult };
     }
 
     /// <summary>
