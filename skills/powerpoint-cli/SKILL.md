@@ -4,7 +4,7 @@ description: >
   PowerPoint CLI automation skill for Windows presentations. Use when a coding agent needs
   token-efficient, scriptable, or unattended PowerPoint automation via pptcli commands. Best
   for CI/CD, scheduled jobs, batch processing, PowerShell workflows, and bulk deck edits.
-  Supports slides, shapes, text frames, tables, charts, images, speaker notes, layouts, and
+  Supports slides, shapes, text frames, tables, charts, images, audio, video, speaker notes, layouts, and
   .potx template restyling. Triggers: pptcli, PowerPoint CLI, command line, batch, script,
   automation, CI/CD, scheduled, PowerShell, unattended, coding agent, deck processing.
 compatibility: Windows with Microsoft PowerPoint desktop installed.
@@ -32,7 +32,7 @@ though each command is a separate OS process.
 |------|---------|------|
 | 1. Session | `session create/open` | Always first |
 | 2. Slides | `slide add-blank` | If needed |
-| 3. Edit content | See command reference below | Shapes, text, tables, charts, images, notes |
+| 3. Edit content | See command reference below | Shapes, text, tables, charts, images, media, notes |
 | 4. Save & close | `session close --save` | Always last |
 
 ## CRITICAL RULES (MUST FOLLOW)
@@ -134,7 +134,7 @@ of one flat tool per verb.
 
 Available command groups (in addition to `session` and `service`):
 
-`accessibility`, `animation`, `chart`, `export`, `image`, `layout`, `master`, `notes`, `pagesetup`, `shape`, `slide`, `smartart`, `table`, `textframe`
+`accessibility`, `animation`, `chart`, `export`, `image`, `layout`, `master`, `media`, `notes`, `pagesetup`, `shape`, `slide`, `smartart`, `table`, `textframe`
 
 Run `pptcli <command> --help` for the live, authoritative list of actions and flags for that
 command — the table below is a summary generated from the same Core interfaces as the MCP tool
@@ -267,6 +267,23 @@ Actions: `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`, `
 | `--gradient-style` |  |
 | `--gradient-variant` |  |
 | `--master-index` | (required for: delete-master) |
+
+
+### `media` — Media commands: insert audio or video files and inspect their PowerPoint media metadata. Operates within an already-open presentation session using 1-based slide and shape indexes.
+
+Actions: `add-media`, `get-media-info`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | (required) |
+| `--media-path` | (required for: add-media) |
+| `--link-to-file` | (required for: add-media) |
+| `--save-with-document` | (required for: add-media) |
+| `--left` | (required for: add-media) |
+| `--top` | (required for: add-media) |
+| `--width` | (required for: add-media) |
+| `--height` | (required for: add-media) |
+| `--shape-index` | (required for: get-media-info) |
 
 
 ### `notes` — Speaker notes commands: set/get the notes text for a slide. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.

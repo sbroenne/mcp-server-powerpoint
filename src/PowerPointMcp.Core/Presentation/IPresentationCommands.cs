@@ -7,7 +7,7 @@ namespace Sbroenne.PowerPointMcp.Core.Presentation;
 /// </summary>
 /// <remarks>
 /// First Core command domain implemented, proving the ComInterop batch pattern end-to-end.
-/// Remaining domains from the plan (Slide, Shape, TextFrame, Table, Chart, Image, Notes,
+/// Remaining domains from the plan (Slide, Shape, TextFrame, Table, Chart, Image, Media, Notes,
 /// Layout/Master, Export/QA) are follow-up work — see plan.md continuation notes.
 ///
 /// Deliberately carries NO <c>[ServiceCategory]</c>/<c>[McpTool]</c> attribute, unlike every

@@ -4,7 +4,7 @@ description: >
   PowerPoint CLI automation skill for Windows presentations. Use when a coding agent needs
   token-efficient, scriptable, or unattended PowerPoint automation via pptcli commands. Best
   for CI/CD, scheduled jobs, batch processing, PowerShell workflows, and bulk deck edits.
-  Supports slides, shapes, text frames, tables, charts, images, speaker notes, layouts, and
+  Supports slides, shapes, text frames, tables, charts, images, audio, video, speaker notes, layouts, and
   .potx template restyling. Triggers: pptcli, PowerPoint CLI, command line, batch, script,
   automation, CI/CD, scheduled, PowerShell, unattended, coding agent, deck processing.
 compatibility: Windows with Microsoft PowerPoint desktop installed.
@@ -32,7 +32,7 @@ though each command is a separate OS process.
 |------|---------|------|
 | 1. Session | `session create/open` | Always first |
 | 2. Slides | `slide add-blank` | If needed |
-| 3. Edit content | See command reference below | Shapes, text, tables, charts, images, notes |
+| 3. Edit content | See command reference below | Shapes, text, tables, charts, images, media, notes |
 | 4. Save & close | `session close --save` | Always last |
 
 ## CRITICAL RULES (MUST FOLLOW)

@@ -27,15 +27,25 @@ internal static class CliErrorOutput
     /// <summary>Writes an error envelope from a failed <see cref="ServiceResponse"/>.</summary>
     public static int WriteServiceError(ServiceResponse response)
     {
-        Console.WriteLine(Serialize(
+        Console.WriteLine(SerializeServiceError(response));
+        return 1;
+    }
+
+    /// <summary>
+    /// Formats a failed service response for CLI callers. The CLI deliberately keeps its stable
+    /// error envelope while the original Core payload remains available to direct service clients
+    /// through <see cref="ServiceResponse.Result"/>.
+    /// </summary>
+    internal static string SerializeServiceError(ServiceResponse response)
+    {
+        return Serialize(
             response.ErrorMessage,
             response.ErrorCategory,
             response.Command,
             response.SessionId,
             response.ExceptionType,
             response.HResult,
-            response.InnerError));
-        return 1;
+            response.InnerError);
     }
 
     /// <summary>Writes a plain error envelope with just a message.</summary>

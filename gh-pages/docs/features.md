@@ -1,12 +1,12 @@
 ---
 title: Complete Feature Reference
-description: 15 MCP tools with 184 operations across 15 domains for live PowerPoint automation through single action-dispatch tools.
-keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, chart tool, SmartArt tool, export-to-verify"
+description: 16 MCP tools with 186 operations across 16 domains for live PowerPoint automation through single action-dispatch tools.
+keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, media tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **15 MCP tools with 184 operations across 15 domains**.
+PowerPoint MCP Server exposes **16 MCP tools with 186 operations across 16 domains**.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
 `chart(action="add-chart", session_id="...", slide_index=2, ...)`.
@@ -32,6 +32,7 @@ The CLI mirrors the same domain model:
 | `master` | 10 | Slide master fonts and backgrounds | `master(action="...", session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
 | `animation` | 5 | Shape effects and slide transitions | `animation(action="...", session_id=..., ...)` | `pptcli animation <action> -s <SESSION_ID> ...` |
 | `image` | 7 | Picture insertion and picture adjustments (brightness/contrast, recolor, crop) | `image(action="...", session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
+| `media` | 2 | Embedded or linked audio/video insertion and native media metadata | `media(action="...", session_id=..., ...)` | `pptcli media <action> -s <SESSION_ID> ...` |
 | `chart` | 16 | Native charts, titles, legend, data replacement, styles, colors, data tables | `chart(action="...", session_id=..., ...)` | `pptcli chart <action> -s <SESSION_ID> ...` |
 | `smartart` | 7 | SmartArt diagrams and node editing | `smartart(action="...", session_id=..., ...)` | `pptcli smartart <action> -s <SESSION_ID> ...` |
 | `export` | 3 | PDF delivery and export-to-verify image rendering | `export(action="...", session_id=..., ...)` | `pptcli export <action> -s <SESSION_ID> ...` |
@@ -174,6 +175,12 @@ Use `image` for inserting and adjusting pictures.
 
 **Exact action order:** `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`,
 `set-recolor`, `get-recolor`, `set-crop`, `get-crop`
+
+### `media` tool (2 operations)
+
+Use `media` to insert embedded or linked audio/video and inspect PowerPoint's native media type.
+
+**Exact action order:** `add-media`, `get-media-info`
 
 ### `chart` tool (16 operations)
 

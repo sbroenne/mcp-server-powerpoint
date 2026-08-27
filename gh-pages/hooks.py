@@ -55,6 +55,7 @@ SKILL_SOURCES = {
     "tables.md": "Tables",
     "charts.md": "Charts",
     "images.md": "Images",
+    "media.md": "Media",
     "smart-art.md": "SmartArt",
     "speaker-notes.md": "Speaker Notes",
     "layouts.md": "Layouts",

@@ -44,7 +44,7 @@ layout regressions that text-only automation simply cannot detect.
 
 ## 🎯 What You Can Do
 
-**15 MCP tools with 184 operations across 15 domains:**
+**16 MCP tools with 186 operations across 16 domains:**
 
 - 🗂️ **Presentation** (20 ops) — create, open, Save As, Save Copy As, close, list sessions, apply a
   `.potx`/`.pptx` template's masters/theme/layouts, read the current theme name, set/read
@@ -65,6 +65,7 @@ layout regressions that text-only automation simply cannot detect.
   recolor, and crop
 - 📈 **Chart** (16 ops) — add chart, multi-series data, titles, legend, built-in styles, color styles,
   and data tables
+- 🎧 **Media** (2 ops) — insert embedded or linked audio/video and inspect native media metadata
 - 🔀 **SmartArt** (7 ops) — insert and edit SmartArt diagrams
 - 🖼️ **Export** (3 ops) — export to PDF or images for delivery and visual verification
 

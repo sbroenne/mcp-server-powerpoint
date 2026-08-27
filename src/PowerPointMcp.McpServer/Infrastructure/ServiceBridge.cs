@@ -50,7 +50,16 @@ public static class ServiceBridge
         };
 
         var response = service.ProcessAsync(request).GetAwaiter().GetResult();
+        return FormatResponse(response);
+    }
 
+    /// <summary>
+    /// Formats the shared service response for the generated MCP surface. Failed Core payloads
+    /// remain available on <see cref="ServiceResponse.Result"/> for service consumers, while MCP
+    /// callers continue to receive the established tool-error envelope with <c>isError=true</c>.
+    /// </summary>
+    internal static string FormatResponse(ServiceResponse response)
+    {
         if (response.Success)
         {
             return response.Result ?? JsonSerializer.Serialize(new { success = true }, ArgsJsonOptions);

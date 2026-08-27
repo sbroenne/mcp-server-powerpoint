@@ -3,8 +3,8 @@
 # Behavioral Rules for PowerPoint MCP Operations
 
 These rules ensure efficient, reliable PowerPoint automation via a live PowerPoint desktop
-instance (COM). AI assistants should follow these guidelines when using the **15 PowerPoint MCP
-tools across 15 domains**.
+instance (COM). AI assistants should follow these guidelines when using the **16 PowerPoint MCP
+tools across 16 domains**.
 
 ## Core Execution Rules
 
@@ -40,10 +40,10 @@ Every editing workflow starts by establishing a session:
 
 ## Tool Conventions
 
-- **All 15 MCP tools are action-dispatch tools.** Every call includes an `action` parameter.
+- **All 16 MCP tools are action-dispatch tools.** Every call includes an `action` parameter.
 - **`presentation` uses camelCase lifecycle/property parameters** — `filePath`, `sessionId`,
   `targetPath`, `format`, `overwrite`, `templatePath`, `propertyName`, `value`.
-- **The other 14 domain tools use `session_id` plus snake_case action parameters**, e.g.
+- **The other 15 domain tools use `session_id` plus snake_case action parameters**, e.g.
   `shape(action: "add-rectangle", session_id: ..., slide_index: 1, left: 50, top: 80, width: 100,
   height: 60)`.
 

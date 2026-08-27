@@ -67,6 +67,8 @@ public class PiaMigrationGuardTests
     //                remain dynamic.
     //   Master     — ctx.Presentation.SlideMaster hangs indefinitely via typed NoPIA interface
     //                (documented quirk identical to CoreTestHelper.CreateTemplateFile). Stays dynamic.
+    //   Media      — AddMediaObject2 and Shape.Type cross Office.Core enum boundaries that are
+    //                unavailable without office.dll; PpMediaType read-back remains typed.
     //   Notes      — NotesPage / shape iteration accessed dynamically; msoPlaceholder (= 14) is an
     //                MsoShapeType raw int constant (no typed equivalent in scope without office.dll);
     //                PpPlaceholderType is already typed via PowerPoint PIA.
@@ -91,6 +93,7 @@ public class PiaMigrationGuardTests
         ["Animation\\AnimationCommands.cs"] = 4, // Effect.Exit + Transition.AdvanceOnClick/AdvanceOnTime are MsoTriState (office.dll)
         ["Chart\\ChartCommands.cs"] = 21, // Shape.HasChart (MsoTriState) + Excel.SeriesCollection/XValues (Excel.dll)
         ["Master\\MasterCommands.cs"] = 5, // SlideMaster NoPIA hang + Font.Bold MsoTriState (office.dll)
+        ["Media\\MediaCommands.cs"] = 2, // AddMediaObject2 MsoTriState args + Shape.Type MsoShapeType
         ["Notes\\NotesCommands.cs"] = 3, // NotesPage / shape iteration — office.dll types
         ["Presentation\\PresentationCommands.cs"] = 5, // DocumentProperties (office.dll)
         ["Shape\\ShapeCommands.cs"] = 26, // MsoAutoShapeType / MsoShadowStyle / Line+Shadow Visible (office.dll)

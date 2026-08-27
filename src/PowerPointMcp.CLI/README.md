@@ -43,7 +43,7 @@ pptcli service stop --force   # stop only PID + start-time identities owned by t
 ```
 
 Every `[ServiceCategory]`-annotated Core domain (Presentation, Slide, Shape, TextFrame, Table,
-Chart, Image, Notes, Layout) gets a generated `pptcli <category> <action> -s <SESSION_ID> [options]`
+Chart, Image, Media, Notes, Layout) gets a generated `pptcli <category> <action> -s <SESSION_ID> [options]`
 command automatically — run `pptcli <category> --help` to see the actions and options available
 for that domain. (Export is not yet exposed via the CLI — a known, pre-existing generator
 conflict, unrelated to session handling.)
