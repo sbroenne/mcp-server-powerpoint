@@ -37,11 +37,11 @@ public sealed class MediaCommands : IMediaCommands
             return Failure("Media path must not be empty.");
         }
 
-        if (linkToFile == saveWithDocument)
+        if (!linkToFile && !saveWithDocument)
         {
             return Failure(
-                "Invalid media storage combination. Use linkToFile=false with saveWithDocument=true " +
-                "for embedded media, or linkToFile=true with saveWithDocument=false for linked media.");
+                "saveWithDocument must be true when linkToFile is false; otherwise PowerPoint has " +
+                "no media data to retain.");
         }
 
         if (width <= 0 || height <= 0)

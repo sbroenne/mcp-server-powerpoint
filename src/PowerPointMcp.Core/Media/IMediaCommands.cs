@@ -14,9 +14,10 @@ public interface IMediaCommands
 {
     /// <summary>
     /// Adds an audio or video file to a slide. Use <paramref name="linkToFile"/> = false and
-    /// <paramref name="saveWithDocument"/> = true for embedded media, or
-    /// <paramref name="linkToFile"/> = true and <paramref name="saveWithDocument"/> = false for
-    /// linked media. Other combinations are rejected as ambiguous.
+    /// <paramref name="saveWithDocument"/> = true for embedded media. Set
+    /// <paramref name="linkToFile"/> = true for linked media; keep
+    /// <paramref name="saveWithDocument"/> = true to also retain media data in the presentation,
+    /// or false for a link-only shape. The false/false combination is invalid.
     /// </summary>
     MediaOperationResult AddMedia(
         IPresentationBatch batch,

@@ -12,15 +12,16 @@ a file link, then reads PowerPoint's native media type from the resulting shape.
 
 ## Storage Modes
 
-Use exactly one of these combinations:
+Choose the storage behavior PowerPoint should use:
 
 | Mode | `link_to_file` | `save_with_document` | Source-file behavior |
 |------|----------------|----------------------|----------------------|
 | Embedded | `false` | `true` | Media is stored in the presentation and survives moving or deleting the source file. |
-| Linked | `true` | `false` | The presentation keeps a file link. Keep the source path available for reliable playback. |
+| Linked only | `true` | `false` | The presentation keeps only a file link. Keep the source path available for reliable playback. |
+| Linked and saved | `true` | `true` | The presentation keeps the link and also saves media data, so the media remains available if the source is deleted. |
 
-The other two boolean combinations are rejected before PowerPoint is called because they do not
-express one clear storage mode.
+The `false`/`false` combination is rejected before PowerPoint is called because the presentation
+would have neither a link nor saved media data.
 
 ## Requirements and Limits
 

@@ -160,7 +160,9 @@ Implemented by the generated `media` domain. The Core command keeps PowerPoint s
 boundaries that require Office enums unavailable without `office.dll`. Tests write embedded,
 deterministic PCM WAV and one-second black H.264 Constrained Baseline MP4 bytes. Both fixtures have
 no third-party authored media; a host without a compatible decoder fails insertion explicitly
-instead of silently skipping core behavior.
+instead of silently skipping core behavior. Media may be embedded (`false`/`true`), link-only
+(`true`/`false`), or linked while retaining media data in the presentation (`true`/`true`);
+`false`/`false` is rejected because PowerPoint would have no media data to retain.
 
 References: [Shapes.AddMediaObject2](https://learn.microsoft.com/office/vba/api/powerpoint.shapes.addmediaobject2),
 [Shape.MediaType](https://learn.microsoft.com/office/vba/api/powerpoint.shape.mediatype).

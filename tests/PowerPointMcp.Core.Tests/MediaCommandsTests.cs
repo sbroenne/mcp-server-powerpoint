@@ -118,6 +118,37 @@ public sealed class MediaCommandsTests : IClassFixture<SharedPresentationFixture
     }
 
     [Fact]
+    public void AddMedia_LinkedAndSavedWithDocument_PersistsAfterSourceDeletion()
+    {
+        _fixture.CreateFreshPresentation();
+        string mediaPath = CreateWaveFixture();
+        try
+        {
+            var addResult = _commands.AddMedia(
+                _fixture.Batch, 1, mediaPath, true, true, 5f, 5f, 100f, 75f);
+
+            Assert.True(addResult.Success, addResult.ErrorMessage);
+            Assert.True(addResult.LinkToFile);
+            Assert.True(addResult.SaveWithDocument);
+
+            _presentationCommands.Save(_fixture.Batch);
+            File.Delete(mediaPath);
+            Assert.False(File.Exists(mediaPath));
+            _fixture.ReopenCurrentPresentation();
+
+            var info = _commands.GetMediaInfo(_fixture.Batch, 1, 1);
+            Assert.True(info.Success, info.ErrorMessage);
+            Assert.Equal("ppMediaTypeSound", info.MediaTypeName);
+            Assert.Equal(1, info.ShapeIndex);
+            Assert.Equal(1, info.ShapeCount);
+        }
+        finally
+        {
+            File.Delete(mediaPath);
+        }
+    }
+
+    [Fact]
     public void AddMedia_WithMissingPath_ReturnsFailure()
     {
         _fixture.CreateFreshPresentation();
@@ -128,23 +159,19 @@ public sealed class MediaCommandsTests : IClassFixture<SharedPresentationFixture
         Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, true)]
-    public void AddMedia_WithAmbiguousStorageCombination_ReturnsFailure(
-        bool linkToFile,
-        bool saveWithDocument)
+    [Fact]
+    public void AddMedia_WithoutLinkOrSavedData_ReturnsFailure()
     {
         _fixture.CreateFreshPresentation();
         string mediaPath = CreateWaveFixture();
         try
         {
             var result = _commands.AddMedia(
-                _fixture.Batch, 1, mediaPath, linkToFile, saveWithDocument,
+                _fixture.Batch, 1, mediaPath, false, false,
                 0f, 0f, 100f, 100f);
 
             Assert.False(result.Success);
-            Assert.Contains("combination", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("no media data", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
