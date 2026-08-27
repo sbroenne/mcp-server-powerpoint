@@ -156,13 +156,6 @@ public sealed partial class ShapeCommands
         PowerPoint.LinkFormat linkFormat,
         bool? autoUpdate = null)
     {
-        autoUpdate ??= linkFormat.AutoUpdate switch
-        {
-            PowerPoint.PpUpdateOption.ppUpdateOptionAutomatic => true,
-            PowerPoint.PpUpdateOption.ppUpdateOptionManual => false,
-            _ => null
-        };
-
         return new ShapeOperationResult
         {
             Success = true,

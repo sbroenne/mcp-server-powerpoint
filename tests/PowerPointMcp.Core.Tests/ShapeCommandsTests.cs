@@ -693,15 +693,11 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
                 linkToFile: true, saveWithDocument: false);
             Assert.True(addResult.Success, addResult.ErrorMessage);
 
-            var infoException = Record.Exception(() =>
-            {
-                var info = _commands.GetLinkInfo(batch, 1, 1);
-                Assert.True(info.Success, info.ErrorMessage);
-                Assert.True(info.HasLink);
-                Assert.Equal(Path.GetFullPath(imagePath), info.LinkSourceFullName);
-                Assert.True(info.LinkAutoUpdate is false or true);
-            });
-            AssertSupportedAutoUpdateOrKnownPowerPointError(infoException);
+            var info = _commands.GetLinkInfo(batch, 1, 1);
+            Assert.True(info.Success, info.ErrorMessage);
+            Assert.True(info.HasLink);
+            Assert.Equal(Path.GetFullPath(imagePath), info.LinkSourceFullName);
+            Assert.Null(info.LinkAutoUpdate);
 
             var autoUpdateException = Record.Exception(() =>
             {
@@ -717,13 +713,11 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
             _presentationCommands.Save(batch);
             _fixture.ReopenCurrentPresentation();
 
-            var reopenedInfoException = Record.Exception(() =>
-            {
-                var reopenedInfo = _commands.GetLinkInfo(batch, 1, 1);
-                Assert.True(reopenedInfo.Success, reopenedInfo.ErrorMessage);
-                Assert.Equal(Path.GetFullPath(imagePath), reopenedInfo.LinkSourceFullName);
-            });
-            AssertSupportedAutoUpdateOrKnownPowerPointError(reopenedInfoException);
+            var reopenedInfo = _commands.GetLinkInfo(batch, 1, 1);
+            Assert.True(reopenedInfo.Success, reopenedInfo.ErrorMessage);
+            Assert.True(reopenedInfo.HasLink);
+            Assert.Equal(Path.GetFullPath(imagePath), reopenedInfo.LinkSourceFullName);
+            Assert.Null(reopenedInfo.LinkAutoUpdate);
 
             var breakResult = _commands.BreakLink(batch, 1, 1);
             Assert.True(breakResult.Success, breakResult.ErrorMessage);

@@ -98,7 +98,8 @@ and `set-crop` actions (see above).
 
 Use the `shape` tool after adding a linked picture:
 
-1. `shape(action: "get-link-info", ...)` returns `linkSourceFullName` and `linkAutoUpdate`.
+1. `shape(action: "get-link-info", ...)` returns `linkSourceFullName`. `linkAutoUpdate` is null
+   because some PowerPoint builds reject reads of the typed automatic-update property.
 2. `shape(action: "set-link-auto-update", ..., auto_update: false)` switches between automatic
    and manual refresh. If the installed PowerPoint build rejects this typed operation, the MCP or
    CLI boundary returns the PowerPoint error rather than a successful or validation-shaped result.

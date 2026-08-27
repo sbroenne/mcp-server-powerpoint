@@ -178,8 +178,9 @@ public interface IShapeCommands
     ShapeOperationResult RemoveHyperlink(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
 
     /// <summary>
-    /// Gets a linked picture shape's source path and automatic-update setting. An ordinary
-    /// non-linked shape returns an expected validation failure.
+    /// Gets a linked picture shape's source path. <c>LinkAutoUpdate</c> is null because some
+    /// PowerPoint builds reject reads of the typed <c>LinkFormat.AutoUpdate</c> property. An
+    /// ordinary non-linked shape returns an expected validation failure.
     /// </summary>
     ShapeOperationResult GetLinkInfo(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
 

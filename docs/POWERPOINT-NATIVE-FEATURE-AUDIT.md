@@ -131,10 +131,11 @@ combination and missing source files are rejected before insertion. Accessing li
 an ordinary shape is an expected validation failure, not an unexpected exception.
 
 Real-PowerPoint testing found that some PowerPoint builds expose `AutoUpdate` in the PIA but return
-`0x80048240` (invalid request) when a linked picture reads or changes it. The implementation calls
-the typed member directly and lets that unexpected COM failure reach the MCP or CLI boundary rather
-than reporting a successful or validation-shaped result. `update-link` remains available for an
-explicit refresh.
+`0x80048240` (invalid request) when a linked picture reads or changes it. To keep source inspection
+reliable, `get-link-info` reads the typed `SourceFullName` and returns `LinkAutoUpdate=null` rather
+than touching the unsupported property. `set-link-auto-update` still calls the typed member
+directly and lets an unexpected COM failure reach the MCP or CLI boundary. `update-link` remains
+available for an explicit refresh.
 
 Tests create a linked image, read its source, attempt to change automatic update, update it, break
 the link, and verify the image remains after the source file is removed.

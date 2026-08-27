@@ -105,14 +105,11 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
             _presentationCommands.Save(batch);
             _fixture.ReopenCurrentPresentation();
 
-            var linkInfoException = Record.Exception(() =>
-            {
-                var linkInfo = _shapeCommands.GetLinkInfo(batch, 1, 1);
-                Assert.True(linkInfo.Success, linkInfo.ErrorMessage);
-                Assert.True(linkInfo.HasLink);
-                Assert.Equal(Path.GetFullPath(imagePath), linkInfo.LinkSourceFullName);
-            });
-            AssertSupportedAutoUpdateOrKnownPowerPointError(linkInfoException);
+            var linkInfo = _shapeCommands.GetLinkInfo(batch, 1, 1);
+            Assert.True(linkInfo.Success, linkInfo.ErrorMessage);
+            Assert.True(linkInfo.HasLink);
+            Assert.Equal(Path.GetFullPath(imagePath), linkInfo.LinkSourceFullName);
+            Assert.Null(linkInfo.LinkAutoUpdate);
         }
         finally
         {

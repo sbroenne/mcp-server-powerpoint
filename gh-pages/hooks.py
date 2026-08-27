@@ -76,6 +76,9 @@ _FRONTMATTER = re.compile(r"\A---\r?\n.*?\r?\n---\r?\n", re.DOTALL)
 _PAGE_MARKDOWN: dict[str, dict[str, str]] = {}
 _NAV: list = []
 SITE_URL = "https://powerpointmcpserver.dev/"
+_FEATURE_HEADLINE = re.compile(
+    r"exposes \*\*(?P<tools>\d+) MCP tools with (?P<operations>\d+) operations"
+)
 
 
 def _rewrite_links(text: str, source_rel: str) -> str:
@@ -152,6 +155,13 @@ def _read(rel: str) -> str:
     if not path.is_file():
         raise FileNotFoundError(f"Source doc not found: {path}")
     return path.read_text(encoding="utf-8")
+
+
+def _feature_totals(features: str) -> tuple[int, int]:
+    headline = _FEATURE_HEADLINE.search(features)
+    if headline is None:
+        raise RuntimeError("could not read tool totals from gh-pages/docs/features.md")
+    return int(headline.group("tools")), int(headline.group("operations"))
 
 
 def _write(name: str, source_rel: str, content: str) -> None:
@@ -247,6 +257,9 @@ def _nav_entries(items, output: list) -> None:
 
 def _write_llm_outputs(config) -> None:
     site_dir = Path(config["site_dir"])
+    tool_count, operation_count = _feature_totals(
+        _read("gh-pages/docs/features.md")
+    )
 
     for entry in _PAGE_MARKDOWN.values():
         destination = site_dir / entry["dest"]
@@ -264,7 +277,8 @@ def _write_llm_outputs(config) -> None:
         "# PowerPoint MCP Server",
         "",
         "> PowerPoint MCP Server automates the real Microsoft PowerPoint desktop "
-        "application through its COM API. It exposes 15 tools and 180 operations "
+        f"application through its COM API. It exposes {tool_count} tools and "
+        f"{operation_count} operations "
         "to AI assistants over the Model Context Protocol and to scripts through "
         "the `pptcli` command line. Windows-only; requires Microsoft PowerPoint.",
         "",
@@ -332,12 +346,7 @@ def _write_llm_outputs(config) -> None:
 
 def _write_tools_json(config) -> None:
     features = _read("gh-pages/docs/features.md")
-    headline = re.search(
-        r"exposes \*\*(?P<tools>\d+) MCP tools with (?P<operations>\d+) operations",
-        features,
-    )
-    if headline is None:
-        raise RuntimeError("could not read tool totals from gh-pages/docs/features.md")
+    expected_tools, expected_operations = _feature_totals(features)
 
     matrix = {}
     for match in re.finditer(
@@ -384,8 +393,6 @@ def _write_tools_json(config) -> None:
             }
         )
 
-    expected_tools = int(headline.group("tools"))
-    expected_operations = int(headline.group("operations"))
     actual_operations = sum(tool["operationCount"] for tool in tools)
     if len(tools) != expected_tools or actual_operations != expected_operations:
         raise RuntimeError(
