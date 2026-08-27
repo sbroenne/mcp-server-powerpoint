@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit compares the current 15 tools and 180 operations with the restored
+This audit compares the current 15 tools and 184 operations with the restored
 `Microsoft.Office.Interop.PowerPoint` 15.0.4420.1018 assembly. It looks for useful PowerPoint
 features that fit the existing live-session model. It does not copy Excel-only worksheet, Power
 Query, Data Model, PivotTable, or calculation APIs.
@@ -124,12 +124,21 @@ References: [Chart.ChartStyle](https://learn.microsoft.com/office/vba/api/powerp
 `Shape.LinkFormat` property is typed and exposes `SourceFullName`, `AutoUpdate`,
 `Update()`, and `BreakLink()`.
 
-Keep embedding as the default. A linked picture must either be saved with the document or remain
-resolvable by path; reject contradictory combinations before COM. Accessing `LinkFormat` on an
-ordinary shape is an expected validation failure, not an unexpected exception.
+Implemented in the `image` and `shape` domains. Embedding remains the default:
+`link_to_file=false` and `save_with_document=true`. Linked-only pictures use `true/false`; linked
+pictures may also retain a saved copy with `true/true`. The contradictory `false/false`
+combination and missing source files are rejected before insertion. Accessing link operations on
+an ordinary shape is an expected validation failure, not an unexpected exception.
 
-Tests should create a linked image, read its source, change automatic update, update it, break the
-link, and verify the image remains after the source file is removed.
+Real-PowerPoint testing found that some PowerPoint builds expose `AutoUpdate` in the PIA but return
+`0x80048240` (invalid request) when a linked picture reads or changes it. To keep source inspection
+reliable, `get-link-info` reads the typed `SourceFullName` and returns `LinkAutoUpdate=null` rather
+than touching the unsupported property. `set-link-auto-update` still calls the typed member
+directly and lets an unexpected COM failure reach the MCP or CLI boundary. `update-link` remains
+available for an explicit refresh.
+
+Tests create a linked image, read its source, attempt to change automatic update, update it, break
+the link, and verify the image remains after the source file is removed.
 
 References: [Shapes.AddPicture](https://learn.microsoft.com/office/vba/api/powerpoint.shapes.addpicture),
 [LinkFormat](https://learn.microsoft.com/office/vba/api/powerpoint.linkformat).

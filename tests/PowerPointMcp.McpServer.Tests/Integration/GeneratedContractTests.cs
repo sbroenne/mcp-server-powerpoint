@@ -189,4 +189,38 @@ public sealed class GeneratedContractTests
         Assert.Equal(3, root.GetProperty("colorStyle").GetInt32());
         Assert.True(root.GetProperty("hasDataTable").GetBoolean());
     }
+
+    [Fact]
+    public void ShapeLinkActions_HaveGeneratedCliAndServiceWiring()
+    {
+        var expectedActions = new[]
+        {
+            "get-link-info",
+            "update-link",
+            "break-link",
+            "set-link-auto-update"
+        };
+
+        foreach (string action in expectedActions)
+        {
+            Assert.Contains(action, ServiceRegistry.Shape.ValidActions);
+        }
+
+        Assert.Equal(
+            "shape.get-link-info",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "get-link-info", slideIndex: 1, shapeIndex: 1).Command);
+        Assert.Equal(
+            "shape.update-link",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "update-link", slideIndex: 1, shapeIndex: 1).Command);
+        Assert.Equal(
+            "shape.break-link",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "break-link", slideIndex: 1, shapeIndex: 1).Command);
+        Assert.Equal(
+            "shape.set-link-auto-update",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "set-link-auto-update", slideIndex: 1, shapeIndex: 1, autoUpdate: true).Command);
+    }
 }

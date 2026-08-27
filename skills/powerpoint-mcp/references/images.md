@@ -8,7 +8,7 @@ The image domain provides 7 total actions: 1 insertion action (`add-picture`) pl
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
-| `image` | `add-picture` | `session_id`, `slide_index`, `image_path`, `left`, `top`, `width`, `height` | Embeds (not links) the file into the presentation. |
+| `image` | `add-picture` | `session_id`, `slide_index`, `image_path`, `left`, `top`, `width`, `height`, optional `link_to_file`, `save_with_document` | Embeds by default. Set `link_to_file=true` for a linked picture. |
 | `image` | `set-brightness-contrast` | `session_id`, `slide_index`, `shape_index`, `brightness`, `contrast` | `brightness`/`contrast` are floats in `[0, 1]` (PowerPoint default is `0.5` for both). |
 | `image` | `get-brightness-contrast` | `session_id`, `slide_index`, `shape_index` | Returns current `brightness`/`contrast`. |
 | `image` | `set-recolor` | `session_id`, `slide_index`, `shape_index`, `color_type` | `color_type` is one of `msoPictureAutomatic` (default/no recolor), `msoPictureGrayscale`, `msoPictureBlackAndWhite`, `msoPictureWatermark`. Unrecognized names fail with `Success=false`. |
@@ -60,8 +60,11 @@ The image domain exposes these `Microsoft.Office.Interop.PowerPoint.PictureForma
 - `image_path` must be a **full Windows path** to a local, existing image file (e.g.
   `C:\Assets\logo.png`). There is no URL/remote-fetch parameter — download or generate the image
   to local disk first if it doesn't already exist there.
-- The image is **embedded**, not linked: the presentation's file size grows by the image size, and
-  the presentation remains valid even if the original file is later moved or deleted.
+- The default is embedded: `link_to_file=false`, `save_with_document=true`. The presentation
+  remains valid if the original file is moved or deleted.
+- A linked-only picture uses `link_to_file=true`, `save_with_document=false` and depends on the
+  full source path remaining available. `true/true` keeps the link and also saves picture data in
+  the presentation. `false/false` is rejected because PowerPoint would have no picture data.
 - `width`/`height` are explicit — this action does not auto-detect or preserve the source image's
   native aspect ratio. If the aspect ratio matters (logos, photos), compute `width`/`height` to
   match the source image's ratio yourself before calling, or the image will appear stretched or
@@ -88,3 +91,20 @@ doesn't overlap other shapes on the slide (see `export-and-verify.md`).
 Post-insert adjustments available: `shape(action: "set-position", ...)`, `shape(action:
 "set-size", ...)` (see `slides-and-shapes.md`), and `set-brightness-contrast`, `set-recolor`,
 and `set-crop` actions (see above).
+
+## Linked Picture Lifecycle
+
+Use the `shape` tool after adding a linked picture:
+
+1. `shape(action: "get-link-info", ...)` returns `linkSourceFullName`. `linkAutoUpdate` is null
+   because some PowerPoint builds reject reads of the typed automatic-update property.
+2. `shape(action: "set-link-auto-update", ..., auto_update: false)` switches between automatic
+   and manual refresh. If the installed PowerPoint build rejects this typed operation, the MCP or
+   CLI boundary returns the PowerPoint error rather than a successful or validation-shaped result.
+3. `shape(action: "update-link", ...)` refreshes immediately and fails cleanly if the source file
+   is missing.
+4. `shape(action: "break-link", ...)` permanently embeds the current image and removes the file
+   dependency. The picture shape remains in the slide.
+
+These actions require a linked picture shape. Calling them on an embedded picture or ordinary
+shape returns a validation error rather than attempting an invalid COM operation.

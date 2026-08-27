@@ -233,8 +233,8 @@ OPTIONS:
 
 ```text
 DESCRIPTION:
-Image commands: embed a picture file into a slide. Operates within an
-already-open IPresentationBatch, targeting a specific slide by its 1-based index
+Image commands: add a picture file to a slide. Operates within an already-open
+IPresentationBatch, targeting a specific slide by its 1-based index
 
 USAGE:
     pptcli image <ACTION> [OPTIONS]
@@ -243,42 +243,60 @@ ARGUMENTS:
     <ACTION>    The action to perform
 
 OPTIONS:
-    -h, --help                        Prints help information
-    -s, --session <SESSION>           Session ID from 'session open' command
-        --slide-index <SLIDEINDEX>    (required)
-        --image-path <IMAGEPATH>      (required for: add-picture) (valid for:
-                                      add-picture)
-        --left <LEFT>                 (required for: add-picture) (valid for:
-                                      add-picture)
-        --top <TOP>                   (required for: add-picture) (valid for:
-                                      add-picture)
-        --width <WIDTH>               (required for: add-picture) (valid for:
-                                      add-picture)
-        --height <HEIGHT>             (required for: add-picture) (valid for:
-                                      add-picture)
-        --shape-index <SHAPEINDEX>    (required for: set-brightness-contrast,
-                                      get-brightness-contrast, set-recolor,
-                                      get-recolor, set-crop, get-crop) (valid
-                                      for: set-brightness-contrast,
-                                      get-brightness-contrast, set-recolor,
-                                      get-recolor, set-crop, get-crop)
-        --brightness <BRIGHTNESS>     (required for: set-brightness-contrast)
-                                      (valid for: set-brightness-contrast)
-        --contrast <CONTRAST>         (required for: set-brightness-contrast)
-                                      (valid for: set-brightness-contrast)
-        --color-type <COLORTYPE>      (required for: set-recolor) (valid for:
-                                      set-recolor)
-        --crop-left <CROPLEFT>        (required for: set-crop) (valid for:
-                                      set-crop)
-        --crop-top <CROPTOP>          (required for: set-crop) (valid for:
-                                      set-crop)
-        --crop-right <CROPRIGHT>      (required for: set-crop) (valid for:
-                                      set-crop)
-        --crop-bottom <CROPBOTTOM>    (required for: set-crop) (valid for:
-                                      set-crop)
-    -o, --output <PATH>               Write output to file instead of stdout.
-                                      For image results, decodes and saves as
-                                      binary file
+    -h, --help                                     Prints help information
+    -s, --session <SESSION>                        Session ID from 'session
+                                                   open' command
+        --slide-index <SLIDEINDEX>                 (required)
+        --image-path <IMAGEPATH>                   (required for: add-picture)
+                                                   (valid for: add-picture)
+        --left <LEFT>                              (required for: add-picture)
+                                                   (valid for: add-picture)
+        --top <TOP>                                (required for: add-picture)
+                                                   (valid for: add-picture)
+        --width <WIDTH>                            (required for: add-picture)
+                                                   (valid for: add-picture)
+        --height <HEIGHT>                          (required for: add-picture)
+                                                   (valid for: add-picture)
+        --link-to-file <LINKTOFILE>                Whether the picture remains
+                                                   linked to its source file.
+                                                   Defaults to false. (valid
+                                                   for: add-picture)
+        --save-with-document <SAVEWITHDOCUMENT>    Whether PowerPoint stores
+                                                   picture data in the
+                                                   presentation. Defaults to
+                                                   true. (valid for:
+                                                   add-picture)
+        --shape-index <SHAPEINDEX>                 (required for:
+                                                   set-brightness-contrast,
+                                                   get-brightness-contrast,
+                                                   set-recolor, get-recolor,
+                                                   set-crop, get-crop) (valid
+                                                   for: set-brightness-contrast,
+                                                   get-brightness-contrast,
+                                                   set-recolor, get-recolor,
+                                                   set-crop, get-crop)
+        --brightness <BRIGHTNESS>                  (required for:
+                                                   set-brightness-contrast)
+                                                   (valid for:
+                                                   set-brightness-contrast)
+        --contrast <CONTRAST>                      (required for:
+                                                   set-brightness-contrast)
+                                                   (valid for:
+                                                   set-brightness-contrast)
+        --color-type <COLORTYPE>                   (required for: set-recolor)
+                                                   (valid for: set-recolor)
+        --crop-left <CROPLEFT>                     (required for: set-crop)
+                                                   (valid for: set-crop)
+        --crop-top <CROPTOP>                       (required for: set-crop)
+                                                   (valid for: set-crop)
+        --crop-right <CROPRIGHT>                   (required for: set-crop)
+                                                   (valid for: set-crop)
+        --crop-bottom <CROPBOTTOM>                 (required for: set-crop)
+                                                   (valid for: set-crop)
+    -o, --output <PATH>                            Write output to file instead
+                                                   of stdout. For image results,
+                                                   decodes and saves as binary
+                                                   file
 ```
 
 ## `pptcli layout`
@@ -847,6 +865,8 @@ OPTIONS:
                                              set-name, get-name, set-alt-text,
                                              get-alt-text, set-hyperlink,
                                              get-hyperlink, remove-hyperlink,
+                                             get-link-info, update-link,
+                                             break-link, set-link-auto-update,
                                              set-placeholder-text,
                                              set-placeholder-image, set-tag,
                                              get-tag, list-tags, delete-tag)
@@ -862,6 +882,8 @@ OPTIONS:
                                              get-name, set-alt-text,
                                              get-alt-text, set-hyperlink,
                                              get-hyperlink, remove-hyperlink,
+                                             get-link-info, update-link,
+                                             break-link, set-link-auto-update,
                                              set-placeholder-text,
                                              set-placeholder-image, set-tag,
                                              get-tag, list-tags, delete-tag)
@@ -909,6 +931,10 @@ OPTIONS:
         --address <ADDRESS>                  (required for: set-hyperlink)
                                              (valid for: set-hyperlink)
         --screen-tip <SCREENTIP>             (valid for: set-hyperlink)
+        --auto-update <AUTOUPDATE>           True for automatic refresh or false
+                                             for manual refresh. (required for:
+                                             set-link-auto-update) (valid for:
+                                             set-link-auto-update)
         --image-path <IMAGEPATH>             (required for:
                                              set-placeholder-image) (valid for:
                                              set-placeholder-image)

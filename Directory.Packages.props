@@ -7,6 +7,7 @@
   <ItemGroup>
     <!-- PowerPoint COM Interop PIA -->
     <PackageVersion Include="Microsoft.Office.Interop.PowerPoint" Version="15.0.4420.1018" />
+    <PackageVersion Include="MSOfficeCore.Interop" Version="15.0.2" />
     <!-- UI Framework (CLI) -->
     <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.4.6" />
     <PackageVersion Include="Spectre.Console" Version="0.57.1" />

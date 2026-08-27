@@ -794,8 +794,9 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                         (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription)))
                     {
                         var typeName = p.TypeName.EndsWith("?") ? p.TypeName : $"{p.TypeName}?";
-                        var defaultVal = p.HasDefault ? p.DefaultValue : "null";
-                        var ep = new ExposedParameter(p.Name, typeName, p.XmlDocDescription, defaultVal);
+                        // Union parameters must default to null. A method-specific default here
+                        // makes the parameter look supplied for every unrelated action.
+                        var ep = new ExposedParameter(p.Name, typeName, p.XmlDocDescription, "null");
                         if (result.TryGetValue(p.Name, out var prev))
                             ep.RequiredByActions.AddRange(prev.RequiredByActions);
                         result[p.Name] = ep;

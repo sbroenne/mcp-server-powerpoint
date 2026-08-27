@@ -68,6 +68,10 @@ slide(action: "rename-section", session_id: ..., section_index: 2, section_name:
 | `shape` | `list-placeholders` | `session_id`, `slide_index` | Returns each native placeholder's shape index, type, name, bounds, alt text, and content state. |
 | `shape` | `set-placeholder-text` | `session_id`, `slide_index`, `shape_index`, `text` | Replaces text in a native text placeholder; rejects ordinary shapes. |
 | `shape` | `set-placeholder-image` | `session_id`, `slide_index`, `shape_index`, `image_path` | Places an image in a compatible picture/content placeholder while preserving its native geometry and metadata. |
+| `shape` | `get-link-info` | `session_id`, `slide_index`, `shape_index` | Returns a linked picture's full source path; `linkAutoUpdate` is null because some PowerPoint builds reject reads of that typed property. |
+| `shape` | `update-link` | `session_id`, `slide_index`, `shape_index` | Refreshes a linked picture immediately from its current source file. |
+| `shape` | `break-link` | `session_id`, `slide_index`, `shape_index` | Permanently removes the file link while retaining the current picture. |
+| `shape` | `set-link-auto-update` | `session_id`, `slide_index`, `shape_index`, `auto_update` | Enables or disables automatic refresh; PowerPoint errors propagate to the MCP or CLI boundary. |
 
 All position/size values are **points** (see `deck-builder.md` for the 960×540pt 16:9 reference).
 
@@ -132,6 +136,15 @@ shape(action: "get-hyperlink", session_id: ..., slide_index: ..., shape_index: .
 shape(action: "remove-hyperlink", session_id: ..., slide_index: ..., shape_index: ...)
   → hasHyperlink: false
 ```
+
+### Linked Pictures
+
+File links are separate from click hyperlinks. Add a linked picture with `image(action:
+"add-picture", ..., link_to_file: true)`, then use `get-link-info`, `update-link`,
+`set-link-auto-update`, or `break-link` on that picture's 1-based shape index. `break-link`
+retains the picture as an embedded shape. Link operations on rectangles, text boxes, embedded
+pictures, or other non-linked shapes return a validation error. Unexpected PowerPoint errors from
+typed link members propagate to the MCP or CLI boundary.
 
 ### Dash Styles (`dash_style` for `set-line`)
 

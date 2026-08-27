@@ -38,6 +38,9 @@
       <ExcludeAssets>runtime</ExcludeAssets>
       <NoWarn>NU1701</NoWarn>
     </PackageReference>
+    <PackageReference Include="MSOfficeCore.Interop" Aliases="OfficeInterop">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.PowerShell.SDK" />
     <!-- Required for generated CliSettings class (Spectre.Console.Cli.CommandSettings) -->
     <PackageReference Include="Spectre.Console.Cli" />

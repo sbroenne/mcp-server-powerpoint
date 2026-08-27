@@ -20,6 +20,12 @@ public sealed class ImageOperationResult
     /// <summary>Total shape count on the slide after the operation.</summary>
     public int? ShapeCount { get; init; }
 
+    /// <summary>Whether the added picture links to its source file, if applicable.</summary>
+    public bool? LinkToFile { get; init; }
+
+    /// <summary>Whether a copy of the added picture is saved in the presentation, if applicable.</summary>
+    public bool? SaveWithDocument { get; init; }
+
     /// <summary>Picture brightness (0-1), if applicable.</summary>
     public float? Brightness { get; init; }
 

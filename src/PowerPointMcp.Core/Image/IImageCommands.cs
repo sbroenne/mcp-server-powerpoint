@@ -4,19 +4,33 @@ using Sbroenne.PowerPointMcp.Core.Attributes;
 namespace Sbroenne.PowerPointMcp.Core.Image;
 
 /// <summary>
-/// Image commands: embed a picture file into a slide. Operates within an already-open
+/// Image commands: add a picture file to a slide. Operates within an already-open
 /// IPresentationBatch, targeting a specific slide by its 1-based index.
 /// </summary>
 [ServiceCategory("image", "Image")]
 [McpTool("image", Title = "Image Operations", Destructive = true, Category = "content",
-    Description = "Insert pictures into slides and adjust picture appearance with brightness/contrast, recolor, and crop operations.")]
+    Description = "Insert embedded or linked pictures into slides and adjust picture appearance with brightness/contrast, recolor, and crop operations.")]
 public interface IImageCommands
 {
     /// <summary>
-    /// Adds a picture from a local file to the given slide as an embedded shape (not linked to the
-    /// source file).
+    /// Adds a picture from a local file to the given slide. The default embeds the picture
+    /// (<paramref name="linkToFile"/> is false and <paramref name="saveWithDocument"/> is true).
+    /// Set <paramref name="linkToFile"/> to true for a linked picture; set
+    /// <paramref name="saveWithDocument"/> to false for a link-only picture that depends on the
+    /// source path remaining available. The combination false/false is invalid.
     /// </summary>
-    ImageOperationResult AddPicture(IPresentationBatch batch, int slideIndex, string imagePath, float left, float top, float width, float height);
+    /// <param name="linkToFile">Whether the picture remains linked to its source file. Defaults to false.</param>
+    /// <param name="saveWithDocument">Whether PowerPoint stores picture data in the presentation. Defaults to true.</param>
+    ImageOperationResult AddPicture(
+        IPresentationBatch batch,
+        int slideIndex,
+        string imagePath,
+        float left,
+        float top,
+        float width,
+        float height,
+        bool linkToFile = false,
+        bool saveWithDocument = true);
 
     /// <summary>Sets a picture shape's brightness and contrast (each 0-1, where 0.5 is PowerPoint's default/unadjusted level).</summary>
     ImageOperationResult SetBrightnessContrast(IPresentationBatch batch, int slideIndex, int shapeIndex, float brightness, float contrast);

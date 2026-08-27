@@ -220,6 +220,25 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
+    public async Task ShapeSchema_ExposesLinkManagementActions()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var shape = Assert.Single(tools, tool => tool.Name == "shape");
+        var actions = shape.JsonSchema
+            .GetProperty("properties")
+            .GetProperty("action")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("get-link-info", actions);
+        Assert.Contains("update-link", actions);
+        Assert.Contains("break-link", actions);
+        Assert.Contains("set-link-auto-update", actions);
+    }
+
+    [Fact]
     public async Task PresentationSchema_ExposesFinalActionsAndAdvisoryContract()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);

@@ -92,6 +92,17 @@ public sealed class ShapeOperationResult
     /// <summary>The shape's hyperlink hover screen tip text, if applicable.</summary>
     public string? HyperlinkScreenTip { get; init; }
 
+    /// <summary>Whether the shape has an external file link, if applicable.</summary>
+    public bool? HasLink { get; init; }
+
+    /// <summary>The linked shape's full source file path, if applicable.</summary>
+    public string? LinkSourceFullName { get; init; }
+
+    /// <summary>
+    /// Whether automatic updates were set by the operation; null when the value was not queried.
+    /// </summary>
+    public bool? LinkAutoUpdate { get; init; }
+
     /// <summary>Effect transparency (shadow, glow, or reflection), 0-1, if applicable.</summary>
     public float? Transparency { get; init; }
 

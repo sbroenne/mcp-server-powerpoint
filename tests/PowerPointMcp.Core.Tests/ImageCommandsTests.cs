@@ -1,6 +1,7 @@
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Presentation;
+using Sbroenne.PowerPointMcp.Core.Shape;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
 
@@ -17,6 +18,7 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
     private readonly SharedPresentationFixture _fixture;
     private readonly PresentationCommands _presentationCommands = new();
     private readonly ImageCommands _commands = new();
+    private readonly ShapeCommands _shapeCommands = new();
 
     public ImageCommandsTests(SharedPresentationFixture fixture)
     {
@@ -41,8 +43,9 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
             _presentationCommands.Save(batch);
 
             _fixture.ReopenCurrentPresentation();
-            int shapeCount = batch.Execute((ctx, ct) => ctx.Presentation.Slides[1].Shapes.Count);
-            Assert.Equal(1, shapeCount);
+            var countResult = _shapeCommands.GetCount(batch, 1);
+            Assert.True(countResult.Success, countResult.ErrorMessage);
+            Assert.Equal(1, countResult.ShapeCount);
         }
         finally
         {
@@ -60,6 +63,145 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
 
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void AddPicture_DefaultContract_EmbedsPictureAndSurvivesSourceRemoval()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        string imagePath = CoreTestHelper.CreateUniqueTestImageFile();
+
+        var result = _commands.AddPicture(batch, 1, imagePath, 10f, 10f, 100f, 100f);
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.False(result.LinkToFile);
+        Assert.True(result.SaveWithDocument);
+
+        _presentationCommands.Save(batch);
+        File.Delete(imagePath);
+        _fixture.ReopenCurrentPresentation();
+
+        var countResult = _shapeCommands.GetCount(batch, 1);
+        Assert.True(countResult.Success, countResult.ErrorMessage);
+        Assert.Equal(1, countResult.ShapeCount);
+    }
+
+    [Fact]
+    public void AddPicture_LinkedOnly_PersistsLinkAfterSaveAndReopen()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        string imagePath = CoreTestHelper.CreateUniqueTestImageFile();
+        try
+        {
+            var result = _commands.AddPicture(
+                batch, 1, imagePath, 10f, 10f, 100f, 100f,
+                linkToFile: true, saveWithDocument: false);
+
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.True(result.LinkToFile);
+            Assert.False(result.SaveWithDocument);
+
+            _presentationCommands.Save(batch);
+            _fixture.ReopenCurrentPresentation();
+
+            var linkInfo = _shapeCommands.GetLinkInfo(batch, 1, 1);
+            Assert.True(linkInfo.Success, linkInfo.ErrorMessage);
+            Assert.True(linkInfo.HasLink);
+            Assert.Equal(Path.GetFullPath(imagePath), linkInfo.LinkSourceFullName);
+            Assert.Null(linkInfo.LinkAutoUpdate);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public void AddPicture_LinkedAndSaved_SurvivesSourceRemoval()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        string imagePath = CoreTestHelper.CreateUniqueTestImageFile();
+
+        var result = _commands.AddPicture(
+            batch, 1, imagePath, 10f, 10f, 100f, 100f,
+            linkToFile: true, saveWithDocument: true);
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(result.LinkToFile);
+        Assert.True(result.SaveWithDocument);
+
+        _presentationCommands.Save(batch);
+        File.Delete(imagePath);
+        _fixture.ReopenCurrentPresentation();
+
+        var countResult = _shapeCommands.GetCount(batch, 1);
+        Assert.True(countResult.Success, countResult.ErrorMessage);
+        Assert.Equal(1, countResult.ShapeCount);
+    }
+
+    [Fact]
+    public void AddPicture_UnlinkedAndNotSavedWithDocument_ReturnsFailure()
+    {
+        _fixture.CreateFreshPresentation();
+        string imagePath = CoreTestHelper.CreateUniqueTestImageFile();
+        try
+        {
+            var result = _commands.AddPicture(
+                _fixture.Batch, 1, imagePath, 0f, 0f, 10f, 10f,
+                linkToFile: false, saveWithDocument: false);
+
+            Assert.False(result.Success);
+            Assert.Contains("save", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public void AddPicture_WithRelativeSource_ReturnsFailureBeforeCom()
+    {
+        _fixture.CreateFreshPresentation();
+        var result = _commands.AddPicture(
+            _fixture.Batch, 1, "relative-image.png",
+            0f, 0f, 10f, 10f, linkToFile: true, saveWithDocument: false);
+
+        Assert.False(result.Success);
+        Assert.Contains("full local or UNC path", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AddPicture_LinkedWithMissingSource_ReturnsFailureBeforeCom()
+    {
+        _fixture.CreateFreshPresentation();
+        var result = _commands.AddPicture(
+            _fixture.Batch, 1, "C:\\does\\not\\exist-linked.png",
+            0f, 0f, 10f, 10f, linkToFile: true, saveWithDocument: false);
+
+        Assert.False(result.Success);
+        Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AddPicture_WithZeroSlideIndex_ReturnsFailure()
+    {
+        _fixture.CreateFreshPresentation();
+        string imagePath = CoreTestHelper.CreateUniqueTestImageFile();
+        try
+        {
+            var result = _commands.AddPicture(
+                _fixture.Batch, 0, imagePath, 0f, 0f, 10f, 10f,
+                linkToFile: true, saveWithDocument: false);
+
+            Assert.False(result.Success);
+            Assert.Contains("Slide index 0", result.ErrorMessage, StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
     }
 
     [Fact]
@@ -351,6 +493,17 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+    private static void AssertSupportedAutoUpdateOrKnownPowerPointError(Exception? exception)
+    {
+        if (exception is null)
+        {
+            return;
+        }
+
+        var comException = Assert.IsType<System.Runtime.InteropServices.COMException>(exception);
+        Assert.Equal(unchecked((int)0x80048240), comException.HResult);
+    }
 
     /// <summary>
     /// Adds a text box to slide 1 of the current presentation so tests can exercise
