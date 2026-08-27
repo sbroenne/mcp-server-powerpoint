@@ -26,27 +26,34 @@ public sealed class MediaCommandsTests : IClassFixture<SharedPresentationFixture
     {
         _fixture.CreateFreshPresentation();
         string mediaPath = CreateWaveFixture();
-        var addResult = _commands.AddMedia(
-            _fixture.Batch, 1, mediaPath, false, true, 10f, 10f, 120f, 60f);
+        try
+        {
+            var addResult = _commands.AddMedia(
+                _fixture.Batch, 1, mediaPath, false, true, 10f, 10f, 120f, 60f);
 
-        Assert.True(addResult.Success, addResult.ErrorMessage);
-        Assert.Null(addResult.ErrorMessage);
-        Assert.Equal(1, addResult.ShapeIndex);
-        Assert.Equal(1, addResult.ShapeCount);
-        Assert.False(addResult.LinkToFile);
-        Assert.True(addResult.SaveWithDocument);
+            Assert.True(addResult.Success, addResult.ErrorMessage);
+            Assert.Null(addResult.ErrorMessage);
+            Assert.Equal(1, addResult.ShapeIndex);
+            Assert.Equal(1, addResult.ShapeCount);
+            Assert.False(addResult.LinkToFile);
+            Assert.True(addResult.SaveWithDocument);
 
-        File.Delete(mediaPath);
-        Assert.False(File.Exists(mediaPath));
+            File.Delete(mediaPath);
+            Assert.False(File.Exists(mediaPath));
 
-        _presentationCommands.Save(_fixture.Batch);
-        _fixture.ReopenCurrentPresentation();
+            _presentationCommands.Save(_fixture.Batch);
+            _fixture.ReopenCurrentPresentation();
 
-        var info = _commands.GetMediaInfo(_fixture.Batch, 1, 1);
-        Assert.True(info.Success, info.ErrorMessage);
-        Assert.Equal("ppMediaTypeSound", info.MediaTypeName);
-        Assert.Equal(1, info.ShapeIndex);
-        Assert.Equal(1, info.ShapeCount);
+            var info = _commands.GetMediaInfo(_fixture.Batch, 1, 1);
+            Assert.True(info.Success, info.ErrorMessage);
+            Assert.Equal("ppMediaTypeSound", info.MediaTypeName);
+            Assert.Equal(1, info.ShapeIndex);
+            Assert.Equal(1, info.ShapeCount);
+        }
+        finally
+        {
+            File.Delete(mediaPath);
+        }
     }
 
     [Fact]
@@ -85,22 +92,28 @@ public sealed class MediaCommandsTests : IClassFixture<SharedPresentationFixture
     {
         _fixture.CreateFreshPresentation();
         string mediaPath = video ? CreateVideoFixture() : CreateWaveFixture();
-        var addResult = _commands.AddMedia(
-            _fixture.Batch, 1, mediaPath, true, false, 5f, 5f, 100f, 75f);
+        try
+        {
+            var addResult = _commands.AddMedia(
+                _fixture.Batch, 1, mediaPath, true, false, 5f, 5f, 100f, 75f);
 
-        Assert.True(addResult.Success, addResult.ErrorMessage);
-        Assert.True(addResult.LinkToFile);
-        Assert.False(addResult.SaveWithDocument);
-        Assert.Equal(Path.GetFullPath(mediaPath), addResult.SourcePath);
+            Assert.True(addResult.Success, addResult.ErrorMessage);
+            Assert.True(addResult.LinkToFile);
+            Assert.False(addResult.SaveWithDocument);
+            Assert.Equal(Path.GetFullPath(mediaPath), addResult.SourcePath);
 
-        _presentationCommands.Save(_fixture.Batch);
-        _fixture.ReopenCurrentPresentation();
+            _presentationCommands.Save(_fixture.Batch);
+            _fixture.ReopenCurrentPresentation();
 
-        var info = _commands.GetMediaInfo(_fixture.Batch, 1, 1);
-        Assert.True(info.Success, info.ErrorMessage);
-        Assert.Equal(video ? "ppMediaTypeMovie" : "ppMediaTypeSound", info.MediaTypeName);
+            var info = _commands.GetMediaInfo(_fixture.Batch, 1, 1);
+            Assert.True(info.Success, info.ErrorMessage);
+            Assert.Equal(video ? "ppMediaTypeMovie" : "ppMediaTypeSound", info.MediaTypeName);
+        }
+        finally
+        {
+            File.Delete(mediaPath);
+        }
 
-        File.Delete(mediaPath);
         Assert.False(File.Exists(mediaPath));
     }
 

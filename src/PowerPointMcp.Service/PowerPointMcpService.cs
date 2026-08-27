@@ -849,7 +849,8 @@ public sealed class PowerPointMcpService : IDisposable
             return new ServiceResponse
             {
                 Success = false,
-                ErrorMessage = errorMessage ?? "Operation failed."
+                ErrorMessage = errorMessage ?? "Operation failed.",
+                Result = dispatchResult
             };
         }
 

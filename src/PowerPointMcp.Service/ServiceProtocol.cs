@@ -62,7 +62,10 @@ public sealed class ServiceResponse
     /// <summary>Inner exception details, when available.</summary>
     public string? InnerError { get; init; }
 
-    /// <summary>JSON-serialized result data.</summary>
+    /// <summary>
+    /// JSON-serialized result data, including the original structured Core payload for operation
+    /// failures when one is available.
+    /// </summary>
     public string? Result { get; init; }
 }
 
