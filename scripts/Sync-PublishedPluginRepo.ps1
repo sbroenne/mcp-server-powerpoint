@@ -197,7 +197,7 @@ $legacyManifestPath = Join-Path $PublishedRepoDir "marketplace.json"
 $canonicalManifest = [ordered]@{
     name = "mcp-server-powerpoint-plugins"
     metadata = [ordered]@{
-        description = "Windows-only GitHub Copilot CLI plugins for PowerPoint automation with PowerPointMcp."
+        description = "Windows-only Agent Plugins for PowerPoint automation with PowerPointMcp."
         version = "1.0.0"
     }
     owner = [ordered]@{
