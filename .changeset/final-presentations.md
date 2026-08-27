@@ -1,5 +1,5 @@
 ---
-"powerpointmcp": minor
+"powerpointmcp": patch
 ---
 
 Add typed `get-final` and `set-final` presentation operations to the MCP server and CLI, with

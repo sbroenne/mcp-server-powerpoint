@@ -1,5 +1,5 @@
 ---
-"powerpointmcp": minor
+"powerpointmcp": patch
 ---
 
 Add chart style, color style, and data-table visibility controls to both the MCP server and CLI,

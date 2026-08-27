@@ -1,5 +1,5 @@
 ---
-"powerpointmcp": minor
+"powerpointmcp": patch
 ---
 
 PowerPoint MCP now rejects unknown or mis-cased CLI and MCP arguments, saves presentations when

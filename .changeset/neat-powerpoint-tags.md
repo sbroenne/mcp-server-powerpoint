@@ -1,5 +1,5 @@
 ---
-"powerpointmcp": minor
+"powerpointmcp": patch
 ---
 
 Add case-insensitive string tags to presentations, slides, and shapes through matching MCP and CLI

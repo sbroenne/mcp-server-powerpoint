@@ -1,5 +1,5 @@
 ---
-"powerpointmcp": minor
+"powerpointmcp": patch
 ---
 
 Add linked-picture insertion and shape-level link inspection, refresh, automatic-update where
