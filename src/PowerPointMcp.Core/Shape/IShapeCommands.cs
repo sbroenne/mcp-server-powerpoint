@@ -177,6 +177,34 @@ public interface IShapeCommands
     /// <summary>Removes a shape's mouse-click hyperlink, if any (idempotent — no-op if none is set).</summary>
     ShapeOperationResult RemoveHyperlink(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
 
+    /// <summary>
+    /// Gets a linked picture shape's source path and automatic-update setting. An ordinary
+    /// non-linked shape returns an expected validation failure.
+    /// </summary>
+    ShapeOperationResult GetLinkInfo(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Updates a linked picture shape immediately from its current source file. The source must
+    /// still exist and be readable.
+    /// </summary>
+    ShapeOperationResult UpdateLink(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Permanently breaks a linked picture shape's file link while retaining its current image
+    /// in the presentation.
+    /// </summary>
+    ShapeOperationResult BreakLink(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Sets whether a linked picture updates automatically.
+    /// </summary>
+    /// <param name="autoUpdate">True for automatic refresh or false for manual refresh.</param>
+    ShapeOperationResult SetLinkAutoUpdate(
+        ComInterop.Session.IPresentationBatch batch,
+        int slideIndex,
+        int shapeIndex,
+        bool autoUpdate);
+
     /// <summary>Lists native placeholders on a slide with their 1-based shape indexes and state.</summary>
     ShapeOperationResult ListPlaceholders(ComInterop.Session.IPresentationBatch batch, int slideIndex);
 

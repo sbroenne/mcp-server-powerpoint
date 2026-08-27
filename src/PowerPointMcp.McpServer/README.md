@@ -32,13 +32,13 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 
 ## Capabilities
 
-**15 tools with 180 operations across 15 domains:**
+**15 tools with 184 operations across 15 domains:**
 
 | Tool | Ops | Coverage |
 | --- | --- | --- |
 | `presentation` | 20 | create, open, Save As, Save Copy As, close, list, templates, get/set final, document properties, string tags |
 | `slide` | 23 | slide lifecycle, backgrounds, sections, comments, import, string tags |
-| `shape` | 43 | shape creation, styling, grouping, hyperlinks, placeholders, string tags |
+| `shape` | 47 | shape creation, styling, grouping, hyperlinks, placeholders, string tags, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update` |
 | `textframe` | 20 | text content, font formatting, alignment, bullets, auto-size |
 | `table` | 12 | tables, cell text, row/column edits, cell fill/border, merge |
 | `notes` | 2 | set/get speaker notes |

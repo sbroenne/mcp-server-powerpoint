@@ -210,7 +210,7 @@ Actions: `export-to-pdf`, `export-slide-to-image`, `export-all-slides-to-images`
 | `--output-directory` | Directory where slide images will be written. Created if it does not exist.     PowerPoint names the output files Slide1.{ext}, Slide2.{ext}, etc. (required for: export-all-slides-to-images) |
 
 
-### `image` — Image commands: embed a picture file into a slide. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
+### `image` — Image commands: add a picture file to a slide. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
 
 Actions: `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`, `set-recolor`, `get-recolor`, `set-crop`, `get-crop`
 
@@ -222,6 +222,8 @@ Actions: `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`, `s
 | `--top` | (required for: add-picture) |
 | `--width` | (required for: add-picture) |
 | `--height` | (required for: add-picture) |
+| `--link-to-file` | Whether the picture remains linked to its source file. Defaults to false. |
+| `--save-with-document` | Whether PowerPoint stores picture data in the presentation. Defaults to true. |
 | `--shape-index` | (required for: set-brightness-contrast, get-brightness-contrast, set-recolor, get-recolor, set-crop, get-crop) |
 | `--brightness` | (required for: set-brightness-contrast) |
 | `--contrast` | (required for: set-brightness-contrast) |
@@ -297,7 +299,7 @@ Actions: `get-settings`, `set-size`, `set-first-slide-number`, `get-footer`, `se
 
 ### `shape` — Shape commands: create, inspect, format, group, link, and edit native placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
 
-Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
+Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
 | Flag | Description |
 |------|-------------|
@@ -313,7 +315,7 @@ Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-con
 | `--end-x` | (required for: add-line, add-connector) |
 | `--end-y` | (required for: add-line, add-connector) |
 | `--connector-type` | (required for: add-connector) |
-| `--shape-index` | (required for: delete, set-position, set-size, set-fill, get-fill, set-line, get-line, set-rotation, get-rotation, flip, set-z-order, set-shadow, get-shadow, set-glow, get-glow, set-reflection, get-reflection, set-soft-edge, get-soft-edge, set-bevel, get-bevel, ungroup, set-name, get-name, set-alt-text, get-alt-text, set-hyperlink, get-hyperlink, remove-hyperlink, set-placeholder-text, set-placeholder-image, set-tag, get-tag, list-tags, delete-tag) |
+| `--shape-index` | (required for: delete, set-position, set-size, set-fill, get-fill, set-line, get-line, set-rotation, get-rotation, flip, set-z-order, set-shadow, get-shadow, set-glow, get-glow, set-reflection, get-reflection, set-soft-edge, get-soft-edge, set-bevel, get-bevel, ungroup, set-name, get-name, set-alt-text, get-alt-text, set-hyperlink, get-hyperlink, remove-hyperlink, get-link-info, update-link, break-link, set-link-auto-update, set-placeholder-text, set-placeholder-image, set-tag, get-tag, list-tags, delete-tag) |
 | `--red` | (required for: set-fill, set-glow) |
 | `--green` | (required for: set-fill, set-glow) |
 | `--blue` | (required for: set-fill, set-glow) |
@@ -337,6 +339,7 @@ Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-con
 | `--alt-text` | (required for: set-alt-text) |
 | `--address` | (required for: set-hyperlink) |
 | `--screen-tip` |  |
+| `--auto-update` | True for automatic refresh or false for manual refresh. (required for: set-link-auto-update) |
 | `--image-path` | (required for: set-placeholder-image) |
 | `--tag-name` | (required for: set-tag, get-tag, delete-tag) |
 | `--tag-value` | (required for: set-tag) |

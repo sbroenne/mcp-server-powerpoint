@@ -60,6 +60,8 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
         "top",          // top         → unchanged  (required for: add-picture)
         "width",        // width       → unchanged  (required for: add-picture)
         "height",       // height      → unchanged  (required for: add-picture)
+        "link_to_file", // linkToFile  → snake_case (optional for: add-picture)
+        "save_with_document", // saveWithDocument → snake_case (optional for: add-picture)
         "shape_index",  // shapeIndex  → snake_case (required for: set/get-brightness-contrast, set/get-recolor, set/get-crop)
         "brightness",   // brightness  → unchanged  (required for: set-brightness-contrast)
         "contrast",     // contrast    → unchanged  (required for: set-brightness-contrast)
@@ -413,6 +415,8 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
             "--top",           // top         → unchanged (add-picture)
             "--width",         // width       → unchanged (add-picture)
             "--height",        // height      → unchanged (add-picture)
+            "--link-to-file",  // linkToFile  → kebab (optional for add-picture)
+            "--save-with-document", // saveWithDocument → kebab (optional for add-picture)
             "--shape-index",   // shapeIndex  → kebab (set/get-brightness-contrast, set/get-recolor, set/get-crop)
             "--brightness",    // brightness  → unchanged (set-brightness-contrast)
             "--contrast",      // contrast    → unchanged (set-brightness-contrast)
@@ -460,7 +464,8 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
     {
         // add-picture (imagePath required — non-empty enforced by generated RequireNotEmpty guard)
         var (addPicture, _) = ServiceRegistry.Image.RouteCliArgs(
-            "add-picture", slideIndex: 1, imagePath: "C:\\test.png", left: 0, top: 0, width: 100, height: 100);
+            "add-picture", slideIndex: 1, imagePath: "C:\\test.png", left: 0, top: 0, width: 100, height: 100,
+            linkToFile: true, saveWithDocument: false);
         Assert.Equal("image.add-picture", addPicture);
 
         // set-brightness-contrast

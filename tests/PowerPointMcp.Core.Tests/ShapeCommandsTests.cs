@@ -1,4 +1,5 @@
 using Sbroenne.PowerPointMcp.Core.Presentation;
+using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Layout;
 using Sbroenne.PowerPointMcp.Core.Shape;
 
@@ -676,6 +677,116 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.True(getResult.Success, getResult.ErrorMessage);
         Assert.True(getResult.HasHyperlink);
         Assert.Equal("https://example.com/", getResult.HyperlinkAddress);
+    }
+
+    [Fact]
+    public void LinkedPicture_LinkLifecycle_PersistsThenBreaksAndRetainsImage()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        string imagePath = CoreTestHelper.CreateUniqueTestImageFile();
+        try
+        {
+            var imageCommands = new ImageCommands();
+            var addResult = imageCommands.AddPicture(
+                batch, 1, imagePath, 10f, 10f, 100f, 100f,
+                linkToFile: true, saveWithDocument: false);
+            Assert.True(addResult.Success, addResult.ErrorMessage);
+
+            var infoException = Record.Exception(() =>
+            {
+                var info = _commands.GetLinkInfo(batch, 1, 1);
+                Assert.True(info.Success, info.ErrorMessage);
+                Assert.True(info.HasLink);
+                Assert.Equal(Path.GetFullPath(imagePath), info.LinkSourceFullName);
+                Assert.True(info.LinkAutoUpdate is false or true);
+            });
+            AssertSupportedAutoUpdateOrKnownPowerPointError(infoException);
+
+            var autoUpdateException = Record.Exception(() =>
+            {
+                var autoUpdate = _commands.SetLinkAutoUpdate(batch, 1, 1, false);
+                Assert.True(autoUpdate.Success, autoUpdate.ErrorMessage);
+                Assert.False(autoUpdate.LinkAutoUpdate);
+            });
+            AssertSupportedAutoUpdateOrKnownPowerPointError(autoUpdateException);
+
+            var update = _commands.UpdateLink(batch, 1, 1);
+            Assert.True(update.Success, update.ErrorMessage);
+
+            _presentationCommands.Save(batch);
+            _fixture.ReopenCurrentPresentation();
+
+            var reopenedInfoException = Record.Exception(() =>
+            {
+                var reopenedInfo = _commands.GetLinkInfo(batch, 1, 1);
+                Assert.True(reopenedInfo.Success, reopenedInfo.ErrorMessage);
+                Assert.Equal(Path.GetFullPath(imagePath), reopenedInfo.LinkSourceFullName);
+            });
+            AssertSupportedAutoUpdateOrKnownPowerPointError(reopenedInfoException);
+
+            var breakResult = _commands.BreakLink(batch, 1, 1);
+            Assert.True(breakResult.Success, breakResult.ErrorMessage);
+            Assert.False(breakResult.HasLink);
+
+            File.Delete(imagePath);
+            _presentationCommands.Save(batch);
+            _fixture.ReopenCurrentPresentation();
+
+            var countResult = _commands.GetCount(batch, 1);
+            Assert.True(countResult.Success, countResult.ErrorMessage);
+            Assert.Equal(1, countResult.ShapeCount);
+
+            var afterBreak = _commands.GetLinkInfo(batch, 1, 1);
+            Assert.False(afterBreak.Success);
+            Assert.Contains("not linked", afterBreak.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    private static void AssertSupportedAutoUpdateOrKnownPowerPointError(Exception? exception)
+    {
+        if (exception is null)
+        {
+            return;
+        }
+
+        var comException = Assert.IsType<System.Runtime.InteropServices.COMException>(exception);
+        Assert.Equal(unchecked((int)0x80048240), comException.HResult);
+    }
+
+    [Fact]
+    public void LinkOperations_OnOrdinaryShape_ReturnExpectedValidationFailures()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 50f, 50f);
+        var results = new[]
+        {
+            _commands.GetLinkInfo(batch, 1, 1),
+            _commands.UpdateLink(batch, 1, 1),
+            _commands.BreakLink(batch, 1, 1),
+            _commands.SetLinkAutoUpdate(batch, 1, 1, true)
+        };
+
+        foreach (var result in results)
+        {
+            Assert.False(result.Success);
+            Assert.Contains("not linked", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void GetLinkInfo_WithZeroShapeIndex_ReturnsFailure()
+    {
+        _fixture.CreateFreshPresentation();
+        var result = _commands.GetLinkInfo(_fixture.Batch, 1, 0);
+
+        Assert.False(result.Success);
+        Assert.Contains("Shape index 0", result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -44,14 +44,15 @@ layout regressions that text-only automation simply cannot detect.
 
 ## 🎯 What You Can Do
 
-**15 MCP tools with 180 operations across 15 domains:**
+**15 MCP tools with 184 operations across 15 domains:**
 
 - 🗂️ **Presentation** (20 ops) — create, open, Save As, Save Copy As, close, list sessions, apply a
   `.potx`/`.pptx` template's masters/theme/layouts, read the current theme name, set/read
   PowerPoint's advisory Mark as Final flag, read/write built-in and custom document properties,
   and manage string tags
 - 📑 **Slide** (23 ops) — lifecycle, backgrounds, sections, comments, slide import, and string tags
-- ▭ **Shape** (43 ops) — shapes, styling, grouping, hyperlinks, placeholder editing, and string tags
+- ▭ **Shape** (47 ops) — shapes, styling, grouping, hyperlinks, linked assets, placeholder editing,
+  and string tags
 - ✏️ **TextFrame** (20 ops) — text, font size/name/color, bold, italic, underline, alignment, bullets
 - 📊 **Table** (12 ops) — add, cell text, insert/delete rows &amp; columns, cell fill/border, merge cells
 - 🗣️ **Notes** (2 ops) — set/get speaker notes
@@ -60,7 +61,8 @@ layout regressions that text-only automation simply cannot detect.
 - ♿ **Accessibility** (3 ops) — deterministic audit and reading-order management
 - 🎭 **Master** (10 ops) — slide master title/body placeholder fonts, background color
 - 🎬 **Animation** (5 ops) — shape entrance/emphasis/exit effects, slide transitions
-- 🖼️ **Image** (7 ops) — insert and adjust pictures (brightness, contrast, recolor, crop)
+- 🖼️ **Image** (7 ops) — insert embedded or linked pictures and adjust brightness, contrast,
+  recolor, and crop
 - 📈 **Chart** (16 ops) — add chart, multi-series data, titles, legend, built-in styles, color styles,
   and data tables
 - 🔀 **SmartArt** (7 ops) — insert and edit SmartArt diagrams

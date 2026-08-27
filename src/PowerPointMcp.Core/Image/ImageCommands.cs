@@ -1,5 +1,8 @@
+extern alias OfficeInterop;
+
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Office = OfficeInterop::Microsoft.Office.Core;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Image;
@@ -7,17 +10,6 @@ namespace Sbroenne.PowerPointMcp.Core.Image;
 /// <inheritdoc cref="IImageCommands"/>
 public sealed class ImageCommands : IImageCommands
 {
-    // MsoTriState values from Microsoft.Office.Core — office.dll is not referenced/embedded,
-    // so passed as raw ints via dynamic late binding (same pattern as ShapeCommands.cs).
-    private const int MsoFalse = 0; // MsoTriState.msoFalse
-    private const int MsoTrue = -1; // MsoTriState.msoTrue
-
-    // MsoShapeType values for picture-shape validation.
-    // Shape.Type is Microsoft.Office.Core.MsoShapeType (Office.Core — not embedded);
-    // read via (int)((dynamic)shape).Type and compared against these named constants.
-    private const int MsoPicture = 13; // MsoShapeType.msoPicture
-    private const int MsoLinkedPicture = 11; // MsoShapeType.msoLinkedPicture
-
     // MsoPictureColorType member name -> value, for SetRecolor/GetRecolor
     // (learn.microsoft.com/office/vba/api/office.msopicturecolortype) — verified live via
     // PictureEffectsDiagTests (a temporary diagnostic spike, since removed).
@@ -33,14 +25,36 @@ public sealed class ImageCommands : IImageCommands
         PictureColorTypes.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
     /// <inheritdoc/>
-    public ImageOperationResult AddPicture(IPresentationBatch batch, int slideIndex, string imagePath, float left, float top, float width, float height)
+    public ImageOperationResult AddPicture(
+        IPresentationBatch batch,
+        int slideIndex,
+        string imagePath,
+        float left,
+        float top,
+        float width,
+        float height,
+        bool linkToFile = false,
+        bool saveWithDocument = true)
     {
         ArgumentNullException.ThrowIfNull(batch);
         ArgumentNullException.ThrowIfNull(imagePath);
 
-        // Up-front validation (not a suppressed exception, Rule 1b) — gives a clear error
-        // message instead of a generic COMException from AddPicture.
-        string fullImagePath = Path.GetFullPath(imagePath);
+        if (!linkToFile && !saveWithDocument)
+        {
+            return new ImageOperationResult
+            {
+                Success = false,
+                ErrorMessage = "saveWithDocument must be true when linkToFile is false; otherwise PowerPoint has no picture data to retain."
+            };
+        }
+
+        var pathValidation = ResolveImagePath(imagePath);
+        if (pathValidation.Error is not null)
+        {
+            return pathValidation.Error;
+        }
+
+        string fullImagePath = pathValidation.FullPath!;
         if (!File.Exists(fullImagePath))
         {
             return new ImageOperationResult
@@ -52,33 +66,51 @@ public sealed class ImageCommands : IImageCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            int slideCount = ctx.Presentation.Slides.Count;
-            if (slideIndex < 1 || slideIndex > slideCount)
+            PowerPoint.Slides? slides = null;
+            PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
+            PowerPoint.Shape? picture = null;
+            try
             {
+                slides = ctx.Presentation.Slides;
+                int slideCount = slides.Count;
+                if (slideIndex < 1 || slideIndex > slideCount)
+                {
+                    return new ImageOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Slide index {slideIndex} is out of range. The presentation has {slideCount} slide(s) (valid range: 1-{slideCount})."
+                    };
+                }
+
+                slide = slides[slideIndex];
+                shapes = slide.Shapes;
+                picture = shapes.AddPicture(
+                    fullImagePath,
+                    linkToFile ? Office.MsoTriState.msoTrue : Office.MsoTriState.msoFalse,
+                    saveWithDocument ? Office.MsoTriState.msoTrue : Office.MsoTriState.msoFalse,
+                    left,
+                    top,
+                    width,
+                    height);
+                int shapeCount = shapes.Count;
+
                 return new ImageOperationResult
                 {
-                    Success = false,
-                    ErrorMessage = $"Slide index {slideIndex} is out of range. The presentation has {slideCount} slide(s) (valid range: 1-{slideCount})."
+                    Success = true,
+                    ShapeIndex = shapeCount,
+                    ShapeCount = shapeCount,
+                    LinkToFile = linkToFile,
+                    SaveWithDocument = saveWithDocument
                 };
             }
-
-            // Shapes.AddPicture(FileName, LinkToFile, SaveWithDocument, Left, Top, Width, Height)
-            // — LinkToFile/SaveWithDocument are Microsoft.Office.Core.MsoTriState (office.dll),
-            // so called late-bound via dynamic with the raw int constants (same pattern as
-            // ShapeCommands.cs). LinkToFile=False, SaveWithDocument=True embeds the image
-            // directly in the .pptx rather than linking to the external file.
-            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-            // Reason: Shapes.AddPicture is called late-bound via dynamic because
-            // LinkToFile/SaveWithDocument are Microsoft.Office.Core.MsoTriState (office.dll).
-            ((dynamic)slide.Shapes).AddPicture(fullImagePath, MsoFalse, MsoTrue, left, top, width, height);
-            int newIndex = slide.Shapes.Count; // always appended
-
-            return new ImageOperationResult
+            finally
             {
-                Success = true,
-                ShapeIndex = newIndex,
-                ShapeCount = slide.Shapes.Count
-            };
+                ComUtilities.Release(ref picture);
+                ComUtilities.Release(ref shapes);
+                ComUtilities.Release(ref slide);
+                ComUtilities.Release(ref slides);
+            }
         });
     }
 
@@ -388,16 +420,12 @@ public sealed class ImageCommands : IImageCommands
 
     /// <summary>
     /// Validates that <paramref name="shape"/> is a picture or linked picture (required before
-    /// accessing <c>PictureFormat</c> members). <c>Shape.Type</c> is
-    /// <c>Microsoft.Office.Core.MsoShapeType</c> (Office.Core — not embedded), so the check
-    /// uses dynamic late binding with named integer constants.
+    /// accessing <c>PictureFormat</c> members).
     /// </summary>
     private static ImageOperationResult? ValidatePictureShape(PowerPoint.Shape shape, int slideIndex, int shapeIndex)
     {
-        // Reason: Shape.Type is Microsoft.Office.Core.MsoShapeType (Office.Core — not embedded),
-        // so it is read via dynamic late binding and compared against named integer constants.
-        int shapeType = (int)((dynamic)shape).Type;
-        if (shapeType != MsoPicture && shapeType != MsoLinkedPicture)
+        Office.MsoShapeType shapeType = shape.Type;
+        if (shapeType is not Office.MsoShapeType.msoPicture and not Office.MsoShapeType.msoLinkedPicture)
         {
             return new ImageOperationResult
             {
@@ -406,6 +434,31 @@ public sealed class ImageCommands : IImageCommands
             };
         }
         return null;
+    }
+
+    private static (string? FullPath, ImageOperationResult? Error) ResolveImagePath(string imagePath)
+    {
+        if (!Path.IsPathFullyQualified(imagePath))
+        {
+            return (null, new ImageOperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Image path must be a full local or UNC path: {imagePath}."
+            });
+        }
+
+        try
+        {
+            return (Path.GetFullPath(imagePath), null);
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return (null, new ImageOperationResult
+            {
+                Success = false,
+                ErrorMessage = $"Image path cannot be resolved: {ex.Message}"
+            });
+        }
     }
 
     private static ImageOperationResult? ValidateSlideIndex(int slideCount, int slideIndex)
