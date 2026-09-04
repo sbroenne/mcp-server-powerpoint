@@ -49,7 +49,7 @@ jobs:
       version: ${{ steps.calculate_version.outputs.version }}
       tag: ${{ steps.calculate_version.outputs.tag }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0  # Fetch all history and tags
 
@@ -114,10 +114,10 @@ jobs:
       contents: read
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -167,19 +167,19 @@ jobs:
       shell: pwsh
 
     - name: Upload CLI ZIP Artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: cli-zip
         path: PowerPointMcp-CLI-*-windows.zip
 
     - name: Upload CLI NuGet Artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: cli-nupkg
         path: cli-nupkg/*.nupkg
 
     - name: Upload CLI Build Output (for other jobs)
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: cli-build
         path: cli-publish/
@@ -195,10 +195,10 @@ jobs:
       contents: read
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -262,13 +262,13 @@ jobs:
       shell: pwsh
 
     - name: Upload ZIP Artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: mcp-server-zip
         path: PowerPointMcp-MCP-Server-*-windows.zip
 
     - name: Upload NuGet Artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: mcp-server-nupkg
         path: nupkg/*.nupkg
@@ -284,15 +284,15 @@ jobs:
       contents: read
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: ${{ env.NODE_VERSION }}
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -333,7 +333,7 @@ jobs:
       shell: pwsh
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: vscode-vsix
         path: vscode-extension/powerpoint-mcp-*.vsix
@@ -349,10 +349,10 @@ jobs:
       contents: read
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -373,7 +373,7 @@ jobs:
       shell: pwsh
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: mcpb-bundle
         path: mcpb/artifacts/powerpoint-mcp-*.mcpb
@@ -389,7 +389,7 @@ jobs:
       contents: read
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: Set Version
       run: |
@@ -398,7 +398,7 @@ jobs:
       shell: pwsh
 
     - name: Download CLI Runtime
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: cli-build
         path: cli-runtime
@@ -408,7 +408,7 @@ jobs:
       shell: pwsh
 
     - name: Upload Skills Artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: agent-skills
         path: artifacts/skills/*
@@ -424,16 +424,16 @@ jobs:
       contents: read
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: Download CLI Archive
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: cli-zip
         path: artifacts/cli
 
     - name: Download MCP Server Archive
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: mcp-server-zip
         path: artifacts/mcp-server
@@ -447,7 +447,7 @@ jobs:
         cat SHA256SUMS
 
     - name: Upload Checksums Artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: standalone-checksums
         path: SHA256SUMS
@@ -462,7 +462,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -489,7 +489,7 @@ jobs:
       id-token: write
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: Set Version
       run: |
@@ -564,15 +564,15 @@ jobs:
       id-token: write  # Required for NuGet OIDC
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: ${{ env.NODE_VERSION }}
 
@@ -583,19 +583,19 @@ jobs:
       shell: pwsh
 
     - name: Download NuGet Package
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: mcp-server-nupkg
         path: nupkg
 
     - name: Download CLI NuGet Package
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: cli-nupkg
         path: cli-nupkg
 
     - name: Download VS Code VSIX
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: vscode-vsix
         path: vscode-vsix
@@ -642,14 +642,14 @@ jobs:
       pull-requests: write
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v7
 
     - name: Set Version
       run: |
         echo "VERSION=${{ needs.version.outputs.version }}" >> $GITHUB_ENV
 
     - name: Download All Artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         path: artifacts
 
@@ -659,7 +659,7 @@ jobs:
         find artifacts -type f -name "*" | head -20
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: ${{ env.NODE_VERSION }}
 

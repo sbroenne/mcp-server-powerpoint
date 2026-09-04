@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -48,7 +48,7 @@ jobs:
           fi
 
       - name: Checkout aggregate data
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: star-history-data
           path: .star-history-data
@@ -97,7 +97,7 @@ jobs:
             push origin HEAD:star-history-data
 
       - name: Upload star history chart
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: star-history-chart
           path: star-history.svg
@@ -116,18 +116,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
       - name: Download star history chart
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: star-history-chart
           path: gh-pages/docs/assets/images
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           cache: pip
@@ -149,16 +149,16 @@ jobs:
         run: python check_deploy_paths.py
 
       - name: Setup Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v6
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: 'gh-pages/_site'
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 
       - name: Notify IndexNow (Bing/Yandex)
         run: |
