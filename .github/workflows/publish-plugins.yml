@@ -255,7 +255,7 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Setup Python for Agent Skills validation
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
 

@@ -57,7 +57,7 @@ public sealed class PluginBootstrapBuildTests
         var workflowPath = Path.Combine(RepoRoot, ".github", "workflows", "publish-plugins.yml");
         var content = File.ReadAllText(workflowPath);
 
-        Assert.Contains("actions/setup-python@v6", content);
+        Assert.Contains("actions/setup-python@v7", content);
         Assert.Contains(
             "git+https://github.com/agentskills/agentskills.git@69ef37e9424c0a7ea9dd2293b559e43ec8176379#subdirectory=skills-ref",
             content);
