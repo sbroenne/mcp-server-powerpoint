@@ -1,0 +1,178 @@
+<template>
+  <style>
+    @font-face {
+      font-family: "Cascadia Mono";
+      src: local("Cascadia Mono");
+    }
+
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      container-type: size;
+      color: #ffffff;
+    }
+
+    .clip {
+      position: absolute;
+      inset: 0;
+    }
+
+    .\30 1-powerpoint-automated-ground {
+      background: #181615;
+      overflow: hidden;
+    }
+
+    .\30 1-powerpoint-automated-depth-plane {
+      position: absolute;
+      left: 80px;
+      top: 74px;
+      width: 1760px;
+      height: 814px;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 12px;
+    }
+
+    .\30 1-powerpoint-automated-depth-edge {
+      position: absolute;
+      left: 112px;
+      top: 106px;
+      width: 1px;
+      height: 750px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .\30 1-powerpoint-automated-content {
+      position: absolute;
+      inset: 0;
+    }
+
+    .\30 1-powerpoint-automated-rule {
+      position: absolute;
+      left: 150px;
+      top: 200px;
+      width: 150px;
+      height: 12px;
+      overflow: visible;
+    }
+
+    .\30 1-powerpoint-automated-rule path {
+      fill: none;
+      stroke: #d24726;
+      stroke-width: 8;
+      stroke-linecap: round;
+    }
+
+    .\30 1-powerpoint-automated-title {
+      position: absolute;
+      left: 150px;
+      top: 306px;
+      width: 1500px;
+      color: #ffffff;
+      font-family: "Segoe UI", sans-serif;
+      font-size: 148px;
+      font-weight: 400;
+      line-height: 0.98;
+      letter-spacing: -0.025em;
+    }
+
+    .\30 1-powerpoint-automated-title-line {
+      display: block;
+      width: max-content;
+      opacity: 0;
+      will-change: transform;
+    }
+
+    .\30 1-powerpoint-automated-label {
+      position: absolute;
+      left: 155px;
+      top: 638px;
+      color: rgba(255, 255, 255, 0.72);
+      font-family: "Cascadia Mono", monospace;
+      font-size: 26px;
+      font-weight: 400;
+      line-height: 1;
+      letter-spacing: 0.12em;
+      opacity: 0;
+    }
+  </style>
+
+  <div data-hf-id="hf-fphc" id="root" data-composition-id="01-powerpoint-automated" data-width="1920" data-height="1080" data-duration="5.4">
+    <div data-hf-id="hf-f8c3" class="clip 01-powerpoint-automated-ground" data-start="0" data-duration="5.4" data-track-index="0">
+      <div data-hf-id="hf-ezu1" class="01-powerpoint-automated-depth-plane"></div>
+      <div data-hf-id="hf-rtm2" class="01-powerpoint-automated-depth-edge"></div>
+    </div>
+
+    <div data-hf-id="hf-vonq" class="clip 01-powerpoint-automated-content" data-start="0" data-duration="5.4" data-track-index="1">
+      <svg data-hf-id="hf-r5y9" class="01-powerpoint-automated-rule" viewBox="0 0 150 12" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <path data-hf-id="hf-p6iz" id="01-powerpoint-automated-rule-path" d="M 4 6 L 146 6" />
+      </svg>
+
+      <div data-hf-id="hf-hav7" class="01-powerpoint-automated-title" aria-label="PowerPoint, automated.">
+        <span data-hf-id="hf-i3du" id="01-powerpoint-automated-title-one" class="01-powerpoint-automated-title-line">PowerPoint,</span>
+        <span data-hf-id="hf-tk39" id="01-powerpoint-automated-title-two" class="01-powerpoint-automated-title-line">automated.</span>
+      </div>
+
+      <div data-hf-id="hf-a05k" id="01-powerpoint-automated-label" class="01-powerpoint-automated-label">MCP SERVER · OPTIONAL CLI</div>
+    </div>
+  </div>
+
+  <script>
+    const rulePath = document.querySelector("#\\30 1-powerpoint-automated-rule-path");
+    const ruleLength = rulePath.getTotalLength();
+    rulePath.style.strokeDasharray = `${ruleLength}`;
+    rulePath.style.strokeDashoffset = `${ruleLength}`;
+
+    const tl = gsap.timeline({ paused: true });
+
+    tl.to(rulePath, {
+      strokeDashoffset: 0,
+      duration: 0.72,
+      ease: "power2.out"
+    }, 0.18);
+
+    tl.set("#\\30 1-powerpoint-automated-title-one", {
+      opacity: 1,
+      x: 150
+    }, 1.2);
+    tl.to("#\\30 1-powerpoint-automated-title-one", {
+      x: 10,
+      duration: 0.22,
+      ease: "power4.out"
+    }, 1.2);
+    tl.to("#\\30 1-powerpoint-automated-title-one", {
+      x: 0,
+      duration: 0.62,
+      ease: "power2.out"
+    }, 1.42);
+
+    tl.set("#\\30 1-powerpoint-automated-title-two", {
+      opacity: 1,
+      x: 124
+    }, 1.56);
+    tl.to("#\\30 1-powerpoint-automated-title-two", {
+      x: 8,
+      duration: 0.18,
+      ease: "power4.out"
+    }, 1.56);
+    tl.to("#\\30 1-powerpoint-automated-title-two", {
+      x: 0,
+      duration: 0.58,
+      ease: "power2.out"
+    }, 1.74);
+
+    tl.fromTo("#\\30 1-powerpoint-automated-label", {
+      opacity: 0,
+      y: 18
+    }, {
+      opacity: 1,
+      y: 0,
+      duration: 0.36,
+      ease: "power2.out"
+    }, 2.44);
+
+    window.__timelines["01-powerpoint-automated"] = tl;
+  </script>
+</template>

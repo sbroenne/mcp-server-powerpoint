@@ -1,0 +1,443 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      container-type: size;
+      color: #000000;
+      font-family: sans-serif;
+    }
+
+    [class~="05-build-verify-ground"] {
+      position: absolute;
+      inset: 0;
+      background: #ffffff;
+    }
+
+    [class~="05-build-verify-poster"] {
+      position: absolute;
+      left: 82px;
+      top: 220px;
+      width: 1092px;
+      height: 614px;
+      object-fit: contain;
+      background: #0b1220;
+    }
+
+    [class~="05-build-verify-layout"] {
+      position: absolute;
+      inset: 0;
+    }
+
+    [class~="05-build-verify-kicker"] {
+      position: absolute;
+      left: 82px;
+      top: 62px;
+      margin: 0;
+      font-family: monospace;
+      font-size: 26px;
+      font-weight: 400;
+      line-height: 1;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    [class~="05-build-verify-build"] {
+      position: absolute;
+      left: 82px;
+      top: 100px;
+      margin: 0;
+      font-size: 96px;
+      font-weight: 400;
+      line-height: 1;
+      letter-spacing: -0.022em;
+    }
+
+    [class~="05-build-verify-media-frame"] {
+      position: absolute;
+      left: 82px;
+      top: 220px;
+      width: 1092px;
+      height: 614px;
+      box-sizing: border-box;
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+      pointer-events: none;
+    }
+
+    [class~="05-build-verify-media-chrome"] {
+      position: absolute;
+      left: 18px;
+      top: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 6px;
+      background: rgba(24, 22, 21, 0.88);
+      color: #ffffff;
+      font-family: monospace;
+      font-size: 20px;
+      line-height: 1;
+      letter-spacing: 0.02em;
+    }
+
+    [class~="05-build-verify-live-dot"] {
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
+      background: #d24726;
+    }
+
+    [class~="05-build-verify-receipt"] {
+      position: absolute;
+      left: 1238px;
+      top: 194px;
+      width: 600px;
+      height: 642px;
+      box-sizing: border-box;
+      padding: 40px 42px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 12px;
+      background: #dbceff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    [class~="05-build-verify-receipt-label"] {
+      margin: 0 0 18px;
+      font-family: monospace;
+      font-size: 22px;
+      font-weight: 400;
+      line-height: 1;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    [class~="05-build-verify-export-wrap"] {
+      display: inline-flex;
+      min-width: 320px;
+      align-items: baseline;
+      white-space: nowrap;
+    }
+
+    [class~="05-build-verify-export"],
+    [class~="05-build-verify-cursor"] {
+      font-family: sans-serif;
+      font-size: 70px;
+      font-weight: 400;
+      line-height: 1.04;
+      letter-spacing: -0.018em;
+    }
+
+    [class~="05-build-verify-cursor"] {
+      display: inline-block;
+      width: 16px;
+      margin-left: 5px;
+      font-family: monospace;
+    }
+
+    [class~="05-build-verify-progress-track"] {
+      position: relative;
+      width: 100%;
+      height: 3px;
+      margin-top: 28px;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.12);
+      transform-origin: left center;
+    }
+
+    [class~="05-build-verify-progress-fill"] {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      background: #d24726;
+      transform-origin: left center;
+    }
+
+    [class~="05-build-verify-rows"] {
+      display: grid;
+      gap: 18px;
+      margin-top: 34px;
+    }
+
+    [class~="05-build-verify-row"] {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      align-items: center;
+      min-height: 72px;
+      padding: 0 18px 0 12px;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    [class~="05-build-verify-badge"] {
+      position: relative;
+      width: 34px;
+      height: 34px;
+    }
+
+    [class~="05-build-verify-outline"],
+    [class~="05-build-verify-done"] {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      border-radius: 9999px;
+      transform-origin: 50% 50%;
+    }
+
+    [class~="05-build-verify-outline"] {
+      box-sizing: border-box;
+      border: 1px solid rgba(0, 0, 0, 0.32);
+      font-family: monospace;
+      font-size: 16px;
+    }
+
+    [class~="05-build-verify-done"] {
+      background: #000000;
+    }
+
+    [class~="05-build-verify-check"] {
+      width: 20px;
+      height: 20px;
+      overflow: visible;
+    }
+
+    [class~="05-build-verify-check"] path {
+      fill: none;
+      stroke: #ffffff;
+      stroke-width: 2.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    [class~="05-build-verify-row-label"] {
+      font-size: 27px;
+      font-weight: 400;
+      line-height: 1.15;
+      letter-spacing: -0.005em;
+    }
+
+    [class~="05-build-verify-verify"] {
+      position: absolute;
+      left: 1238px;
+      top: 72px;
+      width: 600px;
+      margin: 0;
+      font-size: 96px;
+      font-weight: 400;
+      line-height: 1;
+      letter-spacing: -0.022em;
+      text-align: right;
+    }
+  </style>
+
+  <div data-hf-id="hf-4bqw" id="root" data-composition-id="05-build-verify" data-width="1920" data-height="1080" data-duration="10.4">
+    <div data-hf-id="hf-mafh" class="clip 05-build-verify-ground" data-start="0" data-duration="10.4" data-track-index="0"></div>
+
+    <img data-hf-id="hf-p3ke" class="clip 05-build-verify-poster" data-start="0" data-duration="10.4" data-track-index="1" src="assets/mcp-executive-demo.png" alt="Exported PowerPoint executive dashboard">
+
+    <!-- approved frame video hoisted by assemble-index -->
+
+    <div data-hf-id="hf-jt0b" class="clip 05-build-verify-layout" data-start="0" data-duration="10.4" data-track-index="3">
+      <p data-hf-id="hf-bvil" class="05-build-verify-kicker">PowerPoint output</p>
+      <h1 data-hf-id="hf-8xtb" class="05-build-verify-build">Build.</h1>
+
+      <div data-hf-id="hf-im2z" class="05-build-verify-media-frame">
+        <div data-hf-id="hf-7olx" class="05-build-verify-media-chrome">
+          <span data-hf-id="hf-ybiw" class="05-build-verify-live-dot"></span>
+          PowerPoint MCP output
+        </div>
+      </div>
+
+      <section data-hf-id="hf-fvr6" class="05-build-verify-receipt" aria-label="Visual receipt">
+        <p data-hf-id="hf-jzb7" class="05-build-verify-receipt-label">MCP verification</p>
+        <div data-hf-id="hf-n84c" class="05-build-verify-export-wrap">
+          <span data-hf-id="hf-x46i" class="05-build-verify-export"></span><span data-hf-id="hf-fkyb" class="05-build-verify-cursor">_</span>
+        </div>
+        <div data-hf-id="hf-mrve" class="05-build-verify-progress-track">
+          <div data-hf-id="hf-cmtm" class="05-build-verify-progress-fill"></div>
+        </div>
+
+        <div data-hf-id="hf-ouly" class="05-build-verify-rows">
+          <div data-hf-id="hf-52vi" class="05-build-verify-row" id="05-build-verify-row-1">
+            <div data-hf-id="hf-w4y2" class="05-build-verify-badge">
+              <div data-hf-id="hf-ctyp" class="05-build-verify-outline" id="05-build-verify-outline-1">1</div>
+              <div data-hf-id="hf-3pss" class="05-build-verify-done" id="05-build-verify-done-1">
+                <svg data-hf-id="hf-e208" class="05-build-verify-check" viewBox="0 0 24 24" aria-hidden="true">
+                  <path data-hf-id="hf-it4i" id="05-build-verify-path-1" d="M5 12.5 9.5 17 19 7.5" />
+                </svg>
+              </div>
+            </div>
+            <span data-hf-id="hf-6n9h" class="05-build-verify-row-label">Native slide created</span>
+          </div>
+
+          <div data-hf-id="hf-14rh" class="05-build-verify-row" id="05-build-verify-row-2">
+            <div data-hf-id="hf-mt3i" class="05-build-verify-badge">
+              <div data-hf-id="hf-k269" class="05-build-verify-outline" id="05-build-verify-outline-2">2</div>
+              <div data-hf-id="hf-elaf" class="05-build-verify-done" id="05-build-verify-done-2">
+                <svg data-hf-id="hf-k8m8" class="05-build-verify-check" viewBox="0 0 24 24" aria-hidden="true">
+                  <path data-hf-id="hf-ev0h" id="05-build-verify-path-2" d="M5 12.5 9.5 17 19 7.5" />
+                </svg>
+              </div>
+            </div>
+            <span data-hf-id="hf-qy0q" class="05-build-verify-row-label">Layout inspected</span>
+          </div>
+
+          <div data-hf-id="hf-0d3o" class="05-build-verify-row" id="05-build-verify-row-3">
+            <div data-hf-id="hf-n7ej" class="05-build-verify-badge">
+              <div data-hf-id="hf-25pl" class="05-build-verify-outline" id="05-build-verify-outline-3">3</div>
+              <div data-hf-id="hf-8fkm" class="05-build-verify-done" id="05-build-verify-done-3">
+                <svg data-hf-id="hf-j1p5" class="05-build-verify-check" viewBox="0 0 24 24" aria-hidden="true">
+                  <path data-hf-id="hf-e3co" id="05-build-verify-path-3" d="M5 12.5 9.5 17 19 7.5" />
+                </svg>
+              </div>
+            </div>
+            <span data-hf-id="hf-exe4" class="05-build-verify-row-label">PNG export verified</span>
+          </div>
+        </div>
+      </section>
+
+      <h2 data-hf-id="hf-amie" class="05-build-verify-verify">Verify.</h2>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.querySelector('[data-composition-id="05-build-verify"]');
+      const select = (selector) => root.querySelector(selector);
+      const tl = gsap.timeline({ paused: true });
+
+      const exportText = select('[class~="05-build-verify-export"]');
+      const exportCursor = select('[class~="05-build-verify-cursor"]');
+      const exportDriver = { value: 0 };
+      const cursorDriver = { phase: 0 };
+      const exportCopy = "Export.";
+
+      for (let index = 1; index <= 3; index += 1) {
+        const path = select(`[id="05-build-verify-path-${index}"]`);
+        const length = path.getTotalLength();
+        path.style.strokeDasharray = `${length}`;
+        path.style.strokeDashoffset = `${length}`;
+      }
+
+      tl.fromTo(
+        select('[class~="05-build-verify-build"]'),
+        { opacity: 0, y: 24 },
+        { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" },
+        0
+      );
+      tl.fromTo(
+        select('[class~="05-build-verify-media-frame"]'),
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.65, ease: "power3.out" },
+        0.12
+      );
+      tl.fromTo(
+        select('[class~="05-build-verify-kicker"]'),
+        { opacity: 0, x: -16 },
+        { opacity: 1, x: 0, duration: 0.45, ease: "power2.out" },
+        0.28
+      );
+      tl.fromTo(
+        select('[class~="05-build-verify-receipt"]'),
+        { opacity: 0, y: 26 },
+        { opacity: 1, y: 0, duration: 0.65, ease: "power3.out" },
+        2.72
+      );
+      tl.fromTo(
+        select('[class~="05-build-verify-receipt-label"]'),
+        { opacity: 0, x: -12 },
+        { opacity: 1, x: 0, duration: 0.35, ease: "power2.out" },
+        3.05
+      );
+
+      tl.to(
+        exportDriver,
+        {
+          value: exportCopy.length,
+          duration: 0.92,
+          ease: "none",
+          onUpdate: () => {
+            exportText.textContent = exportCopy.slice(0, Math.floor(exportDriver.value));
+          }
+        },
+        3.2
+      );
+      tl.to(
+        cursorDriver,
+        {
+          phase: Math.PI * 6,
+          duration: 1.35,
+          ease: "none",
+          onUpdate: () => {
+            exportCursor.style.opacity = Math.sin(cursorDriver.phase) >= 0 ? "1" : "0";
+          }
+        },
+        3.2
+      );
+      tl.set(exportCursor, { opacity: 0 }, 4.55);
+      tl.fromTo(
+        select('[class~="05-build-verify-progress-fill"]'),
+        { scaleX: 0 },
+        { scaleX: 1, duration: 2.35, ease: "power2.out" },
+        3.55
+      );
+
+      const rowStarts = [6.2, 7.05, 7.9];
+      rowStarts.forEach((start, index) => {
+        const number = index + 1;
+        const row = select(`[id="05-build-verify-row-${number}"]`);
+        const outline = select(`[id="05-build-verify-outline-${number}"]`);
+        const done = select(`[id="05-build-verify-done-${number}"]`);
+        const path = select(`[id="05-build-verify-path-${number}"]`);
+
+        tl.fromTo(
+          row,
+          { opacity: 0, y: 22 },
+          { opacity: 1, y: 0, duration: 0.42, ease: "power3.out" },
+          start
+        );
+        tl.fromTo(
+          done,
+          { opacity: 0, scale: 0.68 },
+          { opacity: 1, scale: 1, duration: 0.46, ease: "back.out(1.5)" },
+          start + 0.42
+        );
+        tl.to(
+          outline,
+          { opacity: 0, scale: 0.72, duration: 0.28, ease: "power2.in" },
+          start + 0.42
+        );
+        tl.to(
+          path,
+          { strokeDashoffset: 0, duration: 0.38, ease: "power2.out" },
+          start + 0.56
+        );
+      });
+
+      tl.fromTo(
+        select('[class~="05-build-verify-verify"]'),
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.55, ease: "power3.out" },
+        9
+      );
+      tl.to(
+        select('[class~="05-build-verify-build"]'),
+        { opacity: 0.34, duration: 0.4, ease: "power1.out" },
+        9
+      );
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["05-build-verify"] = tl;
+    })();
+  </script>
+</template>

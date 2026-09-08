@@ -1,0 +1,22 @@
+{
+  "tts_provider": null,
+  "voice_id": null,
+  "bgm": {
+    "path": "assets/bgm/track.wav",
+    "volume": 0.22,
+    "mode": "generate",
+    "query": "subtle confident minimal technology product demo underscore",
+    "duration_s": 60
+  },
+  "bgm_pending": false,
+  "bgm_provider": "procedural-local",
+  "bgm_pid": null,
+  "bgm_log": null,
+  "bgm_mode": "generate",
+  "bgm_target_duration_s": 60,
+  "bgm_seed_duration_s": 60,
+  "bgm_loop_count": 1,
+  "voices": [],
+  "sfx": [],
+  "total_duration_s": 0
+}

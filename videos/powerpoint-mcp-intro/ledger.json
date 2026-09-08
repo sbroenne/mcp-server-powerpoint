@@ -1,0 +1,47 @@
+{
+  "fps": 30,
+  "seams": [
+    {
+      "id": "title-to-interfaces",
+      "cut": 5,
+      "technique": "zoom-through",
+      "exit": { "selector": "#el-01-powerpoint-automated", "axis": "z", "dir": 1 },
+      "entry": { "selector": "#el-02-two-ways", "axis": "z", "dir": 1, "scanRoot": "#el-02-two-ways" }
+    },
+    {
+      "id": "interfaces-to-prompt",
+      "cut": 13,
+      "technique": "cut-the-curve LEFT",
+      "exit": { "selector": "#el-02-two-ways", "axis": "x", "dir": -1 },
+      "entry": { "selector": "#el-03-ask-for-deck", "axis": "x", "dir": -1 }
+    },
+    {
+      "id": "prompt-to-live-demo",
+      "cut": 22,
+      "technique": "cut-the-curve LEFT",
+      "exit": { "selector": "#el-03-ask-for-deck", "axis": "x", "dir": -1 },
+      "entry": { "selector": "#el-04-real-app-responds", "axis": "x", "dir": -1 }
+    },
+    {
+      "id": "live-demo-to-verify",
+      "cut": 34,
+      "technique": "cut-the-curve LEFT",
+      "exit": { "selector": "#el-04-real-app-responds", "axis": "x", "dir": -1 },
+      "entry": { "selector": "#el-05-build-verify", "axis": "x", "dir": -1 }
+    },
+    {
+      "id": "verify-to-breadth",
+      "cut": 44,
+      "technique": "zoom-through",
+      "exit": { "selector": "#el-05-build-verify", "axis": "z", "dir": 1 },
+      "entry": { "selector": "#el-06-complete-control", "axis": "z", "dir": 1, "scanRoot": "#el-06-complete-control" }
+    },
+    {
+      "id": "breadth-to-cta",
+      "cut": 53,
+      "technique": "cut-the-curve LEFT",
+      "exit": { "selector": "#el-06-complete-control", "axis": "x", "dir": -1 },
+      "entry": { "selector": "#el-07-use-the-interface", "axis": "x", "dir": -1 }
+    }
+  ]
+}

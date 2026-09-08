@@ -1,0 +1,11 @@
+{
+  "provider": "local",
+  "lang": "en",
+  "speed": 1,
+  "lines": [],
+  "bgm": {
+    "mode": "generate",
+    "query": "subtle confident minimal technology product demo underscore",
+    "prompt": "Minimal modern technology underscore for a polished software product demo, warm restrained synth pads, soft piano pulses, light precise percussion, confident and trustworthy, no vocals, no dramatic drops, low intensity, clean loop-friendly ending, approximately 100 BPM"
+  }
+}

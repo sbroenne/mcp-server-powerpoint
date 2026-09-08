@@ -1,0 +1,210 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      container-type: size;
+      color: #ffffff;
+      font-family: sans-serif;
+    }
+
+    .\30 4-real-app-responds-matte {
+      position: absolute;
+      inset: 0;
+      background: rgba(24, 22, 21, 0.78);
+    }
+
+    .\30 4-real-app-responds-frame {
+      position: absolute;
+      left: 55px;
+      top: 55px;
+      width: 1810px;
+      height: 970px;
+      box-sizing: border-box;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+      pointer-events: none;
+    }
+
+    .\30 4-real-app-responds-output {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #0b1220;
+      transform-origin: 50% 50%;
+      will-change: transform, opacity;
+    }
+
+    .\30 4-real-app-responds-frame::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+
+    .\30 4-real-app-responds-label {
+      position: absolute;
+      left: 105px;
+      top: 95px;
+      z-index: 2;
+      display: inline-flex;
+      align-items: center;
+      min-height: 58px;
+      padding: 0 28px;
+      border-radius: 9999px;
+      background: #d24726;
+      color: #ffffff;
+      font-family: monospace;
+      font-size: 26px;
+      font-weight: 400;
+      letter-spacing: 0.16em;
+      line-height: 1;
+      white-space: nowrap;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    .\30 4-real-app-responds-lower-third {
+      position: absolute;
+      left: 105px;
+      top: 738px;
+      z-index: 3;
+      width: 1450px;
+      min-height: 150px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      padding: 30px 40px 34px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      background: rgba(24, 22, 21, 0.94);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    .\30 4-real-app-responds-headline {
+      margin: 0;
+      color: #ffffff;
+      font-size: 68px;
+      font-weight: 400;
+      letter-spacing: -0.018em;
+      line-height: 1.06;
+      white-space: nowrap;
+    }
+
+    .\30 4-real-app-responds-word {
+      display: inline-block;
+      will-change: transform, opacity;
+    }
+  </style>
+
+  <div data-hf-id="hf-71he" id="root" data-composition-id="04-real-app-responds" data-width="1920" data-height="1080" data-duration="12.5">
+    <div data-hf-id="hf-8zut" class="clip 04-real-app-responds-matte" data-start="0" data-duration="12.5" data-track-index="0"></div>
+
+    <div data-hf-id="hf-ff5q" class="clip 04-real-app-responds-frame" data-start="0" data-duration="12.5" data-track-index="2">
+      <img data-hf-id="hf-demo-output" id="04-real-app-responds-video" class="04-real-app-responds-output" src="assets/mcp-executive-demo.png" alt="Executive dashboard generated in the PowerPoint desktop app">
+    </div>
+
+    <div data-hf-id="hf-hn37" id="04-real-app-responds-label" class="clip 04-real-app-responds-label" data-start="0" data-duration="12.5" data-track-index="3">
+      NATIVE POWERPOINT OUTPUT
+    </div>
+
+    <section data-hf-id="hf-gjx1" id="04-real-app-responds-lower-third" class="clip 04-real-app-responds-lower-third" data-start="0" data-duration="12.5" data-track-index="4">
+      <h2 data-hf-id="hf-lnvq" class="04-real-app-responds-headline">
+        <span data-hf-id="hf-g3zb" class="04-real-app-responds-word">Real</span>
+        <span data-hf-id="hf-dbm1" class="04-real-app-responds-word">slides.</span>
+        <span data-hf-id="hf-5i9w" class="04-real-app-responds-word">Real</span>
+        <span data-hf-id="hf-91zb" class="04-real-app-responds-word">PowerPoint.</span>
+      </h2>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const id = "04-real-app-responds";
+      window.__timelines = window.__timelines || {};
+
+      const tl = gsap.timeline({ paused: true });
+      const video = document.getElementById("04-real-app-responds-video");
+      const words = Array.from(document.querySelectorAll(".\\30 4-real-app-responds-word"));
+
+      gsap.set("#\\30 4-real-app-responds-lower-third", { autoAlpha: 0 });
+      gsap.set(words, { autoAlpha: 0 });
+
+      tl.fromTo(
+        video,
+        { autoAlpha: 0.84, scale: 0.992, x: 0, y: 0, transformOrigin: "50% 50%" },
+        { autoAlpha: 1, scale: 1, x: 0, y: 0, duration: 0.55, ease: "power2.out" },
+        0
+      );
+
+      tl.fromTo(
+        "#\\30 4-real-app-responds-label",
+        { autoAlpha: 0, x: 1530 },
+        { autoAlpha: 1, x: 0, duration: 0.75, ease: "power4.out" },
+        0.3
+      );
+
+      const focusScale = 1.12;
+      const titleOffsetX = -160;
+      const titleOffsetY = -30;
+      const focusX = -titleOffsetX * focusScale;
+      const focusY = -titleOffsetY * focusScale;
+
+      tl.to(
+        video,
+        {
+          scale: focusScale,
+          x: focusX,
+          y: focusY,
+          duration: 1.7,
+          ease: "power3.inOut"
+        },
+        2.3
+      );
+
+      tl.to(
+        video,
+        {
+          scale: 1,
+          x: 0,
+          y: 0,
+          duration: 2.1,
+          ease: "power3.inOut"
+        },
+        6.2
+      );
+
+      tl.fromTo(
+        "#\\30 4-real-app-responds-lower-third",
+        { autoAlpha: 0, y: 42 },
+        { autoAlpha: 1, y: 0, duration: 0.48, ease: "power3.out" },
+        8.7
+      );
+
+      const wordLengths = words.map((word) => word.textContent.trim().length);
+      const totalCharacters = wordLengths.reduce((sum, length) => sum + length, 0);
+      let cursor = 8.86;
+
+      words.forEach((word, index) => {
+        const weightedGap = 0.62 * (wordLengths[index] / totalCharacters);
+        tl.fromTo(
+          word,
+          { autoAlpha: 0, x: 26 },
+          { autoAlpha: 1, x: 0, duration: 0.3, ease: "power3.out" },
+          cursor
+        );
+        cursor += Math.max(0.09, weightedGap);
+      });
+
+      window.__timelines[id] = tl;
+    })();
+  </script>
+</template>

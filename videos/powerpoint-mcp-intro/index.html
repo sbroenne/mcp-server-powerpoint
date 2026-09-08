@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js" integrity="sha384-sG0Hv1tP1lZCk9KQmrIbY/XNwi+OY84GQqhMscbnsoBFqAz8KNCil1kvfL3Hbbk2" crossorigin="anonymous"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #000;
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #FFFFFF;
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <div data-hf-id="hf-qbnw" id="root" data-composition-id="main" data-start="0" data-duration="60" data-width="1920" data-height="1080">
+      <div data-hf-id="hf-6jk8" id="el-01-powerpoint-automated" class="scene" data-composition-id="01-powerpoint-automated" data-composition-src="compositions/frames/01-powerpoint-automated.html" data-start="0" data-duration="5" data-track-index="0"></div>
+
+      <div data-hf-id="hf-zs9e" id="el-02-two-ways" class="scene" data-composition-id="02-two-ways" data-composition-src="compositions/frames/02-two-ways.html" data-start="5" data-duration="8" data-track-index="1"></div>
+
+      <div data-hf-id="hf-h6k8" id="el-03-ask-for-deck" class="scene" data-composition-id="03-ask-for-deck" data-composition-src="compositions/frames/03-ask-for-deck.html" data-start="13" data-duration="9" data-track-index="0"></div>
+
+      <video data-hf-id="hf-background-proof" id="el-frame04-background-video" src="assets/live-powerpoint-demo.mp4" preload="auto" data-media-start="12" muted playsinline class="clip" style="position:absolute;inset:-30px;width:1980px;height:1140px;object-fit:cover;filter:blur(14px) saturate(0.5)" data-start="22" data-duration="12" data-track-index="0"></video>
+
+      <div data-hf-id="hf-h2ri" id="el-04-real-app-responds" class="scene" data-composition-id="04-real-app-responds" data-composition-src="compositions/frames/04-real-app-responds.html" data-start="22" data-duration="12" data-track-index="1"></div>
+
+      <div data-hf-id="hf-cl6b" id="el-05-build-verify" class="scene" data-composition-id="05-build-verify" data-composition-src="compositions/frames/05-build-verify.html" data-start="34" data-duration="10" data-track-index="0"></div>
+
+      <div data-hf-id="hf-cv20" id="el-06-complete-control" class="scene" data-composition-id="06-complete-control" data-composition-src="compositions/frames/06-complete-control.html" data-start="44" data-duration="9" data-track-index="1"></div>
+
+      <div data-hf-id="hf-3jqx" id="el-07-use-the-interface" class="scene" data-composition-id="07-use-the-interface" data-composition-src="compositions/frames/07-use-the-interface.html" data-start="53" data-duration="7" data-track-index="0"></div>
+
+      <!-- BGM -->
+      <audio data-hf-id="hf-zupt" id="el-bgm" src="assets/bgm/track.wav" data-start="0" data-duration="60" data-track-index="11" data-volume="0.22"></audio>
+
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = gsap.timeline({ paused: true });
+      // ── frame transitions (injected by transitions.mjs) ──
+      (function () { var tl = window.__timelines["main"];
+        tl.to("#el-01-powerpoint-automated", { scale: 1.5, opacity: 0, filter: "blur(8px)", duration: 0.4, ease: "power3.in" }, 4.6);
+        tl.fromTo("#el-02-two-ways", { scale: 0.5, opacity: 0, filter: "blur(8px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.4, ease: "power3.out" }, 5);
+        tl.to("#el-02-two-ways", { x: -1920, duration: 0.5, ease: "power3.inOut" }, 12.5);
+        tl.fromTo("#el-03-ask-for-deck", { x: 1920, opacity: 1 }, { x: 0, duration: 0.5, ease: "power3.inOut" }, 13);
+        tl.to("#el-03-ask-for-deck", { x: -1920, duration: 0.5, ease: "power3.inOut" }, 21.5);
+        tl.fromTo("#el-04-real-app-responds", { x: 1920, opacity: 1 }, { x: 0, duration: 0.5, ease: "power3.inOut" }, 22);
+        tl.to("#el-04-real-app-responds", { x: -1920, duration: 0.5, ease: "power3.inOut" }, 33.5);
+        tl.fromTo("#el-05-build-verify", { x: 1920, opacity: 1 }, { x: 0, duration: 0.5, ease: "power3.inOut" }, 34);
+        tl.to("#el-05-build-verify", { scale: 1.5, opacity: 0, filter: "blur(8px)", duration: 0.4, ease: "power3.in" }, 43.6);
+        tl.fromTo("#el-06-complete-control", { scale: 0.5, opacity: 0, filter: "blur(8px)" }, { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.4, ease: "power3.out" }, 44);
+        tl.to("#el-06-complete-control", { x: -1920, duration: 0.5, ease: "power3.inOut" }, 52.5);
+        tl.fromTo("#el-07-use-the-interface", { x: 1920, opacity: 1 }, { x: 0, duration: 0.5, ease: "power3.inOut" }, 53);
+        tl.to({}, { duration: 60 }, 0); // full-span anchor — main.duration() == composition total (Studio master duration)
+      })();
+    </script>
+  </body>
+</html>
