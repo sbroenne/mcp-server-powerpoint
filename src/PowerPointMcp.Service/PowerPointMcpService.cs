@@ -47,6 +47,7 @@ public sealed class PowerPointMcpService : IDisposable
     private string _pipeName = "";
     private TimeSpan? _idleTimeout;
     private DateTime _lastActivityTime = DateTime.UtcNow;
+    private int _shutdownRequested;
     private bool _disposed;
 
     private readonly PresentationCommands _presentationCommands = new();
@@ -102,10 +103,15 @@ public sealed class PowerPointMcpService : IDisposable
     }
 
     /// <summary>Signals the pipe accept loop to stop, ending <see cref="RunAsync"/>.</summary>
-    public void RequestShutdown() => _shutdownCts.Cancel();
+    public void RequestShutdown()
+    {
+        Interlocked.Exchange(ref _shutdownRequested, 1);
+        _shutdownCts.Cancel();
+    }
 
     private void RequestShutdownAfterResponse()
     {
+        Interlocked.Exchange(ref _shutdownRequested, 1);
         _ = Task.Run(async () =>
         {
             await Task.Delay(100, CancellationToken.None);
@@ -228,6 +234,17 @@ public sealed class PowerPointMcpService : IDisposable
     {
         try
         {
+            if (Volatile.Read(ref _shutdownRequested) != 0 &&
+                !string.Equals(request.Command, "service.shutdown", StringComparison.Ordinal))
+            {
+                return Task.FromResult(new ServiceResponse
+                {
+                    Success = false,
+                    ErrorCategory = "ServiceUnavailable",
+                    ErrorMessage = "The PowerPoint MCP service is shutting down."
+                });
+            }
+
             var parts = request.Command.Split('.', 2);
             var category = parts[0];
             var action = parts.Length > 1 ? parts[1] : "";
