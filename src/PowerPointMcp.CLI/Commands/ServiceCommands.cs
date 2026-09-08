@@ -59,6 +59,14 @@ internal sealed class ServiceStopCommand : AsyncCommand<ServiceStopSettings>
             var response = await client.SendAsync(new ServiceRequest { Command = "service.shutdown", Source = "cli" }, cancellationToken);
             if (response.Success)
             {
+                if (!settings.Force)
+                {
+                    Console.WriteLine(JsonSerializer.Serialize(
+                        new { success = true, message = "Daemon shutdown started." },
+                        ServiceProtocol.JsonOptions));
+                    return 0;
+                }
+
                 var gracefulDeadline = OperationDeadline.Start(TimeSpan.FromSeconds(5));
                 while (!gracefulDeadline.IsExpired && DaemonAutoStart.IsDaemonMutexHeld(pipeName))
                 {
@@ -73,11 +81,6 @@ internal sealed class ServiceStopCommand : AsyncCommand<ServiceStopSettings>
                     return 0;
                 }
 
-                if (!settings.Force)
-                {
-                    return CliErrorOutput.WriteError(
-                        "Daemon accepted shutdown but did not exit before the graceful shutdown deadline.");
-                }
             }
 
             if (!settings.Force)
