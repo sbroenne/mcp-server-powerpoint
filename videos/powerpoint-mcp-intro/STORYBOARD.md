@@ -5,7 +5,8 @@ message: "Give AI a dependable MCP interface to the real PowerPoint desktop app,
 arc: Demo Loop
 audience: developers and AI automation users
 mode: collaborative
-music: subtle confident minimal tech underscore, low intensity
+music: none
+narration: warm confident female voice, with burned-in captions and WebVTT
 ---
 
 ## Video direction
@@ -25,7 +26,7 @@ screensaver-like drift.
 ## Frame 1 — PowerPoint, automated
 
 - scene: The PowerPoint MCP name and orange mark fade in over a restrained dark field.
-- voiceover:
+- voiceover: "PowerPoint is where ideas become decisions."
 - duration: 5s
 - poster: 3s
 - transition_in: cut
@@ -50,7 +51,7 @@ Scene 3 (2.4–5.0s): the mono “MCP SERVER · OPTIONAL CLI” label reveals be
 ## Frame 2 — Start with MCP
 
 - scene: MCP takes primary focus while `pptcli` appears as an optional token-efficient path for scripts and LLMs.
-- voiceover:
+- voiceover: "PowerPoint MCP lets your AI work directly in the real desktop app, not through a file parser."
 - duration: 8s
 - poster: 5s
 - transition_in: zoom-through
@@ -75,7 +76,7 @@ Scene 3 (5.3–8.0s): PowerPoint-orange connectors draw from both cards into “
 ## Frame 3 — Ask for the deck
 
 - scene: A natural-language request turns into compact MCP tool calls beside the polished PowerPoint result.
-- voiceover:
+- voiceover: "Start with a simple request. Ask for an executive dashboard, a project update, or a complete presentation."
 - duration: 9s
 - poster: 6s
 - transition_in: push-slide LEFT
@@ -100,7 +101,7 @@ Scene 3 (5.7–9.0s): the final MCP action lands, the polished dashboard brighte
 ## Frame 4 — Watch the real app respond
 
 - scene: The native dashboard export fills the hero frame over a subtle, blurred real PowerPoint desktop recording.
-- voiceover:
+- voiceover: "Behind the scenes, MCP turns that intent into precise PowerPoint operations: creating slides, placing native shapes, formatting text, and building charts."
 - duration: 12s
 - poster: 8s
 - transition_in: push-slide LEFT
@@ -125,7 +126,7 @@ Scene 3 (8.7–12.0s): “Real slides. Real PowerPoint.” reveals over a dark l
 ## Frame 5 — Build, then verify
 
 - scene: The polished native slide remains visible while a clean MCP export-and-inspection receipt takes focus.
-- voiceover:
+- voiceover: "The result is a real, editable deck, rendered by PowerPoint itself. The AI exports each slide, inspects the layout, and verifies the result."
 - duration: 10s
 - poster: 7s
 - transition_in: push-slide LEFT
@@ -151,7 +152,7 @@ Scene 4 (9.0–10.0s): “Verify.” becomes the dominant word above the complet
 ## Frame 6 — Complete presentation control
 
 - scene: A compact feature field assembles around the product: slides, shapes, text, tables, charts, notes, accessibility, and export.
-- voiceover:
+- voiceover: "For scripts and coding agents, pptcli provides the same engine through a compact, token-efficient command line."
 - duration: 9s
 - poster: 6s
 - transition_in: zoom-through
@@ -176,7 +177,7 @@ Scene 3 (6.5–9.0s): the mono proof line “16 TOOL DOMAINS · 186 OPERATIONS�
 ## Frame 7 — Use the interface that fits
 
 - scene: MCP-first positioning and the optional CLI resolve into the PowerPoint MCP lockup and website call to action.
-- voiceover:
+- voiceover: "Sixteen domains. One hundred eighty-six operations. Get started at powerpointmcpserver.dev."
 - duration: 7s
 - poster: 5s
 - transition_in: push-slide LEFT

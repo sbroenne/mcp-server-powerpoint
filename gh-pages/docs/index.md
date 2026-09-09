@@ -35,6 +35,48 @@ hide:
     Check out [Windows MCP Server](https://windowsmcpserver.dev/) — automate
     Windows apps and browsers from your AI assistant.
 
+## PowerPoint MCP in 60 seconds
+
+<div class="mcp-video">
+  <iframe
+    src="https://www.youtube-nocookie.com/embed/Q-1VGFgoSVU"
+    title="PowerPoint MCP — Bring PowerPoint to Your AI"
+    loading="lazy"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allowfullscreen>
+  </iframe>
+</div>
+
+The video shows an AI request becoming a native, editable PowerPoint dashboard,
+then being exported and visually checked. English captions are available from
+the player controls.
+
+<details class="mcp-video__transcript">
+<summary>Read the video transcript</summary>
+
+PowerPoint is where ideas become decisions.
+
+PowerPoint MCP lets your AI work directly in the real desktop app, not through
+a file parser.
+
+Start with a simple request. Ask for an executive dashboard, a project update,
+or a complete presentation.
+
+Behind the scenes, MCP turns that intent into precise PowerPoint operations:
+creating slides, placing native shapes, formatting text, and building charts.
+
+The result is a real, editable deck, rendered by PowerPoint itself. The AI
+exports each slide, inspects the layout, and verifies the result.
+
+For scripts and coding agents, `pptcli` provides the same engine through a
+compact, token-efficient command line.
+
+Sixteen domains. One hundred eighty-six operations. Get started at
+powerpointmcpserver.dev.
+
+</details>
+
 ## Key features
 
 <div class="grid cards" markdown>

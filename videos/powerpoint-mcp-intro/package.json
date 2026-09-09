@@ -3,9 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "npx --yes hyperframes@0.8.22 preview",
-    "check": "npx --yes hyperframes@0.8.22 check",
-    "render": "npx --yes hyperframes@0.8.22 render",
-    "publish": "npx --yes hyperframes@0.8.22 publish"
+    "dev": "npx --yes hyperframes@0.8.23 preview",
+    "check": "npx --yes hyperframes@0.8.23 check",
+    "render": "npx --yes hyperframes@0.8.23 render",
+    "publish": "npx --yes hyperframes@0.8.23 publish"
+  },
+  "devDependencies": {
+    "@hyperframes/core": "^0.8.23"
   }
 }

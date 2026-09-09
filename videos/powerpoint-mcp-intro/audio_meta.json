@@ -1,22 +1,59 @@
 {
-  "tts_provider": null,
-  "voice_id": null,
-  "bgm": {
-    "path": "assets/bgm/track.wav",
-    "volume": 0.22,
-    "mode": "generate",
-    "query": "subtle confident minimal technology product demo underscore",
-    "duration_s": 60
-  },
+  "tts_provider": "kokoro",
+  "voice_id": "af_heart",
+  "bgm": null,
   "bgm_pending": false,
-  "bgm_provider": "procedural-local",
+  "bgm_provider": null,
   "bgm_pid": null,
   "bgm_log": null,
-  "bgm_mode": "generate",
-  "bgm_target_duration_s": 60,
-  "bgm_seed_duration_s": 60,
-  "bgm_loop_count": 1,
-  "voices": [],
+  "bgm_mode": "none",
+  "bgm_target_duration_s": null,
+  "bgm_seed_duration_s": null,
+  "bgm_loop_count": 0,
+  "voices": [
+    {
+      "id": "01",
+      "path": "assets/voice/01.wav",
+      "duration_s": 2.731,
+      "words": []
+    },
+    {
+      "id": "02",
+      "path": "assets/voice/02.wav",
+      "duration_s": 6.571,
+      "words": []
+    },
+    {
+      "id": "03",
+      "path": "assets/voice/03.wav",
+      "duration_s": 6.763,
+      "words": []
+    },
+    {
+      "id": "04",
+      "path": "assets/voice/04.wav",
+      "duration_s": 10.347,
+      "words": []
+    },
+    {
+      "id": "05",
+      "path": "assets/voice/05.wav",
+      "duration_s": 9.685,
+      "words": []
+    },
+    {
+      "id": "06",
+      "path": "assets/voice/06.wav",
+      "duration_s": 7.083,
+      "words": []
+    },
+    {
+      "id": "07",
+      "path": "assets/voice/07.wav",
+      "duration_s": 6.251,
+      "words": []
+    }
+  ],
   "sfx": [],
-  "total_duration_s": 0
+  "total_duration_s": 49.431
 }

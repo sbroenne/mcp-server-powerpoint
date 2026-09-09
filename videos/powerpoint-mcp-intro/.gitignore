@@ -2,6 +2,7 @@
 .media/
 .thumbnails/
 .waveform-cache/
+node_modules/
 capture/
 renders/
 snapshots/

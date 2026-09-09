@@ -102,6 +102,30 @@
   }
   </script>
 
+  {% if page and page.is_homepage %}
+  <!-- Structured data: product introduction video -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    "name": "PowerPoint MCP - Bring PowerPoint to Your AI",
+    "description": "See how PowerPoint MCP turns an AI request into a native, editable PowerPoint presentation and verifies the rendered result.",
+    "thumbnailUrl": "https://i.ytimg.com/vi/Q-1VGFgoSVU/maxresdefault.jpg",
+    "uploadDate": "2026-09-08",
+    "duration": "PT1M",
+    "contentUrl": "https://www.youtube.com/watch?v=Q-1VGFgoSVU",
+    "embedUrl": "https://www.youtube-nocookie.com/embed/Q-1VGFgoSVU",
+    "inLanguage": "en-US",
+    "isFamilyFriendly": true,
+    "publisher": {
+      "@type": "Person",
+      "@id": "https://powerpointmcpserver.dev/#author",
+      "name": "Stefan Broenner"
+    }
+  }
+  </script>
+  {% endif %}
+
   <!-- Structured data: BreadcrumbList (interior pages only) -->
   {% if page and not page.is_homepage %}
   {% set crumbs = [{"name": "Home", "url": "https://powerpointmcpserver.dev/"}] %}
