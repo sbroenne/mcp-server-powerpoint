@@ -1,0 +1,302 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      container-type: size;
+      color: #ffffff;
+      font-family: sans-serif;
+      text-align: center;
+    }
+
+    .clip {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .frame-07-ground {
+      background: #181615;
+    }
+
+    .frame-07-stage {
+      perspective: 1400px;
+    }
+
+    .frame-07-mark-stage {
+      position: absolute;
+      left: 50%;
+      top: 86px;
+      width: 300px;
+      height: 300px;
+      margin-left: -150px;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+
+    .frame-07-frag {
+      position: absolute;
+      inset: 0;
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
+      will-change: transform, opacity;
+    }
+
+    .frame-07-frag img {
+      display: block;
+      width: 300px;
+      height: 300px;
+    }
+
+    .frame-07-frag-1 { clip-path: inset(0 66.666% 66.666% 0); }
+    .frame-07-frag-2 { clip-path: inset(0 33.333% 66.666% 33.333%); }
+    .frame-07-frag-3 { clip-path: inset(0 0 66.666% 66.666%); }
+    .frame-07-frag-4 { clip-path: inset(33.333% 66.666% 33.333% 0); }
+    .frame-07-frag-5 { clip-path: inset(33.333% 33.333% 33.333% 33.333%); }
+    .frame-07-frag-6 { clip-path: inset(33.333% 0 33.333% 66.666%); }
+    .frame-07-frag-7 { clip-path: inset(66.666% 66.666% 0 0); }
+    .frame-07-frag-8 { clip-path: inset(66.666% 33.333% 0 33.333%); }
+    .frame-07-frag-9 { clip-path: inset(66.666% 0 0 66.666%); }
+
+    .frame-07-title {
+      position: absolute;
+      left: 200px;
+      right: 200px;
+      top: 408px;
+      margin: 0;
+      font-size: 88px;
+      line-height: 1.06;
+      font-weight: 400;
+      letter-spacing: -0.022em;
+    }
+
+    .frame-07-title-word {
+      display: inline-block;
+      will-change: transform, opacity;
+    }
+
+    .frame-07-morph-card {
+      position: absolute;
+      left: 50%;
+      top: 626px;
+      width: 860px;
+      height: 110px;
+      margin-left: -430px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.035);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+      will-change: transform, background, border-radius, box-shadow;
+    }
+
+    .frame-07-content-old,
+    .frame-07-content-new {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .frame-07-content-old {
+      grid-template-columns: 1fr 1fr;
+      gap: 34px;
+      padding: 0 40px;
+      box-sizing: border-box;
+    }
+
+    .frame-07-content-new {
+      opacity: 0;
+    }
+
+    .frame-07-pill {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 70px;
+      box-sizing: border-box;
+      border: 1px solid rgba(255, 255, 255, 0.42);
+      border-radius: 9999px;
+      color: #ffffff;
+      font-family: monospace;
+      font-size: 26px;
+      line-height: 1;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+      will-change: transform, opacity;
+    }
+
+    .frame-07-url-mask {
+      display: inline-block;
+      overflow: hidden;
+      clip-path: inset(0 100% 0 0);
+    }
+
+    .frame-07-url {
+      display: inline-block;
+      color: #ffffff;
+      font-family: monospace;
+      font-size: 34px;
+      line-height: 1;
+      letter-spacing: 0.015em;
+      white-space: nowrap;
+    }
+
+  </style>
+
+  <div data-hf-id="hf-ycqf" id="root" data-composition-id="07-use-the-interface" data-width="1920" data-height="1080" data-duration="7">
+    <div data-hf-id="hf-3h58" class="clip frame-07-ground" data-start="0" data-duration="7" data-track-index="0"></div>
+
+    <div data-hf-id="hf-tls6" class="clip frame-07-stage" data-start="0" data-duration="7" data-track-index="1">
+      <div data-hf-id="hf-aebk" class="frame-07-mark-stage" aria-label="PowerPoint MCP">
+        <div data-hf-id="hf-1py6" class="frame-07-frag frame-07-frag-1"><img data-hf-id="hf-au1v" src="assets/powerpoint-mcp-server.png" alt=""></div>
+        <div data-hf-id="hf-xru5" class="frame-07-frag frame-07-frag-2"><img data-hf-id="hf-vueb" src="assets/powerpoint-mcp-server.png" alt=""></div>
+        <div data-hf-id="hf-x06c" class="frame-07-frag frame-07-frag-3"><img data-hf-id="hf-vg3a" src="assets/powerpoint-mcp-server.png" alt=""></div>
+        <div data-hf-id="hf-khnv" class="frame-07-frag frame-07-frag-4"><img data-hf-id="hf-v1s9" src="assets/powerpoint-mcp-server.png" alt=""></div>
+        <div data-hf-id="hf-gjju" class="frame-07-frag frame-07-frag-5"><img data-hf-id="hf-unh8" src="assets/powerpoint-mcp-server.png" alt=""></div>
+        <div data-hf-id="hf-clft" class="frame-07-frag frame-07-frag-6"><img data-hf-id="hf-u967" src="assets/powerpoint-mcp-server.png" alt=""></div>
+        <div data-hf-id="hf-9m68" class="frame-07-frag frame-07-frag-7"><img data-hf-id="hf-tuv6" src="assets/powerpoint-mcp-server.png" alt=""></div>
+        <div data-hf-id="hf-zb9j" class="frame-07-frag frame-07-frag-8"><img data-hf-id="hf-tgk5" src="assets/powerpoint-mcp-server.png" alt=""></div>
+        <div data-hf-id="hf-t5jq" class="frame-07-frag frame-07-frag-9"><img data-hf-id="hf-t294" src="assets/powerpoint-mcp-server.png" alt=""></div>
+      </div>
+
+      <h1 data-hf-id="hf-jydq" class="frame-07-title" aria-label="Bring PowerPoint to your AI.">
+        <span data-hf-id="hf-ma8u" class="frame-07-title-word">Bring</span>
+        <span data-hf-id="hf-k7ft" class="frame-07-title-word">PowerPoint</span>
+        <br data-hf-id="hf-x5px">
+        <span data-hf-id="hf-1nan" class="frame-07-title-word">to your</span>
+        <span data-hf-id="hf-w5rr" class="frame-07-title-word">AI.</span>
+      </h1>
+
+      <div data-hf-id="hf-7qvd" class="frame-07-morph-card">
+        <div data-hf-id="hf-jnkn" class="frame-07-content-old">
+          <span data-hf-id="hf-tn24" class="frame-07-pill frame-07-pill-left">MCP PRIMARY</span>
+          <span data-hf-id="hf-xoyk" class="frame-07-pill frame-07-pill-right">OPTIONAL pptcli</span>
+        </div>
+        <div data-hf-id="hf-vswy" class="frame-07-content-new">
+          <span data-hf-id="hf-9q93" class="frame-07-url-mask"><span data-hf-id="hf-1kwv" class="frame-07-url">powerpointmcpserver.dev</span></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const tl = gsap.timeline({ paused: true });
+      const fragments = Array.from(document.querySelectorAll(".frame-07-frag"));
+      const words = Array.from(document.querySelectorAll(".frame-07-title-word"));
+      const golden = Math.PI * (3 - Math.sqrt(5));
+
+      fragments.forEach((fragment, index) => {
+        const angle = index * golden;
+        const depth = index / (fragments.length - 1);
+        gsap.set(fragment, {
+          x: Math.cos(angle) * 190,
+          y: Math.sin(angle) * 118,
+          z: 220 - depth * 430,
+          rotationX: Math.sin(angle) * 58,
+          rotationY: Math.cos(angle) * 68,
+          opacity: 0
+        });
+      });
+
+      gsap.set(words, { opacity: 0, y: 28 });
+      gsap.set(".frame-07-pill-left", { opacity: 0, x: -105 });
+      gsap.set(".frame-07-pill-right", { opacity: 0, x: 105 });
+      tl.to(".frame-07-mark-stage", {
+        rotationY: 24,
+        duration: 1.25,
+        ease: "power1.out"
+      }, 0);
+
+      fragments.forEach((fragment, index) => {
+        tl.to(fragment, {
+          x: 0,
+          y: 0,
+          z: 0,
+          rotationX: 0,
+          rotationY: 0,
+          opacity: 1,
+          duration: 1.18,
+          ease: "power3.out"
+        }, 0.08 + index * 0.055);
+      });
+
+      tl.to(".frame-07-mark-stage", {
+        rotationY: 0,
+        scale: 1.025,
+        duration: 0.55,
+        ease: "power2.out"
+      }, 1.25);
+      tl.to(".frame-07-mark-stage", {
+        scale: 1,
+        duration: 0.25,
+        ease: "power2.out"
+      }, 1.8);
+
+      tl.to(words, {
+        opacity: 1,
+        y: 0,
+        duration: 0.52,
+        stagger: 0.12,
+        ease: "power3.out"
+      }, 2.0);
+
+      tl.to(".frame-07-pill-left", {
+        opacity: 1,
+        x: 0,
+        duration: 0.7,
+        ease: "power3.out"
+      }, 3.12);
+      tl.to(".frame-07-pill-right", {
+        opacity: 1,
+        x: 0,
+        duration: 0.7,
+        ease: "power3.out"
+      }, 3.12);
+
+      tl.to(".frame-07-pill-left", {
+        x: 58,
+        duration: 0.42,
+        ease: "power2.inOut"
+      }, 4.6);
+      tl.to(".frame-07-pill-right", {
+        x: -58,
+        duration: 0.42,
+        ease: "power2.inOut"
+      }, 4.6);
+
+      tl.to(".frame-07-morph-card", {
+        scale: 0.82,
+        borderRadius: 9999,
+        backgroundColor: "#d24726",
+        borderColor: "rgba(210, 71, 38, 1)",
+        boxShadow: "0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.04)",
+        duration: 0.86,
+        ease: "power2.inOut"
+      }, 4.82);
+      tl.to(".frame-07-content-old", {
+        opacity: 0,
+        duration: 0.34,
+        ease: "power1.in"
+      }, 4.82);
+      tl.to(".frame-07-content-new", {
+        opacity: 1,
+        duration: 0.34,
+        ease: "power1.out"
+      }, 5.34);
+      tl.to(".frame-07-url-mask", {
+        clipPath: "inset(0 0% 0 0)",
+        duration: 0.78,
+        ease: "power2.out"
+      }, 5.42);
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["07-use-the-interface"] = tl;
+    })();
+  </script>
+</template>

@@ -1,0 +1,440 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      container-type: size;
+      color: #000000;
+      font-family: sans-serif;
+    }
+
+    .\30 3-ask-for-deck-ground {
+      position: absolute;
+      inset: 0;
+      background: #ffffff;
+    }
+
+    .\30 3-ask-for-deck-foreground {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    .\30 3-ask-for-deck-title {
+      position: absolute;
+      left: 90px;
+      top: 70px;
+      margin: 0;
+      font-size: 76px;
+      font-weight: 400;
+      line-height: 1.06;
+      letter-spacing: -0.018em;
+    }
+
+    .\30 3-ask-for-deck-workbench {
+      position: absolute;
+      left: 90px;
+      top: 220px;
+      width: 780px;
+      height: 620px;
+      transform-origin: left top;
+    }
+
+    .\30 3-ask-for-deck-prompt {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 780px;
+      min-height: 250px;
+      box-sizing: border-box;
+      padding: 40px 42px 36px 50px;
+      overflow: hidden;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.14);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    .\30 3-ask-for-deck-prompt::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 8px;
+      background: #d24726;
+    }
+
+    .\30 3-ask-for-deck-prompt-text {
+      display: inline;
+      font-size: 38px;
+      font-weight: 400;
+      line-height: 1.35;
+      letter-spacing: -0.005em;
+    }
+
+    .\30 3-ask-for-deck-prompt-caret {
+      display: inline-block;
+      width: 3px;
+      height: 42px;
+      margin-left: 5px;
+      vertical-align: -6px;
+      background: #000000;
+    }
+
+    .\30 3-ask-for-deck-terminal {
+      position: absolute;
+      left: 0;
+      top: 300px;
+      width: 780px;
+      height: 320px;
+      box-sizing: border-box;
+      overflow: hidden;
+      color: #ffffff;
+      background: #181615;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 8px;
+      font-family: monospace;
+    }
+
+    .\30 3-ask-for-deck-terminal-bar {
+      height: 46px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 20px;
+      background: #252120;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .\30 3-ask-for-deck-terminal-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.28);
+    }
+
+    .\30 3-ask-for-deck-terminal-body {
+      padding: 32px 34px;
+      font-size: 29px;
+      font-weight: 400;
+      line-height: 1.65;
+    }
+
+    .\30 3-ask-for-deck-command {
+      display: flex;
+      align-items: baseline;
+      min-height: 50px;
+      white-space: nowrap;
+    }
+
+    .\30 3-ask-for-deck-command-prefix {
+      flex: 0 0 30px;
+      color: #d24726;
+    }
+
+    .\30 3-ask-for-deck-command-wrap {
+      display: inline-flex;
+      align-items: baseline;
+      min-width: 650px;
+      white-space: nowrap;
+    }
+
+    .\30 3-ask-for-deck-command-caret {
+      display: inline-block;
+      width: 14px;
+      height: 28px;
+      margin-left: 4px;
+      vertical-align: -4px;
+      background: #ffffff;
+    }
+
+    .\30 3-ask-for-deck-video-shell {
+      position: absolute;
+      left: 950px;
+      top: 190px;
+      width: 880px;
+      height: 640px;
+      box-sizing: border-box;
+      overflow: hidden;
+      pointer-events: none;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    .\30 3-ask-for-deck-video-poster {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #0b1220;
+      border-radius: 11px;
+    }
+
+    .\30 3-ask-for-deck-video-dimmer {
+      position: absolute;
+      inset: 0;
+      background: rgba(24, 22, 21, 0.18);
+      border-radius: 11px;
+    }
+
+    .\30 3-ask-for-deck-video-rule {
+      position: absolute;
+      left: 950px;
+      top: 850px;
+      width: 880px;
+      height: 1px;
+      background: rgba(0, 0, 0, 0.12);
+    }
+  </style>
+
+  <div data-hf-id="hf-56rz" id="root" data-composition-id="03-ask-for-deck" data-width="1920" data-height="1080" data-duration="9.5">
+    <div data-hf-id="hf-iuto" class="clip 03-ask-for-deck-ground" data-start="0" data-duration="9.5" data-track-index="0"></div>
+
+    <!-- approved frame video hoisted by assemble-index -->
+
+    <div data-hf-id="hf-b39s" class="clip 03-ask-for-deck-foreground" data-start="0" data-duration="9.5" data-track-index="2">
+      <h1 data-hf-id="hf-6fgm" class="03-ask-for-deck-title">Describe the outcome.</h1>
+
+      <div data-hf-id="hf-43m4" id="03-ask-for-deck-workbench" class="03-ask-for-deck-workbench">
+        <div data-hf-id="hf-he8e" id="03-ask-for-deck-prompt" class="03-ask-for-deck-prompt">
+          <span data-hf-id="hf-eapv" id="03-ask-for-deck-prompt-text" class="03-ask-for-deck-prompt-text"></span><span data-hf-id="hf-am5f" id="03-ask-for-deck-prompt-caret" class="03-ask-for-deck-prompt-caret"></span>
+        </div>
+
+        <div data-hf-id="hf-c1g2" id="03-ask-for-deck-terminal" class="03-ask-for-deck-terminal" aria-label="MCP tool calls">
+          <div data-hf-id="hf-ckai" class="03-ask-for-deck-terminal-bar">
+            <span data-hf-id="hf-ijhd" class="03-ask-for-deck-terminal-dot"></span>
+            <span data-hf-id="hf-nho5" class="03-ask-for-deck-terminal-dot"></span>
+            <span data-hf-id="hf-ool8" class="03-ask-for-deck-terminal-dot"></span>
+          </div>
+          <div data-hf-id="hf-nxer" class="03-ask-for-deck-terminal-body">
+            <div data-hf-id="hf-osbp" class="03-ask-for-deck-command">
+              <span data-hf-id="hf-k81r" class="03-ask-for-deck-command-prefix">&gt;</span>
+              <span data-hf-id="hf-9dq7" class="03-ask-for-deck-command-wrap">
+                <span data-hf-id="hf-m1og" id="03-ask-for-deck-command-one"></span>
+                <span data-hf-id="hf-wrn2" id="03-ask-for-deck-command-caret-one" class="03-ask-for-deck-command-caret"></span>
+              </span>
+            </div>
+            <div data-hf-id="hf-512x" class="03-ask-for-deck-command">
+              <span data-hf-id="hf-33jz" class="03-ask-for-deck-command-prefix">&gt;</span>
+              <span data-hf-id="hf-roan" class="03-ask-for-deck-command-wrap">
+                <span data-hf-id="hf-qml6" id="03-ask-for-deck-command-two"></span>
+                <span data-hf-id="hf-co1s" id="03-ask-for-deck-command-caret-two" class="03-ask-for-deck-command-caret"></span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div data-hf-id="hf-fchq" class="03-ask-for-deck-video-shell">
+        <img data-hf-id="hf-5pha" id="03-ask-for-deck-video-poster" class="03-ask-for-deck-video-poster" src="assets/mcp-executive-demo.png" alt="Executive dashboard generated in PowerPoint">
+        <div data-hf-id="hf-zfvu" id="03-ask-for-deck-video-dimmer" class="03-ask-for-deck-video-dimmer"></div>
+      </div>
+      <div data-hf-id="hf-nfxu" class="03-ask-for-deck-video-rule"></div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const promptText = document.getElementById("03-ask-for-deck-prompt-text");
+      const promptCaret = document.getElementById("03-ask-for-deck-prompt-caret");
+      const commandOne = document.getElementById("03-ask-for-deck-command-one");
+      const commandTwo = document.getElementById("03-ask-for-deck-command-two");
+      const commandCaretOne = document.getElementById("03-ask-for-deck-command-caret-one");
+      const commandCaretTwo = document.getElementById("03-ask-for-deck-command-caret-two");
+
+      const promptSequence = [
+        { t: 0.0, text: "" },
+        { t: 0.18, text: "“Create" },
+        { t: 0.36, text: "“Create an executive" },
+        { t: 0.58, text: "“Create an executive growth" },
+        { t: 0.82, text: "“Create an executive growth dashboard" },
+        { t: 1.04, text: "“Create an executive growth dashboard with KPIs," },
+        { t: 1.28, text: "“Create an executive growth dashboard with KPIs, a roadmap," },
+        { t: 1.52, text: "“Create an executive growth dashboard with KPIs, a roadmap, and" },
+        { t: 1.78, text: "“Create an executive growth dashboard with KPIs, a roadmap, and weekly adoption.”" }
+      ];
+
+      const commandOneSequence = [
+        { t: 0.0, text: "" },
+        { t: 0.22, text: "presentation" },
+        { t: 0.48, text: "presentation · create" },
+        { t: 0.78, text: "presentation · create ✓" },
+        { t: 1.12, text: "presentation · create → session" }
+      ];
+
+      const commandTwoSequence = [
+        { t: 0.0, text: "" },
+        { t: 0.25, text: "shape" },
+        { t: 0.55, text: "shape · add" },
+        { t: 0.88, text: "shape · add × 31" },
+        { t: 1.28, text: "shape · add × 31 → complete" }
+      ];
+
+      function textAt(sequence, time) {
+        for (let index = sequence.length - 1; index >= 0; index -= 1) {
+          if (time >= sequence[index].t) {
+            return sequence[index].text;
+          }
+        }
+        return "";
+      }
+
+      const timeline = gsap.timeline({ paused: true });
+
+      timeline.fromTo(
+        "#\\30 3-ask-for-deck-prompt",
+        { x: -28, y: 12, autoAlpha: 0 },
+        { x: 0, y: 0, autoAlpha: 1, duration: 0.48, ease: "power3.out" },
+        0
+      );
+
+      timeline.fromTo(
+        ".\\30 3-ask-for-deck-video-shell",
+        { x: 24, autoAlpha: 0 },
+        { x: 0, autoAlpha: 1, duration: 0.5, ease: "power3.out" },
+        0
+      );
+
+      const promptDriver = { t: 0 };
+      timeline.to(
+        promptDriver,
+        {
+          t: 1.9,
+          duration: 1.9,
+          ease: "none",
+          onUpdate: () => {
+            promptText.textContent = textAt(promptSequence, promptDriver.t);
+          }
+        },
+        0.08
+      );
+
+      const promptBlink = { p: 0 };
+      timeline.to(
+        promptBlink,
+        {
+          p: Math.PI * 2 * 3,
+          duration: 2,
+          ease: "none",
+          onUpdate: () => {
+            promptCaret.style.opacity = Math.sin(promptBlink.p) > 0 ? "1" : "0";
+          }
+        },
+        0
+      );
+
+      timeline.to(
+        "#\\30 3-ask-for-deck-prompt",
+        { scale: 0.86, y: -78, duration: 0.58, ease: "power3.inOut" },
+        2
+      );
+
+      timeline.fromTo(
+        "#\\30 3-ask-for-deck-terminal",
+        { y: 48, scaleY: 0.92, autoAlpha: 0, transformOrigin: "center top" },
+        { y: 0, scaleY: 1, autoAlpha: 1, duration: 0.62, ease: "power3.out" },
+        2.08
+      );
+
+      const commandOneDriver = { t: 0 };
+      timeline.to(
+        commandOneDriver,
+        {
+          t: 1.2,
+          duration: 1.2,
+          ease: "none",
+          onUpdate: () => {
+            commandOne.textContent = textAt(commandOneSequence, commandOneDriver.t);
+          }
+        },
+        2.55
+      );
+
+      const commandOneBlink = { p: 0 };
+      timeline.to(
+        commandOneBlink,
+        {
+          p: Math.PI * 2 * 2,
+          duration: 1.45,
+          ease: "none",
+          onUpdate: () => {
+            commandCaretOne.style.opacity = Math.sin(commandOneBlink.p) > 0 ? "1" : "0";
+          }
+        },
+        2.45
+      );
+
+      const commandTwoDriver = { t: 0 };
+      timeline.to(
+        commandTwoDriver,
+        {
+          t: 1.34,
+          duration: 1.34,
+          ease: "none",
+          onUpdate: () => {
+            commandTwo.textContent = textAt(commandTwoSequence, commandTwoDriver.t);
+          }
+        },
+        4.18
+      );
+
+      timeline.set(commandCaretOne, { autoAlpha: 0 }, 4.12);
+
+      const commandTwoBlink = { p: 0 };
+      timeline.to(
+        commandTwoBlink,
+        {
+          p: Math.PI * 2 * 6,
+          duration: 4.82,
+          ease: "none",
+          onUpdate: () => {
+            commandCaretTwo.style.opacity = Math.sin(commandTwoBlink.p) > 0 ? "1" : "0";
+          }
+        },
+        4.18
+      );
+
+      timeline.to(
+        "#\\30 3-ask-for-deck-workbench",
+        { x: -12, duration: 0.18, ease: "power3.in" },
+        5.7
+      );
+      timeline.to(
+        "#\\30 3-ask-for-deck-workbench",
+        { x: -84, duration: 0.16, ease: "none" },
+        5.88
+      );
+      timeline.to(
+        "#\\30 3-ask-for-deck-workbench",
+        { x: -110, duration: 0.56, ease: "power4.out" },
+        6.04
+      );
+
+      timeline.to(
+        "#\\30 3-ask-for-deck-video-poster",
+        { autoAlpha: 0, duration: 0.46, ease: "power2.out" },
+        5.7
+      );
+      timeline.to(
+        "#\\30 3-ask-for-deck-video-dimmer",
+        { autoAlpha: 0, duration: 0.72, ease: "power2.out" },
+        5.7
+      );
+      timeline.fromTo(
+        ".\\30 3-ask-for-deck-video-shell",
+        { scale: 0.992, transformOrigin: "center center" },
+        { scale: 1, duration: 0.72, ease: "power3.out" },
+        5.7
+      );
+
+      window.__timelines["03-ask-for-deck"] = timeline;
+    })();
+  </script>
+</template>

@@ -1,0 +1,39 @@
+{
+  "provider": "kokoro",
+  "voice": "af_heart",
+  "lang": "en",
+  "speed": 1,
+  "lines": [
+    {
+      "id": "01",
+      "text": "PowerPoint is where ideas become decisions."
+    },
+    {
+      "id": "02",
+      "text": "PowerPoint MCP lets your AI work directly in the real desktop app, not through a file parser."
+    },
+    {
+      "id": "03",
+      "text": "Start with a simple request. Ask for an executive dashboard, a project update, or a complete presentation."
+    },
+    {
+      "id": "04",
+      "text": "Behind the scenes, MCP turns that intent into precise PowerPoint operations: creating slides, placing native shapes, formatting text, and building charts."
+    },
+    {
+      "id": "05",
+      "text": "The result is a real, editable deck, rendered by PowerPoint itself. The AI exports each slide, inspects the layout, and verifies the result."
+    },
+    {
+      "id": "06",
+      "text": "For scripts and coding agents, pptcli provides the same engine through a compact, token-efficient command line."
+    },
+    {
+      "id": "07",
+      "text": "Sixteen domains. One hundred eighty-six operations. Get started at powerpointmcpserver.dev."
+    }
+  ],
+  "bgm": {
+    "mode": "none"
+  }
+}

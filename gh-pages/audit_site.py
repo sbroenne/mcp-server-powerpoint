@@ -23,6 +23,7 @@ class PageParser(HTMLParser):
         super().__init__()
         self.targets: list[str] = []
         self.images: list[dict[str, str | None]] = []
+        self.iframes: list[dict[str, str | None]] = []
         self.h1_count = 0
         self.jsonld: list[str] = []
         self._jsonld_parts: list[str] | None = None
@@ -34,6 +35,8 @@ class PageParser(HTMLParser):
             self.targets.append(target)
         if tag == "img":
             self.images.append(values)
+        elif tag == "iframe":
+            self.iframes.append(values)
         elif tag == "h1":
             self.h1_count += 1
         elif tag == "script" and values.get("type") == "application/ld+json":
@@ -118,11 +121,23 @@ def audit_page(path: Path, failures: list[str]) -> None:
         if "BreadcrumbList" not in jsonld_types:
             failures.append(f"{name}: missing BreadcrumbList JSON-LD")
     else:
+        jsonld_types = []
         for block in parser.jsonld:
             try:
-                json.loads(block)
+                payload = json.loads(block)
             except json.JSONDecodeError as exc:
                 failures.append(f"{name}: invalid JSON-LD: {exc}")
+                continue
+            jsonld_types.append(payload.get("@type"))
+        if "VideoObject" not in jsonld_types:
+            failures.append(f"{name}: missing VideoObject JSON-LD")
+
+    for iframe in parser.iframes:
+        source = iframe.get("src") or ""
+        if not iframe.get("title"):
+            failures.append(f"{name}: iframe lacks title: {source}")
+        if "youtube.com/embed/" in source:
+            failures.append(f"{name}: YouTube embed must use youtube-nocookie.com: {source}")
 
     for image in parser.images:
         source = image.get("src") or ""

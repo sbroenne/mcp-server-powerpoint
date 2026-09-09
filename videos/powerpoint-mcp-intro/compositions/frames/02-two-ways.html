@@ -1,0 +1,401 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      color: #000000;
+      container-type: size;
+      font-family: sans-serif;
+    }
+
+    .\30 2-two-ways-ground {
+      position: absolute;
+      inset: 0;
+      background: #ffffff;
+    }
+
+    .\30 2-two-ways-scene {
+      position: absolute;
+      inset: 0;
+      perspective: 1800px;
+    }
+
+    .\30 2-two-ways-kicker {
+      position: absolute;
+      left: 100px;
+      top: 70px;
+      margin: 0;
+      font-family: monospace;
+      font-size: 26px;
+      font-weight: 400;
+      letter-spacing: 0.16em;
+      line-height: 1;
+    }
+
+    .\30 2-two-ways-title {
+      position: absolute;
+      left: 96px;
+      top: 116px;
+      display: flex;
+      gap: 0.23em;
+      margin: 0;
+      font-size: 84px;
+      font-weight: 400;
+      letter-spacing: -0.022em;
+      line-height: 1.02;
+      white-space: nowrap;
+    }
+
+    .\30 2-two-ways-title-word {
+      display: inline-block;
+      will-change: transform, opacity;
+    }
+
+    .\30 2-two-ways-product-mark {
+      position: absolute;
+      left: 902px;
+      top: 91px;
+      width: 116px;
+      height: 116px;
+      border-radius: 12px;
+      object-fit: cover;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+      will-change: transform, opacity;
+    }
+
+    .\30 2-two-ways-rule {
+      position: absolute;
+      left: 100px;
+      right: 100px;
+      top: 244px;
+      height: 1px;
+      background: rgba(0, 0, 0, 0.12);
+      transform-origin: left center;
+    }
+
+    .\30 2-two-ways-stage {
+      position: absolute;
+      left: 120px;
+      top: 320px;
+      width: 1680px;
+      height: 420px;
+      transform-style: preserve-3d;
+    }
+
+    .\30 2-two-ways-card {
+      position: absolute;
+      top: 0;
+      width: 700px;
+      height: 400px;
+      box-sizing: border-box;
+      padding: 48px 52px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 12px;
+      background: #ffffff;
+      transform-style: preserve-3d;
+      will-change: transform, opacity;
+    }
+
+    .\30 2-two-ways-card-left {
+      left: 0;
+      width: 1040px;
+      box-shadow: -10px 12px 28px rgba(0, 0, 0, 0.07);
+    }
+
+    .\30 2-two-ways-card-right {
+      right: 0;
+      width: 500px;
+      box-shadow: 10px 12px 28px rgba(0, 0, 0, 0.07);
+    }
+
+    .\30 2-two-ways-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 12px;
+      background: #dbceff;
+    }
+
+    .\30 2-two-ways-card-right::before {
+      background: #181615;
+    }
+
+    .\30 2-two-ways-card-left::before {
+      background: #d24726;
+    }
+
+    .\30 2-two-ways-card h2 {
+      margin: 0 0 26px;
+      font-size: 70px;
+      font-weight: 400;
+      letter-spacing: -0.018em;
+      line-height: 1.05;
+    }
+
+    .\30 2-two-ways-card p {
+      max-width: 850px;
+      margin: 0;
+      font-size: 31px;
+      font-weight: 400;
+      letter-spacing: -0.005em;
+      line-height: 1.42;
+    }
+
+    .\30 2-two-ways-card-right h2 {
+      font-size: 52px;
+    }
+
+    .\30 2-two-ways-card-right p {
+      max-width: 390px;
+      font-size: 27px;
+    }
+
+    .\30 2-two-ways-card-detail {
+      position: absolute;
+      left: 52px;
+      right: 52px;
+      bottom: 46px;
+      height: 58px;
+      border-radius: 8px;
+      background: #dbceff;
+    }
+
+    .\30 2-two-ways-card-right .\30 2-two-ways-card-detail {
+      background: #181615;
+    }
+
+    .\30 2-two-ways-card-detail::before,
+    .\30 2-two-ways-card-detail::after {
+      content: "";
+      position: absolute;
+      top: 21px;
+      height: 16px;
+      border-radius: 9999px;
+      background: rgba(0, 0, 0, 0.22);
+    }
+
+    .\30 2-two-ways-card-detail::before {
+      left: 22px;
+      width: 42%;
+    }
+
+    .\30 2-two-ways-card-detail::after {
+      right: 22px;
+      width: 22%;
+    }
+
+    .\30 2-two-ways-card-right .\30 2-two-ways-card-detail::before,
+    .\30 2-two-ways-card-right .\30 2-two-ways-card-detail::after {
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .\30 2-two-ways-plus {
+      position: absolute;
+      left: 1116px;
+      top: 474px;
+      width: 62px;
+      height: 62px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      border-radius: 9999px;
+      background: #ffffff;
+      font-family: monospace;
+      font-size: 22px;
+      font-weight: 400;
+      line-height: 1;
+      will-change: transform, opacity;
+    }
+
+    .\30 2-two-ways-connectors {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .\30 2-two-ways-connector {
+      fill: none;
+      stroke: #d24726;
+      stroke-width: 8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .\30 2-two-ways-target {
+      position: absolute;
+      left: 550px;
+      top: 810px;
+      width: 820px;
+      height: 74px;
+      display: grid;
+      place-items: center;
+      box-sizing: border-box;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+      font-family: monospace;
+      font-size: 26px;
+      font-weight: 400;
+      letter-spacing: 0.02em;
+      line-height: 1;
+      will-change: transform, opacity;
+    }
+  </style>
+
+  <div data-hf-id="hf-npbv" id="root" data-composition-id="02-two-ways" data-width="1920" data-height="1080" data-duration="8.5">
+    <div data-hf-id="hf-olni" class="clip 02-two-ways-ground" data-start="0" data-duration="8.5" data-track-index="0"></div>
+
+    <div data-hf-id="hf-1lo4" class="clip 02-two-ways-scene" data-start="0" data-duration="8.5" data-track-index="1">
+      <p data-hf-id="hf-iit4" class="02-two-ways-kicker">POWERPOINT AUTOMATION FOR AI</p>
+
+      <h1 data-hf-id="hf-g50g" class="02-two-ways-title" aria-label="Start with MCP.">
+        <span data-hf-id="hf-3m97" class="02-two-ways-title-word">Start</span>
+        <span data-hf-id="hf-n45n" class="02-two-ways-title-word">with</span>
+        <span data-hf-id="hf-ccpa" class="02-two-ways-title-word">MCP.</span>
+      </h1>
+
+      <img data-hf-id="hf-r2a2" class="02-two-ways-product-mark" src="assets/powerpoint-mcp-server.png" alt="">
+      <div data-hf-id="hf-ppj3" class="02-two-ways-rule"></div>
+
+      <div data-hf-id="hf-5u19" class="02-two-ways-stage">
+        <section data-hf-id="hf-ia88" class="02-two-ways-card 02-two-ways-card-left">
+          <h2 data-hf-id="hf-nglp">MCP</h2>
+          <p data-hf-id="hf-tb6g">The primary experience for natural-language, interactive presentation work.</p>
+          <div data-hf-id="hf-9qt8" class="02-two-ways-card-detail" aria-hidden="true"></div>
+        </section>
+
+        <section data-hf-id="hf-eo5z" class="02-two-ways-card 02-two-ways-card-right">
+          <h2 data-hf-id="hf-wrtp">pptcli</h2>
+          <p data-hf-id="hf-8ncs">Optional, token-efficient control for scripts and LLMs.</p>
+          <div data-hf-id="hf-onsk" class="02-two-ways-card-detail" aria-hidden="true"></div>
+        </section>
+      </div>
+
+      <div data-hf-id="hf-uzdp" class="02-two-ways-plus" aria-hidden="true">OR</div>
+
+      <svg data-hf-id="hf-g9yt" class="02-two-ways-connectors" viewBox="0 0 1920 1080" aria-hidden="true">
+        <path data-hf-id="hf-k7hr" id="02-two-ways-connector-left" class="02-two-ways-connector" d="M 650 700 C 690 744, 760 780, 820 810" />
+        <path data-hf-id="hf-40jk" id="02-two-ways-connector-right" class="02-two-ways-connector" d="M 1510 700 C 1460 744, 1250 780, 1100 810" />
+      </svg>
+
+      <div data-hf-id="hf-l89d" class="02-two-ways-target">SAME REAL POWERPOINT AUTOMATION ENGINE</div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      window.__timelines = window.__timelines || {};
+
+      const leftConnector = document.getElementById("02-two-ways-connector-left");
+      const rightConnector = document.getElementById("02-two-ways-connector-right");
+
+      [leftConnector, rightConnector].forEach((path) => {
+        const length = path.getTotalLength();
+        path.style.strokeDasharray = `${length}`;
+        path.style.strokeDashoffset = `${length}`;
+      });
+
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["02-two-ways"] = tl;
+
+      tl.fromTo(
+        ".\\30 2-two-ways-kicker",
+        { x: 54, autoAlpha: 0 },
+        { x: 0, autoAlpha: 1, duration: 0.5, ease: "power3.out" },
+        0.05
+      );
+
+      tl.fromTo(
+        ".\\30 2-two-ways-title-word",
+        { x: 94, autoAlpha: 0 },
+        { x: 0, autoAlpha: 1, duration: 0.62, stagger: 0.11, ease: "power3.out" },
+        0.2
+      );
+
+      tl.fromTo(
+        ".\\30 2-two-ways-product-mark",
+        { scale: 0.92, autoAlpha: 0 },
+        { scale: 1, autoAlpha: 1, duration: 0.58, ease: "power3.out" },
+        0.62
+      );
+
+      tl.fromTo(
+        ".\\30 2-two-ways-rule",
+        { scaleX: 0, autoAlpha: 0 },
+        { scaleX: 1, autoAlpha: 1, duration: 0.7, ease: "power2.out" },
+        0.88
+      );
+
+      tl.fromTo(
+        ".\\30 2-two-ways-card-left",
+        { x: -420, rotateY: 21, scale: 0.86, autoAlpha: 0 },
+        { x: 0, rotateY: 12, scale: 1, autoAlpha: 1, duration: 1.05, ease: "power3.out" },
+        1.6
+      );
+
+      tl.fromTo(
+        ".\\30 2-two-ways-card-right",
+        { x: 420, rotateY: -21, scale: 0.86, autoAlpha: 0 },
+        { x: 0, rotateY: -12, scale: 1, autoAlpha: 1, duration: 1.05, ease: "power3.out" },
+        1.78
+      );
+
+      tl.fromTo(
+        ".\\30 2-two-ways-card h2",
+        { y: 24, autoAlpha: 0 },
+        { y: 0, autoAlpha: 1, duration: 0.52, stagger: 0.16, ease: "power2.out" },
+        2.18
+      );
+
+      tl.fromTo(
+        ".\\30 2-two-ways-card p",
+        { y: 24, autoAlpha: 0 },
+        { y: 0, autoAlpha: 1, duration: 0.62, stagger: 0.16, ease: "power2.out" },
+        2.58
+      );
+
+      tl.fromTo(
+        ".\\30 2-two-ways-card-detail",
+        { scaleX: 0.35, transformOrigin: "left center", autoAlpha: 0 },
+        { scaleX: 1, autoAlpha: 1, duration: 0.72, stagger: 0.18, ease: "power3.out" },
+        3.2
+      );
+
+      tl.fromTo(
+        ".\\30 2-two-ways-plus",
+        { scale: 0.82, autoAlpha: 0 },
+        { scale: 1, autoAlpha: 1, duration: 0.6, ease: "back.out(1.45)" },
+        4.36
+      );
+
+      tl.to(
+        leftConnector,
+        { strokeDashoffset: 0, duration: 0.82, ease: "power2.out" },
+        5.3
+      );
+
+      tl.to(
+        rightConnector,
+        { strokeDashoffset: 0, duration: 0.82, ease: "power2.out" },
+        5.48
+      );
+
+      tl.fromTo(
+        ".\\30 2-two-ways-target",
+        { y: 26, autoAlpha: 0 },
+        { y: 0, autoAlpha: 1, duration: 0.58, ease: "power3.out" },
+        6.62
+      );
+    })();
+  </script>
+</template>

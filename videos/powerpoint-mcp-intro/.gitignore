@@ -1,0 +1,14 @@
+.hyperframes/
+.media/
+.thumbnails/
+.waveform-cache/
+node_modules/
+capture/
+renders/
+snapshots/
+snapshots-review/
+AGENTS.md
+CLAUDE.md
+assets/bgm/*.log
+demo/*
+!demo/mcp-executive-demo.pptx

@@ -1,0 +1,322 @@
+<template>
+  <style>
+    #root {
+      position: absolute;
+      inset: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      container-type: size;
+      color: #000000;
+      font-family: sans-serif;
+    }
+
+    .f06-complete-control-ground,
+    .f06-complete-control-stage {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .f06-complete-control-ground {
+      background: #ffffff;
+    }
+
+    .f06-complete-control-stage {
+      overflow: hidden;
+    }
+
+    .f06-complete-control-header {
+      position: absolute;
+      left: 90px;
+      right: 90px;
+      top: 70px;
+      height: 176px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+    }
+
+    .f06-complete-control-kicker {
+      position: absolute;
+      left: 0;
+      top: 0;
+      margin: 0;
+      font-family: monospace;
+      font-size: 26px;
+      font-weight: 400;
+      letter-spacing: 0.16em;
+      line-height: 1;
+      color: #000000;
+      text-transform: uppercase;
+    }
+
+    .f06-complete-control-kicker-mark {
+      color: #d24726;
+      margin-right: 12px;
+    }
+
+    .f06-complete-control-title {
+      position: absolute;
+      left: 0;
+      top: 55px;
+      margin: 0;
+      max-width: 1260px;
+      font-size: 82px;
+      font-weight: 400;
+      line-height: 1.06;
+      letter-spacing: -0.018em;
+    }
+
+    .f06-complete-control-product {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 154px;
+      height: 154px;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    .f06-complete-control-grid-shell {
+      position: absolute;
+      left: 90px;
+      right: 90px;
+      top: 300px;
+      height: 488px;
+      overflow: hidden;
+    }
+
+    .f06-complete-control-sweep {
+      position: absolute;
+      z-index: 0;
+      top: -70px;
+      left: -430px;
+      width: 330px;
+      height: 640px;
+      border-radius: 9999px;
+      background: #d24726;
+      filter: blur(70px);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .f06-complete-control-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, 230px);
+      gap: 28px;
+      width: 100%;
+      height: 100%;
+    }
+
+    .f06-complete-control-card {
+      position: relative;
+      display: grid;
+      place-items: center;
+      box-sizing: border-box;
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      border-radius: 12px;
+      background: #ffffff;
+      color: #000000;
+      font-size: 38px;
+      font-weight: 400;
+      line-height: 1.25;
+      letter-spacing: -0.005em;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+      will-change: transform, opacity;
+    }
+
+    .f06-complete-control-card:nth-child(2),
+    .f06-complete-control-card:nth-child(4),
+    .f06-complete-control-card:nth-child(5),
+    .f06-complete-control-card:nth-child(7) {
+      background: #dbceff;
+    }
+
+    .f06-complete-control-card[data-depth="1"] {
+      box-shadow: none;
+    }
+
+    .f06-complete-control-card[data-depth="2"] {
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+
+    .f06-complete-control-card[data-depth="3"] {
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    .f06-complete-control-card-index {
+      position: absolute;
+      left: 22px;
+      top: 20px;
+      font-family: monospace;
+      font-size: 18px;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      opacity: 0.44;
+    }
+
+    .f06-complete-control-proof {
+      position: absolute;
+      right: 100px;
+      bottom: 65px;
+      margin: 0;
+      padding-top: 24px;
+      border-top: 1px solid rgba(0, 0, 0, 0.2);
+      font-family: monospace;
+      font-size: 30px;
+      font-weight: 400;
+      line-height: 1;
+      letter-spacing: 0.02em;
+      color: #000000;
+      white-space: nowrap;
+    }
+
+    .f06-complete-control-proof-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: -1px;
+      height: 1px;
+      background: #d24726;
+      transform-origin: left center;
+    }
+  </style>
+
+  <div data-hf-id="hf-9tqq" id="root" data-composition-id="06-complete-control" data-width="1920" data-height="1080" data-duration="9.5">
+    <div data-hf-id="hf-jcof" class="clip f06-complete-control-ground" data-start="0" data-duration="9.5" data-track-index="0"></div>
+
+    <div data-hf-id="hf-kyb3" class="clip f06-complete-control-stage" data-start="0" data-duration="9.5" data-track-index="1">
+      <header data-hf-id="hf-rwf2" class="f06-complete-control-header">
+        <p data-hf-id="hf-nbez" id="f06-complete-control-kicker" class="f06-complete-control-kicker"><span data-hf-id="hf-6sq0" class="f06-complete-control-kicker-mark">✱</span>Complete presentation workflow</p>
+        <h1 data-hf-id="hf-2z48" id="f06-complete-control-title" class="f06-complete-control-title">Control the whole deck.</h1>
+        <img data-hf-id="hf-1em0" id="f06-complete-control-product" class="f06-complete-control-product" src="assets/powerpoint-mcp-server.png" alt="">
+      </header>
+
+      <section data-hf-id="hf-vokz" class="f06-complete-control-grid-shell" aria-label="Presentation capabilities">
+        <div data-hf-id="hf-5ef2" id="f06-complete-control-sweep" class="f06-complete-control-sweep"></div>
+        <div data-hf-id="hf-xe8l" class="f06-complete-control-grid">
+          <div data-hf-id="hf-nlpr" class="f06-complete-control-card" data-depth="1"><span data-hf-id="hf-gtx8" class="f06-complete-control-card-index">01</span>Slides</div>
+          <div data-hf-id="hf-lx7k" class="f06-complete-control-card" data-depth="2"><span data-hf-id="hf-fn05" class="f06-complete-control-card-index">02</span>Shapes</div>
+          <div data-hf-id="hf-m7gg" class="f06-complete-control-card" data-depth="3"><span data-hf-id="hf-g1b6" class="f06-complete-control-card-index">03</span>Text</div>
+          <div data-hf-id="hf-zt5n" class="f06-complete-control-card" data-depth="2"><span data-hf-id="hf-i0ub" class="f06-complete-control-card-index">04</span>Tables</div>
+          <div data-hf-id="hf-a1h7" class="f06-complete-control-card" data-depth="2"><span data-hf-id="hf-if5c" class="f06-complete-control-card-index">05</span>Charts</div>
+          <div data-hf-id="hf-28oc" class="f06-complete-control-card" data-depth="3"><span data-hf-id="hf-h889" class="f06-complete-control-card-index">06</span>Notes</div>
+          <div data-hf-id="hf-jau7" class="f06-complete-control-card" data-depth="1"><span data-hf-id="hf-hmja" class="f06-complete-control-card-index">07</span>Accessibility</div>
+          <div data-hf-id="hf-0rks" class="f06-complete-control-card" data-depth="2"><span data-hf-id="hf-d95z" class="f06-complete-control-card-index">08</span>Export</div>
+        </div>
+      </section>
+
+      <p data-hf-id="hf-s49h" id="f06-complete-control-proof" class="f06-complete-control-proof" data-layout-allow-overlap>
+        <span data-hf-id="hf-ivgz" id="f06-complete-control-proof-line" class="f06-complete-control-proof-line"></span>
+        16 TOOL DOMAINS · 186 OPERATIONS
+      </p>
+    </div>
+  </div>
+
+  <script>
+    {
+      const tl = gsap.timeline({ paused: true });
+      window.__timelines["06-complete-control"] = tl;
+
+      tl.fromTo(
+        "#f06-complete-control-kicker",
+        { autoAlpha: 0, y: 16 },
+        { autoAlpha: 1, y: 0, duration: 0.42, ease: "power3.out" },
+        0.08
+      );
+      tl.fromTo(
+        "#f06-complete-control-title",
+        { autoAlpha: 0, y: 28 },
+        { autoAlpha: 1, y: 0, duration: 0.72, ease: "power3.out" },
+        0.22
+      );
+      tl.fromTo(
+        "#f06-complete-control-product",
+        { autoAlpha: 0, scale: 0.92, x: 18 },
+        { autoAlpha: 1, scale: 1, x: 0, duration: 0.68, ease: "power3.out" },
+        0.1
+      );
+
+      const cards = Array.from(document.querySelectorAll(".f06-complete-control-card"));
+      const waveOneOrder = [1, 2, 0, 3];
+      const waveTwoOrder = [5, 6, 4, 7];
+
+      waveOneOrder.forEach((cardIndex, orderIndex) => {
+        const card = cards[cardIndex];
+        const depth = Number(card.dataset.depth);
+        const direction = cardIndex < 2 ? -1 : 1;
+        tl.fromTo(
+          card,
+          {
+            autoAlpha: 0,
+            x: direction * (22 + depth * 6),
+            y: 20 + depth * 7,
+            scale: 0.94 + depth * 0.01
+          },
+          {
+            autoAlpha: 1,
+            x: 0,
+            y: 0,
+            scale: 1,
+            duration: 0.68,
+            ease: "power3.out"
+          },
+          1.8 + orderIndex * 0.08
+        );
+      });
+
+      waveTwoOrder.forEach((cardIndex, orderIndex) => {
+        const card = cards[cardIndex];
+        const depth = Number(card.dataset.depth);
+        const direction = cardIndex < 6 ? -1 : 1;
+        tl.fromTo(
+          card,
+          {
+            autoAlpha: 0,
+            x: direction * (24 + depth * 6),
+            y: 24 + depth * 8,
+            scale: 0.93 + depth * 0.01
+          },
+          {
+            autoAlpha: 1,
+            x: 0,
+            y: 0,
+            scale: 1,
+            duration: 0.72,
+            ease: "power3.out"
+          },
+          4.25 + orderIndex * 0.08
+        );
+      });
+
+      tl.fromTo(
+        "#f06-complete-control-proof",
+        { autoAlpha: 0, y: 18 },
+        { autoAlpha: 1, y: 0, duration: 0.58, ease: "power3.out" },
+        6.5
+      );
+      tl.fromTo(
+        "#f06-complete-control-proof-line",
+        { scaleX: 0 },
+        { scaleX: 1, duration: 0.72, ease: "power3.out" },
+        6.55
+      );
+      tl.fromTo(
+        "#f06-complete-control-sweep",
+        { x: 0, autoAlpha: 0 },
+        { x: 2100, autoAlpha: 0.22, duration: 1.35, ease: "none" },
+        7.15
+      );
+      tl.to(
+        "#f06-complete-control-sweep",
+        { autoAlpha: 0, duration: 0.35, ease: "power1.in" },
+        8.5
+      );
+    }
+  </script>
+</template>

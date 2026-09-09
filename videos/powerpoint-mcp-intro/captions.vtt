@@ -1,0 +1,22 @@
+WEBVTT
+
+00:00:00.900 --> 00:00:03.631
+PowerPoint is where ideas become decisions.
+
+00:00:05.600 --> 00:00:12.171
+PowerPoint MCP lets your AI work directly in the real desktop app, not through a file parser.
+
+00:00:13.500 --> 00:00:20.263
+Start with a simple request. Ask for an executive dashboard, a product update, or a complete presentation.
+
+00:00:22.400 --> 00:00:32.747
+Behind the scenes, MCP turns that intent into precise PowerPoint operations: creating slides, placing native shapes, formatting text, and building charts.
+
+00:00:34.250 --> 00:00:43.935
+The result is a real, editable deck, rendered by PowerPoint itself. The AI exports each slide, inspects the layout, and verifies the result.
+
+00:00:44.600 --> 00:00:51.683
+For scripts and coding agents, pptcli provides the same engine through a compact, token-efficient command line.
+
+00:00:53.300 --> 00:00:59.551
+Sixteen domains. One hundred eighty-six operations. Get started at powerpointmcpserver.dev.
