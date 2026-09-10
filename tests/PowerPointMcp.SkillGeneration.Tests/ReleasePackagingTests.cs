@@ -134,6 +134,21 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
+    public void CoreTestProject_IsExplicitlyMarkedForTestDiscovery()
+    {
+        var project = XDocument.Load(Path.Combine(
+            RepoRoot,
+            "tests",
+            "PowerPointMcp.Core.Tests",
+            "PowerPointMcp.Core.Tests.csproj"));
+
+        Assert.Equal("true", project.Root!
+            .Elements("PropertyGroup")
+            .Elements("IsTestProject")
+            .SingleOrDefault()?.Value);
+    }
+
+    [Fact]
     public void ValidationGates_RunReleasePackagingTests()
     {
         const string testProject = "PowerPointMcp.SkillGeneration.Tests";
