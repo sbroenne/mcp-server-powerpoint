@@ -7,7 +7,7 @@
 
 .DESCRIPTION
     Runs checks before allowing commits (ported and adapted from mcp-server-excel's
-    scripts/pre-commit.ps1 — see .github/copilot-instructions.md for the full gate table):
+    scripts/pre-commit.ps1 — the gate list below is authoritative):
 
     0. Process cleanup   - stops only processes proven to belong to the CLI daemon
     1. Branch guard      - never commit directly to 'main'

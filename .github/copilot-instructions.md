@@ -1,268 +1,66 @@
-# Project Instructions — PowerPointMcp
+# PowerPointMcp repository rules
 
-## Critical Files (Read These First)
+GitHub Copilot is the primary coding agent, locally and on GitHub. Use Windows,
+PowerShell, and the SDK selected by `global.json`. Desktop PowerPoint is required
+for COM tests; GitHub-hosted runners do not have it.
 
-**ALWAYS read when working on code:**
-- [Critical Rules](instructions/critical-rules.instructions.md) - mandatory rules (Success flag, COM cleanup, TDD, session lifecycle)
-- [Architecture Patterns](instructions/architecture-patterns.instructions.md) - layered architecture, command pattern, resource management
+MCP Server and `pptcli` are equal entry points: behavior, defaults, validation,
+results, and documentation must agree. Read
+[critical rules](instructions/critical-rules.instructions.md) for every change.
+Read only the additional instructions matching the work:
 
-**Read based on task type:**
-- Adding/fixing Core commands or COM interop → [Architecture Patterns](instructions/architecture-patterns.instructions.md)
-- Writing tests → [Testing Strategy](instructions/testing-strategy.instructions.md)
-- MCP Server tool work → [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
+| Work | Instructions |
+| --- | --- |
+| Runtime, contracts, generators | [Architecture](instructions/architecture-patterns.instructions.md) |
+| MCP tools, schemas, MCP generators | [MCP guide](instructions/mcp-server-guide.instructions.md) |
+| Tests or behavior changes | [Testing](instructions/testing-strategy.instructions.md) |
+| Builds, scripts, workflows, releases | [Development workflow](instructions/development-workflow.instructions.md) |
+| Agent instructions | [Instruction maintenance](instructions/meta.instructions.md) |
+| Skills | `skills/CLAUDE.md` and `skills/README.md` |
 
-## Sister Projects
+## Implementation
 
-PowerPointMcp is one of a family of Windows-only, COM-interop MCP-server repos maintained by the
-same author (`sbroenne`). The family currently includes:
+- Core `[ServiceCategory]` interfaces drive generated routing. Change contracts
+  and generators, not emitted code. Follow changes through both entry points,
+  tests, help, and shared guidance.
+- `sbroenne/mcp-server-excel` is the architectural reference. Before architectural
+  changes, check its existing solution. Preserve PowerPoint-specific differences
+  such as PIA embedding and the absence of `Application.ScreenUpdating`.
+  Flag shared bugs for Excel or `mcp-windows` without changing those repos.
+- Keep rules in their linked files, not duplicated here. Tool and operation
+  counts come from the generated skill manifest, `PresentationToolAction`, and
+  `McpProtocolTests.ExpectedToolNames`, not remembered inventories.
 
-- **`mcp-server-excel`** (`sbroenne/mcp-server-excel`) — **the authoritative architectural
-  template for this entire family.** Its layering (ComInterop → Core → Service → CLI/MCP Server),
-  Unified Service Architecture, generator design, hand-written vs. generated tool split, COM
-  cleanup discipline (Rule 22: every `dynamic` COM object released via `ComUtilities.Release` in a
-  `finally` block), support/audit scripts (`scripts/*.ps1`), and CI Gate workflow are the reference
-  design. When PowerPointMcp diverges from Excel, treat the divergence as a bug to fix **unless**
-  there is a concrete, documented reason the underlying Office object model differs (e.g. Excel's
-  `Application.ScreenUpdating` has no PowerPoint equivalent — that divergence is legitimate and
-  intentionally NOT ported).
-- **`mcp-server-powerpoint`** (this repo) — PowerPoint automation, structurally mirrors Excel's
-  10-project layout and Unified Service Architecture.
-- **`mcp-windows`** — a sister Windows-automation MCP server project.
-
-**When making architectural changes here, check whether Excel already solved the same problem —
-port its pattern rather than inventing a new one.** Likewise, if you fix a real bug or close a gap
-here that also exists in Excel or `mcp-windows`, flag it so the same fix can be ported there.
-
-## What is PowerPointMcp?
-
-**PowerPointMcp** is a Windows-only toolset for programmatic PowerPoint automation via COM
-interop, designed for coding agents and automation scripts. It drives a **live PowerPoint desktop
-instance** through the official `Microsoft.Office.Interop.PowerPoint` PIA (embedded via
-`ForceEmbedPowerPointInteropTypes` — no runtime assembly-resolver needed, unlike Excel).
-
-The project ships **two equal, first-class entry points** — an MCP Server and a CLI — that share
-one `Core` codebase and are kept in parity by source generators, mirroring `mcp-server-excel`'s
-Unified Service Architecture.
-
-**Core Layers:**
-1. **ComInterop** (`src/PowerPointMcp.ComInterop`) - STA thread + OLE message filter + channel-based
-   work queue (`PresentationBatch`), ported from `mcp-server-excel`'s `ExcelBatch` pattern.
-2. **Core** (`src/PowerPointMcp.Core`) - PowerPoint domain commands, one folder per domain
-   (Presentation, Slide, Shape, TextFrame, Table, Notes, Layout, Master, Animation, Image, Media, Chart,
-   Export). Domains other than Presentation carry a `[ServiceCategory]` marker attribute that the
-   generators discover.
-3. **Generators** (`src/PowerPointMcp.Generators.Mcp`, `src/PowerPointMcp.Generators.Cli`,
-   `src/PowerPointMcp.Generators.Shared`) - Roslyn source generators that read `[ServiceCategory]`
-   Core interfaces and emit one **action-dispatch tool per domain** for the MCP surface (e.g.
-   `slide`, `shape`, `chart`, each taking an `action` parameter like `"add-chart"`) and one
-   `pptcli {category} {action}` command per operation for the CLI. `Presentation` is also a
-   hand-written action-dispatch tool (`PresentationTools.cs`) so session lifecycle, template work,
-   and document properties live under the single `presentation` MCP tool.
-4. **Service** (`src/PowerPointMcp.Service`) - `PowerPointMcpService`: the shared session registry
-   + dispatch layer both entry points call into. **McpServer** hosts it **in-process** (no pipe,
-   via `ServiceBridge.ForwardToService`); **CLI** (`pptcli`) talks to it via a **separate
-   background daemon process** over a named pipe (`ServiceClient`/`IPowerPointDaemonRpc`,
-   auto-started on first `session open`/`session create`), so sessions persist across CLI
-   invocations without paying PowerPoint's ~90-150s launch cost every command.
-5. **McpServer** (`src/PowerPointMcp.McpServer`) - Model Context Protocol stdio host. 16 tools
-   total: one hand-written `presentation` action-dispatch tool plus 15 generated action-dispatch
-   tools (`slide`, `shape`, `textframe`, `table`, `notes`, `layout`, `master`, `animation`,
-  `image`, `media`, `chart`, `smartart`, `export`, `pagesetup`, `accessibility`), covering 187 operations
-   across 16 domains. See
-   `tests/PowerPointMcp.McpServer.Tests/Integration/McpProtocolTests.cs`'s `ExpectedToolNames` for
-   the ground-truth tool list.
-6. **CLI** (`src/PowerPointMcp.CLI`) - `pptcli`, built on the same generators as the MCP surface
-   (`CliCommandRegistration.RegisterCommands`) plus hand-written `session`/`service` command
-   branches for daemon lifecycle. Full parity with the MCP surface (Export is exposed here too).
-
-MCP Server and CLI run as **separate processes**, each managing its own PowerPoint instance — they
-do **not** share live sessions with each other, only the same `Core`/`Service` codebase.
-
-## Session Model (MCP Server)
-
-```
-presentation(action="create", filePath) OR presentation(action="open", filePath) → sessionId
-... other domain tools take session_id; presentation lifecycle/property actions take sessionId ...
-presentation(action="test", filePath) → validates PowerPoint can open the file; no session retained
-presentation(action="close", sessionId, save=true) → optionally saves, removes from registry
-                                                      immediately, then disposes the batch (and its
-                                                      PowerPoint process) on a background task.
-```
-
-`presentation(action="create", ...)` creates + saves the file and leaves the new session open.
-Callers should reuse the returned `sessionId` instead of opening the same file again.
-
-Host shutdown (`Ctrl+C`, stdin EOF, or normal exit) MUST dispose every open batch via
-`PresentationSessionRegistry.DisposeAll()` — two-layered: an `IHostedService` on `StopAsync`, plus
-a backstop in `Main`'s `finally`. Never let a PowerPoint process leak past MCP host shutdown.
-
-## 1-Based Indexing (CRITICAL)
-
-`slideIndex`, `shapeIndex`, and table `row`/`column` are 1-based everywhere in Core and the MCP
-surface, matching PowerPoint's native COM object model (`Slides(1)` is the first slide). Do not
-introduce 0-based indexing anywhere in Core, the MCP tools, or tests.
-
-## PIA-First COM Access (CRITICAL)
-
-All PowerPoint COM operations must use strongly typed members from the embedded
-`Microsoft.Office.Interop.PowerPoint` PIA whenever the restored PIA exposes the required API.
-Use typed Office/PowerPoint enums instead of raw integer constants.
-
-Only use `dynamic`, reflection, raw dispatch, or numeric COM enum values after confirming from the
-restored interop metadata that no typed PIA member/type exists. Keep such exceptions narrowly
-scoped, document the missing PIA surface in code, and cover the behavior with a real-COM
-integration test. Convenience is never a reason to bypass the PIA.
-
-## Rule 1 / 1b — Success/ErrorMessage Invariant (CRITICAL)
-
-Core commands return `{Domain}OperationResult` with `Success`/`ErrorMessage`:
-
-- **Rule 1:** `Success == true` implies `ErrorMessage == null`. Never both.
-- **Rule 1b:** Never wrap `batch.Execute()` in a try-catch that swallows exceptions and returns an
-  error result. Let exceptions propagate naturally out of Core — `batch.Execute()`'s
-  `TaskCompletionSource` plumbing handles them. Only the MCP tool boundary
-  (`PowerPointToolsBase.ExecuteToolAction`) catches unexpected exceptions, logs the HResult to
-  stderr, and serializes a structured error — this is the ONLY place a catch-all belongs.
-
-Expected, caller-correctable failures (bad index, missing file, unknown session) are validated
-BEFORE calling Core and returned as `Success=false` payloads — never thrown as exceptions.
-
-```csharp
-// Core: let exceptions propagate
-public ShapeOperationResult AddRectangle(IPresentationBatch batch, int slideIndex, ...)
-{
-    return batch.Execute((ctx, ct) => {
-        // COM object access; exceptions bubble up naturally
-    });
-}
-
-// MCP Tool: validate expected bad input first, don't throw
-if (!registry.TryGet(sessionId, out var batch))
-{
-    return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
-}
-```
-
-## Rule 30 — Real-COM Integration Tests Only (CRITICAL)
-
-**NEVER write unit tests with mocked COM objects.** All Core tests are real-COM integration tests
-against a real PowerPoint instance, following strict TDD (red → green): write a failing test
-first, watch it fail, implement, watch it pass.
-
-- Tests are serialized via `xunit.runner.json` (`maxParallelThreads: 1`) — concurrent PowerPoint
-  launches are not supported.
-- Tests are tagged `[Trait("Category", "Integration")]` + `[Trait("Feature", "<Domain>")]` (e.g.
-  `Feature=Shape`, `Feature=Chart`) for surgical `dotnet test --filter` runs.
-- MCP-layer tests (`tests/PowerPointMcp.McpServer.Tests`) use the SDK's in-memory pipe transport
-  (`Program.ConfigureTestTransport`) for protocol-level assertions (tools/list, schema, error
-  envelope) WITHOUT launching PowerPoint; only the session-lifecycle round-trip tests touch real
-  COM. Do not re-test Core COM behavior at the MCP layer — MCP tests assert wiring + serialization
-  + session mapping only.
-- Office's own post-Quit cleanup can take up to ~90-200+ seconds after
-  `presentation(action="close", sessionId=...)` / session disposal — this is documented, benign
-  Office behavior. Do NOT add force-kill on the happy path.
-
-### Test Commands
+## Build and validation
 
 ```powershell
-# Full Core test suite (real COM, serialized — slower than a typical unit-test suite)
-dotnet test tests\PowerPointMcp.Core.Tests
-
-# Surgical: one domain only
-dotnet test tests\PowerPointMcp.Core.Tests --filter "Feature=Shape"
-dotnet test tests\PowerPointMcp.Core.Tests --filter "Feature=Chart"
-
-# MCP transport/protocol tests
-dotnet test tests\PowerPointMcp.McpServer.Tests
+dotnet restore Sbroenne.PowerPointMcp.slnx
+dotnet build Sbroenne.PowerPointMcp.slnx -c Release --no-restore
 ```
 
-Always run tests with an explicit timeout in the terminal/tooling layer — never leave a COM test
-run open-ended; fail fast if PowerPoint stalls.
+Build with zero warnings. Run focused checks from the
+[testing strategy](instructions/testing-strategy.instructions.md) and existing
+gates in `scripts/pre-commit.ps1` / `.github/workflows/ci.yml`; do not invent
+replacement audits. `scripts/check-doc-counts.ps1` needs a current Release build
+in this worktree. Documentation/configuration-only changes do not need synthetic
+tests or PowerPoint launches; validate their links, syntax, and affected behavior.
+Report unavailable COM checks as not run, never as passed.
 
-## Quick Reference
+## Git and release
 
-### Tool Selection
-- Code changes → targeted `edit`/`replace_string_in_file` (small, precise context)
-- Find code → `grep`/code search over PowerShell text scraping
-- Build/test/git → `dotnet build`/`dotnet test`/`git` via the terminal tool
+- Never commit to `main`, force-push, or bypass hooks. Report hook blockers.
+- Commit/push only when explicitly authorized. A GitHub coding-agent assignment
+  explicitly requesting a PR authorizes its delivery commits and PR, not merging
+  or publishing. Local edits alone do not authorize commits.
+- Verify `gh auth status` uses the personal `sbroenne` account for this namespace.
+  An inherited `GH_TOKEN` can override the stored account; never print tokens.
+- User-visible changes need a changeset. Internal/docs/tests/CI changes use the
+  `skip-changelog` PR label. Versions and `CHANGELOG.md` are release-generated.
+- Plugin publication follows
+  [the publication guide](workflows/docs/publish-plugins-setup.md);
+  the published repository is output-only.
 
-### GitHub Auth Rule for This Repo
-
-When using `gh` against `sbroenne/mcp-server-powerpoint` (issues, PRs, comments, merges), verify
-`gh auth status` shows the personal `sbroenne` account as ACTIVE, not an EMU
-(`stbrnner_microsoft`) account — EMU accounts cannot create/push to this namespace. Run
-`gh auth switch --user sbroenne` if needed.
-
-## Key Lessons (Update After Major Work)
-
-**Success Flag:** NEVER `Success = true` with `ErrorMessage`. Set `Success` in the success path
-only; catch-free in Core (see Rule 1/1b above).
-
-**Session Registry / Service DI:** The DI-injected `PresentationSessionRegistry registry` parameter
-(hand-written session-lifecycle tools) and `PowerPointMcpService service` parameter (generated
-action-dispatch tools) are both correctly EXCLUDED from the MCP JSON schema by SDK 1.3.0 —
-verified via `tools/list`. Don't add manual schema suppression for either.
-
-**Two-Layer Shutdown:** `PresentationSessionShutdownService : IHostedService` disposes batches on
-host `StopAsync`, AND `Main`'s `finally` calls `registry.DisposeAll()` as an idempotent backstop.
-Both layers must stay in sync if session lifecycle changes.
-
-**No CLI/MCP Parity Gaps:** Both entry points are built from the same generators against the same
-`[ServiceCategory]` Core interfaces, so a new Core operation is automatically available on both
-surfaces once its domain's generator runs — there is no placeholder/parity-gap state to track
-anymore. Export is exposed identically on both.
-
-**Generators Are Live:** `PowerPointMcp.Generators.Mcp`/`PowerPointMcp.Generators.Cli` (mirroring
-`ExcelMcp.Generators.Mcp`/`.Cli`) read `[ServiceCategory]`-attributed Core interfaces and emit the
-action-dispatch MCP tools and `pptcli` commands. Adding a new domain means adding the
-`[ServiceCategory]` attribute + interface/implementation to Core — the generators pick it up
-automatically; do not hand-write a new tool class for it.
-
-**Export Domain:** `ExportSlideToImage`/`ExportAllSlidesToImages` use PowerPoint's native
-`Presentation.Export`/`Slide.Export` COM calls — prefer the single multi-slide `Export` call over
-a per-slide loop when exporting everything.
-
-## How Path-Specific Instructions Work
-
-GitHub Copilot auto-loads instructions based on files you're editing:
-
-- `tests/**/*.cs` → [Testing Strategy](instructions/testing-strategy.instructions.md)
-- `src/PowerPointMcp.Core/**/*.cs`, `src/PowerPointMcp.ComInterop/**/*.cs` → [Architecture Patterns](instructions/architecture-patterns.instructions.md)
-- `src/PowerPointMcp.McpServer/**/*.cs` → [MCP Server Guide](instructions/mcp-server-guide.instructions.md)
-- `**` (all files) → [Critical Rules](instructions/critical-rules.instructions.md)
-
-## Agent Skills (`skills/`)
-
-| Skill | File | Target | Best For |
-|-------|------|--------|----------|
-| **powerpoint-mcp** | `skills/powerpoint-mcp/SKILL.md` | MCP Server | Conversational AI (rich tool schemas) |
-
-**Guidance architecture (single source of truth):**
-- `skills/shared/*.md` → manually copied into `skills/powerpoint-mcp/references/` (no build-time
-  sync step exists yet — add one before this drifts; see `skills/README.md`).
-- NEVER create separate prompt content for guidance that belongs in `skills/shared/`.
-
-## Pre-Commit Hook
-
-Pre-commit runs `scripts/pre-commit.ps1`, which blocks commits if any check fails:
-
-| # | Check | What It Validates |
-|---|-------|--------------------|
-| 1 | Branch | Never commit to `main` directly |
-| 2 | Success Flag | Rule 1: never `Success=true` with `ErrorMessage` |
-| 3 | Build | `dotnet build Sbroenne.PowerPointMcp.slnx` succeeds, 0 warnings/errors |
-| 4 | Core Tests | Surgical `Feature=`-filtered real-COM integration tests for touched domains |
-| 5 | MCP Protocol Tests | `dotnet test tests\PowerPointMcp.McpServer.Tests` (in-memory transport, no COM needed for most cases) |
-| 6 | TODO/FIXME Scan | No unresolved `TODO`/`FIXME`/`HACK` markers in changed files |
-
-**Install hook:**
-```powershell
-# From repo root
-Copy-Item scripts\pre-commit.ps1 .git\hooks\pre-commit
-```
-
-## No Confidential Information in Commits/PRs
-
-Never include confidential project names, customer names, or internal references in commit
-messages, PR descriptions, or issue text. Use generic descriptions ("a PowerPoint deck", "a chart
-shape") instead.
+Agent setup and local/GitHub limitations:
+[docs/AGENT-CONFIGURATION.md](../docs/AGENT-CONFIGURATION.md).
+Background, examples, hook setup, and the guidance migration map:
+[development guide](../docs/DEVELOPMENT-GUIDE.md).

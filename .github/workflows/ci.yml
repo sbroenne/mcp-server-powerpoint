@@ -6,7 +6,7 @@
 #
 # It ports the PowerPoint-free pre-commit gates (scripts/pre-commit.ps1) into CI so
 # that the correctness checks are enforced server-side even if a contributor
-# bypasses the local hook (see Rule 31 in .github/copilot-instructions.md). The
+# bypasses the local hook. The
 # PowerPoint-dependent gates — the Core Feature tests and the MCP Server's real-COM
 # session tests — are intentionally NOT run here: GitHub-hosted runners do not
 # have Microsoft PowerPoint installed, so those remain local-only (pre-commit) and

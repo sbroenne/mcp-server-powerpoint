@@ -1,5 +1,6 @@
 ---
-applyTo: "tests/**/*.cs"
+applyTo: "tests/**,src/PowerPointMcp.Core/**/*.cs,src/PowerPointMcp.ComInterop/**/*.cs"
+excludeAgent: "code-review"
 ---
 
 # Testing Strategy
@@ -68,7 +69,10 @@ dotnet test tests\PowerPointMcp.Core.Tests --filter "Feature=Shape"
 # Full Core suite (real COM, serialized — slower)
 dotnet test tests\PowerPointMcp.Core.Tests
 
-# MCP protocol + round-trip suite
+# MCP protocol tests without PowerPoint (exclude all marked lifecycle tests)
+dotnet test tests\PowerPointMcp.McpServer.Tests --filter "RequiresPowerPoint!=true"
+
+# MCP protocol + round-trip suite (requires PowerPoint)
 dotnet test tests\PowerPointMcp.McpServer.Tests
 ```
 

@@ -1,134 +1,59 @@
 ---
 applyTo: "**"
+excludeAgent: "code-review"
 ---
 
-# CRITICAL RULES - MUST FOLLOW
+# Critical rules
 
-> **NON-NEGOTIABLE rules for all PowerPointMcp development**
+## Rule 1: Success and errors
 
-## Rule 1: Success/ErrorMessage Invariant
+`Success == true` requires `ErrorMessage == null`. Set success only on the
+success path. Expected caller-correctable failures (bad indices, missing files,
+unknown sessions) return `Success=false`; validate before the failing COM call.
 
-**NEVER `Success = true` with a non-null `ErrorMessage`.** Set `Success` only in the success path;
-the field defaults to `false` (or is set explicitly `false`) alongside `ErrorMessage` on every
-failure path.
+## Rule 1b: Exception propagation
 
-**Why Critical:** Confuses LLM callers and downstream consumers of the MCP JSON payload — a
-non-null error message on a "successful" result is silently ignored by most clients.
+Never catch exceptions from `batch.Execute()` in Core and turn them into error
+results. Unexpected COM/runtime exceptions propagate through the batch.
+`PowerPointToolsBase.ExecuteToolAction` is the MCP catch-all boundary: it logs
+the HResult to stderr and returns a structured error. Do not add another
+catch-all in individual tools. MCP stdout is reserved for JSON-RPC.
 
-## Rule 1b: No Exception Suppression in Core
+## COM access and ownership
 
-**NEVER wrap `batch.Execute()` in a try-catch that swallows the exception and returns an error
-result.** Let exceptions propagate naturally out of Core commands — `IPresentationBatch.Execute`'s
-underlying `TaskCompletionSource` plumbing (in `PresentationBatch`, ComInterop layer) already
-surfaces them to the caller.
+- All PowerPoint access runs inside `batch.Execute` on its STA thread.
+- Use typed PowerPoint/Office PIA members and enums. Before using `dynamic`,
+  reflection, raw dispatch, or numeric enum values, confirm that the restored
+  interop metadata lacks the typed API, document the missing surface, and cover
+  the exception with a real-COM test. Convenience is not an exception.
+- Release every manually acquired COM reference in `finally`, including typed
+  references. Embedded PIA types do not manage COM reference lifetimes.
+- Slide, shape, row, and column indices are 1-based. Zero and negative values
+  are validation failures, not alternative indexing.
 
-The **only** place a catch-all belongs is the MCP tool boundary
-(`PowerPointToolsBase.ExecuteToolAction` in `src/PowerPointMcp.McpServer/Tools/`), which logs the
-HResult to stderr and serializes a structured error so the MCP host never crashes.
+## Rule 30: Behavior changes need real evidence
 
-```csharp
-// CORRECT — Core: exceptions propagate
-public ShapeOperationResult AddRectangle(IPresentationBatch batch, int slideIndex, ...)
-{
-    return batch.Execute((ctx, ct) => {
-        // COM access — no try/catch here
-    });
-}
+Write a focused failing regression test, observe the expected failure, then
+implement and rerun it. Never mock COM for Core commands: use real PowerPoint.
+Keep COM tests serialized and use explicit execution timeouts.
+Protocol-only MCP tests may use the SDK in-memory transport.
+See [testing strategy](testing-strategy.instructions.md) for filters and scope.
 
-// WRONG — Core: swallowing and returning a fabricated error result
-public ShapeOperationResult AddRectangle(IPresentationBatch batch, int slideIndex, ...)
-{
-    try { return batch.Execute(...); }
-    catch (Exception ex) { return new ShapeOperationResult { Success = false, ErrorMessage = ex.Message }; }
-}
-```
+## Session lifecycle
 
-**Expected, caller-correctable failures ARE validated up front and returned as `Success=false`**
-without throwing — e.g. an out-of-range `slideIndex`, a missing file, or an unknown `sessionId`.
-The distinction: validation failures are known preconditions checked BEFORE touching COM;
-unexpected COM/runtime exceptions are allowed to propagate and are only ever caught at the MCP
-tool boundary.
+- Track every live session in `PresentationSessionRegistry`. On host shutdown,
+  both `PresentationSessionShutdownService.StopAsync` and `Main`'s `finally`
+  call the idempotent `DisposeAll()` backstop.
+- Close removes a session immediately and disposes its batch in the background;
+  do not block close on process exit. PowerPoint may take minutes to exit after
+  Quit. Do not force-kill on the happy path.
+- Cleanup targets only proven process ownership (PID plus start time), never
+  process names, window-title matches, or another user's PowerPoint.
 
-## Rule 30: Real-COM Integration Tests Only, Strict TDD
+## Data and authorization
 
-**NEVER write unit tests with mocked COM objects for Core commands.** Every Core test drives a
-real PowerPoint desktop instance via `PresentationSession.BeginBatch`/`CreateNew`. Follow strict
-TDD: write a failing test first (red), watch it fail for the right reason, implement the minimal
-fix (green), then verify.
-
-**Enforcement:**
-- Tests are tagged `[Trait("Category", "Integration")]` + `[Trait("Feature", "<Domain>")]`.
-- Tests run serialized: `xunit.runner.json` sets `maxParallelThreads: 1` — concurrent PowerPoint
-  process launches are not supported and will cause flaky failures or hangs.
-- Use `--filter "Feature=<Domain>"` for surgical, fast feedback instead of running the whole suite
-  after every small change.
-- MCP transport tests (`tests/PowerPointMcp.McpServer.Tests`) may use the SDK's in-memory pipe
-  transport for protocol-only assertions (no COM launch) — only session-lifecycle round-trip
-  tests need real COM at the MCP layer.
-
-## Rule: 1-Based Indexing Everywhere
-
-`slideIndex`, `shapeIndex`, and table `row`/`column` are 1-based throughout Core, the MCP tool
-surface, and tests — matching PowerPoint's native COM object model. Never introduce 0-based
-indexing in new code; a 0 or negative index is an expected validation failure
-(`Success=false`), not something to special-case as valid.
-
-## Rule: PIA-First COM Access
-
-**Always use strongly typed members from the embedded `Microsoft.Office.Interop.PowerPoint` PIA
-for PowerPoint COM access.** Use the corresponding typed Office/PowerPoint enum instead of raw
-integer constants whenever the referenced PIA exposes it.
-
-`dynamic`, reflection, raw dispatch, or numeric COM enum values are allowed only when the actual
-restored PIA does not expose the required member or type. Every exception must:
-
-1. Be confirmed against the restored interop metadata, not assumed from a web example.
-2. Include a concise code comment explaining the missing PIA surface.
-3. Have real-COM test coverage for the late-bound behavior.
-
-Convenience or shorter syntax is never sufficient justification for bypassing the PIA.
-
-## Rule: Session Lifecycle Discipline
-
-- Every session (`PresentationSessionRegistry` entry) MUST be reachable from
-  `PresentationSessionRegistry.DisposeAll()` at host shutdown — never create a code path that
-  starts a `PresentationBatch` outside the registry's tracking.
-- `presentation(action: "close", sessionId: ...)` is asynchronous by design: it removes the
-  session from the registry immediately and disposes the batch (and its PowerPoint process) on a
-  background task. Do not make it block on process exit — Office's own cleanup can legitimately
-  take minutes.
-
-## Rule: No Confidential Information in Commits/PRs/Issues
-
-Never include confidential project names, customer names, or internal file paths that identify a
-specific customer engagement in commit messages, PR descriptions, or issue text. Use generic
-descriptions ("a PowerPoint deck", "a chart shape") instead.
-
-## Rule: Never Commit Automatically
-
-Never commit, push, or merge without explicit user approval. No background or silent commits.
-
-## Quick Reference (Grouped by Context)
-
-**Every Edit:**
-| Rule | Action | Why Critical |
-|------|--------|---------------|
-| Success flag | NEVER `Success=true` with `ErrorMessage` | Confuses callers, silent failures |
-| No exception wrapping | Never catch-and-return-error inside Core | Preserves stack context, avoids double-wrapping |
-| 1-based indexing | Never introduce 0-based indices | Matches COM object model, avoids silent bugs |
-| PIA-first COM | Use typed PIA members/enums; late-bind only when the restored PIA lacks the API | Preserves compile-time safety and discoverability |
-
-**When Writing Code:**
-| Rule | Action | Why Critical |
-|------|--------|---------------|
-| TDD | Write the failing test FIRST → red → implement → green | Proves the test actually catches the bug |
-| Integration tests only | NEVER mock COM — real PowerPoint only | Unit tests prove nothing for COM interop |
-| COM cleanup | Use try/finally for any manually-acquired COM object refs | Prevents leaks |
-
-**Before Commit:**
-| Rule | Action |
-|------|--------|
-| Build | `dotnet build Sbroenne.PowerPointMcp.slnx` — 0 warnings, 0 errors |
-| Tests | Run `Feature=`-filtered tests for the domain(s) you touched |
-| Pre-commit hook | `scripts/pre-commit.ps1` must pass |
-| No confidential info | Scrub commit messages/PR text before submitting |
+Keep customer names, presentation contents, credentials, and private paths out
+of commits, PRs, issues, logs, and other public artifacts. Use generic examples.
+Keep temporary notes outside the repository. Never commit, push, merge, or
+publish without explicit user authorization; see the root Git guidance for
+GitHub PR assignments.
