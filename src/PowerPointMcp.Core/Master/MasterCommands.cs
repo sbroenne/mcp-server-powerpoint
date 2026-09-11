@@ -1,6 +1,9 @@
+extern alias OfficeInterop;
+
 using System.Runtime.InteropServices;
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Office = OfficeInterop::Microsoft.Office.Core;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Master;
@@ -284,6 +287,73 @@ public sealed class MasterCommands : IMasterCommands
             }
 
             return new MasterOperationResult { Success = true, Masters = masters };
+        });
+    }
+
+    /// <inheritdoc/>
+    public MasterOperationResult GetThemeColors(IPresentationBatch batch, int masterIndex = 1)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        if (masterIndex < 1)
+        {
+            return new MasterOperationResult { ErrorMessage = "Master index must be 1 or greater." };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Designs? designs = null;
+            PowerPoint.Design? design = null;
+            PowerPoint.Master? master = null;
+            Office.OfficeTheme? theme = null;
+            Office.ThemeColorScheme? scheme = null;
+            try
+            {
+                designs = ctx.Presentation.Designs;
+                if (masterIndex > designs.Count)
+                {
+                    return new MasterOperationResult
+                    {
+                        ErrorMessage = $"Master index {masterIndex} is out of range. The presentation has {designs.Count} master(s) (valid range: 1-{designs.Count})."
+                    };
+                }
+
+                design = designs[masterIndex];
+                master = design.SlideMaster;
+                theme = master.Theme;
+                scheme = theme.ThemeColorScheme;
+                var colors = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var role in Enum.GetValues<Office.MsoThemeColorSchemeIndex>())
+                {
+                    Office.ThemeColor? color = null;
+                    try
+                    {
+                        color = scheme.Colors(role);
+                        int oleRgb = color.RGB;
+                        colors.Add(role.ToString()["msoTheme".Length..],
+                            $"#{oleRgb & 0xff:X2}{(oleRgb >> 8) & 0xff:X2}{(oleRgb >> 16) & 0xff:X2}");
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref color);
+                    }
+                }
+
+                return new MasterOperationResult
+                {
+                    Success = true,
+                    MasterIndex = masterIndex,
+                    MasterName = GetMasterName(design, master),
+                    ThemeColors = colors
+                };
+            }
+            finally
+            {
+                ComUtilities.Release(ref scheme);
+                ComUtilities.Release(ref theme);
+                ComUtilities.Release(ref master);
+                ComUtilities.Release(ref design);
+                ComUtilities.Release(ref designs);
+            }
         });
     }
 

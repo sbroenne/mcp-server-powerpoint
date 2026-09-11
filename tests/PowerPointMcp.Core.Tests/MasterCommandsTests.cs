@@ -1,4 +1,6 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.Core.Master;
+using Office = Microsoft.Office.Core;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
@@ -19,6 +21,108 @@ public class MasterCommandsTests : IClassFixture<SharedPresentationFixture>
     public MasterCommandsTests(SharedPresentationFixture fixture)
     {
         _fixture = fixture;
+    }
+
+    [Fact]
+    public void GetThemeColors_ReturnsTwelveNamedRgbColorsForSelectedMaster()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.GetThemeColors(_fixture.Batch, masterIndex: 1);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Null(result.ErrorMessage);
+        Assert.Equal(1, result.MasterIndex);
+        Assert.False(string.IsNullOrWhiteSpace(result.MasterName));
+        Assert.NotNull(result.ThemeColors);
+        string[] roles = ["Dark1", "Light1", "Dark2", "Light2", "Accent1", "Accent2",
+            "Accent3", "Accent4", "Accent5", "Accent6", "Hyperlink", "FollowedHyperlink"];
+        Assert.Equal(roles.Order(), result.ThemeColors.Keys.Order());
+        Assert.All(result.ThemeColors.Values, color => Assert.Matches("^#[0-9A-F]{6}$", color));
+    }
+
+    [Fact]
+    public void GetThemeColors_ReadsDistinctDesignPalettesAndPreservesThemAfterReopen()
+    {
+        _fixture.CreateFreshPresentation();
+        _fixture.Batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Designs? designs = null;
+            PowerPoint.Design? first = null;
+            PowerPoint.Design? second = null;
+            try
+            {
+                designs = ctx.Presentation.Designs;
+                first = designs[1];
+                second = designs.Add("DistinctPalette");
+                SetAccentForPaletteTest(first, 0x913D0B);
+                SetAccentForPaletteTest(second, 0x2367C1);
+            }
+            finally
+            {
+                ComUtilities.Release(ref second);
+                ComUtilities.Release(ref first);
+                ComUtilities.Release(ref designs);
+            }
+        });
+
+        var inventory = _commands.ListMasters(_fixture.Batch);
+        Assert.True(inventory.Success, inventory.ErrorMessage);
+        Assert.Equal(2, inventory.Masters!.Count);
+        var firstPalette = _commands.GetThemeColors(_fixture.Batch);
+        var secondPalette = _commands.GetThemeColors(_fixture.Batch, 2);
+        Assert.True(firstPalette.Success, firstPalette.ErrorMessage);
+        Assert.True(secondPalette.Success, secondPalette.ErrorMessage);
+        Assert.Equal("#0B3D91", firstPalette.ThemeColors!["Accent1"]);
+        Assert.Equal("#C16723", secondPalette.ThemeColors!["Accent1"]);
+        Assert.Equal(inventory.Masters[1].MasterName, secondPalette.MasterName);
+        Assert.Equal(2, secondPalette.MasterIndex);
+
+        _fixture.Batch.Save();
+        _fixture.ReopenCurrentPresentation();
+        var reopened = _commands.GetThemeColors(_fixture.Batch, 1);
+        Assert.True(reopened.Success, reopened.ErrorMessage);
+        Assert.Equal(firstPalette.ThemeColors.OrderBy(entry => entry.Key),
+            reopened.ThemeColors!.OrderBy(entry => entry.Key));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(2)]
+    public void GetThemeColors_InvalidMaster_ReturnsValidationFailure(int masterIndex)
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.GetThemeColors(_fixture.Batch, masterIndex);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+        Assert.Null(result.ThemeColors);
+        Assert.Single(_commands.ListMasters(_fixture.Batch).Masters!);
+    }
+
+    private static void SetAccentForPaletteTest(PowerPoint.Design design, int oleColor)
+    {
+        PowerPoint.Master? master = null;
+        Office.OfficeTheme? theme = null;
+        Office.ThemeColorScheme? scheme = null;
+        Office.ThemeColor? accent = null;
+        try
+        {
+            master = design.SlideMaster;
+            theme = master.Theme;
+            scheme = theme.ThemeColorScheme;
+            accent = scheme.Colors(Office.MsoThemeColorSchemeIndex.msoThemeAccent1);
+            accent.RGB = oleColor;
+        }
+        finally
+        {
+            ComUtilities.Release(ref accent);
+            ComUtilities.Release(ref scheme);
+            ComUtilities.Release(ref theme);
+            ComUtilities.Release(ref master);
+        }
     }
 
     [Fact]

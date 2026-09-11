@@ -1,12 +1,12 @@
 ---
 title: Complete Feature Reference
-description: 16 MCP tools with 186 operations across 16 domains for live PowerPoint automation through single action-dispatch tools.
+description: 16 MCP tools with 187 operations across 16 domains for live PowerPoint automation through single action-dispatch tools.
 keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, media tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **16 MCP tools with 186 operations across 16 domains**.
+PowerPoint MCP Server exposes **16 MCP tools with 187 operations across 16 domains**.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
 `chart(action="add-chart", session_id="...", slide_index=2, ...)`.
@@ -29,7 +29,7 @@ The CLI mirrors the same domain model:
 | `layout` | 4 | Slide layouts | `layout(action="...", session_id=..., ...)` | `pptcli layout <action> -s <SESSION_ID> ...` |
 | `pagesetup` | 5 | Slide size, numbering, footer, date/time | `pagesetup(action="...", session_id=..., ...)` | `pptcli pagesetup <action> -s <SESSION_ID> ...` |
 | `accessibility` | 3 | Deterministic audit and reading order | `accessibility(action="...", session_id=..., ...)` | `pptcli accessibility <action> -s <SESSION_ID> ...` |
-| `master` | 10 | Slide master fonts and backgrounds | `master(action="...", session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
+| `master` | 11 | Theme color palettes, slide master fonts and backgrounds | `master(action="...", session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
 | `animation` | 5 | Shape effects and slide transitions | `animation(action="...", session_id=..., ...)` | `pptcli animation <action> -s <SESSION_ID> ...` |
 | `image` | 7 | Picture insertion and picture adjustments (brightness/contrast, recolor, crop) | `image(action="...", session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
 | `media` | 2 | Embedded or linked audio/video insertion and native media metadata | `media(action="...", session_id=..., ...)` | `pptcli media <action> -s <SESSION_ID> ...` |
@@ -156,13 +156,13 @@ alternative text on visual content and empty title placeholders; it is not an AI
 
 **Exact action order:** `audit`, `get-reading-order`, `set-reading-order`
 
-### `master` tool (10 operations)
+### `master` tool (11 operations)
 
-Use `master` for deck-wide master placeholder fonts and master backgrounds.
+Use `master` for theme color palettes, deck-wide master placeholder fonts, and master backgrounds.
 
 **Exact action order:** `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`,
 `get-background-color`, `set-background-color`, `set-gradient-background`,
-`get-gradient-background`, `list-masters`, `delete-master`
+`get-gradient-background`, `list-masters`, `get-theme-colors`, `delete-master`
 
 ### `animation` tool (5 operations)
 

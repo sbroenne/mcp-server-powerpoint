@@ -394,7 +394,8 @@ OPTIONS:
         --gradient-variant <GRADIENTVARIANT>    (valid for:
                                                 set-gradient-background)
         --master-index <MASTERINDEX>            (required for: delete-master)
-                                                (valid for: delete-master)
+                                                (valid for: get-theme-colors,
+                                                delete-master)
     -o, --output <PATH>                         Write output to file instead of
                                                 stdout. For image results,
                                                 decodes and saves as binary file

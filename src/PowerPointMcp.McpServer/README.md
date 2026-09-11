@@ -32,7 +32,7 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 
 ## Capabilities
 
-**16 tools with 186 operations across 16 domains:**
+**16 tools with 187 operations across 16 domains:**
 
 | Tool | Ops | Coverage |
 | --- | --- | --- |
@@ -45,7 +45,7 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 | `layout` | 4 | set/get slide layout |
 | `pagesetup` | 5 | slide size, numbering, footer, date/time |
 | `accessibility` | 3 | deterministic audit and reading order |
-| `master` | 10 | title/body placeholder fonts, solid + gradient master backgrounds |
+| `master` | 11 | theme color palettes, title/body placeholder fonts, solid + gradient master backgrounds |
 | `animation` | 5 | shape effects, transition read/write |
 | `image` | 7 | add picture, brightness/contrast, recolor, crop |
 | `media` | 2 | add embedded/linked audio or video, get native media info |
