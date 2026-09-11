@@ -77,6 +77,12 @@ internal sealed class PresentationBatch : IPresentationBatch
     private PowerPoint.Presentation? _presentation;
     private PresentationContext? _context;
 
+    /// <summary>
+    /// Test-only seam for simulating a startup failure after PowerPoint's exact process identity
+    /// has been captured. Production code must leave this null.
+    /// </summary>
+    internal static Action<PowerPointProcessIdentity, CancellationToken>? AfterProcessIdentityCapturedHook { get; set; }
+
     public PresentationBatch(
         string presentationPath,
         bool createNewFile,
@@ -125,16 +131,34 @@ internal sealed class PresentationBatch : IPresentationBatch
 
             started.Task.GetAwaiter().GetResult();
         }
-        catch
+        catch (Exception startupFailure)
         {
             if (_staThread.IsAlive)
             {
-                if (!_staThread.Join(TimeSpan.FromSeconds(10)) && _powerPointProcessIdentity.HasValue)
+                _ = _staThread.Join(TimeSpan.FromSeconds(10));
+            }
+
+            if (_powerPointProcessIdentity is { } failedStartupIdentity)
+            {
+                try
                 {
-                    TryKillProcess(_powerPointProcessIdentity.Value);
+                    FinalizeFailedStartupOwnedProcess(failedStartupIdentity);
+                }
+                catch (Exception teardownFailure)
+                {
+                    throw new InvalidOperationException(
+                        $"PowerPoint startup failed and exact process teardown could not be confirmed for " +
+                        $"process {failedStartupIdentity.ProcessId}. The process identity remains tracked " +
+                        "for later cleanup.",
+                        new AggregateException(startupFailure, teardownFailure));
+                }
+
+                if (_staThread.IsAlive)
+                {
                     _ = _staThread.Join(TimeSpan.FromSeconds(5));
                 }
             }
+
             throw;
         }
     }
@@ -237,34 +261,18 @@ internal sealed class PresentationBatch : IPresentationBatch
             try { dynApp.Visible = msoTrue; } catch { /* best effort */ }
             tempApp.DisplayAlerts = PowerPoint.PpAlertLevel.ppAlertsNone;
 
-            try
+            CapturePowerPointProcessIdentity(tempApp);
+            if (AfterProcessIdentityCapturedHook is { } afterProcessIdentityCaptured)
             {
-                const int maxRetries = 3;
-                const int retryDelayMs = 500;
-                for (int attempt = 1; attempt <= maxRetries; attempt++)
+                if (_powerPointProcessIdentity is not { } identity)
                 {
-                    int hwnd = tempApp.HWND;
-                    if (hwnd != 0)
-                    {
-                        _ = GetWindowThreadProcessId(new IntPtr(hwnd), out uint processId);
-                        if (processId != 0)
-                        {
-                            _powerPointProcessId = (int)processId;
-                            using var process = System.Diagnostics.Process.GetProcessById(_powerPointProcessId.Value);
-                            _powerPointProcessIdentity = new PowerPointProcessIdentity(
-                                process.Id,
-                                process.StartTime.ToUniversalTime().ToFileTimeUtc());
-                            PresentationSessionRegistry.TrackPowerPointProcess(_powerPointProcessIdentity.Value);
-                            break;
-                        }
-                    }
-                    if (attempt < maxRetries) Thread.Sleep(retryDelayMs);
+                    throw new InvalidOperationException(
+                        "The PowerPoint process identity was not available for the startup test hook.");
                 }
+
+                afterProcessIdentityCaptured(identity, _shutdownCts.Token);
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to capture PowerPoint process ID. Force-kill will not be available.");
-            }
+            _shutdownCts.Token.ThrowIfCancellationRequested();
 
             string fullPath = Path.GetFullPath(_presentationPath);
             PowerPoint.Presentation presentation = OpenOrCreatePresentationCom(tempApp, fullPath, _createNewFile);
@@ -310,6 +318,42 @@ internal sealed class PresentationBatch : IPresentationBatch
             _app = null;
             try { OleMessageFilter.Revoke(); }
             catch (Exception ex) { _logger.LogWarning(ex, "OleMessageFilter.Revoke() failed during STA cleanup"); }
+        }
+    }
+
+    private void CapturePowerPointProcessIdentity(PowerPoint.Application app)
+    {
+        try
+        {
+            const int maxRetries = 3;
+            const int retryDelayMs = 500;
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            {
+                int hwnd = app.HWND;
+                if (hwnd != 0)
+                {
+                    _ = GetWindowThreadProcessId(new IntPtr(hwnd), out uint processId);
+                    if (processId != 0)
+                    {
+                        _powerPointProcessId = (int)processId;
+                        using var process = System.Diagnostics.Process.GetProcessById(_powerPointProcessId.Value);
+                        _powerPointProcessIdentity = new PowerPointProcessIdentity(
+                            process.Id,
+                            process.StartTime.ToUniversalTime().ToFileTimeUtc());
+                        PresentationSessionRegistry.TrackPowerPointProcess(_powerPointProcessIdentity.Value);
+                        return;
+                    }
+                }
+
+                if (attempt < maxRetries)
+                {
+                    Thread.Sleep(retryDelayMs);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to capture PowerPoint process ID. Force-kill will not be available.");
         }
     }
 
@@ -643,13 +687,13 @@ internal sealed class PresentationBatch : IPresentationBatch
         _workSignal.Dispose();
     }
 
-    private static void TryKillProcess(PowerPointProcessIdentity identity)
+    private static bool TryKillProcess(PowerPointProcessIdentity identity)
     {
         try
         {
             if (!OwnedProcessGuard.TryOpenMatchingProcess(identity, out var process))
             {
-                return;
+                return false;
             }
 
             using (process)
@@ -657,12 +701,31 @@ internal sealed class PresentationBatch : IPresentationBatch
                 if (process != null)
                 {
                     process.Kill();
-                    process.WaitForExit(5000);
+                    if (!process.WaitForExit(5000))
+                    {
+                        return false;
+                    }
                 }
             }
 
             PresentationSessionRegistry.UntrackPowerPointProcess(identity);
+            return true;
         }
-        catch (Exception) { /* best effort */ }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private static void FinalizeFailedStartupOwnedProcess(PowerPointProcessIdentity identity)
+    {
+        if (OwnedProcessGuard.IsAlive(identity) && !TryKillProcess(identity)
+            && !OwnedProcessGuard.TryConfirmExited(identity))
+        {
+            throw new InvalidOperationException(
+                $"PowerPoint process {identity.ProcessId} remained live or inaccessible after startup cleanup.");
+        }
+
+        PresentationSessionRegistry.UntrackPowerPointProcess(identity);
     }
 }
