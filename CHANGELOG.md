@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.0] - 2026-09-11
+
+### Minor Changes
+
+- [#77](https://github.com/sbroenne/mcp-server-powerpoint/pull/77) [`8e5d253`](https://github.com/sbroenne/mcp-server-powerpoint/commit/8e5d2539a1ccc9f3acf8bae93eb12d26a993c59e) Thanks [@trsdn](https://github.com/trsdn)! - Add four editable slide composition recipes to the shared agent guidance, with
+  content limits and reproducible PowerPoint-rendered examples in 16:9 and 4:3.
+
+- [#76](https://github.com/sbroenne/mcp-server-powerpoint/pull/76) [`51d9801`](https://github.com/sbroenne/mcp-server-powerpoint/commit/51d980109d5ecf5177197cb41dbd2107fb0c6d2d) Thanks [@trsdn](https://github.com/trsdn)! - Read the twelve named theme colors for any slide master with `master get-theme-colors` in the CLI or the matching MCP action. Palette colors are returned as RGB hex strings so new shapes and charts can match the selected template without guessing its accent colors.
+
 ## [0.1.8] - 2026-09-11
 
 ### Patch Changes
