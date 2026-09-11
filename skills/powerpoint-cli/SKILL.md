@@ -246,9 +246,9 @@ Actions: `set-layout`, `get-layout`, `list-layouts`, `delete-layout`
 | `--layout-index` | (required for: delete-layout) |
 
 
-### `master` — Slide master commands: read/edit the title and body placeholder fonts on the presentation's slide master, and read/edit the slide master's background fill color. Operates within an already-open . Changes here apply to every slide that inherits from the master (i.e. any slide that does not itself override the property), which is the practical "edit the master, not each slide" workflow PowerPoint's COM object model supports safely.
+### `master` — Slide master commands: read theme color palettes or read/edit the title and body placeholder fonts on the presentation's slide master, and read/edit the slide master's background fill color. Operates within an already-open . Changes here apply to every slide that inherits from the master (i.e. any slide that does not itself override the property), which is the practical "edit the master, not each slide" workflow PowerPoint's COM object model supports safely.
 
-Actions: `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`, `get-background-color`, `set-background-color`, `set-gradient-background`, `get-gradient-background`, `list-masters`, `delete-master`
+Actions: `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`, `get-background-color`, `set-background-color`, `set-gradient-background`, `get-gradient-background`, `list-masters`, `get-theme-colors`, `delete-master`
 
 | Flag | Description |
 |------|-------------|

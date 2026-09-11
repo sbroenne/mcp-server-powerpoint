@@ -4,7 +4,7 @@ using Sbroenne.PowerPointMcp.Core.Attributes;
 namespace Sbroenne.PowerPointMcp.Core.Master;
 
 /// <summary>
-/// Slide master commands: read/edit the title and body placeholder fonts on the presentation's
+/// Slide master commands: read theme color palettes or read/edit the title and body placeholder fonts on the presentation's
 /// slide master, and read/edit the slide master's background fill color. Operates within an
 /// already-open <see cref="IPresentationBatch"/>. Changes here apply to every slide that
 /// inherits from the master (i.e. any slide that does not itself override the property), which
@@ -19,7 +19,7 @@ namespace Sbroenne.PowerPointMcp.Core.Master;
 /// </remarks>
 [ServiceCategory("master", "Master")]
 [McpTool("master", Title = "Slide Master Operations", Destructive = true, Category = "content",
-    Description = "Read or edit the slide master's title/body placeholder fonts and background color in an open presentation session. Changes apply to every slide inheriting from the master.")]
+    Description = "Read theme color palettes or read/edit the slide master's title/body placeholder fonts and background color. Use list-masters to select a master for get-theme-colors. Edits apply to every slide inheriting from the master.")]
 public interface IMasterCommands
 {
     /// <summary>Gets the font name, size, bold, and color of the master's title placeholder.</summary>
@@ -84,6 +84,13 @@ public interface IMasterCommands
 
     /// <summary>Lists every slide master in the presentation, along with the layouts attached to it.</summary>
     MasterOperationResult ListMasters(IPresentationBatch batch);
+
+    /// <summary>
+    /// Reads the twelve theme color roles as #RRGGBB strings for the selected master.
+    /// Uses the 1-based masterIndex returned by ListMasters (default: first master).
+    /// Returns theme colors, not slide background-style mappings or tinted shape colors.
+    /// </summary>
+    MasterOperationResult GetThemeColors(IPresentationBatch batch, int masterIndex = 1);
 
     /// <summary>Deletes an unused slide master. Fails if any slide still references it.</summary>
     MasterOperationResult DeleteMaster(IPresentationBatch batch, int masterIndex);

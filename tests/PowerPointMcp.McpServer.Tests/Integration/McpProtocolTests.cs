@@ -104,6 +104,17 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         _cts.Dispose();
     }
 
+    [Fact]
+    public async Task ListTools_MasterExposesThemePaletteActionAndSelector()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var master = Assert.Single(tools, tool => tool.Name == "master");
+        var properties = master.JsonSchema.GetProperty("properties");
+        Assert.Contains(properties.GetProperty("action").GetProperty("enum").EnumerateArray(),
+            action => action.GetString() == "get-theme-colors");
+        Assert.True(properties.TryGetProperty("master_index", out _));
+    }
+
     /// <summary>
     /// THE core protocol proof: exactly the 16 expected tools (1 hand-written + 15 generated
     /// action-dispatch tools) are discoverable via <c>tools/list</c> — no more, no less.

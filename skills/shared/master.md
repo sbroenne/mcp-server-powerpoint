@@ -10,6 +10,8 @@ formatting via `textframe`/`layout`.
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
+| `master` | `list-masters` | `session_id` | Lists masters and layouts; use its 1-based master index to select a palette. |
+| `master` | `get-theme-colors` | `session_id`, `master_index?` | Reads all twelve theme color roles as `#RRGGBB`; defaults to master 1. Does not modify the presentation. |
 | `master` | `get-title-font` | `session_id` | Returns `font_name`, `font_size`, `bold`, `color_rgb` for the master's title placeholder. |
 | `master` | `set-title-font` | `session_id`, `font_name?`, `font_size?`, `bold?`, `red?`, `green?`, `blue?` | Every field is optional — omit any you do not want to change. Pass `red`/`green`/`blue` together to set color. |
 | `master` | `get-body-font` | `session_id` | Same shape as `get-title-font`, for the body placeholder. |
@@ -39,6 +41,34 @@ It does **not** cover:
   "Title and Content") or adding additional slide masters — not exposed by this tool surface.
 
 ## Typical Use
+
+### Match the Template Palette
+
+Read the palette before choosing colors for new shapes and charts:
+
+```text
+master(action: "list-masters", session_id: sessionId)
+master(action: "get-theme-colors", session_id: sessionId, master_index: 1)
+```
+
+CLI equivalent:
+
+```powershell
+pptcli master get-theme-colors --session $sessionId --master-index 1
+```
+
+The result includes `masterIndex`, `masterName`, and `themeColors`: `Dark1`,
+`Light1`, `Dark2`, `Light2`, `Accent1` through `Accent6`, `Hyperlink`, and
+`FollowedHyperlink`. Each value is a normal RGB hex string such as `#0B3D91`,
+not the native `0xBBGGRR` integer returned by existing font/background queries.
+For this example, pass `red=11`, `green=61`, `blue=145` to RGB styling actions.
+
+In multi-design decks, query the master used by the slide you are authoring;
+do not assume master 1 supplies every slide's colors. These are base theme roles,
+not effective colors after slide background mappings, tint/shade, or local overrides.
+An out-of-range index returns a validation failure rather than a partial palette.
+
+### Set Master Styling
 
 Set the deck-wide look once, early, before building individual slides:
 

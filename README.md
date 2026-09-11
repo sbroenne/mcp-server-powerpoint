@@ -44,7 +44,7 @@ layout regressions that text-only automation simply cannot detect.
 
 ## 🎯 What You Can Do
 
-**16 MCP tools with 186 operations across 16 domains:**
+**16 MCP tools with 187 operations across 16 domains:**
 
 - 🗂️ **Presentation** (20 ops) — create, open, Save As, Save Copy As, close, list sessions, apply a
   `.potx`/`.pptx` template's masters/theme/layouts, read the current theme name, set/read
@@ -59,7 +59,7 @@ layout regressions that text-only automation simply cannot detect.
 - 🖼️ **Layout** (4 ops) — set/get slide layout
 - 📐 **Page Setup** (5 ops) — slide size, first slide number, footer, date/time, slide numbers
 - ♿ **Accessibility** (3 ops) — deterministic audit and reading-order management
-- 🎭 **Master** (10 ops) — slide master title/body placeholder fonts, background color
+- 🎭 **Master** (11 ops) — theme color palettes, slide master title/body placeholder fonts, background color
 - 🎬 **Animation** (5 ops) — shape entrance/emphasis/exit effects, slide transitions
 - 🖼️ **Image** (7 ops) — insert embedded or linked pictures and adjust brightness, contrast,
   recolor, and crop
