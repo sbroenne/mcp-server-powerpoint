@@ -14,6 +14,7 @@ Skills. The website and installed guidance therefore describe the same behavior.
 - [Behavioral Rules](behavioral-rules.md)
 - [Anti-Patterns](anti-patterns.md)
 - [Deck Builder](deck-builder.md)
+- [Composition Recipes](composition-recipes.md)
 - [Export and Verify](export-and-verify.md)
 
 ## Domain guidance

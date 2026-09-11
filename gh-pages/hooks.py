@@ -49,6 +49,7 @@ SKILL_SOURCES = {
     "behavioral-rules.md": "Behavioral Rules",
     "anti-patterns.md": "Anti-Patterns",
     "deck-builder.md": "Deck Builder",
+    "composition-recipes.md": "Composition Recipes",
     "slides-and-shapes.md": "Slides and Shapes",
     "tags.md": "String Tags",
     "text-formatting.md": "Text Formatting",
