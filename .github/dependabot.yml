@@ -121,3 +121,25 @@ updates:
       vscode-extension:
         patterns:
           - "*"
+
+  # Intro video tooling
+  - package-ecosystem: "npm"
+    directory: "/videos/powerpoint-mcp-intro"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "chore(video-deps)"
+      include: "scope"
+    reviewers:
+      - "sbroenne"
+    groups:
+      video-tooling:
+        patterns:
+          - "*"
