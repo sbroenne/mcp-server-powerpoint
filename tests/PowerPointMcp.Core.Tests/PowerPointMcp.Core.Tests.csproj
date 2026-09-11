@@ -5,6 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
     <!-- Test-only relaxations: xUnit convention is underscored, descriptive method names
          (e.g. Create_SavesRealPptxFile_ThatPowerPointCanReopen), and test methods don't
          need XML doc comments. -->
