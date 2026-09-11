@@ -1,0 +1,7 @@
+scripts:
+  - name: Build (Release, no process cleanup)
+    command: dotnet build Sbroenne.PowerPointMcp.slnx -c Release -p:PowerPointMcpSkipCleanup=true
+  - name: MCP tests (no PowerPoint)
+    command: dotnet test tests\PowerPointMcp.McpServer.Tests -c Release --filter "RequiresPowerPoint!=true" --blame-hang-timeout 5m -p:PowerPointMcpSkipCleanup=true
+  - name: Packaging tests (no PowerPoint)
+    command: dotnet test tests\PowerPointMcp.SkillGeneration.Tests -c Release --blame-hang-timeout 5m -p:PowerPointMcpSkipCleanup=true

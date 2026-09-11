@@ -1,5 +1,6 @@
 ---
-applyTo: "src/PowerPointMcp.McpServer/**/*.cs"
+applyTo: "src/PowerPointMcp.McpServer/**/*.cs,src/PowerPointMcp.Generators.Mcp/**/*.cs,src/PowerPointMcp.Generators.Shared/**/*.cs"
+excludeAgent: "code-review"
 ---
 
 # MCP Server Development Guide
@@ -31,7 +32,8 @@ Most of the MCP tool surface is **generated**, not hand-written. Before editing 
   action-dispatch like Excel's file tool, but stays hand-written because create/open/list/close
   need custom session-registry behavior and optional `sessionId`.
 - **Generated** (everything else — `slide`, `shape`, `textframe`, `table`, `notes`, `layout`,
-  `master`, `animation`, `image`, `media`, `chart`, `smartart`, `export`): one action-dispatch tool per
+  `master`, `animation`, `image`, `media`, `chart`, `smartart`, `export`, `pagesetup`,
+  `accessibility`): one action-dispatch tool per
   `[ServiceCategory]` Core domain, emitted by `PowerPointMcp.Generators.Mcp` from the Core
   interface's `[ServiceCategory]`/`[McpTool]` attributes and XML doc comments. **Never hand-write a
   new tool class for one of these domains** — add the operation to the Core interface (with XML

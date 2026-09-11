@@ -1,5 +1,6 @@
 ---
 applyTo: "src/**/*.cs"
+excludeAgent: "code-review"
 ---
 
 # Architecture Patterns
@@ -41,9 +42,9 @@ McpServer (in-process, ServiceBridge)        CLI / pptcli (named-pipe daemon, Se
   Both entry points call into this same dispatch logic (`ServiceRegistry.{Category}.RouteAction`)
   — MCP in-process via `ServiceBridge.ForwardToService`, CLI over a named pipe via
   `ServiceClient`/`IPowerPointDaemonRpc`.
-- **McpServer** tools are thin either way: the 7 hand-written session/template tools
-  (`PresentationTools.cs`) resolve `sessionId` → batch directly via
-  `PresentationSessionRegistry.TryGet`; the 11 generated action-dispatch tools
+- **McpServer** tools are thin either way: the single hand-written `presentation` tool
+  (`PresentationTools.cs`) handles session/template/property operations via
+  `PresentationSessionRegistry`; the generated action-dispatch tools
   (`slide`/`shape`/`chart`/etc., one per `[ServiceCategory]` domain) forward straight to the
   shared `PowerPointMcpService`. No domain logic lives in either.
 
@@ -84,21 +85,16 @@ public interface IShapeCommands
 All direct COM object access happens inside a `batch.Execute((ctx, ct) => { ... })` callback on
 the `PresentationBatch`'s dedicated STA thread — never access
 `Microsoft.Office.Interop.PowerPoint` types from arbitrary threads. Release any manually-obtained
-COM references in a `finally` block if the Core command holds intermediate `dynamic`/typed COM
-objects beyond what the PIA's NoPIA embedding already manages for you.
+COM references in a `finally` block, including intermediate typed COM objects.
+NoPIA embedding removes the runtime PIA assembly dependency; it does not manage
+COM reference lifetimes.
 
 ### PIA-First Interop (MANDATORY)
 
-Use strongly typed `Microsoft.Office.Interop.PowerPoint` PIA objects, properties, methods, and
-enums throughout ComInterop and Core. Do not use `dynamic`, reflection, raw `IDispatch`, or integer
-enum constants when the restored PIA exposes a typed equivalent.
-
-Late binding is an exception, not a compatibility default. Before using it:
-
-1. Inspect the restored interop assembly metadata and confirm the required member/type is absent.
-2. Keep the late-bound call as narrow as possible inside the STA `batch.Execute` callback.
-3. Add a concise comment naming the missing PIA surface and why late binding is required.
-4. Prove the behavior with a real-PowerPoint COM integration test.
+Follow the typed-access and late-binding requirements in
+[critical rules](critical-rules.instructions.md). The
+`ForceEmbedPowerPointInteropTypes` target embeds the PowerPoint and Office PIAs;
+do not port Excel's runtime assembly resolver here.
 
 If a typed Office enum is unavailable because only the PowerPoint PIA is embedded, prefer adding
 the appropriate PIA/reference support over replacing the enum with an unexplained integer.
@@ -106,8 +102,9 @@ the appropriate PIA/reference support over replacing the enum with an unexplaine
 ## Exception Propagation Pattern (CRITICAL)
 
 **Core Commands: let exceptions propagate naturally** — do not suppress with a catch block that
-returns an error result. See `critical-rules.instructions.md` Rule 1b for the full rationale and
-example.
+returns an error result. See `critical-rules.instructions.md` Rule 1b for the
+requirements, and the [development guide](../../docs/DEVELOPMENT-GUIDE.md)
+for the rationale and validation example.
 
 ## Session Ownership (Service-Backed Registry, Two Entry Points)
 
@@ -125,3 +122,12 @@ both entry points use — mirroring `mcp-server-excel`'s `ExcelMcp.Service` + `S
 
 The two entry points run as **separate processes** with **separate PowerPoint instances** and do
 **not** share live sessions with each other — only the same `Core`/`Service` codebase.
+
+`presentation(action="create", filePath)` creates and saves the file and returns
+an open session. Reuse that `sessionId`, rather than opening the file again.
+`presentation(action="test", filePath)` validates that PowerPoint can open the
+file without retaining a session. Presentation actions take `sessionId`;
+generated domain tools take `session_id`.
+
+For all-slide image export, prefer PowerPoint's single `Presentation.Export`
+call over a loop of `Slide.Export` calls.
