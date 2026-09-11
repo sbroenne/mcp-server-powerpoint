@@ -58,7 +58,7 @@ jobs:
         uses: lycheeverse/lychee-action@v2
         with:
           args: >-
-            --base gh-pages/_site
+            --base '${{ github.workspace }}/gh-pages/_site'
             --no-progress
             --max-concurrency 4
             --accept 200,206,429
