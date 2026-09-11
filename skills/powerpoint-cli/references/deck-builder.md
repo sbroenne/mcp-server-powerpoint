@@ -38,6 +38,10 @@ PowerPoint's placeholder scaffolding, not what you add via shapes.
 
 ## Layout Variety
 
+For concrete geometry and content limits, see [Composition Recipes](composition-recipes.md):
+comparison, chart and insight, three-step timeline, and metric callout, with reproducible
+16:9 and 4:3 examples.
+
 Don't build every slide the same way. Vary the composition to match content:
 
 | Content type | Suggested composition |
