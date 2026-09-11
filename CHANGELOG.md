@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.8] - 2026-09-11
+
+### Patch Changes
+
+- [#75](https://github.com/sbroenne/mcp-server-powerpoint/pull/75) [`090c8b1`](https://github.com/sbroenne/mcp-server-powerpoint/commit/090c8b1e58bd419a700a62e2d03898e3f5015637) Thanks [@sbroenne](https://github.com/sbroenne)! - **Reliable failed startup cleanup** ([#72](https://github.com/sbroenne/mcp-server-powerpoint/issues/72)): PowerPoint processes created by a timed-out presentation open are now terminated using their verified process identity instead of being left running.
+
 ## [0.1.6] - 2026-08-27
 
 ### Patch Changes
