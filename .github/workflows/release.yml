@@ -719,6 +719,12 @@ jobs:
 
         git checkout -b "$BRANCH"
         git add CHANGELOG.md package.json .changeset
+
+        if git diff --cached --quiet; then
+          echo "No changelog changes to commit."
+          exit 0
+        fi
+
         git commit -m "chore: update CHANGELOG.md for v${VERSION} release [skip ci]"
         git push origin "$BRANCH"
 
