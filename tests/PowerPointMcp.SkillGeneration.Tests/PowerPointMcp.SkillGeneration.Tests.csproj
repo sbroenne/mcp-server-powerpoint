@@ -20,6 +20,10 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Packaging tests regenerate shared plugin files and must not write them concurrently. -->
+    <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\..\src\PowerPointMcp.CLI\PowerPointMcp.CLI.csproj" />
   </ItemGroup>
 </Project>

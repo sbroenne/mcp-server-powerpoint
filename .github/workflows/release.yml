@@ -664,7 +664,7 @@ jobs:
         node-version: ${{ env.NODE_VERSION }}
 
     - name: Install changesets CLI
-      run: npm install --no-save --registry https://registry.npmjs.org/
+      run: npm ci
 
     - name: Compile changesets into CHANGELOG.md
       id: changelog

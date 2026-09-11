@@ -84,6 +84,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Npm lockfile portability
+        shell: pwsh
+        run: ./scripts/check-npm-lockfiles.ps1
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:

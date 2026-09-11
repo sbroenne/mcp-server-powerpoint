@@ -9,7 +9,7 @@
     <PackageVersion Include="Microsoft.Office.Interop.PowerPoint" Version="15.0.4420.1018" />
     <PackageVersion Include="MSOfficeCore.Interop" Version="15.0.2" />
     <!-- UI Framework (CLI) -->
-    <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.6.5" />
+    <PackageVersion Include="Microsoft.PowerShell.SDK" Version="7.6.6" />
     <PackageVersion Include="Spectre.Console" Version="0.57.2" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
     <!-- Roslyn source generators for CLI and skill-manifest generation -->
@@ -18,15 +18,15 @@
     <!-- Skill-manifest MSBuild task (PowerPointMcp.Build.Tasks): renders skills/powerpoint-cli/SKILL.md
          from the generator's JSON manifest via a Scriban template -->
     <PackageVersion Include="Scriban" Version="7.2.7" />
-    <PackageVersion Include="System.Text.Json" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Build.Framework" Version="18.9.6" />
-    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.9.6" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Build.Framework" Version="18.10.1" />
+    <PackageVersion Include="Microsoft.Build.Utilities.Core" Version="18.10.1" />
     <!-- Microsoft Extensions for MCP Server / logging / resilience -->
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.9.0" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.10.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     <!-- MCP SDK -->
     <PackageVersion Include="ModelContextProtocol" Version="2.2.0" />
     <!-- CLI daemon transport (named pipes + JSON-RPC 2.0) -->
@@ -36,12 +36,12 @@
     <PackageVersion Include="MessagePack" Version="3.1.8" />
     <PackageVersion Include="MessagePack.Annotations" Version="3.1.8" />
     <!-- Pin the vulnerable transitive dependency used by PowerShell/other SDK packages to a patched release. -->
-    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.11" />
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.12" />
     <!-- Test dependencies -->
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.analyzers" Version="2.0.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.0" />
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
     <PackageVersion Include="MartinCostello.Logging.XUnit" Version="0.7.1" />
   </ItemGroup>

@@ -186,6 +186,77 @@ public sealed class ReleasePackagingTests
         Path.Combine("src", "PowerPointMcp.McpServer", ".mcp", "server.json"),
     ];
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("vscode-extension")]
+    [InlineData("videos/powerpoint-mcp-intro")]
+    public void NpmLockfiles_ProjectConfigOmitsUrlsWithoutOverridingPackageSources(string project)
+    {
+        var config = Path.Combine(RepoRoot, project, ".npmrc");
+        Assert.True(File.Exists(config), $"Missing npm project configuration: {project}");
+        Assert.Equal("omit-lockfile-registry-resolved=true", File.ReadAllText(config).Trim());
+    }
+
+    [Theory]
+    [InlineData("""{"lockfileVersion":3,"packages":{"":{"name":"sample"},"node_modules/sample":{"version":"1.0.0","integrity":"sha512-example"}}}""", true)]
+    [InlineData("""{"lockfileVersion":3,"packages":{"node_modules/sample":{"resolved":"https://registry.npmjs.org/sample/-/sample-1.0.0.tgz"}}}""", false)]
+    [InlineData("""{"lockfileVersion":3,"packages":{"node_modules/sample":{"resolved":"https://mirror.example.test/sample.tgz"}}}""", false)]
+    [InlineData("""{"lockfileVersion":1,"dependencies":{"sample":{"dependencies":{"nested":{"resolved":"https://mirror.example.test/nested.tgz"}}}}}""", false)]
+    [InlineData("""{"lockfileVersion":3,"packages":{"node_modules/local":{"resolved":"file:../local"},"node_modules/sample":{"homepage":"https://example.test"}}}""", true)]
+    [InlineData("{invalid-json", false)]
+    public void NpmLockfiles_GuardAcceptsPortableFilesAndRejectsDownloadUrls(string content, bool succeeds)
+    {
+        using var temp = new TemporaryDirectory();
+        var path = Path.Combine(temp.Path, "package-lock.json");
+        File.WriteAllText(path, content);
+
+        var result = RunPowerShellRaw(
+            Path.Combine(RepoRoot, "scripts", "check-npm-lockfiles.ps1"),
+            "-LockfilePath", path);
+
+        Assert.Equal(succeeds, result.ExitCode == 0);
+        Assert.Contains(succeeds ? "passed" : "BLOCKED", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("https://", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NpmLockfiles_ValidationGatesRunGuard()
+    {
+        Assert.Contains("scripts/check-npm-lockfiles.ps1", File.ReadAllText(CiWorkflow), StringComparison.Ordinal);
+        Assert.Contains("scripts\\check-npm-lockfiles.ps1", File.ReadAllText(PreCommitScript), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NpmLockfiles_GuardDiscoversNestedProjectsAndChecksStagedContent()
+    {
+        using var temp = new TemporaryDirectory();
+        const string portable = """{"lockfileVersion":3,"packages":{}}""";
+        const string nonportable = """{"lockfileVersion":3,"packages":{"node_modules/sample":{"resolved":"https://mirror.example.test/sample.tgz"}}}""";
+        var nested = Path.Combine(temp.Path, "nested project");
+        Directory.CreateDirectory(nested);
+        var lockfile = Path.Combine(nested, "package-lock.json");
+        File.WriteAllText(lockfile, nonportable);
+        File.WriteAllText(Path.Combine(temp.Path, "npm-shrinkwrap.json"), portable);
+        File.WriteAllText(Path.Combine(temp.Path, "package-lock.json"), nonportable);
+        Assert.Equal(0, RunProcessRaw("git", "-C", temp.Path, "init", "--quiet").ExitCode);
+        Assert.Equal(0, RunProcessRaw(
+            "git", "-C", temp.Path, "add", "--", "nested project/package-lock.json", "npm-shrinkwrap.json").ExitCode);
+        var script = Path.Combine(RepoRoot, "scripts", "check-npm-lockfiles.ps1");
+
+        var workingResult = RunPowerShellRaw(script, "-RepoRoot", temp.Path);
+        Assert.NotEqual(0, workingResult.ExitCode);
+        Assert.Contains("BLOCKED", workingResult.Output, StringComparison.Ordinal);
+
+        File.WriteAllText(lockfile, portable);
+        RunPowerShell(script, "-RepoRoot", temp.Path);
+        var stagedResult = RunPowerShellRaw(script, "-RepoRoot", temp.Path, "-Staged");
+        Assert.NotEqual(0, stagedResult.ExitCode);
+        Assert.Contains("BLOCKED", stagedResult.Output, StringComparison.Ordinal);
+
+        Assert.Equal(0, RunProcessRaw("git", "-C", temp.Path, "add", "--", "nested project/package-lock.json").ExitCode);
+        RunPowerShell(script, "-RepoRoot", temp.Path, "-Staged");
+    }
+
     private static void AssertJsonVersion(string path, string expected)
     {
         using var document = JsonDocument.Parse(File.ReadAllText(path));
@@ -227,35 +298,45 @@ public sealed class ReleasePackagingTests
     }
 
     private static ProcessResult RunPowerShellRaw(string script, params string[] arguments)
+        => RunProcessRaw("pwsh", ["-NoProfile", "-File", script, .. arguments]);
+
+    private static ProcessResult RunProcessRaw(string executable, params string[] arguments)
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = "pwsh",
+            FileName = executable,
             RedirectStandardError = true,
             RedirectStandardOutput = true,
             UseShellExecute = false,
         };
-        startInfo.ArgumentList.Add("-NoProfile");
-        startInfo.ArgumentList.Add("-File");
-        startInfo.ArgumentList.Add(script);
+        // Commit hooks export repository paths that must not leak into temporary test repositories.
+        foreach (var variable in new[]
+        {
+            "GIT_DIR", "GIT_WORK_TREE", "GIT_IMPLICIT_WORK_TREE", "GIT_INDEX_FILE",
+            "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+            "GIT_PREFIX", "GIT_GRAFT_FILE", "GIT_SHALLOW_FILE",
+        })
+        {
+            startInfo.Environment.Remove(variable);
+        }
         foreach (var argument in arguments)
         {
             startInfo.ArgumentList.Add(argument);
         }
 
         using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Failed to start PowerShell.");
-        var standardOutput = process.StandardOutput.ReadToEnd();
-        var standardError = process.StandardError.ReadToEnd();
+            ?? throw new InvalidOperationException($"Failed to start {executable}.");
+        var standardOutput = process.StandardOutput.ReadToEndAsync();
+        var standardError = process.StandardError.ReadToEndAsync();
         if (!process.WaitForExit(120_000))
         {
             process.Kill(entireProcessTree: true);
-            throw new TimeoutException($"PowerShell timed out: {script}");
+            throw new TimeoutException($"Process timed out: {executable}");
         }
 
         return new ProcessResult(
             process.ExitCode,
-            $"{standardOutput}{Environment.NewLine}{standardError}");
+            $"{standardOutput.GetAwaiter().GetResult()}{Environment.NewLine}{standardError.GetAwaiter().GetResult()}");
     }
 
     private sealed record ProcessResult(int ExitCode, string Output);
@@ -288,6 +369,11 @@ public sealed class ReleasePackagingTests
         {
             if (Directory.Exists(Path))
             {
+                // Git marks loose objects read-only, including in isolated test repositories.
+                foreach (var file in Directory.EnumerateFiles(Path, "*", SearchOption.AllDirectories))
+                {
+                    File.SetAttributes(file, File.GetAttributes(file) & ~FileAttributes.ReadOnly);
+                }
                 Directory.Delete(Path, recursive: true);
             }
         }

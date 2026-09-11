@@ -3,7 +3,7 @@
 .SYNOPSIS
     Git pre-commit hook for PowerPointMcp: branch guard, Success-flag audit, COM leak audit,
     dynamic cast audit, Core interface completeness audit, build, targeted real-COM Core tests,
-    MCP protocol tests, release packaging tests, and a TODO/FIXME scan.
+    MCP protocol tests, release packaging tests, npm lockfile portability, and a TODO/FIXME scan.
 
 .DESCRIPTION
     Runs checks before allowing commits (ported and adapted from mcp-server-excel's
@@ -11,6 +11,7 @@
 
     0. Process cleanup   - stops only processes proven to belong to the CLI daemon
     1. Branch guard      - never commit directly to 'main'
+    1b. Npm lockfiles    - reject fixed download URLs in staged npm lockfiles
     2. Success flag scan - flags any 'Success = true' followed nearby by a non-null ErrorMessage
                             assignment in touched Core files (Rule 1)
     2b. COM leak audit   - every 'dynamic' COM object in src/*.cs is released in a finally block
@@ -99,6 +100,12 @@ if ($currentBranch -eq "main") {
 }
 
 Write-Host "Branch check passed - on '$currentBranch' (not main)" -ForegroundColor Green
+
+Write-Step "Checking staged npm lockfiles..."
+& (Join-Path $rootDir "scripts\check-npm-lockfiles.ps1") -Staged
+if ($LASTEXITCODE -ne 0) {
+    throw "BLOCKED: Npm lockfiles must use the installer's configured registry."
+}
 
 # --- 0. Process cleanup (avoid file locks on Release binaries / open .pptx files) -----------
 Write-Step "Stopping owned PowerPointMcp processes..."
