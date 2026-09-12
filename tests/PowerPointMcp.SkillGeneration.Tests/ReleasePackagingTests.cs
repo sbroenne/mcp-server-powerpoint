@@ -158,6 +158,123 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
+    public void ComLeakAudit_RejectsUnrelatedRelease()
+    {
+        var result = RunComLeakAudit("""
+            class Commands
+            {
+                void Read(dynamic source)
+                {
+                    dynamic released = source.First;
+                    dynamic leaked = source.Second;
+                    ComUtilities.Release(ref released);
+                }
+            }
+            """);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("leaked", result.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("dynamic item = source.Child; ComUtilities.Release(ref item);", 0, 1)]
+    [InlineData("dynamic /* optional */ ? item = source.Child;", 1, 1)]
+    [InlineData("dynamic item = source.Child; ComUtilities /* cleanup */ .Release(ref item);", 0, 1)]
+    [InlineData("dynamic @item = source.Child; ComUtilities.Release(ref @item!);", 0, 1)]
+    [InlineData("dynamic? item = null; try { item = source.Child; } finally { ComUtilities.Release(ref item!); }", 0, 1)]
+    [InlineData("dynamic? item = null; item = source.Child;", 1, 1)]
+    [InlineData("dynamic borrowed = ctx.Presentation;", 0, 0)]
+    [InlineData("dynamic borrowed = ctx.App;", 0, 0)]
+    [InlineData("dynamic dispatch = source;", 0, 0)]
+    [InlineData("dynamic dispatch = (dynamic)(source!);", 0, 0)]
+    [InlineData("dynamic? dispatch = null; dispatch = source;", 0, 0)]
+    [InlineData("dynamic item = (dynamic)(source.Child!);", 1, 1)]
+    [InlineData("dynamic? item = null;", 0, 0)]
+    [InlineData("dynamic item = source.Child; /* ComUtilities.Release(ref item); */", 1, 1)]
+    [InlineData("dynamic item = source.Child; var text = \"ComUtilities.Release(ref item);\";", 1, 1)]
+    [InlineData("var text = \"dynamic leaked = source.Child;\";", 0, 0)]
+    [InlineData("dynamic item = source.Child; ComUtilities.Release(ref Item);", 1, 1)]
+    [InlineData("dynamic item = source.Child; void Cleanup() { ComUtilities.Release(ref item); }", 1, 1)]
+    public void ComLeakAudit_RecognizesSupportedSyntax(string body, int exitCode, int acquisitions)
+    {
+        var result = RunComLeakAudit($"class Commands {{ void Read(dynamic source) {{ {body} }} }}");
+
+        Assert.True(result.ExitCode == exitCode, result.Output);
+        Assert.Contains($"Checked {acquisitions} dynamic acquisition variables", result.Output, StringComparison.Ordinal);
+        Assert.Contains("typed PIA ownership, control flow, and release-in-finally are not verified", result.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("void Other() { dynamic item = source.Child; ComUtilities.Release(ref item); }", "void Read() { dynamic item = source.Child; }")]
+    [InlineData("void Read() { { dynamic item = source.Child; ComUtilities.Release(ref item); }", "{ dynamic item = source.Child; } }")]
+    public void ComLeakAudit_RejectsReleaseFromAnotherScope(string first, string second)
+    {
+        var result = RunComLeakAudit($"class Commands {{ {first} {second} }}");
+
+        Assert.True(result.ExitCode == 1, result.Output);
+        Assert.Contains("Checked 2 dynamic acquisition variables; 1 missing releases", result.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("obj/Commands.cs")]
+    [InlineData("bin/Commands.cs")]
+    [InlineData("Commands.g.cs")]
+    public void ComLeakAudit_ExcludesGeneratedFiles(string generatedPath)
+    {
+        var result = RunComLeakAudit("class Commands { }", generatedPath: generatedPath);
+
+        Assert.True(result.ExitCode == 0, result.Output);
+        Assert.Contains("Scanned 1 source files", result.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true, "No C# source files found")]
+    [InlineData(false, "Source directory not found")]
+    public void ComLeakAudit_RejectsBrokenSourceDiscovery(bool createSourceDirectory, string message)
+    {
+        var result = RunComLeakAudit(null, createSourceDirectory);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains(message, result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ComLeakAudit_RejectsUnparseableSource()
+    {
+        var result = RunComLeakAudit("class Commands { void Read( {");
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("Cannot parse", result.Output, StringComparison.Ordinal);
+    }
+
+    private static ProcessResult RunComLeakAudit(string? source, bool createSourceDirectory = true, string? generatedPath = null)
+    {
+        using var temp = new TemporaryDirectory();
+        var root = Path.Combine(temp.Path, "audit fixture");
+        var scripts = Path.Combine(root, "scripts");
+        var sources = Path.Combine(root, "src");
+        Directory.CreateDirectory(scripts);
+        if (createSourceDirectory)
+        {
+            Directory.CreateDirectory(sources);
+        }
+        var script = Path.Combine(scripts, "check-com-leaks.ps1");
+        File.Copy(Path.Combine(RepoRoot, "scripts", "check-com-leaks.ps1"), script);
+        if (source != null)
+        {
+            File.WriteAllText(Path.Combine(sources, "Commands.cs"), source);
+        }
+        if (generatedPath != null)
+        {
+            var generatedFile = Path.Combine(sources, generatedPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(generatedFile)!);
+            File.WriteAllText(generatedFile, "class Generated { void Read() { dynamic leaked = source.Child; } }");
+        }
+
+        return RunPowerShellRaw(script);
+    }
+
+    [Fact]
     public void RegistryMetadataScript_RejectsMissingServerPackage()
     {
         using var temp = new TemporaryDirectory();

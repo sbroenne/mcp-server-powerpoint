@@ -74,6 +74,47 @@ for bug reports and feature requests. Include:
 - Update documentation (including this site, under `gh-pages/`) when
   behavior changes
 
+## COM acquisition audit
+
+The pre-commit gate runs a bounded source audit that can also be invoked directly:
+
+```powershell
+.\scripts\check-com-leaks.ps1
+dotnet test tests\PowerPointMcp.SkillGeneration.Tests -c Release --filter 'FullyQualifiedName~ComLeakAudit_'
+```
+
+The audit uses the Roslyn C# parser bundled with PowerShell 7 (`pwsh`); it does not
+start PowerPoint or install another parser package. Missing parser assemblies,
+missing or empty source discovery, and C# syntax errors fail the check. A newer C#
+syntax than the bundled parser understands requires updating PowerShell, not
+ignoring its parse errors.
+
+For local `dynamic` and `dynamic?` declarations, it checks non-literal initializers
+and subsequent assignments for a matching `ComUtilities.Release(ref variable)`
+or `ReleaseIfNotNull(ref variable)` call in the same function and lexical scope.
+A release for another variable or in another method, lambda, local function, or
+sibling block cannot satisfy the check. Comments and string contents do not count
+as code. The diagnostic names the source file, declaration line, and variable.
+
+Aliases of existing variables, and direct aliases of `ctx`/`context` members
+`Presentation` or `App`, are borrowed rather than new acquisitions. Do not release
+these aliases separately. Parentheses, casts, and null-forgiving operators do not
+turn an alias into an acquisition; accessing a child property still does.
+
+The audit excludes `bin`/`obj` output, `.g.cs`, `.generated.cs`, and `.designer.cs`
+files, and the four session ownership files (`PresentationBatch`,
+`PresentationSession`, `PresentationSessionRegistry`, `PresentationShutdownService`)
+under `src/PowerPointMcp.ComInterop/Session`. It reports the source and acquisition
+counts explicitly. Zero dynamic acquisitions is a valid result in typed source,
+not evidence of a broken scan.
+
+This is a syntax check, not an ownership or control-flow proof. It does not verify
+typed PIA or `var` acquisitions, fields, acquisitions inside inactive preprocessor
+branches, releases through aliases or helper calls, repeated replacement of the
+same variable, or whether cleanup runs in `finally`. A matching release may still
+be unreachable or occur before acquisition. Review those cases and run the
+relevant real-COM tests; a passing audit does not mean the repository is leak-free.
+
 ## Code of conduct
 
 Be respectful and constructive. This is a small open-source project
