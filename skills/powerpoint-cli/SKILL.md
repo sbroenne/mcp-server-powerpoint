@@ -446,15 +446,19 @@ Actions: `add-table`, `set-cell-text`, `get-cell-text`, `insert-row`, `delete-ro
 | `--merge-to-column` | (required for: merge-cells) |
 
 
-### `textframe` — Text frame commands: set/get text and basic font formatting (size, bold, italic, underline, font name, color, alignment, bullets) for a shape's text range. Operates within an already-open IPresentationBatch, targeting a specific shape by its 1-based slide and shape index.
+### `textframe` — Text frame commands: set/get/find/replace text and basic font formatting (size, bold, italic, underline, font name, color, alignment, bullets) for a shape's text range. Operates within an already-open IPresentationBatch, targeting a specific shape by its 1-based slide and shape index.
 
-Actions: `set-text`, `get-text`, `set-font-size`, `get-font-size`, `set-bold`, `get-bold`, `set-font-color`, `get-font-color`, `set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`, `set-auto-size`, `get-auto-size`
+Actions: `set-text`, `get-text`, `find-text`, `replace-text`, `set-font-size`, `get-font-size`, `set-bold`, `get-bold`, `set-font-color`, `get-font-color`, `set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`, `set-auto-size`, `get-auto-size`
 
 | Flag | Description |
 |------|-------------|
 | `--slide-index` | (required) |
 | `--shape-index` | (required) |
 | `--text` | (required for: set-text) |
+| `--find-what` | (required for: find-text, replace-text) |
+| `--match-case` |  |
+| `--whole-words` |  |
+| `--replace-what` | (required for: replace-text) |
 | `--font-size` | (required for: set-font-size) |
 | `--bold` | (required for: set-bold) |
 | `--red` | (required for: set-font-color) |

@@ -115,6 +115,22 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         Assert.True(properties.TryGetProperty("master_index", out _));
     }
 
+    [Fact]
+    public async Task ListTools_TextFrameExposesFindReplaceParameters()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var textFrame = Assert.Single(tools, tool => tool.Name == "textframe");
+        var properties = textFrame.JsonSchema.GetProperty("properties");
+        var actions = properties.GetProperty("action").GetProperty("enum").EnumerateArray()
+            .Select(action => action.GetString()).ToArray();
+        Assert.Contains("find-text", actions);
+        Assert.Contains("replace-text", actions);
+        foreach (string parameter in new[] { "slide_index", "shape_index", "find_what", "replace_what", "match_case", "whole_words" })
+        {
+            Assert.True(properties.TryGetProperty(parameter, out _), $"Missing {parameter}");
+        }
+    }
+
     /// <summary>
     /// THE core protocol proof: exactly the 16 expected tools (1 hand-written + 15 generated
     /// action-dispatch tools) are discoverable via <c>tools/list</c> — no more, no less.

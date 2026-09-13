@@ -4,14 +4,14 @@ using Sbroenne.PowerPointMcp.Core.Attributes;
 namespace Sbroenne.PowerPointMcp.Core.TextFrame;
 
 /// <summary>
-/// Text frame commands: set/get text and basic font formatting (size, bold, italic, underline,
+/// Text frame commands: set/get/find/replace text and basic font formatting (size, bold, italic, underline,
 /// font name, color, alignment, bullets) for a shape's text range. Operates within an
 /// already-open IPresentationBatch, targeting a specific shape by its 1-based slide and shape
 /// index.
 /// </summary>
 [ServiceCategory("textframe", "TextFrame")]
 [McpTool("textframe", Title = "Text Frame Operations", Destructive = true, Category = "content",
-    Description = "Set or get text and font/paragraph formatting for a shape's text frame in an open presentation session.")]
+    Description = "Set, get, find, or replace text and font/paragraph formatting in one shape's text frame. Find/replace use literal PowerPoint matching, with optional case and whole-word matching; they do not search other shapes or slides.")]
 public interface ITextFrameCommands
 {
     /// <summary>Sets the text content of a shape's text frame.</summary>
@@ -23,6 +23,22 @@ public interface ITextFrameCommands
 
     /// <summary>Gets the text content of a shape's text frame.</summary>
     TextFrameOperationResult GetText(IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Finds all non-overlapping literal matches in one shape's text frame without mutation.
+    /// Returns ascending 1-based PowerPoint character positions, lengths, and original matched text.
+    /// Empty search text is invalid. Matching uses PowerPoint case and whole-word rules, not regex.
+    /// </summary>
+    TextFrameOperationResult FindText(IPresentationBatch batch, int slideIndex, int shapeIndex,
+        [AllowEmptyString] string findWhat, bool matchCase = false, bool wholeWords = false);
+
+    /// <summary>
+    /// Replaces all non-overlapping literal matches in one shape's text frame. Empty replacement
+    /// deletes matches; empty search text is invalid. Uses PowerPoint case/whole-word rules.
+    /// Does not revisit inserted text or rewrite the whole frame. Unexpected failures are not transactional.
+    /// </summary>
+    TextFrameOperationResult ReplaceText(IPresentationBatch batch, int slideIndex, int shapeIndex,
+        [AllowEmptyString] string findWhat, [AllowEmptyString] string replaceWhat, bool matchCase = false, bool wholeWords = false);
 
     /// <summary>Sets the font size (in points) of a shape's entire text range.</summary>
     TextFrameOperationResult SetFontSize(IPresentationBatch batch, int slideIndex, int shapeIndex, float fontSize);

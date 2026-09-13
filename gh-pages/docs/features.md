@@ -1,12 +1,12 @@
 ---
 title: Complete Feature Reference
-description: 16 MCP tools with 187 operations across 16 domains for live PowerPoint automation through single action-dispatch tools.
+description: 16 MCP tools with 189 operations across 16 domains for live PowerPoint automation through single action-dispatch tools.
 keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, media tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **16 MCP tools with 187 operations across 16 domains**.
+PowerPoint MCP Server exposes **16 MCP tools with 189 operations across 16 domains**.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
 `chart(action="add-chart", session_id="...", slide_index=2, ...)`.
@@ -23,7 +23,7 @@ The CLI mirrors the same domain model:
 | `presentation` | 20 | Session lifecycle, Save As/copy, templates, advisory Mark as Final, document properties, string tags | `presentation(action="...", ...)` | `pptcli session <action> ...` |
 | `slide` | 23 | Slide lifecycle, backgrounds, sections, comments, import, string tags | `slide(action="...", session_id=..., ...)` | `pptcli slide <action> -s <SESSION_ID> ...` |
 | `shape` | 47 | Shapes, styling, grouping, hyperlinks, linked pictures, placeholders, string tags | `shape(action="...", session_id=..., ...)` | `pptcli shape <action> -s <SESSION_ID> ...` |
-| `textframe` | 20 | Text content and text formatting | `textframe(action="...", session_id=..., ...)` | `pptcli textframe <action> -s <SESSION_ID> ...` |
+| `textframe` | 22 | Text content, find/replace, and text formatting | `textframe(action="...", session_id=..., ...)` | `pptcli textframe <action> -s <SESSION_ID> ...` |
 | `table` | 12 | Table creation and cell editing/formatting | `table(action="...", session_id=..., ...)` | `pptcli table <action> -s <SESSION_ID> ...` |
 | `notes` | 2 | Speaker notes | `notes(action="...", session_id=..., ...)` | `pptcli notes <action> -s <SESSION_ID> ...` |
 | `layout` | 4 | Slide layouts | `layout(action="...", session_id=..., ...)` | `pptcli layout <action> -s <SESSION_ID> ...` |
@@ -117,11 +117,14 @@ linked pictures, and placeholders.
 `get-link-info`, `update-link`, `break-link`, `set-link-auto-update`, `list-placeholders`,
 `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
-### `textframe` tool (20 operations)
+### `textframe` tool (22 operations)
 
 Use `textframe` for text content and font/paragraph formatting on a shape's text frame.
+`find-text` and `replace-text` perform literal, non-overlapping matching within the selected
+shape, with optional case and whole-word matching. Replacement can delete matches with an
+explicit empty string and preserves character formatting outside the matched ranges.
 
-**Exact action order:** `set-text`, `get-text`, `set-font-size`, `get-font-size`, `set-bold`,
+**Exact action order:** `set-text`, `get-text`, `find-text`, `replace-text`, `set-font-size`, `get-font-size`, `set-bold`,
 `get-bold`, `set-font-color`, `get-font-color`, `set-italic`, `get-italic`, `set-underline`,
 `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`,
 `get-bullet`, `set-auto-size`, `get-auto-size`

@@ -333,12 +333,12 @@ OPTIONS:
 
 ```text
 DESCRIPTION:
-Slide master commands: read/edit the title and body placeholder fonts on the
-presentation's slide master, and read/edit the slide master's background fill
-color. Operates within an already-open . Changes here apply to every slide that
-inherits from the master (i.e. any slide that does not itself override the
-property), which is the practical "edit the master, not each slide" workflow
-PowerPoint's COM object model supports safely
+Slide master commands: read theme color palettes or read/edit the title and body
+placeholder fonts on the presentation's slide master, and read/edit the slide
+master's background fill color. Operates within an already-open . Changes here
+apply to every slide that inherits from the master (i.e. any slide that does not
+itself override the property), which is the practical "edit the master, not each
+slide" workflow PowerPoint's COM object model supports safely
 
 USAGE:
     pptcli master <ACTION> [OPTIONS]
@@ -1307,10 +1307,10 @@ OPTIONS:
 
 ```text
 DESCRIPTION:
-Text frame commands: set/get text and basic font formatting (size, bold, italic,
-underline, font name, color, alignment, bullets) for a shape's text range.
-Operates within an already-open IPresentationBatch, targeting a specific shape
-by its 1-based slide and shape index
+Text frame commands: set/get/find/replace text and basic font formatting (size,
+bold, italic, underline, font name, color, alignment, bullets) for a shape's
+text range. Operates within an already-open IPresentationBatch, targeting a
+specific shape by its 1-based slide and shape index
 
 USAGE:
     pptcli textframe <ACTION> [OPTIONS]
@@ -1319,36 +1319,42 @@ ARGUMENTS:
     <ACTION>    The action to perform
 
 OPTIONS:
-    -h, --help                        Prints help information
-    -s, --session <SESSION>           Session ID from 'session open' command
-        --slide-index <SLIDEINDEX>    (required)
-        --shape-index <SHAPEINDEX>    (required)
-        --text <TEXT>                 (required for: set-text) (valid for:
-                                      set-text)
-        --font-size <FONTSIZE>        (required for: set-font-size) (valid for:
-                                      set-font-size)
-        --bold <BOLD>                 (required for: set-bold) (valid for:
-                                      set-bold)
-        --red <RED>                   (required for: set-font-color) (valid for:
-                                      set-font-color)
-        --green <GREEN>               (required for: set-font-color) (valid for:
-                                      set-font-color)
-        --blue <BLUE>                 (required for: set-font-color) (valid for:
-                                      set-font-color)
-        --italic <ITALIC>             (required for: set-italic) (valid for:
-                                      set-italic)
-        --underline <UNDERLINE>       (required for: set-underline) (valid for:
-                                      set-underline)
-        --font-name <FONTNAME>        (required for: set-font-name) (valid for:
-                                      set-font-name)
-        --alignment <ALIGNMENT>       (required for: set-alignment) (valid for:
-                                      set-alignment)
-        --enabled <ENABLED>           (required for: set-bullet) (valid for:
-                                      set-bullet)
-        --character <CHARACTER>       (valid for: set-bullet)
-        --auto-size <AUTOSIZE>        (required for: set-auto-size) (valid for:
-                                      set-auto-size)
-    -o, --output <PATH>               Write output to file instead of stdout.
-                                      For image results, decodes and saves as
-                                      binary file
+    -h, --help                          Prints help information
+    -s, --session <SESSION>             Session ID from 'session open' command
+        --slide-index <SLIDEINDEX>      (required)
+        --shape-index <SHAPEINDEX>      (required)
+        --text <TEXT>                   (required for: set-text) (valid for:
+                                        set-text)
+        --find-what <FINDWHAT>          (required for: find-text, replace-text)
+                                        (valid for: find-text, replace-text)
+        --match-case <MATCHCASE>        (valid for: find-text, replace-text)
+        --whole-words <WHOLEWORDS>      (valid for: find-text, replace-text)
+        --replace-what <REPLACEWHAT>    (required for: replace-text) (valid for:
+                                        replace-text)
+        --font-size <FONTSIZE>          (required for: set-font-size) (valid
+                                        for: set-font-size)
+        --bold <BOLD>                   (required for: set-bold) (valid for:
+                                        set-bold)
+        --red <RED>                     (required for: set-font-color) (valid
+                                        for: set-font-color)
+        --green <GREEN>                 (required for: set-font-color) (valid
+                                        for: set-font-color)
+        --blue <BLUE>                   (required for: set-font-color) (valid
+                                        for: set-font-color)
+        --italic <ITALIC>               (required for: set-italic) (valid for:
+                                        set-italic)
+        --underline <UNDERLINE>         (required for: set-underline) (valid
+                                        for: set-underline)
+        --font-name <FONTNAME>          (required for: set-font-name) (valid
+                                        for: set-font-name)
+        --alignment <ALIGNMENT>         (required for: set-alignment) (valid
+                                        for: set-alignment)
+        --enabled <ENABLED>             (required for: set-bullet) (valid for:
+                                        set-bullet)
+        --character <CHARACTER>         (valid for: set-bullet)
+        --auto-size <AUTOSIZE>          (required for: set-auto-size) (valid
+                                        for: set-auto-size)
+    -o, --output <PATH>                 Write output to file instead of stdout.
+                                        For image results, decodes and saves as
+                                        binary file
 ```
