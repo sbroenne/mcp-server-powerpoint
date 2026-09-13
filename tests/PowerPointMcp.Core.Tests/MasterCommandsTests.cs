@@ -106,6 +106,25 @@ public class MasterCommandsTests : IClassFixture<SharedPresentationFixture>
     public void GetThemeFonts_ReturnsMajorAndMinorFontsForEveryLanguageSlot()
     {
         _fixture.CreateFreshPresentation();
+        _fixture.Batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Designs? designs = null;
+            PowerPoint.Design? design = null;
+            try
+            {
+                designs = ctx.Presentation.Designs;
+                design = designs[1];
+                SetThemeFontNameForTest(design, major: true, Office.MsoFontLanguageIndex.msoThemeComplexScript, string.Empty);
+                SetThemeFontNameForTest(design, major: true, Office.MsoFontLanguageIndex.msoThemeEastAsian, string.Empty);
+                SetThemeFontNameForTest(design, major: false, Office.MsoFontLanguageIndex.msoThemeComplexScript, string.Empty);
+                SetThemeFontNameForTest(design, major: false, Office.MsoFontLanguageIndex.msoThemeEastAsian, string.Empty);
+            }
+            finally
+            {
+                ComUtilities.Release(ref design);
+                ComUtilities.Release(ref designs);
+            }
+        });
 
         var result = _commands.GetThemeFonts(_fixture.Batch, masterIndex: 1);
 
@@ -120,6 +139,8 @@ public class MasterCommandsTests : IClassFixture<SharedPresentationFixture>
             Assert.NotNull(fonts);
             Assert.Equal(languageSlots.Order(), fonts.Keys.Order());
             Assert.False(string.IsNullOrWhiteSpace(fonts["Latin"]));
+            Assert.Null(fonts["ComplexScript"]);
+            Assert.Null(fonts["EastAsian"]);
         }
     }
 
@@ -192,6 +213,36 @@ public class MasterCommandsTests : IClassFixture<SharedPresentationFixture>
         finally
         {
             ComUtilities.Release(ref accent);
+            ComUtilities.Release(ref scheme);
+            ComUtilities.Release(ref theme);
+            ComUtilities.Release(ref master);
+        }
+    }
+
+    private static void SetThemeFontNameForTest(
+        PowerPoint.Design design,
+        bool major,
+        Office.MsoFontLanguageIndex language,
+        string fontName)
+    {
+        PowerPoint.Master? master = null;
+        Office.OfficeTheme? theme = null;
+        Office.ThemeFontScheme? scheme = null;
+        Office.ThemeFonts? fonts = null;
+        Office.ThemeFont? font = null;
+        try
+        {
+            master = design.SlideMaster;
+            theme = master.Theme;
+            scheme = theme.ThemeFontScheme;
+            fonts = major ? scheme.MajorFont : scheme.MinorFont;
+            font = fonts.Item(language);
+            font.Name = fontName;
+        }
+        finally
+        {
+            ComUtilities.Release(ref font);
+            ComUtilities.Release(ref fonts);
             ComUtilities.Release(ref scheme);
             ComUtilities.Release(ref theme);
             ComUtilities.Release(ref master);

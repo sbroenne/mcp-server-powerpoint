@@ -1,7 +1,7 @@
 # Slide Master
 
 Reference for `master(action: "...", ...)` — reads/edits the presentation's **slide master**:
-the title and body placeholder fonts, and the master background fill color/gradient. Changes here
+the theme colors/fonts, title and body placeholder fonts, and master background fill color/gradient. Changes here
 apply to every slide that inherits from the master (i.e. any slide that does not itself override
 the property) — this is the "style the whole deck at once" tool, distinct from per-slide
 formatting via `textframe`/`layout`.
