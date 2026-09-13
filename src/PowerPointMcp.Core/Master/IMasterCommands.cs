@@ -19,7 +19,7 @@ namespace Sbroenne.PowerPointMcp.Core.Master;
 /// </remarks>
 [ServiceCategory("master", "Master")]
 [McpTool("master", Title = "Slide Master Operations", Destructive = true, Category = "content",
-    Description = "Read theme color palettes or read/edit the slide master's title/body placeholder fonts and background color. Use list-masters to select a master for get-theme-colors. Edits apply to every slide inheriting from the master.")]
+    Description = "Read theme colors/fonts or read/edit the slide master's title/body placeholder fonts and background color. Use list-masters to select a master for theme inspection. Edits apply to every slide inheriting from the master.")]
 public interface IMasterCommands
 {
     /// <summary>Gets the font name, size, bold, and color of the master's title placeholder.</summary>
@@ -91,6 +91,13 @@ public interface IMasterCommands
     /// Returns theme colors, not slide background-style mappings or tinted shape colors.
     /// </summary>
     MasterOperationResult GetThemeColors(IPresentationBatch batch, int masterIndex = 1);
+
+    /// <summary>
+    /// Reads the major and minor theme font names for the Latin, complex-script, and East Asian
+    /// language slots of the selected master. Uses the 1-based masterIndex returned by ListMasters
+    /// (default: first master). Unresolved font slots are included with null values.
+    /// </summary>
+    MasterOperationResult GetThemeFonts(IPresentationBatch batch, int masterIndex = 1);
 
     /// <summary>Deletes an unused slide master. Fails if any slide still references it.</summary>
     MasterOperationResult DeleteMaster(IPresentationBatch batch, int masterIndex);

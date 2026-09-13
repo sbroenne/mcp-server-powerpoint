@@ -102,6 +102,79 @@ public class MasterCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.Single(_commands.ListMasters(_fixture.Batch).Masters!);
     }
 
+    [Fact]
+    public void GetThemeFonts_ReturnsMajorAndMinorFontsForEveryLanguageSlot()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.GetThemeFonts(_fixture.Batch, masterIndex: 1);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Null(result.ErrorMessage);
+        Assert.Equal(1, result.MasterIndex);
+        Assert.False(string.IsNullOrWhiteSpace(result.MasterName));
+
+        string[] languageSlots = ["Latin", "ComplexScript", "EastAsian"];
+        foreach (var fonts in new[] { result.MajorThemeFonts, result.MinorThemeFonts })
+        {
+            Assert.NotNull(fonts);
+            Assert.Equal(languageSlots.Order(), fonts.Keys.Order());
+            Assert.False(string.IsNullOrWhiteSpace(fonts["Latin"]));
+        }
+    }
+
+    [Fact]
+    public void GetThemeFonts_SelectsMasterAndDoesNotChangeInventory()
+    {
+        _fixture.CreateFreshPresentation();
+        _fixture.Batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Designs? designs = null;
+            PowerPoint.Design? second = null;
+            try
+            {
+                designs = ctx.Presentation.Designs;
+                second = designs.Add("ThemeFontsSecondMaster");
+            }
+            finally
+            {
+                ComUtilities.Release(ref second);
+                ComUtilities.Release(ref designs);
+            }
+        });
+
+        var before = _commands.ListMasters(_fixture.Batch);
+        var firstRead = _commands.GetThemeFonts(_fixture.Batch, masterIndex: 2);
+        var secondRead = _commands.GetThemeFonts(_fixture.Batch, masterIndex: 2);
+        var after = _commands.ListMasters(_fixture.Batch);
+
+        Assert.True(firstRead.Success, firstRead.ErrorMessage);
+        Assert.True(secondRead.Success, secondRead.ErrorMessage);
+        Assert.Equal(2, firstRead.MasterIndex);
+        Assert.Equal(before.Masters![1].MasterName, firstRead.MasterName);
+        Assert.Equal(firstRead.MajorThemeFonts, secondRead.MajorThemeFonts);
+        Assert.Equal(firstRead.MinorThemeFonts, secondRead.MinorThemeFonts);
+        Assert.Equal(before.Masters.Select(master => (master.MasterIndex, master.MasterName)),
+            after.Masters!.Select(master => (master.MasterIndex, master.MasterName)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(2)]
+    public void GetThemeFonts_InvalidMaster_ReturnsValidationFailure(int masterIndex)
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.GetThemeFonts(_fixture.Batch, masterIndex);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+        Assert.Null(result.MajorThemeFonts);
+        Assert.Null(result.MinorThemeFonts);
+        Assert.Single(_commands.ListMasters(_fixture.Batch).Masters!);
+    }
+
     private static void SetAccentForPaletteTest(PowerPoint.Design design, int oleColor)
     {
         PowerPoint.Master? master = null;
