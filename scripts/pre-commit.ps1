@@ -13,7 +13,8 @@
     1. Branch guard      - never commit directly to 'main'
     2. Success flag scan - flags any 'Success = true' followed nearby by a non-null ErrorMessage
                             assignment in touched Core files (Rule 1)
-    2b. COM leak audit   - every 'dynamic' COM object in src/*.cs is released in a finally block
+    2b. COM audit        - supported local dynamic acquisitions have a matching release;
+                          does not verify typed PIA ownership, control flow, or finally placement
     2c. Dynamic cast audit - every '((dynamic))' cast has a justification comment
     2d. Core interface completeness - every implemented Core Commands method is declared on its
                             I*Commands interface (PowerPoint's action enums are generator-derived
@@ -137,12 +138,12 @@ catch {
     exit 1
 }
 
-# --- 2b. COM object leak audit (every 'dynamic' COM object released in a finally block) -----
+# --- 2b. Supported local dynamic acquisition/release matching ------------------------------
 if (-not $hasCodeChanges) {
     Write-Step "Skipping COM leak check (no code changes detected - docs/changeset only)"
 }
 else {
-    Write-Step "Checking for COM object leaks..."
+    Write-Step "Checking local dynamic acquisition/release matches..."
 
     try {
         $leakCheckScript = Join-Path $rootDir "scripts\check-com-leaks.ps1"
@@ -150,11 +151,11 @@ else {
 
         if ($LASTEXITCODE -ne 0) {
             Write-Host ""
-            Write-Host "BLOCKED: COM object leaks detected! Fix them before committing." -ForegroundColor Red
+            Write-Host "BLOCKED: COM acquisition audit failed. Inspect unmatched releases or scanner errors." -ForegroundColor Red
             exit 1
         }
 
-        Write-Host "COM leak check passed" -ForegroundColor Green
+        Write-Host "COM acquisition audit passed (not a proof of leak freedom or finally placement)" -ForegroundColor Green
     }
     catch {
         Write-Host ""

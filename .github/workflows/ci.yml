@@ -106,11 +106,11 @@ jobs:
           & scripts/check-success-flag.ps1
           if ($LASTEXITCODE -ne 0) { throw "Success flag violations detected (Success=true with an ErrorMessage set)." }
 
-      - name: COM object leak check (Rule 5)
+      - name: COM acquisition/release matching (Rule 5)
         shell: pwsh
         run: |
           & scripts/check-com-leaks.ps1
-          if ($LASTEXITCODE -ne 0) { throw "COM object leaks detected. All dynamic COM objects must be released in finally blocks." }
+          if ($LASTEXITCODE -ne 0) { throw "COM acquisition audit failed. Inspect unmatched releases or scanner errors; this gate does not prove control flow or finally placement." }
 
       - name: Dynamic cast audit (documented ((dynamic)) casts)
         shell: pwsh

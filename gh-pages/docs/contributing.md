@@ -62,12 +62,21 @@ missing or empty source discovery, and C# syntax errors fail the check. A newer 
 syntax than the bundled parser understands requires updating PowerShell, not
 ignoring its parse errors.
 
-For local `dynamic` and `dynamic?` declarations, it checks non-literal initializers
-and subsequent assignments for a matching `ComUtilities.Release(ref variable)`
-or `ReleaseIfNotNull(ref variable)` call in the same function and lexical scope.
+For local `dynamic` and `dynamic?` declarations (including `for` initializers and
+`using` declarations), it checks non-literal initializers and subsequent assignments
+for a matching `ComUtilities.Release(ref variable)` call in the same function and
+lexical scope. Loop-initializer variables are scoped to their own loop. Assignments
+inside lambdas or local functions that capture a local count as acquisitions;
+same-named nested locals or parameters are not treated as that captured local.
 A release for another variable or in another method, lambda, local function, or
 sibling block cannot satisfy the check. Comments and string contents do not count
 as code. The diagnostic names the source file, declaration line, and variable.
+
+Recognized helper receivers are `ComUtilities`,
+`Sbroenne.PowerPointMcp.ComInterop.ComUtilities`, and its `global::` form. Other
+objects with a member named `ComUtilities` do not qualify. The check does not
+perform type binding, so shadowing the unqualified helper name is outside its
+guarantees. Only the existing `Release` method is supported.
 
 Aliases of existing variables, and direct aliases of `ctx`/`context` members
 `Presentation` or `App`, are borrowed rather than new acquisitions. Do not release
@@ -82,7 +91,8 @@ counts explicitly. Zero dynamic acquisitions is a valid result in typed source,
 not evidence of a broken scan.
 
 This is a syntax check, not an ownership or control-flow proof. It does not verify
-typed PIA or `var` acquisitions, fields, acquisitions inside inactive preprocessor
+typed PIA or `var` acquisitions, fields, `foreach`/deconstruction/pattern variable
+bindings, acquisitions inside inactive preprocessor
 branches, releases through aliases or helper calls, repeated replacement of the
 same variable, or whether cleanup runs in `finally`. A matching release may still
 be unreachable or occur before acquisition. Review those cases and run the

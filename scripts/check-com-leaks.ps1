@@ -20,15 +20,16 @@ function Get-FunctionScope($node) {
 
 function Get-VariableScope($node) {
     for ($scope = $node.Parent; $null -ne $scope; $scope = $scope.Parent) {
-        if ($scope -is [Microsoft.CodeAnalysis.CSharp.Syntax.BlockSyntax]) {
+        if ($scope -is [Microsoft.CodeAnalysis.CSharp.Syntax.BlockSyntax] -or
+            $scope -is [Microsoft.CodeAnalysis.CSharp.Syntax.ForStatementSyntax] -or
+            $scope -is [Microsoft.CodeAnalysis.CSharp.Syntax.UsingStatementSyntax]) {
             return $scope
         }
     }
     return Get-FunctionScope $node
 }
 
-function Test-Acquisition($expression) {
-    if ($null -eq $expression) { return $false }
+function Get-UnwrappedExpression($expression) {
     while ($expression -is [Microsoft.CodeAnalysis.CSharp.Syntax.ParenthesizedExpressionSyntax] -or
         $expression -is [Microsoft.CodeAnalysis.CSharp.Syntax.CastExpressionSyntax] -or
         ($expression -is [Microsoft.CodeAnalysis.CSharp.Syntax.PostfixUnaryExpressionSyntax] -and $expression.OperatorToken.Text -ceq '!')) {
@@ -38,13 +39,41 @@ function Test-Acquisition($expression) {
             $expression = $expression.Expression
         }
     }
+    return $expression
+}
+
+function Test-Acquisition($expression) {
+    $expression = Get-UnwrappedExpression $expression
+    if ($null -eq $expression) { return $false }
     if ($expression -is [Microsoft.CodeAnalysis.CSharp.Syntax.LiteralExpressionSyntax] -or
         $expression -is [Microsoft.CodeAnalysis.CSharp.Syntax.IdentifierNameSyntax] -or
         $expression -is [Microsoft.CodeAnalysis.CSharp.Syntax.DefaultExpressionSyntax]) { return $false }
-    if ($expression -is [Microsoft.CodeAnalysis.CSharp.Syntax.MemberAccessExpressionSyntax] -and
-        $expression.Expression -is [Microsoft.CodeAnalysis.CSharp.Syntax.IdentifierNameSyntax] -and
-        $expression.Expression.Identifier.ValueText -cin @('ctx', 'context') -and
-        $expression.Name.Identifier.ValueText -cin @('Presentation', 'App')) { return $false }
+    if ($expression -is [Microsoft.CodeAnalysis.CSharp.Syntax.MemberAccessExpressionSyntax]) {
+        $receiver = Get-UnwrappedExpression $expression.Expression
+        if ($receiver -is [Microsoft.CodeAnalysis.CSharp.Syntax.IdentifierNameSyntax] -and
+            $receiver.Identifier.ValueText -cin @('ctx', 'context') -and
+            $expression.Name.Identifier.ValueText -cin @('Presentation', 'App')) { return $false }
+    }
+    return $true
+}
+
+function Test-VariableReference($reference, $variable, $locals, $parameters) {
+    $scope = Get-VariableScope $variable
+    if (-not $scope.Span.Contains($reference.Span)) { return $false }
+    foreach ($other in $locals) {
+        if ($other.Span.Equals($variable.Span) -or
+            $other.Identifier.ValueText -cne $variable.Identifier.ValueText) { continue }
+        $otherScope = Get-VariableScope $other
+        if ($scope.Span.Contains($otherScope.Span) -and
+            -not $scope.Span.Equals($otherScope.Span) -and
+            $otherScope.Span.Contains($reference.Span)) { return $false }
+    }
+    foreach ($parameter in $parameters) {
+        if ($parameter.Identifier.ValueText -cne $variable.Identifier.ValueText) { continue }
+        $parameterScope = Get-FunctionScope $parameter
+        if ($scope.Span.Contains($parameterScope.Span) -and
+            $parameterScope.Span.Contains($reference.Span)) { return $false }
+    }
     return $true
 }
 
@@ -74,35 +103,36 @@ foreach ($file in $files) {
         if ($_ -isnot [Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax]) { return $false }
         $member = $_.Expression
         if ($member -isnot [Microsoft.CodeAnalysis.CSharp.Syntax.MemberAccessExpressionSyntax]) { return $false }
-        $receiver = $member.Expression
-        $receiverName = if ($receiver -is [Microsoft.CodeAnalysis.CSharp.Syntax.IdentifierNameSyntax]) {
-            $receiver.Identifier.ValueText
-        } elseif ($receiver -is [Microsoft.CodeAnalysis.CSharp.Syntax.MemberAccessExpressionSyntax]) {
-            $receiver.Name.Identifier.ValueText
-        }
-        $receiverName -ceq 'ComUtilities' -and $member.Name.Identifier.ValueText -cin @('Release', 'ReleaseIfNotNull')
+        $receiverName = ($member.Expression.DescendantTokens() | ForEach-Object { $_.ValueText }) -join ''
+        $receiverName -cin @('ComUtilities', 'Sbroenne.PowerPointMcp.ComInterop.ComUtilities',
+            'global::Sbroenne.PowerPointMcp.ComInterop.ComUtilities') -and
+            $member.Name.Identifier.ValueText -ceq 'Release'
     })
     $assignments = @($nodes | Where-Object { $_ -is [Microsoft.CodeAnalysis.CSharp.Syntax.AssignmentExpressionSyntax] })
-    foreach ($variable in $nodes | Where-Object { $_ -is [Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclaratorSyntax] }) {
+    $parameters = @($nodes | Where-Object { $_ -is [Microsoft.CodeAnalysis.CSharp.Syntax.ParameterSyntax] })
+    $locals = @($nodes | Where-Object {
+        $_ -is [Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclaratorSyntax] -and
+        ($_.Parent.Parent -is [Microsoft.CodeAnalysis.CSharp.Syntax.LocalDeclarationStatementSyntax] -or
+            $_.Parent.Parent -is [Microsoft.CodeAnalysis.CSharp.Syntax.ForStatementSyntax] -or
+            $_.Parent.Parent -is [Microsoft.CodeAnalysis.CSharp.Syntax.UsingStatementSyntax])
+    })
+    foreach ($variable in $locals) {
         $type = $variable.Parent.Type
         if ($type -is [Microsoft.CodeAnalysis.CSharp.Syntax.NullableTypeSyntax]) { $type = $type.ElementType }
         if ($type -isnot [Microsoft.CodeAnalysis.CSharp.Syntax.IdentifierNameSyntax] -or $type.Identifier.Text -cne 'dynamic') { continue }
-        if ($variable.Parent.Parent -isnot [Microsoft.CodeAnalysis.CSharp.Syntax.LocalDeclarationStatementSyntax]) { continue }
         $name = $variable.Identifier.ValueText
         $function = Get-FunctionScope $variable
-        $scope = Get-VariableScope $variable
         $values = @($variable.Initializer.Value)
         $values += @($assignments | Where-Object {
             $_.Left -is [Microsoft.CodeAnalysis.CSharp.Syntax.IdentifierNameSyntax] -and
             $_.Left.Identifier.ValueText -ceq $name -and
-            $scope.Span.Contains($_.Span) -and
-            (Get-FunctionScope $_).Span.Equals($function.Span)
+            (Test-VariableReference $_ $variable $locals $parameters)
         } | ForEach-Object { $_.Right })
         if (-not @($values | Where-Object { Test-Acquisition $_ }).Count) { continue }
         $acquisitions++
         $matching = @($releases | Where-Object {
             $release = $_
-            $scope.Span.Contains($release.Span) -and
+            (Test-VariableReference $release $variable $locals $parameters) -and
             (Get-FunctionScope $release).Span.Equals($function.Span) -and
             @($release.ArgumentList.Arguments | Where-Object {
                 $argument = $_.Expression
