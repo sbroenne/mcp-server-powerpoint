@@ -30,6 +30,8 @@ namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
 [Trait("RequiresPowerPoint", "true")]
 public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
 {
+    private static readonly int[] SingleArrangementIndex = [1];
+    private static readonly int[] ArrangementIndexes = [3, 1, 2];
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
     private readonly string _testPresentationFile;
@@ -190,6 +192,73 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             Assert.False(stillFound, $"Session {sessionId} should be gone after close_presentation: {listAfterCloseResult}");
         }
         _output.WriteLine("✓ Step 4: list_sessions confirms the session is closed");
+    }
+
+    [Fact]
+    public async Task ShapeArrangement_ViaMcpProtocol_RoutesSelectionAndReferenceMode()
+    {
+        var created = await CallToolAsync("presentation", new()
+        {
+            ["action"] = "create",
+            ["filePath"] = _testPresentationFile
+        });
+        AssertSuccess(created, "create");
+        string sessionId = GetJsonProperty(created, "sessionId")!;
+        try
+        {
+            for (int index = 0; index < 3; index++)
+            {
+                AssertSuccess(await CallToolAsync("shape", new()
+                {
+                    ["action"] = "add-rectangle",
+                    ["session_id"] = sessionId,
+                    ["slide_index"] = 1,
+                    ["left"] = 10 + (index * 100),
+                    ["top"] = 20,
+                    ["width"] = 40,
+                    ["height"] = 30
+                }), "add-rectangle");
+            }
+
+            AssertSuccess(await CallToolAsync("shape", new()
+            {
+                ["action"] = "align",
+                ["session_id"] = sessionId,
+                ["slide_index"] = 1,
+                ["shape_indexes"] = SingleArrangementIndex,
+                ["align_cmd"] = "msoAlignRights",
+                ["relative_to_slide"] = true
+            }), "single-shape slide alignment");
+
+            AssertSuccess(await CallToolAsync("shape", new()
+            {
+                ["action"] = "distribute",
+                ["session_id"] = sessionId,
+                ["slide_index"] = 1,
+                ["shape_indexes"] = ArrangementIndexes,
+                ["distribute_cmd"] = "msoDistributeHorizontally"
+            }), "selection distribution");
+
+            string invalid = await CallToolAsync("shape", new()
+            {
+                ["action"] = "align",
+                ["session_id"] = sessionId,
+                ["slide_index"] = 1,
+                ["shape_indexes"] = SingleArrangementIndex,
+                ["align_cmd"] = "msoAlignRights"
+            });
+            using var invalidJson = JsonDocument.Parse(invalid);
+            Assert.False(invalidJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.True(invalidJson.RootElement.GetProperty("isError").GetBoolean());
+        }
+        finally
+        {
+            AssertSuccess(await CallToolAsync("presentation", new()
+            {
+                ["action"] = "close",
+                ["sessionId"] = sessionId
+            }), "close");
+        }
     }
 
     private async Task<string> CallToolAsync(string toolName, Dictionary<string, object?> arguments)

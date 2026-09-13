@@ -3,7 +3,7 @@
 Reference for the `slide` tool (`add-blank`, `get-count`, `delete`, `duplicate`, `move-to`,
 `set-background-color`, `get-background-color`, sections, comments, import) and the `shape` tool
 (`add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`,
-`delete`, `set-position`, `set-size`, plus the fill/line/rotation/flip/z-order/shadow/glow/
+`delete`, `set-position`, `set-size`, `align`, `distribute`, plus the fill/line/rotation/flip/z-order/shadow/glow/
 reflection/soft-edge/bevel/group/name/alt-text/hyperlink formatting actions below).
 
 ## Slide Actions
@@ -72,6 +72,31 @@ slide(action: "rename-section", session_id: ..., section_index: 2, section_name:
 | `shape` | `set-link-auto-update` | `session_id`, `slide_index`, `shape_index`, `auto_update` | Enables or disables automatic refresh; PowerPoint errors propagate to the MCP or CLI boundary. |
 
 All position/size values are **points** (see `deck-builder.md` for the 960×540pt 16:9 reference).
+
+## Align and Distribute
+
+Use `shape(action: "align", ..., shape_indexes: [3, 1, 2], align_cmd: "msoAlignTops")`
+to align a selection. `align_cmd` accepts `msoAlignLefts`, `msoAlignCenters`,
+`msoAlignRights`, `msoAlignTops`, `msoAlignMiddles`, or `msoAlignBottoms`.
+Names are case-insensitive; numeric enum values are rejected.
+
+By default, alignment uses the selection's original bounding rectangle and needs two
+shapes. Set `relative_to_slide: true` to use slide bounds; this also allows one shape.
+Array order does not choose an anchor shape.
+
+Use `shape(action: "distribute", ..., shape_indexes: [3, 1, 2],
+distribute_cmd: "msoDistributeHorizontally")` for equal horizontal edge gaps, or
+`msoDistributeVertically` for vertical gaps. At least three shapes are required.
+By default the outer shapes retain the selection's original span.
+With `relative_to_slide: true`, equal gaps include the margins at both slide edges.
+This spaces edges, not centers: unequal-sized shapes have unequal center distances.
+
+Both actions require `session_id`, `slide_index`, and distinct 1-based top-level
+`shape_indexes`. Invalid indexes, duplicates, or commands fail before any movement.
+The result returns the total slide `shapeCount`. No shapes are resized or regrouped.
+Groups are treated as whole top-level shapes; rotated shapes use native PowerPoint
+geometry. This is not collision avoidance: insufficient space can produce overlap.
+Export the slide to verify the result after arranging it.
 
 ## Shape Formatting Actions
 

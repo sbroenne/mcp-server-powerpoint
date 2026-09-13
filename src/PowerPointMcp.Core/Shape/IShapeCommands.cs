@@ -3,13 +3,13 @@ using Sbroenne.PowerPointMcp.Core.Attributes;
 namespace Sbroenne.PowerPointMcp.Core.Shape;
 
 /// <summary>
-/// Shape commands: create, inspect, format, group, link, and edit native placeholders.
+/// Shape commands: create, inspect, align, distribute, format, group, link, and edit native placeholders.
 /// Operates within an already-open IPresentationBatch, targeting a specific slide by
 /// its 1-based index.
 /// </summary>
 [ServiceCategory("shape", "Shape")]
 [McpTool("shape", Title = "Shape Operations", Destructive = true, Category = "content",
-    Description = "Create, inspect, format, group, link, and edit native placeholders on a slide.")]
+    Description = "Create, inspect, align, distribute, format, group, link, and edit native placeholders on a slide.")]
 public interface IShapeCommands
 {
     /// <summary>Adds a rectangle shape to the given slide.</summary>
@@ -143,6 +143,27 @@ public interface IShapeCommands
     /// 1-based shape indices. Returns the new grouped shape's index.
     /// </summary>
     ShapeOperationResult Group(ComInterop.Session.IPresentationBatch batch, int slideIndex, IReadOnlyList<int> shapeIndexes);
+
+    /// <summary>
+    /// Aligns distinct top-level shapes using msoAlignLefts, msoAlignCenters, msoAlignRights,
+    /// msoAlignTops, msoAlignMiddles, or msoAlignBottoms (case-insensitive names, not numbers).
+    /// Defaults to the selection's original bounds (at least two shapes); relativeToSlide=true
+    /// uses slide bounds and permits one shape. Shape indexes are 1-based, in any order.
+    /// Does not resize or regroup shapes. Invalid selections fail before any movement.
+    /// Native geometry applies to rotated/grouped shapes; this is not collision avoidance.
+    /// </summary>
+    ShapeOperationResult Align(ComInterop.Session.IPresentationBatch batch, int slideIndex,
+        IReadOnlyList<int> shapeIndexes, string alignCmd, bool relativeToSlide = false);
+
+    /// <summary>
+    /// Distributes at least three distinct top-level shapes using msoDistributeHorizontally
+    /// or msoDistributeVertically (case-insensitive names, not numbers). Defaults to the
+    /// selection's original span; relativeToSlide=true includes equal gaps at both slide edges.
+    /// Shape indexes are 1-based, in any order. Uses native edge spacing, not center spacing;
+    /// shapes may overlap if space is insufficient. Invalid selections fail before movement.
+    /// </summary>
+    ShapeOperationResult Distribute(ComInterop.Session.IPresentationBatch batch, int slideIndex,
+        IReadOnlyList<int> shapeIndexes, string distributeCmd, bool relativeToSlide = false);
 
     /// <summary>Ungroups a previously-grouped shape back into its individual member shapes.</summary>
     ShapeOperationResult Ungroup(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);

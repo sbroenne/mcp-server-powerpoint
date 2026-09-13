@@ -2,6 +2,8 @@ using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Layout;
 using Sbroenne.PowerPointMcp.Core.Shape;
+using Sbroenne.PowerPointMcp.ComInterop;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
 
@@ -15,6 +17,7 @@ namespace Sbroenne.PowerPointMcp.Core.Tests;
 [Trait("Feature", "Shape")]
 public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
 {
+    private static readonly int[] ArrangementIndexes = [3, 1, 2];
     private readonly SharedPresentationFixture _fixture;
     private readonly PresentationCommands _presentationCommands = new();
     private readonly ShapeCommands _commands = new();
@@ -22,6 +25,227 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     public ShapeCommandsTests(SharedPresentationFixture fixture)
     {
         _fixture = fixture;
+    }
+
+    [Theory]
+    [InlineData("Align", "msoAlignLefts", 10f, 10f)]
+    [InlineData("Distribute", "msoDistributeHorizontally", 145f, 300f)]
+    public void ArrangeShapes_ChangesOnlySelectedPositions(string methodName, string command, float secondLeft, float thirdLeft)
+    {
+        CreateArrangement();
+        var before = ReadArrangement();
+        var result = methodName == "Align"
+            ? _commands.Align(_fixture.Batch, 1, ArrangementIndexes, command)
+            : _commands.Distribute(_fixture.Batch, 1, ArrangementIndexes, command);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        var after = ReadArrangement();
+        Assert.Equal(10f, after[0].Left);
+        Assert.Equal(secondLeft, after[1].Left);
+        Assert.Equal(thirdLeft, after[2].Left);
+        Assert.Equal(before[3], after[3]);
+        for (int index = 0; index < 3; index++)
+        {
+            Assert.Equal(before[index].Top, after[index].Top);
+            Assert.Equal(before[index].Width, after[index].Width);
+            Assert.Equal(before[index].Height, after[index].Height);
+        }
+    }
+
+    [Theory]
+    [InlineData("msoAlignLefts", true, 0f, false)]
+    [InlineData("msoAlignCenters", true, 0.5f, false)]
+    [InlineData("msoAlignRights", true, 1f, false)]
+    [InlineData("msoAlignTops", false, 0f, false)]
+    [InlineData("msoAlignMiddles", false, 0.5f, false)]
+    [InlineData("msoAlignBottoms", false, 1f, false)]
+    [InlineData("MSOALIGNLEFTS", true, 0f, true)]
+    [InlineData("msoAlignCenters", true, 0.5f, true)]
+    [InlineData("msoAlignRights", true, 1f, true)]
+    [InlineData("msoAlignTops", false, 0f, true)]
+    [InlineData("msoAlignMiddles", false, 0.5f, true)]
+    [InlineData("msoAlignBottoms", false, 1f, true)]
+    public void ArrangeShapes_AlignsAgainstExplicitReference(string command, bool horizontal, float fraction, bool relativeToSlide)
+    {
+        CreateArrangement();
+        var before = ReadArrangement();
+
+        var result = _commands.Align(_fixture.Batch, 1, ArrangementIndexes, command, relativeToSlide);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(4, result.ShapeCount);
+        var after = ReadArrangement();
+        float origin = relativeToSlide ? 0f : horizontal ? 10f : 20f;
+        float extent = relativeToSlide ? horizontal ? 600f : 400f : 350f;
+        for (int index = 0; index < 3; index++)
+        {
+            float size = horizontal ? before[index].Width : before[index].Height;
+            float expected = origin + ((extent - size) * fraction);
+            Assert.InRange(horizontal ? after[index].Left : after[index].Top, expected - 0.01f, expected + 0.01f);
+            Assert.Equal(horizontal ? before[index].Top : before[index].Left, horizontal ? after[index].Top : after[index].Left);
+            Assert.Equal(before[index].Width, after[index].Width);
+            Assert.Equal(before[index].Height, after[index].Height);
+        }
+
+        Assert.Equal(before[3], after[3]);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public void ArrangeShapes_DistributesEdgesWithUnequalSizes(bool horizontal, bool relativeToSlide)
+    {
+        CreateArrangement();
+        var before = ReadArrangement();
+        string command = horizontal ? "msoDistributeHorizontally" : "MSODISTRIBUTEVERTICALLY";
+
+        var result = _commands.Distribute(_fixture.Batch, 1, ArrangementIndexes, command, relativeToSlide);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        var after = ReadArrangement();
+        float origin = relativeToSlide ? 0f : horizontal ? 10f : 20f;
+        float extent = relativeToSlide ? horizontal ? 600f : 400f : 350f;
+        float totalSize = before.Take(3).Sum(bounds => horizontal ? bounds.Width : bounds.Height);
+        float gap = (extent - totalSize) / (relativeToSlide ? 4f : 2f);
+        float expected = origin + (relativeToSlide ? gap : 0f);
+        for (int index = 0; index < 3; index++)
+        {
+            Assert.InRange(horizontal ? after[index].Left : after[index].Top, expected - 0.01f, expected + 0.01f);
+            Assert.Equal(horizontal ? before[index].Top : before[index].Left, horizontal ? after[index].Top : after[index].Left);
+            Assert.Equal(before[index].Width, after[index].Width);
+            Assert.Equal(before[index].Height, after[index].Height);
+            expected += (horizontal ? before[index].Width : before[index].Height) + gap;
+        }
+
+        Assert.Equal(before[3], after[3]);
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("empty")]
+    [InlineData("single")]
+    [InlineData("duplicate")]
+    [InlineData("zeroShape")]
+    [InlineData("negativeShape")]
+    [InlineData("missingShape")]
+    [InlineData("zeroSlide")]
+    [InlineData("negativeSlide")]
+    [InlineData("missingSlide")]
+    [InlineData("emptyCommand")]
+    [InlineData("numericCommand")]
+    [InlineData("unknownCommand")]
+    public void ArrangeShapes_RejectsInvalidInputWithoutMutation(string scenario)
+    {
+        CreateArrangement();
+        var before = ReadArrangement();
+        int[]? indexes = scenario switch
+        {
+            "null" => null,
+            "empty" => [],
+            "single" => [1],
+            "duplicate" => [1, 2, 1],
+            "zeroShape" => [1, 2, 0],
+            "negativeShape" => [1, 2, -1],
+            "missingShape" => [1, 2, 5],
+            _ => ArrangementIndexes
+        };
+        int slideIndex = scenario switch { "zeroSlide" => 0, "negativeSlide" => -1, "missingSlide" => 2, _ => 1 };
+        string? invalidCommand = scenario switch { "emptyCommand" => "", "numericCommand" => "0", "unknownCommand" => "left-ish", _ => null };
+        var aligned = _commands.Align(_fixture.Batch, slideIndex, indexes!, invalidCommand ?? "msoAlignLefts");
+        var distributed = _commands.Distribute(_fixture.Batch, slideIndex, indexes!, invalidCommand ?? "msoDistributeHorizontally");
+
+        Assert.False(aligned.Success);
+        Assert.NotEmpty(aligned.ErrorMessage!);
+        Assert.False(distributed.Success);
+        Assert.NotEmpty(distributed.ErrorMessage!);
+        Assert.Equal(before, ReadArrangement());
+    }
+
+    [Fact]
+    public void ArrangeShapes_SupportsSingleShapeSlideAlignmentAndPersists()
+    {
+        CreateArrangement();
+        var before = ReadArrangement();
+        var aligned = _commands.Align(_fixture.Batch, 1, [4], "msoAlignRights", true);
+        Assert.True(aligned.Success, aligned.ErrorMessage);
+        var distributed = _commands.Distribute(_fixture.Batch, 1, ArrangementIndexes, "msoDistributeVertically");
+        Assert.True(distributed.Success, distributed.ErrorMessage);
+        var arranged = ReadArrangement();
+        Assert.Equal(520f, arranged[3].Left);
+        Assert.Equal(before[3].Top, arranged[3].Top);
+        Assert.Equal(150f, arranged[1].Top);
+
+        Assert.True(_presentationCommands.Save(_fixture.Batch).Success);
+        _fixture.ReopenCurrentPresentation();
+
+        Assert.Equal(arranged, ReadArrangement());
+    }
+
+    [Fact]
+    public void ArrangeShapes_AllowsTwoForAlignmentButRequiresThreeForDistribution()
+    {
+        CreateArrangement();
+        var before = ReadArrangement();
+        var invalid = _commands.Distribute(_fixture.Batch, 1, [1, 2], "msoDistributeHorizontally", true);
+        Assert.False(invalid.Success);
+        Assert.Equal(before, ReadArrangement());
+
+        var aligned = _commands.Align(_fixture.Batch, 1, [1, 2], "msoAlignTops");
+        Assert.True(aligned.Success, aligned.ErrorMessage);
+        var after = ReadArrangement();
+        Assert.Equal(20f, after[1].Top);
+        Assert.Equal(before[2], after[2]);
+        Assert.Equal(before[3], after[3]);
+    }
+
+    private void CreateArrangement()
+    {
+        _fixture.CreateFreshPresentation();
+        Assert.True(new Core.PageSetup.PageSetupCommands().SetSize(_fixture.Batch, 600f, 400f).Success);
+        Assert.True(_commands.AddRectangle(_fixture.Batch, 1, 10f, 20f, 20f, 30f).Success);
+        Assert.True(_commands.AddRectangle(_fixture.Batch, 1, 90f, 120f, 40f, 50f).Success);
+        Assert.True(_commands.AddRectangle(_fixture.Batch, 1, 300f, 300f, 60f, 70f).Success);
+        Assert.True(_commands.AddRectangle(_fixture.Batch, 1, 400f, 100f, 80f, 80f).Success);
+    }
+
+    private (float Left, float Top, float Width, float Height)[] ReadArrangement()
+    {
+        return _fixture.Batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Slides? slides = null;
+            PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
+            try
+            {
+                slides = ctx.Presentation.Slides;
+                slide = slides[1];
+                shapes = slide.Shapes;
+                var bounds = new (float Left, float Top, float Width, float Height)[shapes.Count];
+                for (int index = 1; index <= shapes.Count; index++)
+                {
+                    PowerPoint.Shape? shape = null;
+                    try
+                    {
+                        shape = shapes[index];
+                        bounds[index - 1] = (shape.Left, shape.Top, shape.Width, shape.Height);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref shape!);
+                    }
+                }
+
+                return bounds;
+            }
+            finally
+            {
+                ComUtilities.Release(ref shapes!);
+                ComUtilities.Release(ref slide!);
+                ComUtilities.Release(ref slides!);
+            }
+        });
     }
 
     [Fact]
