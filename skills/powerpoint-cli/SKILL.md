@@ -362,13 +362,13 @@ Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-con
 | `--tag-value` | (required for: set-tag) |
 
 
-### `slide` — Slide lifecycle, background, section, legacy comment, and slide-import commands.
+### `slide` — Slide lifecycle, visibility, background, section, legacy comment, and slide-import commands.
 
-Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-background-color`, `get-background-color`, `set-gradient-background`, `get-gradient-background`, `add-section`, `rename-section`, `delete-section`, `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`, `clear-comments`, `import-from-file`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
+Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-background-color`, `get-background-color`, `set-gradient-background`, `get-gradient-background`, `add-section`, `rename-section`, `delete-section`, `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`, `clear-comments`, `set-hidden`, `set-display-master-shapes`, `import-from-file`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
 | Flag | Description |
 |------|-------------|
-| `--slide-index` | (required for: delete, duplicate, move-to, set-background-color, get-background-color, set-gradient-background, get-gradient-background, list-comments, add-comment, delete-comment, clear-comments, set-tag, get-tag, list-tags, delete-tag) |
+| `--slide-index` | (required for: delete, duplicate, move-to, set-background-color, get-background-color, set-gradient-background, get-gradient-background, list-comments, add-comment, delete-comment, clear-comments, set-hidden, set-display-master-shapes, set-tag, get-tag, list-tags, delete-tag) |
 | `--to-position` | (required for: move-to) |
 | `--red` | (required for: set-background-color) |
 | `--green` | (required for: set-background-color) |
@@ -390,6 +390,8 @@ Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-backgr
 | `--left` |  |
 | `--top` |  |
 | `--comment-index` | (required for: delete-comment) |
+| `--hidden` | (required for: set-hidden) |
+| `--display` | (required for: set-display-master-shapes) |
 | `--source-file-path` | (required for: import-from-file) |
 | `--destination-slide-index` | (required for: import-from-file) |
 | `--source-start-slide` |  |

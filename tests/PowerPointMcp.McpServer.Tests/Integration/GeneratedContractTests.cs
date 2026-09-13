@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Sbroenne.PowerPointMcp.Core.Chart;
+using Sbroenne.PowerPointMcp.Core.Slide;
 using Sbroenne.PowerPointMcp.Generated;
 using Sbroenne.PowerPointMcp.McpServer.Tools;
 
@@ -127,6 +128,46 @@ public sealed class GeneratedContractTests
                 shapeIndex: 1,
                 tagName: "OWNER",
                 tagValue: "not-applicable"));
+    }
+
+    [Fact]
+    public void SlideVisibilityActions_HaveGeneratedCliAndServiceWiring()
+    {
+        Assert.Contains("set-hidden", ServiceRegistry.Slide.ValidActions);
+        Assert.Contains("set-display-master-shapes", ServiceRegistry.Slide.ValidActions);
+
+        Assert.Equal(
+            "slide.set-hidden",
+            ServiceRegistry.Slide.RouteCliArgs("set-hidden", slideIndex: 1, hidden: true).Command);
+        Assert.Equal(
+            "slide.set-display-master-shapes",
+            ServiceRegistry.Slide.RouteCliArgs("set-display-master-shapes", slideIndex: 1, display: false).Command);
+
+        ServiceRegistry.Slide.ValidateActionArguments(
+            "set-hidden",
+            """{"slideIndex":1,"hidden":true}""");
+        ServiceRegistry.Slide.ValidateActionArguments(
+            "set-display-master-shapes",
+            """{"slideIndex":1,"display":false}""");
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Slide.ValidateActionArguments("set-hidden", """{"slideIndex":1}"""));
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Slide.ValidateActionArguments("set-display-master-shapes", """{"slideIndex":1}"""));
+    }
+
+    [Fact]
+    public void SlideVisibilityResult_SerializesReturnedStates()
+    {
+        var result = new SlideOperationResult
+        {
+            Success = true,
+            Hidden = true,
+            DisplaysMasterShapes = false
+        };
+
+        using var document = JsonDocument.Parse(PowerPointToolsBase.Serialize(result));
+        Assert.True(document.RootElement.GetProperty("hidden").GetBoolean());
+        Assert.False(document.RootElement.GetProperty("displaysMasterShapes").GetBoolean());
     }
 
     [Fact]

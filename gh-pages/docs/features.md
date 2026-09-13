@@ -1,12 +1,12 @@
 ---
 title: Complete Feature Reference
-description: 16 MCP tools with 187 operations across 16 domains for live PowerPoint automation through single action-dispatch tools.
+description: 16 MCP tools with 189 operations across 16 domains for live PowerPoint automation through single action-dispatch tools.
 keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, media tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **16 MCP tools with 187 operations across 16 domains**.
+PowerPoint MCP Server exposes **16 MCP tools with 189 operations across 16 domains**.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
 `chart(action="add-chart", session_id="...", slide_index=2, ...)`.
@@ -21,7 +21,7 @@ The CLI mirrors the same domain model:
 | Tool | Ops | What it covers | MCP call shape | CLI shape |
 |------|-----|----------------|----------------|-----------|
 | `presentation` | 20 | Session lifecycle, Save As/copy, templates, advisory Mark as Final, document properties, string tags | `presentation(action="...", ...)` | `pptcli session <action> ...` |
-| `slide` | 23 | Slide lifecycle, backgrounds, sections, comments, import, string tags | `slide(action="...", session_id=..., ...)` | `pptcli slide <action> -s <SESSION_ID> ...` |
+| `slide` | 25 | Slide lifecycle, visibility, backgrounds, sections, comments, import, string tags | `slide(action="...", session_id=..., ...)` | `pptcli slide <action> -s <SESSION_ID> ...` |
 | `shape` | 47 | Shapes, styling, grouping, hyperlinks, linked pictures, placeholders, string tags | `shape(action="...", session_id=..., ...)` | `pptcli shape <action> -s <SESSION_ID> ...` |
 | `textframe` | 20 | Text content and text formatting | `textframe(action="...", session_id=..., ...)` | `pptcli textframe <action> -s <SESSION_ID> ...` |
 | `table` | 12 | Table creation and cell editing/formatting | `table(action="...", session_id=..., ...)` | `pptcli table <action> -s <SESSION_ID> ...` |
@@ -73,7 +73,7 @@ remaining edit/read actions use that `sessionId`.
 `get-document-property`, `set-custom-property`, `get-custom-property`, `remove-custom-property`,
 `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
-### `slide` tool (23 operations)
+### `slide` tool (25 operations)
 
 | Action | What it does |
 |--------|---------------|
@@ -95,13 +95,16 @@ remaining edit/read actions use that `sessionId`.
 | `add-comment` | Add a legacy comment to a slide. |
 | `delete-comment` | Delete a legacy comment by 1-based index. |
 | `clear-comments` | Remove all legacy comments from a slide. |
+| `set-hidden` | Include or exclude a slide from slide-show playback. |
+| `set-display-master-shapes` | Show or hide shapes inherited from the slide master. |
 | `import-from-file` | Insert a 1-based source slide range after a destination slide. |
 
 **Exact action order:** `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`,
 `set-background-color`, `get-background-color`, `set-gradient-background`,
 `get-gradient-background`, `add-section`, `rename-section`, `delete-section`,
 `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`,
-`clear-comments`, `import-from-file`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
+`clear-comments`, `set-hidden`, `set-display-master-shapes`, `import-from-file`, `set-tag`,
+`get-tag`, `list-tags`, `delete-tag`
 
 ### `shape` tool (47 operations)
 

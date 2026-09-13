@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System.IO.Pipelines;
+using System.Text.Json;
 using ModelContextProtocol.Client;
 using Xunit.Abstractions;
 using static Sbroenne.PowerPointMcp.McpServer.Tests.Integration.McpToolCallHelper;
@@ -186,6 +187,39 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(getSlideBackgroundResult, "slide.get-background-color");
         Assert.Equal(16711680, GetInt(getSlideBackgroundResult, "colorRgb"));
 
+        var setHiddenResult = await Call("slide", new()
+        {
+            ["action"] = "set-hidden",
+            ["session_id"] = sessionId,
+            ["slide_index"] = afterDuplicateCount,
+            ["hidden"] = true
+        });
+        AssertSuccess(setHiddenResult, "slide.set-hidden");
+        Assert.True(GetBool(setHiddenResult, "hidden"));
+
+        var setDisplayMasterShapesResult = await Call("slide", new()
+        {
+            ["action"] = "set-display-master-shapes",
+            ["session_id"] = sessionId,
+            ["slide_index"] = afterDuplicateCount,
+            ["display"] = false
+        });
+        AssertSuccess(setDisplayMasterShapesResult, "slide.set-display-master-shapes");
+        Assert.False(GetBool(setDisplayMasterShapesResult, "displaysMasterShapes"));
+
+        var invalidVisibilityResult = await Call("slide", new()
+        {
+            ["action"] = "set-hidden",
+            ["session_id"] = sessionId,
+            ["slide_index"] = afterDuplicateCount + 1,
+            ["hidden"] = true
+        });
+        using (var invalidJson = JsonDocument.Parse(invalidVisibilityResult))
+        {
+            Assert.False(invalidJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.Contains("out of range", invalidJson.RootElement.GetProperty("errorMessage").GetString());
+        }
+
         var addSectionResult = await Call("slide", new()
         {
             ["action"] = "add-section",
@@ -240,7 +274,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         });
         AssertSuccess(deleteSectionResult, "slide.delete-section");
         Assert.Equal(1, GetInt(deleteSectionResult, "sectionCount"));
-        _output.WriteLine("✓ slide.duplicate/move-to/set-background-color/get-background-color, section add/rename/get-name/get-count/delete");
+        _output.WriteLine("✓ slide lifecycle, background, visibility, and section actions");
 
         const int slideIndex = 1;
 
