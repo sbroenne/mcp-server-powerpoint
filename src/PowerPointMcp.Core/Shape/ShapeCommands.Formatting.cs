@@ -6,6 +6,15 @@ namespace Sbroenne.PowerPointMcp.Core.Shape;
 
 public sealed partial class ShapeCommands
 {
+    internal const string FormattingClipboardMutexName =
+        "Sbroenne.PowerPointMcp.ShapeFormattingClipboard";
+
+    internal static NamedWaitHandleOptions FormattingClipboardMutexOptions => new()
+    {
+        CurrentUserOnly = true,
+        CurrentSessionOnly = false
+    };
+
     /// <inheritdoc/>
     public ShapeOperationResult CopyFormatting(
         IPresentationBatch batch,
@@ -39,8 +48,40 @@ public sealed partial class ShapeCommands
 
                 sourceShape = shapes[sourceShapeIndex];
                 targetShape = shapes[targetShapeIndex];
-                sourceShape.PickUp();
-                targetShape.Apply();
+
+                using var formattingClipboardMutex = new Mutex(
+                    FormattingClipboardMutexName,
+                    FormattingClipboardMutexOptions);
+                var lockTaken = false;
+                try
+                {
+                    try
+                    {
+                        int signaledHandle = WaitHandle.WaitAny(
+                            [formattingClipboardMutex, ct.WaitHandle]);
+                        if (signaledHandle != 0)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                        }
+
+                        lockTaken = true;
+                    }
+                    catch (AbandonedMutexException)
+                    {
+                        lockTaken = true;
+                    }
+
+                    ct.ThrowIfCancellationRequested();
+                    sourceShape.PickUp();
+                    targetShape.Apply();
+                }
+                finally
+                {
+                    if (lockTaken)
+                    {
+                        formattingClipboardMutex.ReleaseMutex();
+                    }
+                }
 
                 return new ShapeOperationResult
                 {

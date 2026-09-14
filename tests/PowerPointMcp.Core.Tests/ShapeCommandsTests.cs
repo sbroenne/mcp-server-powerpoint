@@ -382,6 +382,54 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.Equal("Target content", _textFrameCommands.GetText(batch, 1, 2).Text);
     }
 
+    [Fact]
+    public async Task CopyFormatting_WaitsForGlobalFormattingClipboardLock()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+        _commands.AddRectangle(batch, 1, 200f, 220f, 180f, 70f);
+        _commands.SetFill(batch, 1, 1, 12, 34, 56);
+        _commands.SetFill(batch, 1, 2, 200, 210, 220);
+
+        using var lockAcquired = new ManualResetEventSlim();
+        using var releaseLock = new ManualResetEventSlim();
+        var lockHolder = new Thread(() =>
+        {
+            using var formattingClipboardMutex = new Mutex(
+                "Sbroenne.PowerPointMcp.ShapeFormattingClipboard",
+                new NamedWaitHandleOptions
+                {
+                    CurrentUserOnly = true,
+                    CurrentSessionOnly = false
+                });
+            Assert.True(formattingClipboardMutex.WaitOne(TimeSpan.Zero));
+            lockAcquired.Set();
+            releaseLock.Wait();
+            formattingClipboardMutex.ReleaseMutex();
+        });
+        lockHolder.Start();
+        Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(3)));
+
+        Task<ShapeOperationResult> copyTask = Task.Run(() => _commands.CopyFormatting(batch, 1, 1, 2));
+        try
+        {
+            var completedTask = await Task.WhenAny(copyTask, Task.Delay(TimeSpan.FromSeconds(3)));
+            Assert.False(
+                ReferenceEquals(copyTask, completedTask),
+                "CopyFormatting completed while another owner held the global formatting clipboard lock.");
+        }
+        finally
+        {
+            releaseLock.Set();
+            await Task.Run(lockHolder.Join);
+        }
+
+        var result = await copyTask;
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 2).ColorRgb);
+    }
+
     [Theory]
     [InlineData(0, 2)]
     [InlineData(99, 2)]
