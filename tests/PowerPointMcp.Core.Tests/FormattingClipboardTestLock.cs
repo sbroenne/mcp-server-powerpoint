@@ -32,6 +32,11 @@ internal static class FormattingClipboardTestLock
                     "The test could not take the formatting clipboard lock it needs to hold.");
             }
         }
+        catch (AbandonedMutexException)
+        {
+            // Thrown *after* ownership transfers, so the lock is held and must still be released.
+            held = true;
+        }
         catch (Exception ex)
         {
             failure = ex;

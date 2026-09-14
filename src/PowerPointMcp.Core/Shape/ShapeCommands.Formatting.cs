@@ -31,12 +31,12 @@ public sealed partial class ShapeCommands
         // latency of the operation: the remainder stays available for the COM work itself.
         TimeSpan lockTimeout = batch.OperationTimeout / 2;
 
-        // Not disposed deliberately: the owner thread below can outlive this call when a timed-out
-        // Execute returns while the queued callback is still running, and disposing these from here
-        // would fault that thread.
-        var lockResolved = new ManualResetEventSlim(false);
-        var transferFinished = new ManualResetEventSlim(false);
-        bool lockTaken = false;
+        // TaskCompletionSource rather than wait handles: the owner thread can outlive this call, so
+        // anything disposable here would either leak OS handles or fault that thread.
+        var lockResolved = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var transferFinished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // 0 = transfer not started, 1 = claimed by the callback, 2 = abandoned by the caller.
         int callbackState = 0;
 
         // The lock is owned by a dedicated thread: mutexes are thread-affine, the batch's STA thread
@@ -45,30 +45,41 @@ public sealed partial class ShapeCommands
         // would let another session interleave between PickUp() and Apply().
         var lockOwner = new Thread(() =>
         {
-            using var formattingClipboardMutex = new Mutex(
-                FormattingClipboardMutexName,
-                FormattingClipboardMutexOptions);
+            Mutex? formattingClipboardMutex = null;
+            bool lockTaken = false;
             try
             {
-                lockTaken = formattingClipboardMutex.WaitOne(lockTimeout);
-            }
-            catch (AbandonedMutexException)
-            {
-                // The previous owner died without releasing; ownership transfers to this thread.
-                lockTaken = true;
+                try
+                {
+                    formattingClipboardMutex = new Mutex(
+                        FormattingClipboardMutexName,
+                        FormattingClipboardMutexOptions);
+                    lockTaken = formattingClipboardMutex.WaitOne(lockTimeout);
+                    lockResolved.SetResult(lockTaken);
+                }
+                catch (AbandonedMutexException)
+                {
+                    // WaitOne throws this *after* transferring ownership, so the lock is held.
+                    lockTaken = true;
+                    lockResolved.SetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    // Surface on the caller's thread instead of killing the process, and never
+                    // leave the caller waiting for a signal that can no longer arrive.
+                    lockResolved.SetException(ex);
+                }
+
+                if (lockTaken)
+                {
+                    transferFinished.Task.GetAwaiter().GetResult();
+                    formattingClipboardMutex!.ReleaseMutex();
+                }
             }
             finally
             {
-                lockResolved.Set();
+                formattingClipboardMutex?.Dispose();
             }
-
-            if (!lockTaken)
-            {
-                return;
-            }
-
-            transferFinished.Wait();
-            formattingClipboardMutex.ReleaseMutex();
         })
         {
             IsBackground = true,
@@ -76,9 +87,8 @@ public sealed partial class ShapeCommands
         };
 
         lockOwner.Start();
-        lockResolved.Wait();
 
-        if (!lockTaken)
+        if (!lockResolved.Task.GetAwaiter().GetResult())
         {
             throw new TimeoutException(
                 $"Timed out after {lockTimeout.TotalSeconds:0.##} seconds waiting for PowerPoint's " +
@@ -90,7 +100,17 @@ public sealed partial class ShapeCommands
         {
             return batch.Execute((ctx, ct) =>
             {
-                Interlocked.CompareExchange(ref callbackState, 1, 0);
+                if (Interlocked.CompareExchange(ref callbackState, 1, 0) != 0)
+                {
+                    // The caller already timed out and handed the lock back, so the shared
+                    // formatting clipboard is no longer ours to touch.
+                    return new ShapeOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = "The copy-formatting operation was abandoned before it reached PowerPoint."
+                    };
+                }
+
                 PowerPoint.Slides? slides = null;
                 PowerPoint.Slide? slide = null;
                 PowerPoint.Shapes? shapes = null;
@@ -129,18 +149,18 @@ public sealed partial class ShapeCommands
                     if (shapes is not null) ComUtilities.Release(ref shapes);
                     if (slide is not null) ComUtilities.Release(ref slide);
                     if (slides is not null) ComUtilities.Release(ref slides);
-                    transferFinished.Set();
+                    transferFinished.TrySetResult(true);
                 }
             });
         }
         finally
         {
-            // Hand the lock back only when the callback never started - if it did start, its own
+            // Hand the lock back only when the callback never claimed it - if it did, its own
             // finally signals completion, so an Execute that timed out cannot unlock a transfer
             // that is still between PickUp() and Apply().
             if (Interlocked.CompareExchange(ref callbackState, 2, 0) == 0)
             {
-                transferFinished.Set();
+                transferFinished.TrySetResult(true);
             }
         }
     }
