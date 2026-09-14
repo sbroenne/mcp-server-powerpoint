@@ -151,28 +151,41 @@ public class MasterCommandsTests : IClassFixture<SharedPresentationFixture>
         _fixture.Batch.Execute((ctx, ct) =>
         {
             PowerPoint.Designs? designs = null;
+            PowerPoint.Design? first = null;
             PowerPoint.Design? second = null;
             try
             {
                 designs = ctx.Presentation.Designs;
+                first = designs[1];
                 second = designs.Add("ThemeFontsSecondMaster");
+                SetThemeFontNameForTest(first, major: true, Office.MsoFontLanguageIndex.msoThemeLatin, "Calibri");
+                SetThemeFontNameForTest(first, major: false, Office.MsoFontLanguageIndex.msoThemeLatin, "Cambria");
+                SetThemeFontNameForTest(second, major: true, Office.MsoFontLanguageIndex.msoThemeLatin, "Arial");
+                SetThemeFontNameForTest(second, major: false, Office.MsoFontLanguageIndex.msoThemeLatin, "Times New Roman");
             }
             finally
             {
                 ComUtilities.Release(ref second);
+                ComUtilities.Release(ref first);
                 ComUtilities.Release(ref designs);
             }
         });
 
         var before = _commands.ListMasters(_fixture.Batch);
+        var firstMasterRead = _commands.GetThemeFonts(_fixture.Batch, masterIndex: 1);
         var firstRead = _commands.GetThemeFonts(_fixture.Batch, masterIndex: 2);
         var secondRead = _commands.GetThemeFonts(_fixture.Batch, masterIndex: 2);
         var after = _commands.ListMasters(_fixture.Batch);
 
+        Assert.True(firstMasterRead.Success, firstMasterRead.ErrorMessage);
         Assert.True(firstRead.Success, firstRead.ErrorMessage);
         Assert.True(secondRead.Success, secondRead.ErrorMessage);
         Assert.Equal(2, firstRead.MasterIndex);
         Assert.Equal(before.Masters![1].MasterName, firstRead.MasterName);
+        Assert.Equal("Arial", firstRead.MajorThemeFonts!["Latin"]);
+        Assert.Equal("Times New Roman", firstRead.MinorThemeFonts!["Latin"]);
+        Assert.NotEqual(firstMasterRead.MajorThemeFonts!["Latin"], firstRead.MajorThemeFonts["Latin"]);
+        Assert.NotEqual(firstMasterRead.MinorThemeFonts!["Latin"], firstRead.MinorThemeFonts["Latin"]);
         Assert.Equal(firstRead.MajorThemeFonts, secondRead.MajorThemeFonts);
         Assert.Equal(firstRead.MinorThemeFonts, secondRead.MinorThemeFonts);
         Assert.Equal(before.Masters.Select(master => (master.MasterIndex, master.MasterName)),
