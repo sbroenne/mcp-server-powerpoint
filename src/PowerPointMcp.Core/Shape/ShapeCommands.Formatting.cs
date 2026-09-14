@@ -6,13 +6,13 @@ namespace Sbroenne.PowerPointMcp.Core.Shape;
 
 public sealed partial class ShapeCommands
 {
-    private const string FormattingClipboardMutexName =
+    internal const string FormattingClipboardMutexName =
         "Sbroenne.PowerPointMcp.ShapeFormattingClipboard";
 
     // PowerPoint's Format Painter state is per-user global rather than per presentation, so the
     // PickUp/Apply pair has to be serialized across sessions AND processes; the MCP server and the
     // CLI daemon are separate processes, which is why this is not limited to the current session.
-    private static NamedWaitHandleOptions FormattingClipboardMutexOptions => new()
+    internal static NamedWaitHandleOptions FormattingClipboardMutexOptions => new()
     {
         CurrentUserOnly = true,
         CurrentSessionOnly = false

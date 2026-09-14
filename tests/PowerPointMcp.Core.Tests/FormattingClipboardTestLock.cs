@@ -6,9 +6,11 @@ namespace Sbroenne.PowerPointMcp.Core.Tests;
 /// </summary>
 internal static class FormattingClipboardTestLock
 {
+    // Deliberately the production identity, not a copy: a rename there must break these tests
+    // rather than silently leave them acquiring a different mutex.
     internal static Mutex Create() => new(
-        "Sbroenne.PowerPointMcp.ShapeFormattingClipboard",
-        new NamedWaitHandleOptions { CurrentUserOnly = true, CurrentSessionOnly = false });
+        Shape.ShapeCommands.FormattingClipboardMutexName,
+        Shape.ShapeCommands.FormattingClipboardMutexOptions);
 
     /// <summary>
     /// Holds the lock until <paramref name="release"/> is signalled. This runs on a raw background
