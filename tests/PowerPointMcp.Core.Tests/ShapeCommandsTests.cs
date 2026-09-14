@@ -63,6 +63,51 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     }
 
     [Fact]
+    public void AddTextEffect_CreatesEditableWordArt_AndPersistsAfterSave()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddTextEffect(
+            batch, 1, "msoTextEffect1", "Quarterly outlook", "Arial", 36f, 40f, 50f);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.ShapeIndex);
+        Assert.Equal(1, result.ShapeCount);
+
+        _presentationCommands.Save(batch);
+        _fixture.ReopenCurrentPresentation();
+
+        string text = batch.Execute((ctx, ct) =>
+            ctx.Presentation.Slides[1].Shapes[1].TextEffect.Text);
+        Assert.Equal("Quarterly outlook", text);
+    }
+
+    [Fact]
+    public void AddTextEffect_WithInvalidPreset_ReturnsFailure()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.AddTextEffect(
+            _fixture.Batch, 1, "msoTextEffect51", "Text", "Arial", 36f, 40f, 50f);
+
+        Assert.False(result.Success);
+        Assert.Contains("msoTextEffect1", result.ErrorMessage);
+    }
+
+    [Fact]
+    public void AddTextEffect_WithNonPositiveFontSize_ReturnsFailure()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.AddTextEffect(
+            _fixture.Batch, 1, "msoTextEffect1", "Text", "Arial", 0f, 40f, 50f);
+
+        Assert.False(result.Success);
+        Assert.Contains("greater than 0", result.ErrorMessage);
+    }
+
+    [Fact]
     public void SetPositionAndSize_UpdatesShapeGeometry()
     {
         _fixture.CreateFreshPresentation();
@@ -344,6 +389,119 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         var batch = _fixture.Batch;
 
         var result = _commands.SetRotation(batch, 1, 99, 45f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void Set3DRotation_AndGet3DRotation_RoundTripsWithoutChanging2DRotation_AndPersists()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 100f, 60f);
+        _commands.SetRotation(batch, 1, 1, 15f);
+
+        var setResult = _commands.Set3DRotation(batch, 1, 1, 20f, -30f, 40f);
+
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal(20f, setResult.RotationX);
+        Assert.Equal(-30f, setResult.RotationY);
+        Assert.Equal(40f, setResult.RotationZ);
+        Assert.Equal(15f, _commands.GetRotation(batch, 1, 1).Rotation);
+
+        _presentationCommands.Save(batch);
+        _fixture.ReopenCurrentPresentation();
+
+        var persisted = _commands.Get3DRotation(batch, 1, 1);
+        Assert.True(persisted.Success, persisted.ErrorMessage);
+        Assert.Equal(20f, persisted.RotationX);
+        Assert.Equal(-30f, persisted.RotationY);
+        Assert.Equal(40f, persisted.RotationZ);
+        Assert.Equal(15f, _commands.GetRotation(batch, 1, 1).Rotation);
+    }
+
+    [Fact]
+    public void Set3DRotation_WithNoAxes_ReturnsFailure()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.Set3DRotation(_fixture.Batch, 1, 1);
+
+        Assert.False(result.Success);
+        Assert.Contains("At least one", result.ErrorMessage);
+    }
+
+    [Theory]
+    [InlineData(-91f, null)]
+    [InlineData(91f, null)]
+    [InlineData(null, -91f)]
+    [InlineData(null, 91f)]
+    public void Set3DRotation_WithXOrYOutsideRange_ReturnsFailure(float? rotationX, float? rotationY)
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.Set3DRotation(_fixture.Batch, 1, 1, rotationX, rotationY);
+
+        Assert.False(result.Success);
+        Assert.Contains("between -90 and 90", result.ErrorMessage);
+    }
+
+    [Fact]
+    public void Set3DRotation_WithOneAxis_PreservesOmittedAxes()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 100f, 60f);
+        _commands.Set3DRotation(batch, 1, 1, 10f, 20f, 30f);
+
+        var result = _commands.Set3DRotation(batch, 1, 1, rotationY: -25f);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(10f, result.RotationX);
+        Assert.Equal(-25f, result.RotationY);
+        Assert.Equal(30f, result.RotationZ);
+    }
+
+    [Fact]
+    public void Set3DRotation_WithInvalidSlideIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.Set3DRotation(_fixture.Batch, 99, 1, rotationX: 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void Set3DRotation_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.Set3DRotation(_fixture.Batch, 1, 99, rotationX: 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void Get3DRotation_WithInvalidSlideIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.Get3DRotation(_fixture.Batch, 99, 1);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void Get3DRotation_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.Get3DRotation(_fixture.Batch, 1, 99);
 
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));

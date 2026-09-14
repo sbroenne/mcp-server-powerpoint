@@ -1,5 +1,8 @@
+extern alias OfficeInterop;
+
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Office = OfficeInterop::Microsoft.Office.Core;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Shape;
@@ -215,6 +218,84 @@ public sealed partial class ShapeCommands : IShapeCommands
                 {
                     ComUtilities.Release(ref dynShapes!);
                 }
+            }
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult AddTextEffect(
+        IPresentationBatch batch,
+        int slideIndex,
+        string presetEffect,
+        string text,
+        string fontName,
+        float fontSize,
+        float left,
+        float top,
+        bool bold = false,
+        bool italic = false)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentException.ThrowIfNullOrWhiteSpace(presetEffect);
+        ArgumentException.ThrowIfNullOrWhiteSpace(text);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fontName);
+
+        if (!Enum.TryParse(presetEffect, ignoreCase: true, out Office.MsoPresetTextEffect effect) ||
+            !Enum.IsDefined(effect) ||
+            effect == Office.MsoPresetTextEffect.msoTextEffectMixed)
+        {
+            return new ShapeOperationResult
+            {
+                Success = false,
+                ErrorMessage = $"'{presetEffect}' is not a recognized MsoPresetTextEffect member name (must be 'msoTextEffect1' through 'msoTextEffect50')."
+            };
+        }
+
+        if (fontSize <= 0)
+        {
+            return new ShapeOperationResult
+            {
+                Success = false,
+                ErrorMessage = "fontSize must be greater than 0."
+            };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
+            PowerPoint.Shape? shape = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                shapes = slide.Shapes;
+                shape = shapes.AddTextEffect(
+                    effect,
+                    text,
+                    fontName,
+                    fontSize,
+                    bold ? Office.MsoTriState.msoTrue : Office.MsoTriState.msoFalse,
+                    italic ? Office.MsoTriState.msoTrue : Office.MsoTriState.msoFalse,
+                    left,
+                    top);
+
+                int newIndex = shapes.Count;
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = newIndex,
+                    Name = shape.Name
+                };
+            }
+            finally
+            {
+                ComUtilities.Release(ref shape);
+                ComUtilities.Release(ref shapes);
+                ComUtilities.Release(ref slide);
             }
         });
     }
@@ -647,6 +728,119 @@ public sealed partial class ShapeCommands : IShapeCommands
 
             return new ShapeOperationResult { Success = true, ShapeIndex = shapeIndex, Rotation = shape.Rotation };
         });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult Set3DRotation(
+        IPresentationBatch batch,
+        int slideIndex,
+        int shapeIndex,
+        float? rotationX = null,
+        float? rotationY = null,
+        float? rotationZ = null)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        if (rotationX is null && rotationY is null && rotationZ is null)
+        {
+            return new ShapeOperationResult
+            {
+                Success = false,
+                ErrorMessage = "At least one 3D rotation axis must be provided."
+            };
+        }
+
+        if (rotationX is < -90f or > 90f)
+        {
+            return new ShapeOperationResult { Success = false, ErrorMessage = "rotationX must be between -90 and 90 degrees." };
+        }
+
+        if (rotationY is < -90f or > 90f)
+        {
+            return new ShapeOperationResult { Success = false, ErrorMessage = "rotationY must be between -90 and 90 degrees." };
+        }
+
+        if ((rotationX is not null && !float.IsFinite(rotationX.Value)) ||
+            (rotationY is not null && !float.IsFinite(rotationY.Value)) ||
+            (rotationZ is not null && !float.IsFinite(rotationZ.Value)))
+        {
+            return new ShapeOperationResult { Success = false, ErrorMessage = "3D rotation values must be finite numbers." };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            PowerPoint.Slide? slide = null;
+            PowerPoint.Shape? shape = null;
+            PowerPoint.ThreeDFormat? threeD = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                threeD = shape.ThreeD;
+
+                if (rotationX is not null) threeD.RotationX = rotationX.Value;
+                if (rotationY is not null) threeD.RotationY = rotationY.Value;
+                if (rotationZ is not null) threeD.RotationZ = rotationZ.Value;
+
+                return Read3DRotation(threeD, shapeIndex);
+            }
+            finally
+            {
+                ComUtilities.Release(ref threeD);
+                ComUtilities.Release(ref shape);
+                ComUtilities.Release(ref slide);
+            }
+        });
+    }
+
+    /// <inheritdoc/>
+    public ShapeOperationResult Get3DRotation(IPresentationBatch batch, int slideIndex, int shapeIndex)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            PowerPoint.Slide? slide = null;
+            PowerPoint.Shape? shape = null;
+            PowerPoint.ThreeDFormat? threeD = null;
+            try
+            {
+                slide = ctx.Presentation.Slides[slideIndex];
+                var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+                if (shapeValidation is not null) return shapeValidation;
+
+                shape = slide.Shapes[shapeIndex];
+                threeD = shape.ThreeD;
+                return Read3DRotation(threeD, shapeIndex);
+            }
+            finally
+            {
+                ComUtilities.Release(ref threeD);
+                ComUtilities.Release(ref shape);
+                ComUtilities.Release(ref slide);
+            }
+        });
+    }
+
+    private static ShapeOperationResult Read3DRotation(PowerPoint.ThreeDFormat threeD, int shapeIndex)
+    {
+        return new ShapeOperationResult
+        {
+            Success = true,
+            ShapeIndex = shapeIndex,
+            RotationX = threeD.RotationX,
+            RotationY = threeD.RotationY,
+            RotationZ = threeD.RotationZ
+        };
     }
 
     /// <inheritdoc/>

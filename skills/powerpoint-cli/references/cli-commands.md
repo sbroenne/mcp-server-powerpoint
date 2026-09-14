@@ -333,12 +333,12 @@ OPTIONS:
 
 ```text
 DESCRIPTION:
-Slide master commands: read/edit the title and body placeholder fonts on the
-presentation's slide master, and read/edit the slide master's background fill
-color. Operates within an already-open . Changes here apply to every slide that
-inherits from the master (i.e. any slide that does not itself override the
-property), which is the practical "edit the master, not each slide" workflow
-PowerPoint's COM object model supports safely
+Slide master commands: read theme color palettes or read/edit the title and body
+placeholder fonts on the presentation's slide master, and read/edit the slide
+master's background fill color. Operates within an already-open . Changes here
+apply to every slide that inherits from the master (i.e. any slide that does not
+itself override the property), which is the practical "edit the master, not each
+slide" workflow PowerPoint's COM object model supports safely
 
 USAGE:
     pptcli master <ACTION> [OPTIONS]
@@ -858,14 +858,16 @@ OPTIONS:
                                              command
         --slide-index <SLIDEINDEX>           (required)
         --left <LEFT>                        (required for: add-rectangle,
-                                             add-text-box, add-auto-shape,
-                                             set-position) (valid for:
-                                             add-rectangle, add-text-box,
+                                             add-text-box, add-text-effect,
+                                             add-auto-shape, set-position)
+                                             (valid for: add-rectangle,
+                                             add-text-box, add-text-effect,
                                              add-auto-shape, set-position)
         --top <TOP>                          (required for: add-rectangle,
-                                             add-text-box, add-auto-shape,
-                                             set-position) (valid for:
-                                             add-rectangle, add-text-box,
+                                             add-text-box, add-text-effect,
+                                             add-auto-shape, set-position)
+                                             (valid for: add-rectangle,
+                                             add-text-box, add-text-effect,
                                              add-auto-shape, set-position)
         --width <WIDTH>                      (required for: add-rectangle,
                                              add-text-box, add-auto-shape,
@@ -878,8 +880,18 @@ OPTIONS:
                                              add-rectangle, add-text-box,
                                              add-auto-shape, set-size)
         --text <TEXT>                        (required for: add-text-box,
+                                             add-text-effect,
                                              set-placeholder-text) (valid for:
-                                             add-text-box, set-placeholder-text)
+                                             add-text-box, add-text-effect,
+                                             set-placeholder-text)
+        --preset-effect <PRESETEFFECT>       (required for: add-text-effect)
+                                             (valid for: add-text-effect)
+        --font-name <FONTNAME>               (required for: add-text-effect)
+                                             (valid for: add-text-effect)
+        --font-size <FONTSIZE>               (required for: add-text-effect)
+                                             (valid for: add-text-effect)
+        --bold <BOLD>                        (valid for: add-text-effect)
+        --italic <ITALIC>                    (valid for: add-text-effect)
         --shape-type <SHAPETYPE>             (required for: add-auto-shape)
                                              (valid for: add-auto-shape)
         --begin-x <BEGINX>                   (required for: add-line,
@@ -899,8 +911,9 @@ OPTIONS:
         --shape-index <SHAPEINDEX>           (required for: delete,
                                              set-position, set-size, set-fill,
                                              get-fill, set-line, get-line,
-                                             set-rotation, get-rotation, flip,
-                                             set-z-order, set-shadow,
+                                             set-rotation, get-rotation,
+                                             set-3d-rotation, get-3d-rotation,
+                                             flip, set-z-order, set-shadow,
                                              get-shadow, set-glow, get-glow,
                                              set-reflection, get-reflection,
                                              set-soft-edge, get-soft-edge,
@@ -916,7 +929,8 @@ OPTIONS:
                                              (valid for: delete, set-position,
                                              set-size, set-fill, get-fill,
                                              set-line, get-line, set-rotation,
-                                             get-rotation, flip, set-z-order,
+                                             get-rotation, set-3d-rotation,
+                                             get-3d-rotation, flip, set-z-order,
                                              set-shadow, get-shadow, set-glow,
                                              get-glow, set-reflection,
                                              get-reflection, set-soft-edge,
@@ -947,6 +961,9 @@ OPTIONS:
                                              set-reflection)
         --degrees <DEGREES>                  (required for: set-rotation) (valid
                                              for: set-rotation)
+        --rotation-x <ROTATIONX>             (valid for: set-3d-rotation)
+        --rotation-y <ROTATIONY>             (valid for: set-3d-rotation)
+        --rotation-z <ROTATIONZ>             (valid for: set-3d-rotation)
         --direction <DIRECTION>              (required for: flip) (valid for:
                                              flip)
         --z-order-command <ZORDERCOMMAND>    (required for: set-z-order) (valid

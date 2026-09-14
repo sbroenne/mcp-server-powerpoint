@@ -316,23 +316,28 @@ Actions: `get-settings`, `set-size`, `set-first-slide-number`, `get-footer`, `se
 
 ### `shape` — Shape commands: create, inspect, format, group, link, and edit native placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
 
-Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
+Actions: `add-rectangle`, `add-text-box`, `add-text-effect`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `set-rotation`, `get-rotation`, `set-3d-rotation`, `get-3d-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
 | Flag | Description |
 |------|-------------|
 | `--slide-index` | (required) |
-| `--left` | (required for: add-rectangle, add-text-box, add-auto-shape, set-position) |
-| `--top` | (required for: add-rectangle, add-text-box, add-auto-shape, set-position) |
+| `--left` | (required for: add-rectangle, add-text-box, add-text-effect, add-auto-shape, set-position) |
+| `--top` | (required for: add-rectangle, add-text-box, add-text-effect, add-auto-shape, set-position) |
 | `--width` | (required for: add-rectangle, add-text-box, add-auto-shape, set-size) |
 | `--height` | (required for: add-rectangle, add-text-box, add-auto-shape, set-size) |
-| `--text` | (required for: add-text-box, set-placeholder-text) |
+| `--text` | (required for: add-text-box, add-text-effect, set-placeholder-text) |
+| `--preset-effect` | (required for: add-text-effect) |
+| `--font-name` | (required for: add-text-effect) |
+| `--font-size` | (required for: add-text-effect) |
+| `--bold` |  |
+| `--italic` |  |
 | `--shape-type` | (required for: add-auto-shape) |
 | `--begin-x` | (required for: add-line, add-connector) |
 | `--begin-y` | (required for: add-line, add-connector) |
 | `--end-x` | (required for: add-line, add-connector) |
 | `--end-y` | (required for: add-line, add-connector) |
 | `--connector-type` | (required for: add-connector) |
-| `--shape-index` | (required for: delete, set-position, set-size, set-fill, get-fill, set-line, get-line, set-rotation, get-rotation, flip, set-z-order, set-shadow, get-shadow, set-glow, get-glow, set-reflection, get-reflection, set-soft-edge, get-soft-edge, set-bevel, get-bevel, ungroup, set-name, get-name, set-alt-text, get-alt-text, set-hyperlink, get-hyperlink, remove-hyperlink, get-link-info, update-link, break-link, set-link-auto-update, set-placeholder-text, set-placeholder-image, set-tag, get-tag, list-tags, delete-tag) |
+| `--shape-index` | (required for: delete, set-position, set-size, set-fill, get-fill, set-line, get-line, set-rotation, get-rotation, set-3d-rotation, get-3d-rotation, flip, set-z-order, set-shadow, get-shadow, set-glow, get-glow, set-reflection, get-reflection, set-soft-edge, get-soft-edge, set-bevel, get-bevel, ungroup, set-name, get-name, set-alt-text, get-alt-text, set-hyperlink, get-hyperlink, remove-hyperlink, get-link-info, update-link, break-link, set-link-auto-update, set-placeholder-text, set-placeholder-image, set-tag, get-tag, list-tags, delete-tag) |
 | `--red` | (required for: set-fill, set-glow) |
 | `--green` | (required for: set-fill, set-glow) |
 | `--blue` | (required for: set-fill, set-glow) |
@@ -340,6 +345,9 @@ Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-con
 | `--dash-style` |  |
 | `--visible` | (required for: set-shadow, set-reflection) |
 | `--degrees` | (required for: set-rotation) |
+| `--rotation-x` |  |
+| `--rotation-y` |  |
+| `--rotation-z` |  |
 | `--direction` | (required for: flip) |
 | `--z-order-command` | (required for: set-z-order) |
 | `--transparency` |  |
