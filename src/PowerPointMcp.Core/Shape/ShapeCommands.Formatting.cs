@@ -27,14 +27,55 @@ public sealed partial class ShapeCommands
     {
         ArgumentNullException.ThrowIfNull(batch);
 
-        // Run the batch's own disposed / poisoned-session / PowerPoint-liveness checks before taking
-        // the lock, so a broken session fails fast with its canonical error instead of first waiting
-        // out the formatting-lock timeout.
-        batch.Execute((ctx, ct) => { });
+        // One budget spans validation, the lock wait and the COM work, so a contended call cannot
+        // exceed the session's configured operation timeout.
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
+        TimeSpan totalBudget = batch.OperationTimeout;
 
-        // Half the caller's budget, so contending for the lock cannot double the worst-case
-        // latency of the operation: the remainder stays available for the COM work itself.
-        TimeSpan lockTimeout = batch.OperationTimeout / 2;
+        TimeSpan Remaining() => totalBudget - elapsed.Elapsed;
+
+        TimeoutException BudgetExhausted() => new(
+            $"Copy-formatting exceeded its {totalBudget.TotalSeconds:0.##} second budget waiting for " +
+            "PowerPoint's formatting clipboard, which another session or process is using to copy " +
+            "shape formatting. Retry the copy-formatting operation.");
+
+        TResult RunWithinBudget<TResult>(Func<PresentationContext, CancellationToken, TResult> operation)
+        {
+            TimeSpan remaining = Remaining();
+            if (remaining <= TimeSpan.Zero)
+            {
+                throw BudgetExhausted();
+            }
+
+            using var budgetCts = new CancellationTokenSource(remaining);
+            try
+            {
+                return batch.Execute(operation, budgetCts.Token);
+            }
+            catch (OperationCanceledException) when (budgetCts.IsCancellationRequested)
+            {
+                throw BudgetExhausted();
+            }
+        }
+
+        // Validate before taking the lock - this also runs the batch's disposed, poisoned-session and
+        // PowerPoint-liveness checks - so a bad index or a broken session fails fast instead of first
+        // waiting out the lock. The transfer below revalidates, because the shapes can change while
+        // another session holds the lock.
+        var validation = RunWithinBudget((ctx, ct) =>
+            ValidateCopyFormattingTargets(ctx, slideIndex, sourceShapeIndex, targetShapeIndex));
+        if (validation is not null)
+        {
+            return validation;
+        }
+
+        // At most half the budget goes on the lock, so a contended wait still leaves time for the
+        // COM work, and never more than the budget actually has left.
+        TimeSpan lockTimeout = TimeSpan.FromTicks(Math.Min(Remaining().Ticks, (totalBudget / 2).Ticks));
+        if (lockTimeout <= TimeSpan.Zero)
+        {
+            throw BudgetExhausted();
+        }
 
         // TaskCompletionSource rather than wait handles: the owner thread can outlive this call, so
         // anything disposable here would either leak OS handles or fault that thread.
@@ -103,7 +144,7 @@ public sealed partial class ShapeCommands
 
         try
         {
-            return batch.Execute((ctx, ct) =>
+            return RunWithinBudget((ctx, ct) =>
             {
                 if (Interlocked.CompareExchange(ref callbackState, 1, 0) != 0)
                 {
@@ -167,6 +208,41 @@ public sealed partial class ShapeCommands
             {
                 transferFinished.TrySetResult(true);
             }
+        }
+    }
+
+    /// <summary>
+    /// Checks that the slide and both shape indexes exist, returning the failure result to hand back
+    /// to the caller, or <see langword="null"/> when the request is valid.
+    /// </summary>
+    private static ShapeOperationResult? ValidateCopyFormattingTargets(
+        PresentationContext ctx,
+        int slideIndex,
+        int sourceShapeIndex,
+        int targetShapeIndex)
+    {
+        PowerPoint.Slides? slides = null;
+        PowerPoint.Slide? slide = null;
+        PowerPoint.Shapes? shapes = null;
+        try
+        {
+            slides = ctx.Presentation.Slides;
+            var slideValidation = ValidateSlideIndex(slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            slide = slides[slideIndex];
+            shapes = slide.Shapes;
+
+            var sourceValidation = ValidateShapeIndex(shapes.Count, sourceShapeIndex);
+            if (sourceValidation is not null) return sourceValidation;
+
+            return ValidateShapeIndex(shapes.Count, targetShapeIndex);
+        }
+        finally
+        {
+            if (shapes is not null) ComUtilities.Release(ref shapes);
+            if (slide is not null) ComUtilities.Release(ref slide);
+            if (slides is not null) ComUtilities.Release(ref slides);
         }
     }
 }
