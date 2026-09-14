@@ -122,8 +122,10 @@ public sealed partial class ShapeCommands
                 {
                     // Bounded on purpose: if PowerPoint wedges mid-transfer the callback never signals,
                     // and holding a user-wide lock forever would break copy-formatting in every session
-                    // and process. Release once the transfer cannot still be within its own budget.
-                    transferFinished.Task.Wait(totalBudget);
+                    // and process. Only the budget the caller still has can justify holding it, so the
+                    // lock is never kept past the point where the transfer itself has timed out.
+                    TimeSpan releaseWait = Remaining();
+                    transferFinished.Task.Wait(releaseWait < TimeSpan.Zero ? TimeSpan.Zero : releaseWait);
                     formattingClipboardMutex!.ReleaseMutex();
                 }
             }
