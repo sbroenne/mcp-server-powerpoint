@@ -394,22 +394,12 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
 
         using var lockAcquired = new ManualResetEventSlim();
         using var releaseLock = new ManualResetEventSlim();
+        Exception? holderFailure = null;
         var lockHolder = new Thread(() =>
-        {
-            using var formattingClipboardMutex = new Mutex(
-                "Sbroenne.PowerPointMcp.ShapeFormattingClipboard",
-                new NamedWaitHandleOptions
-                {
-                    CurrentUserOnly = true,
-                    CurrentSessionOnly = false
-                });
-            Assert.True(formattingClipboardMutex.WaitOne(TimeSpan.Zero));
-            lockAcquired.Set();
-            releaseLock.Wait();
-            formattingClipboardMutex.ReleaseMutex();
-        });
+            FormattingClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure));
         lockHolder.Start();
-        Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(3)));
+        Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(10)));
+        Assert.Null(holderFailure);
 
         Task<ShapeOperationResult> copyTask = Task.Run(() => _commands.CopyFormatting(batch, 1, 1, 2));
         try
@@ -428,6 +418,42 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         var result = await copyTask;
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 2).ColorRgb);
+    }
+
+    [Fact]
+    public void CopyFormatting_WhenClipboardLockStaysHeld_TimesOutAndLeavesSessionUsable()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+        _commands.AddRectangle(batch, 1, 200f, 220f, 180f, 70f);
+        _commands.SetFill(batch, 1, 1, 12, 34, 56);
+        _commands.SetFill(batch, 1, 2, 200, 210, 220);
+
+        using var lockAcquired = new ManualResetEventSlim();
+        using var releaseLock = new ManualResetEventSlim();
+        Exception? holderFailure = null;
+        var lockHolder = new Thread(() =>
+            FormattingClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure));
+        lockHolder.Start();
+        try
+        {
+            Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(15)));
+            Assert.Null(holderFailure);
+
+            var timeout = Assert.Throws<TimeoutException>(() => _commands.CopyFormatting(batch, 1, 1, 2));
+            Assert.Contains("formatting clipboard", timeout.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            releaseLock.Set();
+            lockHolder.Join();
+        }
+
+        // The wait has to expire before batch.Execute's own operation timeout, otherwise the STA
+        // thread stays blocked on the lock and the session is poisoned by mere contention.
+        Assert.False(batch.HasTimedOutOperation);
+        Assert.Equal(0xDCD2C8, _commands.GetFill(batch, 1, 2).ColorRgb);
     }
 
     [Theory]
