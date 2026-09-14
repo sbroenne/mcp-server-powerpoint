@@ -34,17 +34,18 @@ public sealed partial class ShapeCommands
 
         TimeSpan Remaining() => totalBudget - elapsed.Elapsed;
 
-        TimeoutException BudgetExhausted() => new(
-            $"Copy-formatting exceeded its {totalBudget.TotalSeconds:0.##} second budget waiting for " +
-            "PowerPoint's formatting clipboard, which another session or process is using to copy " +
-            "shape formatting. Retry the copy-formatting operation.");
+        TimeoutException BudgetExhausted(string phase) => new(
+            $"Copy-formatting exceeded its {totalBudget.TotalSeconds:0.##} second budget during {phase}. " +
+            "Retry the copy-formatting operation.");
 
-        TResult RunWithinBudget<TResult>(Func<PresentationContext, CancellationToken, TResult> operation)
+        TResult RunWithinBudget<TResult>(
+            string phase,
+            Func<PresentationContext, CancellationToken, TResult> operation)
         {
             TimeSpan remaining = Remaining();
             if (remaining <= TimeSpan.Zero)
             {
-                throw BudgetExhausted();
+                throw BudgetExhausted(phase);
             }
 
             using var budgetCts = new CancellationTokenSource(remaining);
@@ -54,7 +55,7 @@ public sealed partial class ShapeCommands
             }
             catch (OperationCanceledException) when (budgetCts.IsCancellationRequested)
             {
-                throw BudgetExhausted();
+                throw BudgetExhausted(phase);
             }
         }
 
@@ -62,8 +63,9 @@ public sealed partial class ShapeCommands
         // PowerPoint-liveness checks - so a bad index or a broken session fails fast instead of first
         // waiting out the lock. The transfer below revalidates, because the shapes can change while
         // another session holds the lock.
-        var validation = RunWithinBudget((ctx, ct) =>
-            ValidateCopyFormattingTargets(ctx, slideIndex, sourceShapeIndex, targetShapeIndex));
+        var validation = RunWithinBudget(
+            "validation",
+            (ctx, ct) => ValidateCopyFormattingTargets(ctx, slideIndex, sourceShapeIndex, targetShapeIndex));
         if (validation is not null)
         {
             return validation;
@@ -74,7 +76,7 @@ public sealed partial class ShapeCommands
         TimeSpan lockTimeout = TimeSpan.FromTicks(Math.Min(Remaining().Ticks, (totalBudget / 2).Ticks));
         if (lockTimeout <= TimeSpan.Zero)
         {
-            throw BudgetExhausted();
+            throw BudgetExhausted("validation");
         }
 
         // TaskCompletionSource rather than wait handles: the owner thread can outlive this call, so
@@ -118,7 +120,10 @@ public sealed partial class ShapeCommands
 
                 if (lockTaken)
                 {
-                    transferFinished.Task.GetAwaiter().GetResult();
+                    // Bounded on purpose: if PowerPoint wedges mid-transfer the callback never signals,
+                    // and holding a user-wide lock forever would break copy-formatting in every session
+                    // and process. Release once the transfer cannot still be within its own budget.
+                    transferFinished.Task.Wait(totalBudget);
                     formattingClipboardMutex!.ReleaseMutex();
                 }
             }
@@ -144,7 +149,7 @@ public sealed partial class ShapeCommands
 
         try
         {
-            return RunWithinBudget((ctx, ct) =>
+            return RunWithinBudget("the formatting transfer", (ctx, ct) =>
             {
                 if (Interlocked.CompareExchange(ref callbackState, 1, 0) != 0)
                 {
