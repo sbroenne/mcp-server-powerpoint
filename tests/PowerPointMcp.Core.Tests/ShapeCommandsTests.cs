@@ -2,6 +2,8 @@ using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Layout;
 using Sbroenne.PowerPointMcp.Core.Shape;
+using Sbroenne.PowerPointMcp.Core.TextFrame;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
 
@@ -18,6 +20,7 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     private readonly SharedPresentationFixture _fixture;
     private readonly PresentationCommands _presentationCommands = new();
     private readonly ShapeCommands _commands = new();
+    private readonly TextFrameCommands _textFrameCommands = new();
 
     public ShapeCommandsTests(SharedPresentationFixture fixture)
     {
@@ -319,6 +322,87 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
 
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void CopyFormatting_TransfersAppearanceWithoutReplacingContentOrGeometry_AndPersists()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+        _commands.AddRectangle(batch, 1, 200f, 220f, 180f, 70f);
+        Assert.True(_textFrameCommands.SetText(batch, 1, 1, "Source content").Success);
+        Assert.True(_textFrameCommands.SetText(batch, 1, 2, "Target content").Success);
+        _commands.SetFill(batch, 1, 1, 12, 34, 56);
+        _commands.SetLine(batch, 1, 1, red: 78, green: 90, blue: 123, weight: 4f, dashStyle: "msoLineDash", visible: true);
+        _commands.SetFill(batch, 1, 2, 200, 210, 220);
+
+        var result = _commands.CopyFormatting(batch, 1, 1, 2);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(2, result.ShapeIndex);
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 2).ColorRgb);
+        var targetLine = _commands.GetLine(batch, 1, 2);
+        Assert.Equal(0x7B5A4E, targetLine.ColorRgb);
+        Assert.Equal(4f, targetLine.LineWeight);
+        Assert.Equal("msoLineDash", targetLine.DashStyleName);
+
+        var targetState = batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Slides? slides = null;
+            PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
+            PowerPoint.Shape? target = null;
+            try
+            {
+                slides = ctx.Presentation.Slides;
+                slide = slides[1];
+                shapes = slide.Shapes;
+                target = shapes[2];
+                return (target.Left, target.Top, target.Width, target.Height);
+            }
+            finally
+            {
+                if (target is not null) ComInterop.ComUtilities.Release(ref target);
+                if (shapes is not null) ComInterop.ComUtilities.Release(ref shapes);
+                if (slide is not null) ComInterop.ComUtilities.Release(ref slide);
+                if (slides is not null) ComInterop.ComUtilities.Release(ref slides);
+            }
+        });
+        Assert.Equal("Target content", _textFrameCommands.GetText(batch, 1, 2).Text);
+        Assert.Equal(200f, targetState.Left);
+        Assert.Equal(220f, targetState.Top);
+        Assert.Equal(180f, targetState.Width);
+        Assert.Equal(70f, targetState.Height);
+
+        _presentationCommands.Save(batch);
+        _fixture.ReopenCurrentPresentation();
+
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 2).ColorRgb);
+        Assert.Equal("Target content", _textFrameCommands.GetText(batch, 1, 2).Text);
+    }
+
+    [Theory]
+    [InlineData(0, 2)]
+    [InlineData(99, 2)]
+    [InlineData(1, 0)]
+    [InlineData(1, 99)]
+    public void CopyFormatting_WithInvalidShapeIndex_ReturnsFailureWithoutMutatingTarget(
+        int sourceShapeIndex,
+        int targetShapeIndex)
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+        _commands.AddRectangle(batch, 1, 200f, 220f, 180f, 70f);
+        _commands.SetFill(batch, 1, 1, 12, 34, 56);
+        _commands.SetFill(batch, 1, 2, 200, 210, 220);
+
+        var result = _commands.CopyFormatting(batch, 1, sourceShapeIndex, targetShapeIndex);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+        Assert.Equal(0xDCD2C8, _commands.GetFill(batch, 1, 2).ColorRgb);
     }
 
     [Fact]
