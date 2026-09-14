@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Layout;
@@ -461,6 +462,81 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         // thread stays blocked on the lock and the session is poisoned by mere contention.
         Assert.False(batch.HasTimedOutOperation);
         Assert.Equal(0xDCD2C8, _commands.GetFill(batch, 1, 2).ColorRgb);
+    }
+
+    [Fact]
+    public void CopyFormatting_OnPoisonedSession_FailsFastInsteadOfWaitingForTheLock()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+        _commands.AddRectangle(batch, 1, 200f, 220f, 180f, 70f);
+
+        using var lockAcquired = new ManualResetEventSlim();
+        using var releaseLock = new ManualResetEventSlim();
+        Exception? holderFailure = null;
+        var lockHolder = new Thread(() =>
+            FormattingClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure))
+        {
+            IsBackground = true
+        };
+        lockHolder.Start();
+        try
+        {
+            Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(15)));
+            Assert.Null(holderFailure);
+
+            var poisoned = new PoisonedSessionBatch(batch);
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            Assert.Throws<TimeoutException>(() => _commands.CopyFormatting(poisoned, 1, 1, 2));
+            stopwatch.Stop();
+
+            // Without the preflight this would first wait out the whole formatting-lock timeout
+            // (half the batch's operation timeout) before reporting the dead session.
+            Assert.True(
+                stopwatch.Elapsed < TimeSpan.FromSeconds(10),
+                $"A poisoned session took {stopwatch.Elapsed} to fail, so it waited on the formatting lock first.");
+        }
+        finally
+        {
+            releaseLock.Set();
+            lockHolder.Join();
+        }
+    }
+
+    /// <summary>
+    /// Wraps a real batch but reports the poisoned-session state that <c>PresentationBatch</c>
+    /// enters after an operation times out, so the fail-fast path can be exercised without
+    /// actually breaking the shared PowerPoint session.
+    /// </summary>
+    private sealed class PoisonedSessionBatch(IPresentationBatch inner) : IPresentationBatch
+    {
+        public string PresentationPath => inner.PresentationPath;
+        public bool HasTimedOutOperation => true;
+        public int? PowerPointProcessId => inner.PowerPointProcessId;
+        public PowerPointProcessIdentity? PowerPointProcessIdentity => inner.PowerPointProcessIdentity;
+        public TimeSpan OperationTimeout => inner.OperationTimeout;
+
+        public void Execute(
+            Action<PresentationContext, CancellationToken> operation,
+            CancellationToken cancellationToken = default) =>
+            throw new TimeoutException("A previous operation timed out for this presentation.");
+
+        public T Execute<T>(
+            Func<PresentationContext, CancellationToken, T> operation,
+            CancellationToken cancellationToken = default) =>
+            throw new TimeoutException("A previous operation timed out for this presentation.");
+
+        public void Save(CancellationToken cancellationToken = default) => inner.Save(cancellationToken);
+
+        public void UpdatePresentationPath(string presentationPath) =>
+            inner.UpdatePresentationPath(presentationPath);
+
+        public bool IsPowerPointProcessAlive() => false;
+
+        public void Dispose()
+        {
+        }
     }
 
     [Theory]

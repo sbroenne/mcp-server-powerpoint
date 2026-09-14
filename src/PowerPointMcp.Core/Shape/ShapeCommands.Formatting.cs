@@ -27,6 +27,11 @@ public sealed partial class ShapeCommands
     {
         ArgumentNullException.ThrowIfNull(batch);
 
+        // Run the batch's own disposed / poisoned-session / PowerPoint-liveness checks before taking
+        // the lock, so a broken session fails fast with its canonical error instead of first waiting
+        // out the formatting-lock timeout.
+        batch.Execute((ctx, ct) => { });
+
         // Half the caller's budget, so contending for the lock cannot double the worst-case
         // latency of the operation: the remainder stays available for the COM work itself.
         TimeSpan lockTimeout = batch.OperationTimeout / 2;
