@@ -27,20 +27,27 @@ public sealed partial class ShapeCommands
     {
         ArgumentNullException.ThrowIfNull(batch);
 
-        // Deliberately taken on the calling thread rather than inside batch.Execute: the batch's
-        // single STA thread must keep pumping COM messages, and its operation timeout only stops the
-        // caller waiting - it cannot cancel a callback that is already blocked, which would strand
-        // the thread and poison the session. Mutexes are thread-affine and Execute runs
-        // synchronously, so this thread owns the lock for the whole transfer and releases it below.
-        using var formattingClipboardMutex = new Mutex(
-            FormattingClipboardMutexName,
-            FormattingClipboardMutexOptions);
+        // Half the caller's budget, so contending for the lock cannot double the worst-case
+        // latency of the operation: the remainder stays available for the COM work itself.
+        TimeSpan lockTimeout = batch.OperationTimeout / 2;
+
+        // Not disposed deliberately: the owner thread below can outlive this call when a timed-out
+        // Execute returns while the queued callback is still running, and disposing these from here
+        // would fault that thread.
+        var lockResolved = new ManualResetEventSlim(false);
+        var transferFinished = new ManualResetEventSlim(false);
         bool lockTaken = false;
-        try
+        int callbackState = 0;
+
+        // The lock is owned by a dedicated thread: mutexes are thread-affine, the batch's STA thread
+        // must stay free to pump COM messages, and batch.Execute can hand control back on its own
+        // operation timeout while the queued callback is still running - releasing at that point
+        // would let another session interleave between PickUp() and Apply().
+        var lockOwner = new Thread(() =>
         {
-            // Half the caller's budget, so contending for the lock cannot double the worst-case
-            // latency of the operation: the remainder stays available for the COM work itself.
-            TimeSpan lockTimeout = batch.OperationTimeout / 2;
+            using var formattingClipboardMutex = new Mutex(
+                FormattingClipboardMutexName,
+                FormattingClipboardMutexOptions);
             try
             {
                 lockTaken = formattingClipboardMutex.WaitOne(lockTimeout);
@@ -50,17 +57,40 @@ public sealed partial class ShapeCommands
                 // The previous owner died without releasing; ownership transfers to this thread.
                 lockTaken = true;
             }
+            finally
+            {
+                lockResolved.Set();
+            }
 
             if (!lockTaken)
             {
-                throw new TimeoutException(
-                    $"Timed out after {lockTimeout.TotalSeconds:0.##} seconds waiting for PowerPoint's " +
-                    "formatting clipboard, which another session or process is using to copy shape " +
-                    "formatting. Retry the copy-formatting operation.");
+                return;
             }
 
+            transferFinished.Wait();
+            formattingClipboardMutex.ReleaseMutex();
+        })
+        {
+            IsBackground = true,
+            Name = "PowerPointFormattingClipboardLock"
+        };
+
+        lockOwner.Start();
+        lockResolved.Wait();
+
+        if (!lockTaken)
+        {
+            throw new TimeoutException(
+                $"Timed out after {lockTimeout.TotalSeconds:0.##} seconds waiting for PowerPoint's " +
+                "formatting clipboard, which another session or process is using to copy shape " +
+                "formatting. Retry the copy-formatting operation.");
+        }
+
+        try
+        {
             return batch.Execute((ctx, ct) =>
             {
+                Interlocked.CompareExchange(ref callbackState, 1, 0);
                 PowerPoint.Slides? slides = null;
                 PowerPoint.Slide? slide = null;
                 PowerPoint.Shapes? shapes = null;
@@ -99,14 +129,18 @@ public sealed partial class ShapeCommands
                     if (shapes is not null) ComUtilities.Release(ref shapes);
                     if (slide is not null) ComUtilities.Release(ref slide);
                     if (slides is not null) ComUtilities.Release(ref slides);
+                    transferFinished.Set();
                 }
             });
         }
         finally
         {
-            if (lockTaken)
+            // Hand the lock back only when the callback never started - if it did start, its own
+            // finally signals completion, so an Execute that timed out cannot unlock a transfer
+            // that is still between PickUp() and Apply().
+            if (Interlocked.CompareExchange(ref callbackState, 2, 0) == 0)
             {
-                formattingClipboardMutex.ReleaseMutex();
+                transferFinished.Set();
             }
         }
     }

@@ -396,14 +396,18 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         using var releaseLock = new ManualResetEventSlim();
         Exception? holderFailure = null;
         var lockHolder = new Thread(() =>
-            FormattingClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure));
+            FormattingClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure))
+        {
+            IsBackground = true
+        };
         lockHolder.Start();
-        Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(10)));
-        Assert.Null(holderFailure);
-
-        Task<ShapeOperationResult> copyTask = Task.Run(() => _commands.CopyFormatting(batch, 1, 1, 2));
+        Task<ShapeOperationResult>? copyTask = null;
         try
         {
+            Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(15)));
+            Assert.Null(holderFailure);
+
+            copyTask = Task.Run(() => _commands.CopyFormatting(batch, 1, 1, 2));
             var completedTask = await Task.WhenAny(copyTask, Task.Delay(TimeSpan.FromSeconds(3)));
             Assert.False(
                 ReferenceEquals(copyTask, completedTask),
@@ -434,7 +438,10 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         using var releaseLock = new ManualResetEventSlim();
         Exception? holderFailure = null;
         var lockHolder = new Thread(() =>
-            FormattingClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure));
+            FormattingClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure))
+        {
+            IsBackground = true
+        };
         lockHolder.Start();
         try
         {
