@@ -95,6 +95,22 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.Contains("msoTextEffect1", result.ErrorMessage);
     }
 
+    [Theory]
+    [InlineData("0")]
+    [InlineData("1")]
+    [InlineData("49")]
+    public void AddTextEffect_WithUnderlyingNumericPreset_ReturnsFailure(string presetEffect)
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.AddTextEffect(
+            _fixture.Batch, 1, presetEffect, "Text", "Arial", 36f, 40f, 50f);
+
+        Assert.False(result.Success);
+        Assert.Contains("msoTextEffect1", result.ErrorMessage);
+        Assert.Equal(0, _commands.GetCount(_fixture.Batch, 1).ShapeCount);
+    }
+
     [Fact]
     public void AddTextEffect_WithNonPositiveFontSize_ReturnsFailure()
     {

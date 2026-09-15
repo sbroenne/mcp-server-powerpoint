@@ -240,7 +240,11 @@ public sealed partial class ShapeCommands : IShapeCommands
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
         ArgumentException.ThrowIfNullOrWhiteSpace(fontName);
 
-        if (!Enum.TryParse(presetEffect, ignoreCase: true, out Office.MsoPresetTextEffect effect) ||
+        // Enum.TryParse also accepts underlying numeric values, so the member-name prefix is
+        // required to keep undocumented numeric presets out of the MCP/CLI surface.
+        string presetName = presetEffect.Trim();
+        if (!presetName.StartsWith("msoTextEffect", StringComparison.OrdinalIgnoreCase) ||
+            !Enum.TryParse(presetName, ignoreCase: true, out Office.MsoPresetTextEffect effect) ||
             !Enum.IsDefined(effect) ||
             effect == Office.MsoPresetTextEffect.msoTextEffectMixed)
         {
@@ -262,15 +266,17 @@ public sealed partial class ShapeCommands : IShapeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
-            if (slideValidation is not null) return slideValidation;
-
+            PowerPoint.Slides? slides = null;
             PowerPoint.Slide? slide = null;
             PowerPoint.Shapes? shapes = null;
             PowerPoint.Shape? shape = null;
             try
             {
-                slide = ctx.Presentation.Slides[slideIndex];
+                slides = ctx.Presentation.Slides;
+                var slideValidation = ValidateSlideIndex(slides.Count, slideIndex);
+                if (slideValidation is not null) return slideValidation;
+
+                slide = slides[slideIndex];
                 shapes = slide.Shapes;
                 shape = shapes.AddTextEffect(
                     effect,
@@ -296,6 +302,7 @@ public sealed partial class ShapeCommands : IShapeCommands
                 ComUtilities.Release(ref shape);
                 ComUtilities.Release(ref shapes);
                 ComUtilities.Release(ref slide);
+                ComUtilities.Release(ref slides);
             }
         });
     }
@@ -769,19 +776,23 @@ public sealed partial class ShapeCommands : IShapeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
-            if (slideValidation is not null) return slideValidation;
-
+            PowerPoint.Slides? slides = null;
             PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
             PowerPoint.Shape? shape = null;
             PowerPoint.ThreeDFormat? threeD = null;
             try
             {
-                slide = ctx.Presentation.Slides[slideIndex];
-                var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+                slides = ctx.Presentation.Slides;
+                var slideValidation = ValidateSlideIndex(slides.Count, slideIndex);
+                if (slideValidation is not null) return slideValidation;
+
+                slide = slides[slideIndex];
+                shapes = slide.Shapes;
+                var shapeValidation = ValidateShapeIndex(shapes.Count, shapeIndex);
                 if (shapeValidation is not null) return shapeValidation;
 
-                shape = slide.Shapes[shapeIndex];
+                shape = shapes[shapeIndex];
                 threeD = shape.ThreeD;
 
                 if (rotationX is not null) threeD.RotationX = rotationX.Value;
@@ -794,7 +805,9 @@ public sealed partial class ShapeCommands : IShapeCommands
             {
                 ComUtilities.Release(ref threeD);
                 ComUtilities.Release(ref shape);
+                ComUtilities.Release(ref shapes);
                 ComUtilities.Release(ref slide);
+                ComUtilities.Release(ref slides);
             }
         });
     }
@@ -806,19 +819,23 @@ public sealed partial class ShapeCommands : IShapeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
-            if (slideValidation is not null) return slideValidation;
-
+            PowerPoint.Slides? slides = null;
             PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
             PowerPoint.Shape? shape = null;
             PowerPoint.ThreeDFormat? threeD = null;
             try
             {
-                slide = ctx.Presentation.Slides[slideIndex];
-                var shapeValidation = ValidateShapeIndex(slide.Shapes.Count, shapeIndex);
+                slides = ctx.Presentation.Slides;
+                var slideValidation = ValidateSlideIndex(slides.Count, slideIndex);
+                if (slideValidation is not null) return slideValidation;
+
+                slide = slides[slideIndex];
+                shapes = slide.Shapes;
+                var shapeValidation = ValidateShapeIndex(shapes.Count, shapeIndex);
                 if (shapeValidation is not null) return shapeValidation;
 
-                shape = slide.Shapes[shapeIndex];
+                shape = shapes[shapeIndex];
                 threeD = shape.ThreeD;
                 return Read3DRotation(threeD, shapeIndex);
             }
@@ -826,7 +843,9 @@ public sealed partial class ShapeCommands : IShapeCommands
             {
                 ComUtilities.Release(ref threeD);
                 ComUtilities.Release(ref shape);
+                ComUtilities.Release(ref shapes);
                 ComUtilities.Release(ref slide);
+                ComUtilities.Release(ref slides);
             }
         });
     }
