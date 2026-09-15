@@ -33,9 +33,9 @@ public sealed class MasterCommands : IMasterCommands
 
     private static readonly (string Name, Office.MsoFontLanguageIndex Index)[] ThemeFontLanguages =
     [
-        ("Latin", Office.MsoFontLanguageIndex.msoThemeLatin),
-        ("ComplexScript", Office.MsoFontLanguageIndex.msoThemeComplexScript),
-        ("EastAsian", Office.MsoFontLanguageIndex.msoThemeEastAsian)
+        ("latin", Office.MsoFontLanguageIndex.msoThemeLatin),
+        ("complexScript", Office.MsoFontLanguageIndex.msoThemeComplexScript),
+        ("eastAsian", Office.MsoFontLanguageIndex.msoThemeEastAsian)
     ];
 
     /// <inheritdoc/>

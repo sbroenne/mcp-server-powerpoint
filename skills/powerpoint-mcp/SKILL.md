@@ -110,7 +110,7 @@ saved.
 | Audio and video | `media(action: "add-media"/"get-media-info")` |
 | Speaker notes | `notes(action: "set-notes-text"/"get-notes-text")` |
 | Slide layouts | `layout(action: "set-layout"/"get-layout")` |
-| Slide master title/body font, background color | `master(action: "get-title-font"/"set-title-font"/"get-body-font"/"set-body-font"/"get-background-color"/"set-background-color")` |
+| Slide master theme, title/body font, background color | `master(action: "list-masters"/"get-theme-colors"/"get-theme-fonts"/"get-title-font"/"set-title-font"/"get-body-font"/"set-body-font"/"get-background-color"/"set-background-color")` |
 | Shape entrance/emphasis/exit effects, slide transitions | `animation(action: "add-effect"/"get-effect-count"/"delete-effect"/"get-transition"/"set-transition")` |
 | Visual verification | `export(action: "export-slide-to-image"/"export-all-slides-to-images")` |
 
@@ -131,7 +131,7 @@ See `references/` for detailed guidance:
 - [Audio and video — embedded/linked insertion and media metadata](./references/media.md)
 - [Speaker notes — set/get notes](./references/speaker-notes.md)
 - [Layouts — set/get slide layout](./references/layouts.md)
-- [Slide master — title/body font and background color](./references/master.md)
+- [Slide master — theme colors/fonts, title/body font, and background color](./references/master.md)
 - [Animations — entrance/emphasis/exit effects and slide transitions](./references/animations.md)
 - [Export and verify — the visual verification loop](./references/export-and-verify.md)
 - [Anti-patterns — common mistakes to avoid](./references/anti-patterns.md)

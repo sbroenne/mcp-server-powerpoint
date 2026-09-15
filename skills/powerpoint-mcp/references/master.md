@@ -85,8 +85,8 @@ pptcli master get-theme-fonts --session $sessionId --master-index 1
 ```
 
 The result includes `masterIndex`, `masterName`, `majorThemeFonts`, and
-`minorThemeFonts`. Each font map retains the `Latin`, `ComplexScript`, and
-`EastAsian` language slots. A slot PowerPoint cannot resolve is returned as null
+`minorThemeFonts`. Each font map retains the `latin`, `complexScript`, and
+`eastAsian` language slots. A slot PowerPoint cannot resolve is returned as null
 rather than omitted. Major fonts normally apply to headings and minor fonts to body
 text, but local text formatting can override either role.
 
