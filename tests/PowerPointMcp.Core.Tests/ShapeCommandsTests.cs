@@ -420,6 +420,8 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
             await Task.Run(lockHolder.Join);
         }
 
+        // Bounded like the wait above: a stalled transfer must fail this test, not hang the host.
+        Assert.Same(copyTask, await Task.WhenAny(copyTask, Task.Delay(TimeSpan.FromMinutes(2))));
         var result = await copyTask;
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 2).ColorRgb);

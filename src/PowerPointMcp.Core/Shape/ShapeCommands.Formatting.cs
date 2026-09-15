@@ -61,6 +61,17 @@ public sealed partial class ShapeCommands
             () => Interlocked.CompareExchange(ref callbackState, 2, 0) == 0);
         FormattingLockCoordinator.Enqueue(request);
 
+        // Bound the wait here as well as in the coordinator: an earlier request's transfer must not
+        // be able to push this caller past its own deadline while it sits in the queue.
+        if (!request.Acquired.Task.Wait(lockTimeout))
+        {
+            request.MarkCallerGaveUp();
+            throw new TimeoutException(
+                $"Timed out after {lockTimeout.TotalSeconds:0.##} seconds waiting for PowerPoint's " +
+                "formatting clipboard, which another session or process is using to copy shape " +
+                "formatting. Retry the copy-formatting operation.");
+        }
+
         if (!request.Acquired.Task.GetAwaiter().GetResult())
         {
             throw new TimeoutException(
@@ -150,9 +161,16 @@ public sealed partial class ShapeCommands
         TimeSpan CompletionTimeout,
         Func<bool> TryAbandon)
     {
+        private int _callerGaveUp;
+
         public TaskCompletionSource<bool> Acquired { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public TaskCompletionSource<bool> TransferFinished { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>True once the caller stopped waiting, so the lock must not be handed to it.</summary>
+        public bool CallerGaveUp => Volatile.Read(ref _callerGaveUp) == 1;
+
+        public void MarkCallerGaveUp() => Interlocked.Exchange(ref _callerGaveUp, 1);
     }
 
     /// <summary>
@@ -166,7 +184,7 @@ public sealed partial class ShapeCommands
         private static readonly Lock StartGate = new();
         private static bool s_started;
 
-        public static void Enqueue(FormattingLockRequest request)
+        internal static void Enqueue(FormattingLockRequest request)
         {
             EnsureStarted();
             Requests.Add(request);
@@ -199,6 +217,14 @@ public sealed partial class ShapeCommands
 
         private static void Serve(FormattingLockRequest request)
         {
+            // The caller stopped waiting while this request sat in the queue, so nobody will run a
+            // transfer for it - do not take the lock on its behalf.
+            if (request.CallerGaveUp)
+            {
+                request.Acquired.TrySetResult(false);
+                return;
+            }
+
             Mutex? formattingClipboardMutex = null;
             bool lockTaken = false;
             try
@@ -213,23 +239,30 @@ public sealed partial class ShapeCommands
                     // behind an earlier request still counts against it.
                     TimeSpan wait = request.DeadlineUtc - DateTime.UtcNow;
                     lockTaken = wait > TimeSpan.Zero && formattingClipboardMutex.WaitOne(wait);
-                    request.Acquired.SetResult(lockTaken);
+                    request.Acquired.TrySetResult(lockTaken);
                 }
                 catch (AbandonedMutexException)
                 {
                     // WaitOne throws this *after* transferring ownership, so the lock is held.
                     lockTaken = true;
-                    request.Acquired.SetResult(true);
+                    request.Acquired.TrySetResult(true);
                 }
                 catch (Exception ex)
                 {
                     // Surface on the caller's thread instead of killing the process, and never leave
                     // the caller waiting for a signal that can no longer arrive.
-                    request.Acquired.SetException(ex);
+                    request.Acquired.TrySetException(ex);
                 }
 
                 if (lockTaken)
                 {
+                    // The caller gave up between the deadline check and the handoff, so there is no
+                    // transfer to protect.
+                    if (request.CallerGaveUp)
+                    {
+                        return;
+                    }
+
                     // The transfer cannot legitimately outlive the batch's own operation timeout.
                     if (!request.TransferFinished.Task.Wait(request.CompletionTimeout)
                         && !request.TryAbandon())
@@ -240,14 +273,17 @@ public sealed partial class ShapeCommands
                         // held forever would break copy-formatting in every session and process.
                         request.TransferFinished.Task.Wait(request.CompletionTimeout);
                     }
-
-                    // Reaching here means either the transfer finished, or it can no longer start:
-                    // TryAbandon closes the door on a callback that never claimed.
-                    formattingClipboardMutex!.ReleaseMutex();
                 }
             }
             finally
             {
+                // Reaching here means either the transfer finished, or it can no longer start:
+                // TryAbandon closes the door on a callback that never claimed.
+                if (lockTaken)
+                {
+                    formattingClipboardMutex!.ReleaseMutex();
+                }
+
                 formattingClipboardMutex?.Dispose();
             }
         }
