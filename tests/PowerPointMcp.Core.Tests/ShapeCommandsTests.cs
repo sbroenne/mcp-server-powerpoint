@@ -65,11 +65,16 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     [Fact]
     public void AddTextEffect_CreatesEditableWordArt_AndPersistsAfterSave()
     {
+        // MsoTriState: msoTrue is -1, msoFalse is 0. Asymmetric flags catch an argument swap.
+        const int MsoTrue = -1;
+        const int MsoFalse = 0;
+
         _fixture.CreateFreshPresentation();
         var batch = _fixture.Batch;
 
         var result = _commands.AddTextEffect(
-            batch, 1, "msoTextEffect1", "Quarterly outlook", "Arial", 36f, 40f, 50f);
+            batch, 1, "msoTextEffect1", "Quarterly outlook", "Arial", 36f, 40f, 50f,
+            bold: true, italic: false);
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(1, result.ShapeIndex);
@@ -78,9 +83,22 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         _presentationCommands.Save(batch);
         _fixture.ReopenCurrentPresentation();
 
-        string text = batch.Execute((ctx, ct) =>
-            ctx.Presentation.Slides[1].Shapes[1].TextEffect.Text);
-        Assert.Equal("Quarterly outlook", text);
+        var persisted = batch.Execute((ctx, ct) =>
+        {
+            var effect = ctx.Presentation.Slides[1].Shapes[1].TextEffect;
+            return (
+                Text: (string)effect.Text,
+                FontName: (string)effect.FontName,
+                FontSize: (float)effect.FontSize,
+                Bold: (int)effect.FontBold,
+                Italic: (int)effect.FontItalic);
+        });
+
+        Assert.Equal("Quarterly outlook", persisted.Text);
+        Assert.Equal("Arial", persisted.FontName);
+        Assert.Equal(36f, persisted.FontSize);
+        Assert.Equal(MsoTrue, persisted.Bold);
+        Assert.Equal(MsoFalse, persisted.Italic);
     }
 
     [Fact]
