@@ -427,8 +427,18 @@ public sealed partial class ShapeCommands : IShapeCommands
                 catch
                 {
                     // BeginConnect/EndConnect failed after the connector shape was already added -
-                    // delete it so a failed command never leaves an unconnected shape behind.
-                    connector.Delete();
+                    // best-effort delete it so a failed command doesn't leave an unconnected shape
+                    // behind. Cleanup failure must not replace/mask the original attach failure.
+                    try
+                    {
+                        connector.Delete();
+                    }
+                    catch
+                    {
+                        // Ignore: rollback is best-effort only; the original exception below is
+                        // what the caller needs to see.
+                    }
+
                     throw;
                 }
 
