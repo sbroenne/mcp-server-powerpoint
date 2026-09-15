@@ -283,6 +283,8 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         _commands.SetPosition(batch, 1, 2, 500f, 300f);
 
         var moved = ReadAttachmentState(batch, connectorIndex);
+        Assert.True(moved.BeginConnected);
+        Assert.True(moved.EndConnected);
         Assert.Equal(initial.BeginShapeName, moved.BeginShapeName);
         Assert.Equal(initial.EndShapeName, moved.EndShapeName);
         Assert.Equal(initial.BeginConnectionSite, moved.BeginConnectionSite);
