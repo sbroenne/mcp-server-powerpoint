@@ -59,8 +59,16 @@ public sealed class CustomShowCommands : ICustomShowCommands
     public CustomShowOperationResult Create(IPresentationBatch batch, string name, IReadOnlyList<int> slideIndices)
     {
         ArgumentNullException.ThrowIfNull(batch);
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(slideIndices);
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return new CustomShowOperationResult
+            {
+                Success = false,
+                ErrorMessage = "A custom show name is required."
+            };
+        }
 
         if (slideIndices.Count == 0)
         {
@@ -143,7 +151,15 @@ public sealed class CustomShowCommands : ICustomShowCommands
     public CustomShowOperationResult Delete(IPresentationBatch batch, string name)
     {
         ArgumentNullException.ThrowIfNull(batch);
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return new CustomShowOperationResult
+            {
+                Success = false,
+                ErrorMessage = "A custom show name is required."
+            };
+        }
 
         return batch.Execute((ctx, ct) =>
         {
@@ -218,13 +234,18 @@ public sealed class CustomShowCommands : ICustomShowCommands
             PowerPoint.Slide? slide = null;
             try
             {
+                // The slide was deleted after the custom show was created; PowerPoint keeps the
+                // stale ID in the show. FindBySlideID has been observed to both return null and
+                // throw a COMException for an ID with no matching slide, so both are handled -
+                // either way, there is no slide left to resolve it to, so it is omitted.
                 slide = slides.FindBySlideID(slideId);
-                indices.Add(slide.SlideIndex);
+                if (slide is not null)
+                {
+                    indices.Add(slide.SlideIndex);
+                }
             }
             catch (System.Runtime.InteropServices.COMException)
             {
-                // The slide was deleted after the custom show was created; PowerPoint keeps the
-                // stale ID in the show, but there is no slide left to resolve it to. Omit it.
             }
             finally
             {

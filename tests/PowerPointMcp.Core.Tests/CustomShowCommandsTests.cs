@@ -101,6 +101,23 @@ public sealed class CustomShowCommandsTests : IClassFixture<SharedPresentationFi
     }
 
     [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Create_WithWhitespaceName_ReturnsFailureWithoutAddingShow(string invalidName)
+    {
+        _fixture.CreateFreshPresentation();
+        EnsureSlideCount(1);
+
+        var result = _commands.Create(_fixture.Batch, invalidName, [1]);
+
+        Assert.False(result.Success);
+        Assert.Contains("name is required", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+
+        var listResult = _commands.List(_fixture.Batch);
+        Assert.Empty(listResult.Shows!);
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(5)]
     public void Create_WithOutOfRangeSlideIndex_ReturnsFailureWithoutAddingShow(int invalidIndex)
@@ -168,6 +185,25 @@ public sealed class CustomShowCommandsTests : IClassFixture<SharedPresentationFi
         Assert.Equal("Keep Me", entry.Name);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Delete_WithWhitespaceName_ReturnsFailureWithoutMutatingExistingShows(string invalidName)
+    {
+        _fixture.CreateFreshPresentation();
+        EnsureSlideCount(2);
+        var createResult = _commands.Create(_fixture.Batch, "Keep Me Too", [1]);
+        Assert.True(createResult.Success, createResult.ErrorMessage);
+
+        var deleteResult = _commands.Delete(_fixture.Batch, invalidName);
+
+        Assert.False(deleteResult.Success);
+        Assert.Contains("name is required", deleteResult.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+
+        var listResult = _commands.List(_fixture.Batch);
+        Assert.Single(listResult.Shows!);
+    }
+
     [Fact]
     public void Create_PersistsAcrossSaveAndReopen()
     {
@@ -204,5 +240,23 @@ public sealed class CustomShowCommandsTests : IClassFixture<SharedPresentationFi
         var entry = Assert.Single(listResult.Shows!);
         // The show still references the same two slides by identity, now at their new positions.
         Assert.Equal([3, 2], entry.SlideIndices);
+    }
+
+    [Fact]
+    public void List_OmitsStaleSlideId_WhenAReferencedSlideIsLaterDeleted()
+    {
+        _fixture.CreateFreshPresentation();
+        EnsureSlideCount(3);
+        var createResult = _commands.Create(_fixture.Batch, "Survives Slide Deletion", [1, 2, 3]);
+        Assert.True(createResult.Success, createResult.ErrorMessage);
+
+        var deleteResult = _slideCommands.Delete(_fixture.Batch, 2);
+        Assert.True(deleteResult.Success, deleteResult.ErrorMessage);
+
+        var listResult = _commands.List(_fixture.Batch);
+        Assert.True(listResult.Success, listResult.ErrorMessage);
+        var entry = Assert.Single(listResult.Shows!);
+        // The deleted slide's stale ID is omitted; the other two (now renumbered) remain.
+        Assert.Equal([1, 2], entry.SlideIndices);
     }
 }
