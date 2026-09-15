@@ -62,8 +62,9 @@ public sealed partial class ShapeCommands
         FormattingLockCoordinator.Enqueue(request);
 
         // Bound the wait here as well as in the coordinator: an earlier request's transfer must not
-        // be able to push this caller past its own deadline while it sits in the queue.
-        if (!request.Acquired.Task.Wait(lockTimeout))
+        // be able to push this caller past its own deadline while it sits in the queue. WaitAny
+        // rather than Wait so a coordinator-side failure surfaces unwrapped below.
+        if (Task.WaitAny([request.Acquired.Task], lockTimeout) < 0)
         {
             request.MarkCallerGaveUp();
             throw new TimeoutException(
@@ -167,10 +168,21 @@ public sealed partial class ShapeCommands
 
         public TaskCompletionSource<bool> TransferFinished { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        /// <summary>Signalled when the caller stops waiting, so the coordinator never blocks on a
+        /// completion that can no longer arrive.</summary>
+        public TaskCompletionSource<bool> CallerGone { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         /// <summary>True once the caller stopped waiting, so the lock must not be handed to it.</summary>
         public bool CallerGaveUp => Volatile.Read(ref _callerGaveUp) == 1;
 
-        public void MarkCallerGaveUp() => Interlocked.Exchange(ref _callerGaveUp, 1);
+        // Deliberately internal, not public: check-core-interface-completeness.ps1 scans *Commands.cs
+        // for public methods without distinguishing nested types, and would demand this on
+        // IShapeCommands. The type itself is private, so this costs nothing.
+        internal void MarkCallerGaveUp()
+        {
+            Interlocked.Exchange(ref _callerGaveUp, 1);
+            CallerGone.TrySetResult(true);
+        }
     }
 
     /// <summary>
@@ -256,21 +268,20 @@ public sealed partial class ShapeCommands
 
                 if (lockTaken)
                 {
-                    // The caller gave up between the deadline check and the handoff, so there is no
-                    // transfer to protect.
-                    if (request.CallerGaveUp)
-                    {
-                        return;
-                    }
+                    // Wake on the transfer finishing OR on the caller giving up: the caller can
+                    // abandon in the instant between the check above and the handoff, and nothing
+                    // would ever signal completion for it.
+                    int signalled = Task.WaitAny(
+                        [request.TransferFinished.Task, request.CallerGone.Task],
+                        request.CompletionTimeout);
 
                     // The transfer cannot legitimately outlive the batch's own operation timeout.
-                    if (!request.TransferFinished.Task.Wait(request.CompletionTimeout)
-                        && !request.TryAbandon())
+                    if (signalled != 0 && !request.TryAbandon())
                     {
-                        // The callback claimed the clipboard and has now outlived even its own
-                        // timeout, so the session is already being poisoned by that timeout. Give the
-                        // handoff one more bounded chance, then unlock regardless: a user-wide lock
-                        // held forever would break copy-formatting in every session and process.
+                        // The callback claimed the clipboard, so only its completion can make
+                        // unlocking safe. Bounded anyway: a COM call wedged past its own timeout is
+                        // already poisoning that session, and a user-wide lock held forever would
+                        // break copy-formatting in every session and process.
                         request.TransferFinished.Task.Wait(request.CompletionTimeout);
                     }
                 }
