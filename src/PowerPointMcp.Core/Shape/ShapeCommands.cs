@@ -255,12 +255,21 @@ public sealed partial class ShapeCommands : IShapeCommands
             };
         }
 
-        if (fontSize <= 0)
+        if (!float.IsFinite(fontSize) || fontSize <= 0)
         {
             return new ShapeOperationResult
             {
                 Success = false,
-                ErrorMessage = "fontSize must be greater than 0."
+                ErrorMessage = "fontSize must be a finite value greater than 0."
+            };
+        }
+
+        if (!float.IsFinite(left) || !float.IsFinite(top))
+        {
+            return new ShapeOperationResult
+            {
+                Success = false,
+                ErrorMessage = "left and top must be finite values."
             };
         }
 

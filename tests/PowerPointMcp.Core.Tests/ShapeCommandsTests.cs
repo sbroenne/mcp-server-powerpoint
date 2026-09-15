@@ -123,6 +123,37 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.Contains("greater than 0", result.ErrorMessage);
     }
 
+    [Theory]
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
+    [InlineData(float.NegativeInfinity)]
+    public void AddTextEffect_WithNonFiniteFontSize_ReturnsFailure(float fontSize)
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.AddTextEffect(
+            _fixture.Batch, 1, "msoTextEffect1", "Text", "Arial", fontSize, 40f, 50f);
+
+        Assert.False(result.Success);
+        Assert.Contains("finite", result.ErrorMessage);
+        Assert.Equal(0, _commands.GetCount(_fixture.Batch, 1).ShapeCount);
+    }
+
+    [Theory]
+    [InlineData(float.NaN, 50f)]
+    [InlineData(40f, float.PositiveInfinity)]
+    public void AddTextEffect_WithNonFinitePosition_ReturnsFailure(float left, float top)
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.AddTextEffect(
+            _fixture.Batch, 1, "msoTextEffect1", "Text", "Arial", 36f, left, top);
+
+        Assert.False(result.Success);
+        Assert.Contains("finite", result.ErrorMessage);
+        Assert.Equal(0, _commands.GetCount(_fixture.Batch, 1).ShapeCount);
+    }
+
     [Fact]
     public void SetPositionAndSize_UpdatesShapeGeometry()
     {
