@@ -374,7 +374,7 @@ public sealed partial class ShapeCommands : IShapeCommands
 
             PowerPoint.Slides? slides = null;
             PowerPoint.Slide? slide = null;
-            dynamic? dynShapes = null;
+            PowerPoint.Shapes? shapes = null;
             PowerPoint.Shape? beginShape = null;
             PowerPoint.Shape? endShape = null;
             PowerPoint.Shape? connector = null;
@@ -383,19 +383,16 @@ public sealed partial class ShapeCommands : IShapeCommands
             {
                 slides = ctx.Presentation.Slides;
                 slide = slides[slideIndex];
-                // Shapes.AddConnector takes a raw MsoConnectorType value (Office.Core/office.dll,
-                // not referenced here), so this collection is accessed via dynamic — acquired once
-                // and reused below for Count, both indexers, and AddConnector.
-                dynShapes = slide.Shapes;
+                shapes = slide.Shapes;
 
-                int shapeCount = dynShapes.Count;
+                int shapeCount = shapes.Count;
                 var beginShapeValidation = ValidateShapeIndex(shapeCount, beginShapeIndex);
                 if (beginShapeValidation is not null) return beginShapeValidation;
                 var endShapeValidation = ValidateShapeIndex(shapeCount, endShapeIndex);
                 if (endShapeValidation is not null) return endShapeValidation;
 
-                beginShape = dynShapes[beginShapeIndex];
-                endShape = dynShapes[endShapeIndex];
+                beginShape = shapes[beginShapeIndex];
+                endShape = shapes[endShapeIndex];
 
                 int beginConnectionSiteCount = beginShape.ConnectionSiteCount;
                 if (beginConnectionSite < 1 || beginConnectionSite > beginConnectionSiteCount)
@@ -417,7 +414,11 @@ public sealed partial class ShapeCommands : IShapeCommands
                     };
                 }
 
-                connector = dynShapes.AddConnector(typeValue, 1f, 1f, 2f, 2f);
+                // Shapes.AddConnector takes a raw MsoConnectorType value (Office.Core/office.dll,
+                // not referenced here), so only this single call is late-bound.
+                // Reason: AddConnector's Type parameter is MsoConnectorType (office.dll), which is
+                // not exposed on the strongly-typed PIA Shapes interface without that reference.
+                connector = ((dynamic)shapes).AddConnector(typeValue, 1f, 1f, 2f, 2f);
                 try
                 {
                     connectorFormat = connector.ConnectorFormat;
@@ -442,7 +443,7 @@ public sealed partial class ShapeCommands : IShapeCommands
                     throw;
                 }
 
-                int newIndex = dynShapes.Count;
+                int newIndex = shapes.Count;
                 return new ShapeOperationResult
                 {
                     Success = true,
@@ -457,7 +458,7 @@ public sealed partial class ShapeCommands : IShapeCommands
                 if (connector is not null) ComUtilities.Release(ref connector);
                 if (endShape is not null) ComUtilities.Release(ref endShape);
                 if (beginShape is not null) ComUtilities.Release(ref beginShape);
-                if (dynShapes is not null) ComUtilities.Release(ref dynShapes!);
+                if (shapes is not null) ComUtilities.Release(ref shapes);
                 if (slide is not null) ComUtilities.Release(ref slide);
                 if (slides is not null) ComUtilities.Release(ref slides);
             }
