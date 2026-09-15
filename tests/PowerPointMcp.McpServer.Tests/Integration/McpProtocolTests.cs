@@ -272,6 +272,32 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
+    public async Task ShapeSchema_ExposesCopyFormattingActionAndItsShapeIndexes()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var shape = Assert.Single(tools, tool => tool.Name == "shape");
+        var properties = shape.JsonSchema.GetProperty("properties");
+        var actions = properties
+            .GetProperty("action")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("copy-formatting", actions);
+
+        // The union parameters must reach the public schema in snake_case, and must say which
+        // action they belong to so the model does not send them to the wrong one.
+        foreach (string parameter in new[] { "source_shape_index", "target_shape_index" })
+        {
+            Assert.True(
+                properties.TryGetProperty(parameter, out var schema),
+                $"The shape tool schema is missing '{parameter}'.");
+            Assert.Contains("copy-formatting", schema.GetProperty("description").GetString());
+        }
+    }
+
+    [Fact]
     public async Task PresentationSchema_ExposesFinalActionsAndAdvisoryContract()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);

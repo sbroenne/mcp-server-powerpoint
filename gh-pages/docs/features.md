@@ -103,14 +103,14 @@ remaining edit/read actions use that `sessionId`.
 `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`,
 `clear-comments`, `import-from-file`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
-### `shape` tool (47 operations)
+### `shape` tool (48 operations)
 
 Use `shape` for shape creation, geometry, styling, effects, grouping, naming, alt text, hyperlinks,
 linked pictures, and placeholders.
 
 **Exact action order:** `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`,
 `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`,
-`set-line`, `get-line`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`,
+`set-line`, `get-line`, `copy-formatting`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`,
 `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`,
 `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`,
 `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`,
