@@ -858,14 +858,20 @@ OPTIONS:
                                                    open' command
         --slide-index <SLIDEINDEX>                 (required)
         --left <LEFT>                              (required for: add-rectangle,
-                                                   add-text-box, add-auto-shape,
-                                                   set-position) (valid for:
-                                                   add-rectangle, add-text-box,
+                                                   add-text-box,
+                                                   add-text-effect,
+                                                   add-auto-shape, set-position)
+                                                   (valid for: add-rectangle,
+                                                   add-text-box,
+                                                   add-text-effect,
                                                    add-auto-shape, set-position)
         --top <TOP>                                (required for: add-rectangle,
-                                                   add-text-box, add-auto-shape,
-                                                   set-position) (valid for:
-                                                   add-rectangle, add-text-box,
+                                                   add-text-box,
+                                                   add-text-effect,
+                                                   add-auto-shape, set-position)
+                                                   (valid for: add-rectangle,
+                                                   add-text-box,
+                                                   add-text-effect,
                                                    add-auto-shape, set-position)
         --width <WIDTH>                            (required for: add-rectangle,
                                                    add-text-box, add-auto-shape,
@@ -878,9 +884,22 @@ OPTIONS:
                                                    add-rectangle, add-text-box,
                                                    add-auto-shape, set-size)
         --text <TEXT>                              (required for: add-text-box,
+                                                   add-text-effect,
                                                    set-placeholder-text) (valid
                                                    for: add-text-box,
+                                                   add-text-effect,
                                                    set-placeholder-text)
+        --preset-effect <PRESETEFFECT>             (required for:
+                                                   add-text-effect) (valid for:
+                                                   add-text-effect)
+        --font-name <FONTNAME>                     (required for:
+                                                   add-text-effect) (valid for:
+                                                   add-text-effect)
+        --font-size <FONTSIZE>                     (required for:
+                                                   add-text-effect) (valid for:
+                                                   add-text-effect)
+        --bold <BOLD>                              (valid for: add-text-effect)
+        --italic <ITALIC>                          (valid for: add-text-effect)
         --shape-type <SHAPETYPE>                   (required for:
                                                    add-auto-shape) (valid for:
                                                    add-auto-shape)
@@ -902,7 +921,9 @@ OPTIONS:
                                                    set-position, set-size,
                                                    set-fill, get-fill, set-line,
                                                    get-line, set-rotation,
-                                                   get-rotation, flip,
+                                                   get-rotation,
+                                                   set-3d-rotation,
+                                                   get-3d-rotation, flip,
                                                    set-z-order, set-shadow,
                                                    get-shadow, set-glow,
                                                    get-glow, set-reflection,
@@ -924,10 +945,11 @@ OPTIONS:
                                                    set-size, set-fill, get-fill,
                                                    set-line, get-line,
                                                    set-rotation, get-rotation,
-                                                   flip, set-z-order,
-                                                   set-shadow, get-shadow,
-                                                   set-glow, get-glow,
-                                                   set-reflection,
+                                                   set-3d-rotation,
+                                                   get-3d-rotation, flip,
+                                                   set-z-order, set-shadow,
+                                                   get-shadow, set-glow,
+                                                   get-glow, set-reflection,
                                                    get-reflection,
                                                    set-soft-edge, get-soft-edge,
                                                    set-bevel, get-bevel,
@@ -968,6 +990,9 @@ OPTIONS:
                                                    copy-formatting)
         --degrees <DEGREES>                        (required for: set-rotation)
                                                    (valid for: set-rotation)
+        --rotation-x <ROTATIONX>                   (valid for: set-3d-rotation)
+        --rotation-y <ROTATIONY>                   (valid for: set-3d-rotation)
+        --rotation-z <ROTATIONZ>                   (valid for: set-3d-rotation)
         --direction <DIRECTION>                    (required for: flip) (valid
                                                    for: flip)
         --z-order-command <ZORDERCOMMAND>          (required for: set-z-order)
