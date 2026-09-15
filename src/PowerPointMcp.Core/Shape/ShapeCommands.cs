@@ -426,19 +426,25 @@ public sealed partial class ShapeCommands : IShapeCommands
                     connectorFormat.BeginConnect(beginShape, beginConnectionSite);
                     connectorFormat.EndConnect(endShape, endConnectionSite);
                 }
-                catch
+                catch (Exception attachException)
                 {
                     // BeginConnect/EndConnect failed after the connector shape was already added -
-                    // best-effort delete it so a failed command doesn't leave an unconnected shape
-                    // behind. Cleanup failure must not replace/mask the original attach failure.
+                    // delete it so a failed command doesn't leave an unconnected shape behind.
                     try
                     {
                         connector.Delete();
                     }
-                    catch
+                    catch (Exception deleteException)
                     {
-                        // Ignore: rollback is best-effort only; the original exception below is
-                        // what the caller needs to see.
+                        // The rollback itself failed: the slide now has an orphaned connector
+                        // shape. Surface both failures rather than silently losing the deletion
+                        // error, so the caller knows manual cleanup may be required.
+                        throw new InvalidOperationException(
+                            $"Failed to attach connector ({attachException.Message}), and the " +
+                            $"rollback delete of the orphaned connector shape also failed " +
+                            $"({deleteException.Message}). The slide may still contain an " +
+                            "unconnected connector shape that must be removed manually.",
+                            attachException);
                     }
 
                     throw;
