@@ -49,82 +49,27 @@ public sealed partial class ShapeCommands
         // another session's transfer before being told to retry.
         TimeSpan lockTimeout = batch.OperationTimeout / 2;
 
-        // TaskCompletionSource rather than wait handles: the owner thread can outlive this call, so
-        // anything disposable here would either leak OS handles or fault that thread.
-        var lockResolved = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var transferFinished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
         // 0 = transfer not started, 1 = claimed by the callback, 2 = abandoned by the caller.
         int callbackState = 0;
 
-        // The lock is owned by a dedicated thread: mutexes are thread-affine, the batch's STA thread
-        // must stay free to pump COM messages, and batch.Execute can hand control back on its own
-        // operation timeout while the queued callback is still running - releasing at that point
-        // would let another session interleave between PickUp() and Apply().
-        var lockOwner = new Thread(() =>
-        {
-            Mutex? formattingClipboardMutex = null;
-            bool lockTaken = false;
-            try
-            {
-                try
-                {
-                    formattingClipboardMutex = new Mutex(
-                        FormattingClipboardMutexName,
-                        FormattingClipboardMutexOptions);
-                    lockTaken = formattingClipboardMutex.WaitOne(lockTimeout);
-                    lockResolved.SetResult(lockTaken);
-                }
-                catch (AbandonedMutexException)
-                {
-                    // WaitOne throws this *after* transferring ownership, so the lock is held.
-                    lockTaken = true;
-                    lockResolved.SetResult(true);
-                }
-                catch (Exception ex)
-                {
-                    // Surface on the caller's thread instead of killing the process, and never
-                    // leave the caller waiting for a signal that can no longer arrive.
-                    lockResolved.SetException(ex);
-                }
+        // One shared coordinator owns the lock for every request in this process: mutexes are
+        // thread-affine and the owner has to outlive an Execute that returned on its own timeout,
+        // but a thread per request would pile up under a burst of contended calls.
+        var request = new FormattingLockRequest(
+            DateTime.UtcNow + lockTimeout,
+            batch.OperationTimeout,
+            () => Interlocked.CompareExchange(ref callbackState, 2, 0) == 0);
+        FormattingLockCoordinator.Enqueue(request);
 
-                if (lockTaken)
-                {
-                    // The transfer cannot legitimately outlive the batch's own operation timeout.
-                    if (!transferFinished.Task.Wait(batch.OperationTimeout)
-                        && Interlocked.CompareExchange(ref callbackState, 2, 0) != 0)
-                    {
-                        // The callback claimed the clipboard and has now outlived even its own
-                        // timeout, so the session is already being poisoned by that timeout. Give the
-                        // handoff one more bounded chance, then unlock regardless: a user-wide lock
-                        // held forever would break copy-formatting in every session and process.
-                        transferFinished.Task.Wait(batch.OperationTimeout);
-                    }
-
-                    // Reaching here means either the transfer finished, or it can no longer start:
-                    // the compare-exchange above closes the door on a callback that never claimed.
-                    formattingClipboardMutex!.ReleaseMutex();
-                }
-            }
-            finally
-            {
-                formattingClipboardMutex?.Dispose();
-            }
-        })
-        {
-            IsBackground = true,
-            Name = "PowerPointFormattingClipboardLock"
-        };
-
-        lockOwner.Start();
-
-        if (!lockResolved.Task.GetAwaiter().GetResult())
+        if (!request.Acquired.Task.GetAwaiter().GetResult())
         {
             throw new TimeoutException(
                 $"Timed out after {lockTimeout.TotalSeconds:0.##} seconds waiting for PowerPoint's " +
                 "formatting clipboard, which another session or process is using to copy shape " +
                 "formatting. Retry the copy-formatting operation.");
         }
+
+        var transferFinished = request.TransferFinished;
 
         try
         {
@@ -191,6 +136,119 @@ public sealed partial class ShapeCommands
             if (Interlocked.CompareExchange(ref callbackState, 2, 0) == 0)
             {
                 transferFinished.TrySetResult(true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A caller's turn at the formatting clipboard lock. <paramref name="TryAbandon"/> returns true
+    /// when the transfer had not started yet and can therefore never run, which is what makes
+    /// releasing the lock safe after the caller has given up.
+    /// </summary>
+    private sealed record FormattingLockRequest(
+        DateTime DeadlineUtc,
+        TimeSpan CompletionTimeout,
+        Func<bool> TryAbandon)
+    {
+        public TaskCompletionSource<bool> Acquired { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource<bool> TransferFinished { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    }
+
+    /// <summary>
+    /// Owns PowerPoint's user-wide formatting clipboard lock on a single background thread for the
+    /// whole process. The lock is exclusive, so one owner can serve every caller; a thread per
+    /// request would accumulate whenever the clipboard or PowerPoint is busy.
+    /// </summary>
+    private static class FormattingLockCoordinator
+    {
+        private static readonly System.Collections.Concurrent.BlockingCollection<FormattingLockRequest> Requests = new();
+        private static readonly Lock StartGate = new();
+        private static bool s_started;
+
+        public static void Enqueue(FormattingLockRequest request)
+        {
+            EnsureStarted();
+            Requests.Add(request);
+        }
+
+        private static void EnsureStarted()
+        {
+            if (Volatile.Read(ref s_started)) return;
+
+            lock (StartGate)
+            {
+                if (s_started) return;
+
+                new Thread(Run)
+                {
+                    IsBackground = true,
+                    Name = "PowerPointFormattingClipboardLock"
+                }.Start();
+                Volatile.Write(ref s_started, true);
+            }
+        }
+
+        private static void Run()
+        {
+            foreach (var request in Requests.GetConsumingEnumerable())
+            {
+                Serve(request);
+            }
+        }
+
+        private static void Serve(FormattingLockRequest request)
+        {
+            Mutex? formattingClipboardMutex = null;
+            bool lockTaken = false;
+            try
+            {
+                try
+                {
+                    formattingClipboardMutex = new Mutex(
+                        FormattingClipboardMutexName,
+                        FormattingClipboardMutexOptions);
+
+                    // The deadline is the caller's, captured before queueing, so time spent waiting
+                    // behind an earlier request still counts against it.
+                    TimeSpan wait = request.DeadlineUtc - DateTime.UtcNow;
+                    lockTaken = wait > TimeSpan.Zero && formattingClipboardMutex.WaitOne(wait);
+                    request.Acquired.SetResult(lockTaken);
+                }
+                catch (AbandonedMutexException)
+                {
+                    // WaitOne throws this *after* transferring ownership, so the lock is held.
+                    lockTaken = true;
+                    request.Acquired.SetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    // Surface on the caller's thread instead of killing the process, and never leave
+                    // the caller waiting for a signal that can no longer arrive.
+                    request.Acquired.SetException(ex);
+                }
+
+                if (lockTaken)
+                {
+                    // The transfer cannot legitimately outlive the batch's own operation timeout.
+                    if (!request.TransferFinished.Task.Wait(request.CompletionTimeout)
+                        && !request.TryAbandon())
+                    {
+                        // The callback claimed the clipboard and has now outlived even its own
+                        // timeout, so the session is already being poisoned by that timeout. Give the
+                        // handoff one more bounded chance, then unlock regardless: a user-wide lock
+                        // held forever would break copy-formatting in every session and process.
+                        request.TransferFinished.Task.Wait(request.CompletionTimeout);
+                    }
+
+                    // Reaching here means either the transfer finished, or it can no longer start:
+                    // TryAbandon closes the door on a callback that never claimed.
+                    formattingClipboardMutex!.ReleaseMutex();
+                }
+            }
+            finally
+            {
+                formattingClipboardMutex?.Dispose();
             }
         }
     }
