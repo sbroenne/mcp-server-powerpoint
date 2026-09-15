@@ -338,13 +338,19 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     {
         return batch.Execute((ctx, ct) =>
         {
+            dynamic? dynSlides = null;
+            PowerPoint.Slide? slide = null;
+            dynamic? dynShapes = null;
             PowerPoint.Shape? connector = null;
             PowerPoint.ConnectorFormat? connectorFormat = null;
             PowerPoint.Shape? beginShape = null;
             PowerPoint.Shape? endShape = null;
             try
             {
-                connector = ctx.Presentation.Slides[1].Shapes[connectorIndex];
+                dynSlides = ctx.Presentation.Slides;
+                slide = dynSlides[1];
+                dynShapes = slide.Shapes;
+                connector = dynShapes[connectorIndex];
                 connectorFormat = connector.ConnectorFormat;
                 beginShape = connectorFormat.BeginConnectedShape;
                 endShape = connectorFormat.EndConnectedShape;
@@ -362,6 +368,9 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
                 if (beginShape is not null) ComInterop.ComUtilities.Release(ref beginShape);
                 if (connectorFormat is not null) ComInterop.ComUtilities.Release(ref connectorFormat);
                 if (connector is not null) ComInterop.ComUtilities.Release(ref connector);
+                if (dynShapes is not null) ComInterop.ComUtilities.Release(ref dynShapes!);
+                if (slide is not null) ComInterop.ComUtilities.Release(ref slide);
+                if (dynSlides is not null) ComInterop.ComUtilities.Release(ref dynSlides!);
             }
         });
     }

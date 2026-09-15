@@ -372,13 +372,8 @@ public sealed partial class ShapeCommands : IShapeCommands
                 };
             }
 
-            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-            int shapeCount = slide.Shapes.Count;
-            var beginShapeValidation = ValidateShapeIndex(shapeCount, beginShapeIndex);
-            if (beginShapeValidation is not null) return beginShapeValidation;
-            var endShapeValidation = ValidateShapeIndex(shapeCount, endShapeIndex);
-            if (endShapeValidation is not null) return endShapeValidation;
-
+            PowerPoint.Slide? slide = null;
+            dynamic? dynSlides = null;
             PowerPoint.Shape? beginShape = null;
             PowerPoint.Shape? endShape = null;
             PowerPoint.Shape? connector = null;
@@ -386,6 +381,15 @@ public sealed partial class ShapeCommands : IShapeCommands
             dynamic? dynShapes = null;
             try
             {
+                dynSlides = ctx.Presentation.Slides;
+                slide = dynSlides[slideIndex];
+
+                int shapeCount = slide.Shapes.Count;
+                var beginShapeValidation = ValidateShapeIndex(shapeCount, beginShapeIndex);
+                if (beginShapeValidation is not null) return beginShapeValidation;
+                var endShapeValidation = ValidateShapeIndex(shapeCount, endShapeIndex);
+                if (endShapeValidation is not null) return endShapeValidation;
+
                 beginShape = slide.Shapes[beginShapeIndex];
                 endShape = slide.Shapes[endShapeIndex];
 
@@ -411,9 +415,19 @@ public sealed partial class ShapeCommands : IShapeCommands
 
                 dynShapes = slide.Shapes;
                 connector = dynShapes.AddConnector(typeValue, 1f, 1f, 2f, 2f);
-                connectorFormat = connector.ConnectorFormat;
-                connectorFormat.BeginConnect(beginShape, beginConnectionSite);
-                connectorFormat.EndConnect(endShape, endConnectionSite);
+                try
+                {
+                    connectorFormat = connector.ConnectorFormat;
+                    connectorFormat.BeginConnect(beginShape, beginConnectionSite);
+                    connectorFormat.EndConnect(endShape, endConnectionSite);
+                }
+                catch
+                {
+                    // BeginConnect/EndConnect failed after the connector shape was already added -
+                    // delete it so a failed command never leaves an unconnected shape behind.
+                    connector.Delete();
+                    throw;
+                }
 
                 int newIndex = slide.Shapes.Count;
                 return new ShapeOperationResult
@@ -431,6 +445,8 @@ public sealed partial class ShapeCommands : IShapeCommands
                 if (endShape is not null) ComUtilities.Release(ref endShape);
                 if (beginShape is not null) ComUtilities.Release(ref beginShape);
                 if (dynShapes is not null) ComUtilities.Release(ref dynShapes!);
+                if (slide is not null) ComUtilities.Release(ref slide);
+                if (dynSlides is not null) ComUtilities.Release(ref dynSlides!);
             }
         });
     }
