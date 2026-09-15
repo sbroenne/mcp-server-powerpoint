@@ -346,6 +346,96 @@ public sealed partial class ShapeCommands : IShapeCommands
     }
 
     /// <inheritdoc/>
+    public ShapeOperationResult AddAttachedConnector(
+        IPresentationBatch batch,
+        int slideIndex,
+        string connectorType,
+        int beginShapeIndex,
+        int beginConnectionSite,
+        int endShapeIndex,
+        int endConnectionSite)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(connectorType);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
+            if (slideValidation is not null) return slideValidation;
+
+            if (!ConnectorTypes.TryGetValue(connectorType, out var typeValue))
+            {
+                return new ShapeOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"'{connectorType}' is not a recognized MsoConnectorType name (must be 'msoConnectorStraight', 'msoConnectorElbow', or 'msoConnectorCurve')."
+                };
+            }
+
+            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
+            int shapeCount = slide.Shapes.Count;
+            var beginShapeValidation = ValidateShapeIndex(shapeCount, beginShapeIndex);
+            if (beginShapeValidation is not null) return beginShapeValidation;
+            var endShapeValidation = ValidateShapeIndex(shapeCount, endShapeIndex);
+            if (endShapeValidation is not null) return endShapeValidation;
+
+            PowerPoint.Shape? beginShape = null;
+            PowerPoint.Shape? endShape = null;
+            PowerPoint.Shape? connector = null;
+            PowerPoint.ConnectorFormat? connectorFormat = null;
+            dynamic? dynShapes = null;
+            try
+            {
+                beginShape = slide.Shapes[beginShapeIndex];
+                endShape = slide.Shapes[endShapeIndex];
+
+                int beginConnectionSiteCount = beginShape.ConnectionSiteCount;
+                if (beginConnectionSite < 1 || beginConnectionSite > beginConnectionSiteCount)
+                {
+                    return new ShapeOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Begin connection site {beginConnectionSite} is out of range. Shape {beginShapeIndex} has {beginConnectionSiteCount} connection site(s) (valid range: 1-{beginConnectionSiteCount})."
+                    };
+                }
+
+                int endConnectionSiteCount = endShape.ConnectionSiteCount;
+                if (endConnectionSite < 1 || endConnectionSite > endConnectionSiteCount)
+                {
+                    return new ShapeOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"End connection site {endConnectionSite} is out of range. Shape {endShapeIndex} has {endConnectionSiteCount} connection site(s) (valid range: 1-{endConnectionSiteCount})."
+                    };
+                }
+
+                dynShapes = slide.Shapes;
+                connector = dynShapes.AddConnector(typeValue, 1f, 1f, 2f, 2f);
+                connectorFormat = connector.ConnectorFormat;
+                connectorFormat.BeginConnect(beginShape, beginConnectionSite);
+                connectorFormat.EndConnect(endShape, endConnectionSite);
+
+                int newIndex = slide.Shapes.Count;
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = newIndex,
+                    ConnectorTypeName = connectorType
+                };
+            }
+            finally
+            {
+                if (connectorFormat is not null) ComUtilities.Release(ref connectorFormat);
+                if (connector is not null) ComUtilities.Release(ref connector);
+                if (endShape is not null) ComUtilities.Release(ref endShape);
+                if (beginShape is not null) ComUtilities.Release(ref beginShape);
+                if (dynShapes is not null) ComUtilities.Release(ref dynShapes!);
+            }
+        });
+    }
+
+    /// <inheritdoc/>
     public ShapeOperationResult GetCount(IPresentationBatch batch, int slideIndex)
     {
         ArgumentNullException.ThrowIfNull(batch);
