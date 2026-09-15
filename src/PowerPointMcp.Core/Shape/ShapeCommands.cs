@@ -372,26 +372,30 @@ public sealed partial class ShapeCommands : IShapeCommands
                 };
             }
 
+            PowerPoint.Slides? slides = null;
             PowerPoint.Slide? slide = null;
-            dynamic? dynSlides = null;
+            dynamic? dynShapes = null;
             PowerPoint.Shape? beginShape = null;
             PowerPoint.Shape? endShape = null;
             PowerPoint.Shape? connector = null;
             PowerPoint.ConnectorFormat? connectorFormat = null;
-            dynamic? dynShapes = null;
             try
             {
-                dynSlides = ctx.Presentation.Slides;
-                slide = dynSlides[slideIndex];
+                slides = ctx.Presentation.Slides;
+                slide = slides[slideIndex];
+                // Shapes.AddConnector takes a raw MsoConnectorType value (Office.Core/office.dll,
+                // not referenced here), so this collection is accessed via dynamic — acquired once
+                // and reused below for Count, both indexers, and AddConnector.
+                dynShapes = slide.Shapes;
 
-                int shapeCount = slide.Shapes.Count;
+                int shapeCount = dynShapes.Count;
                 var beginShapeValidation = ValidateShapeIndex(shapeCount, beginShapeIndex);
                 if (beginShapeValidation is not null) return beginShapeValidation;
                 var endShapeValidation = ValidateShapeIndex(shapeCount, endShapeIndex);
                 if (endShapeValidation is not null) return endShapeValidation;
 
-                beginShape = slide.Shapes[beginShapeIndex];
-                endShape = slide.Shapes[endShapeIndex];
+                beginShape = dynShapes[beginShapeIndex];
+                endShape = dynShapes[endShapeIndex];
 
                 int beginConnectionSiteCount = beginShape.ConnectionSiteCount;
                 if (beginConnectionSite < 1 || beginConnectionSite > beginConnectionSiteCount)
@@ -413,7 +417,6 @@ public sealed partial class ShapeCommands : IShapeCommands
                     };
                 }
 
-                dynShapes = slide.Shapes;
                 connector = dynShapes.AddConnector(typeValue, 1f, 1f, 2f, 2f);
                 try
                 {
@@ -429,7 +432,7 @@ public sealed partial class ShapeCommands : IShapeCommands
                     throw;
                 }
 
-                int newIndex = slide.Shapes.Count;
+                int newIndex = dynShapes.Count;
                 return new ShapeOperationResult
                 {
                     Success = true,
@@ -446,7 +449,7 @@ public sealed partial class ShapeCommands : IShapeCommands
                 if (beginShape is not null) ComUtilities.Release(ref beginShape);
                 if (dynShapes is not null) ComUtilities.Release(ref dynShapes!);
                 if (slide is not null) ComUtilities.Release(ref slide);
-                if (dynSlides is not null) ComUtilities.Release(ref dynSlides!);
+                if (slides is not null) ComUtilities.Release(ref slides);
             }
         });
     }

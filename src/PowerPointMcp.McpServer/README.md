@@ -38,7 +38,7 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 | --- | --- | --- |
 | `presentation` | 20 | create, open, Save As, Save Copy As, close, list, templates, get/set final, document properties, string tags |
 | `slide` | 23 | slide lifecycle, backgrounds, sections, comments, import, string tags |
-| `shape` | 49 | shape creation, styling, grouping, hyperlinks, placeholders, string tags, `copy-formatting`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update` |
+| `shape` | 49 | shape creation, styling, grouping, hyperlinks, placeholders, string tags, `add-attached-connector`, `copy-formatting`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update` |
 | `textframe` | 20 | text content, font formatting, alignment, bullets, auto-size |
 | `table` | 12 | tables, cell text, row/column edits, cell fill/border, merge |
 | `notes` | 2 | set/get speaker notes |

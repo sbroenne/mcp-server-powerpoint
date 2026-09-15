@@ -21,7 +21,8 @@ required) plus the manifest, license, and changelog. The server exposes 16
 tools (189 operations across 16 domains) — see the
 [documentation](https://powerpointmcpserver.dev) for the full list.
 Linked pictures are managed through the generated `shape` actions `get-link-info`, `update-link`,
-`break-link`, and `set-link-auto-update`.
+`break-link`, and `set-link-auto-update`. Connectors can stay glued to two shapes' connection
+sites via `add-attached-connector`.
 
 ## Building locally
 
