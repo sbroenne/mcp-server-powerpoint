@@ -17,7 +17,7 @@ Claude can now create and edit PowerPoint decks directly.
 ## What's inside
 
 A self-contained Windows x64 build of the MCP server (no .NET runtime install
-required) plus the manifest, license, and changelog. The server exposes 16
+required) plus the manifest, license, and changelog. The server exposes 17
 tools (191 operations across 17 domains) — see the
 [documentation](https://powerpointmcpserver.dev) for the full list.
 Linked pictures are managed through the generated `shape` actions `get-link-info`, `update-link`,

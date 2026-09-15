@@ -9,7 +9,7 @@ when working with the PowerPoint MCP Server.
 (`Microsoft.Office.Interop.PowerPoint`) and exposes it as **17 MCP tools across 17 domains**.
 Every domain is a single action-dispatch tool: `presentation`, `slide`, `shape`, `textframe`,
 `table`, `notes`, `layout`, `pagesetup`, `accessibility`, `master`, `animation`, `image`, `media`, `chart`,
-`smartart`, and `export`.
+`smartart`, `export`, and `customshow`.
 
 Windows + PowerPoint desktop required. There is no cross-platform or headless mode — everything
 goes through real COM automation of a real PowerPoint process.

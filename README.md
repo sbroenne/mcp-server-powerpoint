@@ -68,6 +68,7 @@ layout regressions that text-only automation simply cannot detect.
 - 🎧 **Media** (2 ops) — insert embedded or linked audio/video and inspect native media metadata
 - 🔀 **SmartArt** (7 ops) — insert and edit SmartArt diagrams
 - 🖼️ **Export** (3 ops) — export to PDF or images for delivery and visual verification
+- 🎬 **Custom Shows** (3 ops) — named custom shows: curated, ordered slide subsets for reusing one deck with different audiences
 
 Every domain is exposed as a single **action-dispatch tool** (e.g. `shape`, `table`, `chart`,
 `presentation`) with an `action` parameter selecting the specific operation — keeping the tool
