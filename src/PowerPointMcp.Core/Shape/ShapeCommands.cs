@@ -360,9 +360,6 @@ public sealed partial class ShapeCommands : IShapeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
-            if (slideValidation is not null) return slideValidation;
-
             if (!ConnectorTypes.TryGetValue(connectorType, out var typeValue))
             {
                 return new ShapeOperationResult
@@ -382,6 +379,10 @@ public sealed partial class ShapeCommands : IShapeCommands
             try
             {
                 slides = ctx.Presentation.Slides;
+
+                var slideValidation = ValidateSlideIndex(slides.Count, slideIndex);
+                if (slideValidation is not null) return slideValidation;
+
                 slide = slides[slideIndex];
                 shapes = slide.Shapes;
 
