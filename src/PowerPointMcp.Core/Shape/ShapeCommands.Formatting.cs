@@ -27,57 +27,27 @@ public sealed partial class ShapeCommands
     {
         ArgumentNullException.ThrowIfNull(batch);
 
-        // One budget spans validation, the lock wait and the COM work, so a contended call cannot
-        // exceed the session's configured operation timeout.
-        var elapsed = System.Diagnostics.Stopwatch.StartNew();
-        TimeSpan totalBudget = batch.OperationTimeout;
-
-        TimeSpan Remaining() => totalBudget - elapsed.Elapsed;
-
-        TimeoutException BudgetExhausted(string phase) => new(
-            $"Copy-formatting exceeded its {totalBudget.TotalSeconds:0.##} second budget during {phase}. " +
-            "Retry the copy-formatting operation.");
-
-        TResult RunWithinBudget<TResult>(
-            string phase,
-            Func<PresentationContext, CancellationToken, TResult> operation)
-        {
-            TimeSpan remaining = Remaining();
-            if (remaining <= TimeSpan.Zero)
-            {
-                throw BudgetExhausted(phase);
-            }
-
-            using var budgetCts = new CancellationTokenSource(remaining);
-            try
-            {
-                return batch.Execute(operation, budgetCts.Token);
-            }
-            catch (OperationCanceledException) when (budgetCts.IsCancellationRequested)
-            {
-                throw BudgetExhausted(phase);
-            }
-        }
+        // Two-phase timeout policy, deliberately not one end-to-end budget:
+        //   * every COM callback runs on the batch's own operation timeout, so an unresponsive
+        //     PowerPoint hits the internal timeout and poisons the session like any other command;
+        //   * only the lock wait, which touches no COM, uses the bounded non-poisoning wait below.
+        // A contended call can therefore take the lock wait plus one operation timeout; detecting a
+        // wedged COM call is worth more than a strict total-time guarantee.
 
         // Validate before taking the lock - this also runs the batch's disposed, poisoned-session and
         // PowerPoint-liveness checks - so a bad index or a broken session fails fast instead of first
         // waiting out the lock. The transfer below revalidates, because the shapes can change while
         // another session holds the lock.
-        var validation = RunWithinBudget(
-            "validation",
-            (ctx, ct) => ValidateCopyFormattingTargets(ctx, slideIndex, sourceShapeIndex, targetShapeIndex));
+        var validation = batch.Execute((ctx, ct) =>
+            ValidateCopyFormattingTargets(ctx, slideIndex, sourceShapeIndex, targetShapeIndex));
         if (validation is not null)
         {
             return validation;
         }
 
-        // At most half the budget goes on the lock, so a contended wait still leaves time for the
-        // COM work, and never more than the budget actually has left.
-        TimeSpan lockTimeout = TimeSpan.FromTicks(Math.Min(Remaining().Ticks, (totalBudget / 2).Ticks));
-        if (lockTimeout <= TimeSpan.Zero)
-        {
-            throw BudgetExhausted("validation");
-        }
+        // Half the session's operation timeout is the most a caller should spend queueing behind
+        // another session's transfer before being told to retry.
+        TimeSpan lockTimeout = batch.OperationTimeout / 2;
 
         // TaskCompletionSource rather than wait handles: the owner thread can outlive this call, so
         // anything disposable here would either leak OS handles or fault that thread.
@@ -120,16 +90,15 @@ public sealed partial class ShapeCommands
 
                 if (lockTaken)
                 {
-                    // Give the transfer the caller's remaining budget first.
-                    TimeSpan releaseWait = Remaining();
-                    if (!transferFinished.Task.Wait(releaseWait < TimeSpan.Zero ? TimeSpan.Zero : releaseWait)
+                    // The transfer cannot legitimately outlive the batch's own operation timeout.
+                    if (!transferFinished.Task.Wait(batch.OperationTimeout)
                         && Interlocked.CompareExchange(ref callbackState, 2, 0) != 0)
                     {
-                        // The callback already claimed the clipboard, so only its completion can make
-                        // unlocking safe. Bounded anyway, because a COM call wedged past its own
-                        // timeout must not hold a user-wide lock forever - that session is being
-                        // poisoned by its own operation timeout regardless.
-                        transferFinished.Task.Wait(totalBudget);
+                        // The callback claimed the clipboard and has now outlived even its own
+                        // timeout, so the session is already being poisoned by that timeout. Give the
+                        // handoff one more bounded chance, then unlock regardless: a user-wide lock
+                        // held forever would break copy-formatting in every session and process.
+                        transferFinished.Task.Wait(batch.OperationTimeout);
                     }
 
                     // Reaching here means either the transfer finished, or it can no longer start:
@@ -159,10 +128,6 @@ public sealed partial class ShapeCommands
 
         try
         {
-            // Deliberately without the budget token: once the callback touches COM, an unresponsive
-            // PickUp/Apply must hit the batch's own operation timeout so the session is poisoned like
-            // any other wedged command, instead of looking like benign caller cancellation. The budget
-            // above bounds everything before that point, which is where contention is handled.
             return batch.Execute((ctx, ct) =>
             {
                 if (Interlocked.CompareExchange(ref callbackState, 1, 0) != 0)
