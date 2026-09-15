@@ -1023,6 +1023,12 @@ OPTIONS:
                                                          for: set-line,
                                                          set-shadow,
                                                          set-reflection)
+        --source-shape-index <SOURCESHAPEINDEX>          (required for:
+                                                         copy-formatting) (valid
+                                                         for: copy-formatting)
+        --target-shape-index <TARGETSHAPEINDEX>          (required for:
+                                                         copy-formatting) (valid
+                                                         for: copy-formatting)
         --degrees <DEGREES>                              (required for:
                                                          set-rotation) (valid
                                                          for: set-rotation)

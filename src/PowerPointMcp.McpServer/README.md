@@ -32,7 +32,7 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 
 ## Capabilities
 
-**16 tools with 188 operations across 16 domains:**
+**16 tools with 189 operations across 16 domains:**
 
 | Tool | Ops | Coverage |
 | --- | --- | --- |
