@@ -120,12 +120,20 @@ public sealed partial class ShapeCommands
 
                 if (lockTaken)
                 {
-                    // Bounded on purpose: if PowerPoint wedges mid-transfer the callback never signals,
-                    // and holding a user-wide lock forever would break copy-formatting in every session
-                    // and process. Only the budget the caller still has can justify holding it, so the
-                    // lock is never kept past the point where the transfer itself has timed out.
+                    // Give the transfer the caller's remaining budget first.
                     TimeSpan releaseWait = Remaining();
-                    transferFinished.Task.Wait(releaseWait < TimeSpan.Zero ? TimeSpan.Zero : releaseWait);
+                    if (!transferFinished.Task.Wait(releaseWait < TimeSpan.Zero ? TimeSpan.Zero : releaseWait)
+                        && Interlocked.CompareExchange(ref callbackState, 2, 0) != 0)
+                    {
+                        // The callback already claimed the clipboard, so only its completion can make
+                        // unlocking safe. Bounded anyway, because a COM call wedged past its own
+                        // timeout must not hold a user-wide lock forever - that session is being
+                        // poisoned by its own operation timeout regardless.
+                        transferFinished.Task.Wait(totalBudget);
+                    }
+
+                    // Reaching here means either the transfer finished, or it can no longer start:
+                    // the compare-exchange above closes the door on a callback that never claimed.
                     formattingClipboardMutex!.ReleaseMutex();
                 }
             }
@@ -151,7 +159,11 @@ public sealed partial class ShapeCommands
 
         try
         {
-            return RunWithinBudget("the formatting transfer", (ctx, ct) =>
+            // Deliberately without the budget token: once the callback touches COM, an unresponsive
+            // PickUp/Apply must hit the batch's own operation timeout so the session is poisoned like
+            // any other wedged command, instead of looking like benign caller cancellation. The budget
+            // above bounds everything before that point, which is where contention is handled.
+            return batch.Execute((ctx, ct) =>
             {
                 if (Interlocked.CompareExchange(ref callbackState, 1, 0) != 0)
                 {
