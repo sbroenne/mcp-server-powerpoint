@@ -1,7 +1,9 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Layout;
 using Sbroenne.PowerPointMcp.Core.Shape;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
 
@@ -85,13 +87,33 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
 
         var persisted = batch.Execute((ctx, ct) =>
         {
-            var effect = ctx.Presentation.Slides[1].Shapes[1].TextEffect;
-            return (
-                Text: (string)effect.Text,
-                FontName: (string)effect.FontName,
-                FontSize: (float)effect.FontSize,
-                Bold: (int)effect.FontBold,
-                Italic: (int)effect.FontItalic);
+            PowerPoint.Slides? slides = null;
+            PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
+            PowerPoint.Shape? shape = null;
+            PowerPoint.TextEffectFormat? effect = null;
+            try
+            {
+                slides = ctx.Presentation.Slides;
+                slide = slides[1];
+                shapes = slide.Shapes;
+                shape = shapes[1];
+                effect = shape.TextEffect;
+                return (
+                    Text: effect.Text,
+                    FontName: effect.FontName,
+                    FontSize: effect.FontSize,
+                    Bold: (int)effect.FontBold,
+                    Italic: (int)effect.FontItalic);
+            }
+            finally
+            {
+                if (effect is not null) ComUtilities.Release(ref effect);
+                if (shape is not null) ComUtilities.Release(ref shape);
+                if (shapes is not null) ComUtilities.Release(ref shapes);
+                if (slide is not null) ComUtilities.Release(ref slide);
+                if (slides is not null) ComUtilities.Release(ref slides);
+            }
         });
 
         Assert.Equal("Quarterly outlook", persisted.Text);
@@ -510,6 +532,41 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
 
         Assert.False(result.Success);
         Assert.Contains("between -90 and 90", result.ErrorMessage);
+    }
+
+    [Theory]
+    [InlineData(-90f, 90f)]
+    [InlineData(90f, -90f)]
+    public void Set3DRotation_WithInclusiveRangeEndpoints_Succeeds(float rotationX, float rotationY)
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 100f, 60f);
+
+        var result = _commands.Set3DRotation(batch, 1, 1, rotationX, rotationY);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(rotationX, result.RotationX);
+        Assert.Equal(rotationY, result.RotationY);
+    }
+
+    [Theory]
+    [InlineData(float.NaN, null, null)]
+    [InlineData(float.PositiveInfinity, null, null)]
+    [InlineData(null, float.NaN, null)]
+    [InlineData(null, float.NegativeInfinity, null)]
+    [InlineData(null, null, float.NaN)]
+    [InlineData(null, null, float.PositiveInfinity)]
+    public void Set3DRotation_WithNonFiniteAxis_ReturnsFailure(float? rotationX, float? rotationY, float? rotationZ)
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 100f, 60f);
+
+        var result = _commands.Set3DRotation(batch, 1, 1, rotationX, rotationY, rotationZ);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
     }
 
     [Fact]

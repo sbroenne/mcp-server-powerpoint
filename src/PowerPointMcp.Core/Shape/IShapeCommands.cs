@@ -104,7 +104,8 @@ public interface IShapeCommands
     ShapeOperationResult GetRotation(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
 
     /// <summary>
-    /// Sets one or more axes of a shape's 3D rotation. Omitted axes remain unchanged.
+    /// Sets one or more axes of a shape's 3D rotation. At least one axis must be supplied;
+    /// omitted axes remain unchanged.
     /// <paramref name="rotationX"/> and <paramref name="rotationY"/> must be between -90 and 90 degrees.
     /// This is independent of the shape's 2D <c>Rotation</c> property.
     /// </summary>
