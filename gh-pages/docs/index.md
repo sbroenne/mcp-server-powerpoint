@@ -72,7 +72,7 @@ exports each slide, inspects the layout, and verifies the result.
 For scripts and coding agents, `pptcli` provides the same engine through a
 compact, token-efficient command line.
 
-Sixteen domains. One hundred eighty-six operations. Get started at
+Sixteen domains. One hundred ninety-one operations. Get started at
 powerpointmcpserver.dev.
 
 </details>
@@ -146,7 +146,7 @@ powerpointmcpserver.dev.
 
 </div>
 
-[See all 16 tools (188 operations) across 16 domains :material-arrow-right:](features.md){ .md-button .md-button--primary }
+[See all 16 tools (191 operations) across 16 domains :material-arrow-right:](features.md){ .md-button .md-button--primary }
 
 ## See it in action
 

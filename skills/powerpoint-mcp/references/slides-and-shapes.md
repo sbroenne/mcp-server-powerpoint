@@ -2,7 +2,7 @@
 
 Reference for the `slide` tool (`add-blank`, `get-count`, `delete`, `duplicate`, `move-to`,
 `set-background-color`, `get-background-color`, sections, comments, import) and the `shape` tool
-(`add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`,
+(`add-rectangle`, `add-text-box`, `add-text-effect`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`,
 `delete`, `set-position`, `set-size`, plus the fill/line/rotation/flip/z-order/shadow/glow/
 reflection/soft-edge/bevel/group/name/alt-text/hyperlink formatting actions below).
 
@@ -56,6 +56,7 @@ slide(action: "rename-section", session_id: ..., section_index: 2, section_name:
 |------|--------|------------|-------|
 | `shape` | `add-rectangle` | `session_id`, `slide_index`, `left`, `top`, `width`, `height` | Plain rectangle, no fill/line color parameters — style comes from PowerPoint's theme default. Returns `shapeIndex`. |
 | `shape` | `add-text-box` | `session_id`, `slide_index`, `left`, `top`, `width`, `height`, `text` | Creates the text box AND sets its initial text in one call. Returns `shapeIndex`. |
+| `shape` | `add-text-effect` | `session_id`, `slide_index`, `preset_effect`, `text`, `font_name`, `font_size`, `left`, `top`, optional `bold`/`italic` | Adds editable WordArt using `msoTextEffect1` through `msoTextEffect50`. PowerPoint determines the shape's width and height. Returns `shapeIndex` and `shapeCount`. |
 | `shape` | `add-auto-shape` | `session_id`, `slide_index`, `shape_type`, `left`, `top`, `width`, `height` | Adds any non-rectangle built-in shape (oval, diamond, arrow, star bracket, etc.) by its `MsoAutoShapeType` name. Returns `shapeIndex` and echoes `shapeTypeName`. See "Auto Shape Types" below for the supported name list. |
 | `shape` | `add-line` | `session_id`, `slide_index`, `begin_x`, `begin_y`, `end_x`, `end_y` | Straight line between two points. Returns `shapeIndex` and echoes `beginX`/`beginY`/`endX`/`endY`. |
 | `shape` | `add-connector` | `session_id`, `slide_index`, `connector_type`, `begin_x`, `begin_y`, `end_x`, `end_y` | Adds a connector shape (`msoConnectorStraight`, `msoConnectorElbow`, or `msoConnectorCurve`) between two points. Free-floating — not glued to other shapes. Returns `shapeIndex` and echoes `connectorTypeName`. |
@@ -84,6 +85,8 @@ All position/size values are **points** (see `deck-builder.md` for the 960×540p
 | `shape` | `copy-formatting` | `session_id`, `slide_index`, `source_shape_index`, `target_shape_index` | Applies PowerPoint's native Format Painter from the source shape to the target shape. Copies appearance without replacing the target's content, position, or size. Both shapes must be on the same slide. Returns the target `shapeIndex`. |
 | `shape` | `set-rotation` | `session_id`, `slide_index`, `shape_index`, `degrees` | Sets rotation in degrees clockwise from upright. Returns `rotation`. |
 | `shape` | `get-rotation` | `session_id`, `slide_index`, `shape_index` | Returns the current rotation in degrees. |
+| `shape` | `set-3d-rotation` | `session_id`, `slide_index`, `shape_index`, optional `rotation_x`/`rotation_y`/`rotation_z` | Sets one or more axes of 3D rotation. At least one axis is required; omitted axes remain unchanged. X and Y must be between -90 and 90 degrees. Z rotates the shape around its Z axis and is tracked separately from the shape's 2D `rotation`. Returns all three axes. |
+| `shape` | `get-3d-rotation` | `session_id`, `slide_index`, `shape_index` | Returns `rotationX`, `rotationY` and `rotationZ` in degrees. |
 | `shape` | `flip` | `session_id`, `slide_index`, `shape_index`, `direction` (`horizontal` or `vertical`) | Flips the shape in place. Returns `flipDirection`. |
 | `shape` | `set-z-order` | `session_id`, `slide_index`, `shape_index`, `z_order_command` | Moves the shape's stacking position. `z_order_command` is one of `bring-to-front`, `send-to-back`, `bring-forward`, `send-backward`. Returns `zOrderCommand`. |
 | `shape` | `set-shadow` | `session_id`, `slide_index`, `shape_index`, `visible`, plus optional `red`/`green`/`blue`, `transparency` (0-1), `blur`, `offset_x`, `offset_y` (points) | Turns the shape's drop shadow on/off. When `visible` is true, the optional color/formatting parameters set an "offset" style shadow — any omitted parameter uses PowerPoint's default. Returns `visible` and, when visible, `colorRgb`, `transparency`, `blur`, `offsetX`, `offsetY`. |

@@ -251,6 +251,36 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
+    public async Task ShapeSchema_ExposesWordArtAnd3DRotationActions()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var shape = Assert.Single(tools, tool => tool.Name == "shape");
+        var properties = shape.JsonSchema.GetProperty("properties");
+        var actions = properties
+            .GetProperty("action")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("add-text-effect", actions);
+        Assert.Contains("set-3d-rotation", actions);
+        Assert.Contains("get-3d-rotation", actions);
+
+        Assert.True(properties.TryGetProperty("session_id", out _));
+        Assert.True(properties.TryGetProperty("slide_index", out _));
+        Assert.True(properties.TryGetProperty("shape_index", out _));
+        Assert.True(properties.TryGetProperty("preset_effect", out _));
+        Assert.True(properties.TryGetProperty("text", out _));
+        Assert.True(properties.TryGetProperty("font_name", out _));
+        Assert.True(properties.TryGetProperty("font_size", out _));
+        Assert.True(properties.TryGetProperty("rotation_x", out _));
+        Assert.True(properties.TryGetProperty("rotation_y", out _));
+        Assert.True(properties.TryGetProperty("rotation_z", out _));
+        Assert.False(properties.TryGetProperty("batch", out _));
+    }
+
+    [Fact]
     public async Task ShapeSchema_ExposesCopyFormattingActionAndItsShapeIndexes()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);

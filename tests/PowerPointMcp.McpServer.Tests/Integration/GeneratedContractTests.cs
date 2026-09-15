@@ -225,6 +225,73 @@ public sealed class GeneratedContractTests
     }
 
     [Fact]
+    public void ShapeCli_RoutesWordArtAnd3DRotationActions()
+    {
+        string[] expectedActions = ["add-text-effect", "set-3d-rotation", "get-3d-rotation"];
+
+        Assert.All(expectedActions, action => Assert.Contains(action, ServiceRegistry.Shape.ValidActions));
+
+        Assert.Equal(
+            "shape.add-text-effect",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "add-text-effect",
+                slideIndex: 1,
+                presetEffect: "msoTextEffect1",
+                text: "Quarterly outlook",
+                fontName: "Arial",
+                fontSize: 36f,
+                left: 40f,
+                top: 50f).Command);
+
+        Assert.Equal(
+            "shape.set-3d-rotation",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "set-3d-rotation",
+                slideIndex: 1,
+                shapeIndex: 1,
+                rotationX: 20f,
+                rotationY: -30f,
+                rotationZ: 40f).Command);
+
+        Assert.Equal(
+            "shape.get-3d-rotation",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "get-3d-rotation", slideIndex: 1, shapeIndex: 1).Command);
+    }
+
+    [Fact]
+    public void Shape3DRotationCli_AcceptsIndividualAxesAndRejectsInapplicableOnes()
+    {
+        foreach (var axis in new (string Name, float? X, float? Y, float? Z)[]
+        {
+            ("rotationX", 20f, null, null),
+            ("rotationY", null, -30f, null),
+            ("rotationZ", null, null, 40f)
+        })
+        {
+            var (command, args) = ServiceRegistry.Shape.RouteCliArgs(
+                "set-3d-rotation",
+                slideIndex: 1,
+                shapeIndex: 1,
+                rotationX: axis.X,
+                rotationY: axis.Y,
+                rotationZ: axis.Z);
+
+            Assert.Equal("shape.set-3d-rotation", command);
+            Assert.Contains($"\"{axis.Name}\":", JsonSerializer.Serialize(args), StringComparison.Ordinal);
+        }
+
+        // The read action takes no axis arguments, and the 2D action must not accept 3D ones.
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Shape.RouteCliArgs(
+                "get-3d-rotation", slideIndex: 1, shapeIndex: 1, rotationX: 20f));
+
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Shape.RouteCliArgs(
+                "set-rotation", slideIndex: 1, shapeIndex: 1, degrees: 15f, rotationZ: 40f));
+    }
+
+    [Fact]
     public void ShapeCopyFormatting_HasGeneratedCliAndServiceWiring()
     {
         Assert.Contains("copy-formatting", ServiceRegistry.Shape.ValidActions);
