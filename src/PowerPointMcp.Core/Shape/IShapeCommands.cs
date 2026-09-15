@@ -42,6 +42,20 @@ public interface IShapeCommands
     /// </summary>
     ShapeOperationResult AddConnector(ComInterop.Session.IPresentationBatch batch, int slideIndex, string connectorType, float beginX, float beginY, float endX, float endY);
 
+    /// <summary>
+    /// Adds a connector whose endpoints remain attached to connection sites on two shapes.
+    /// Shape indexes and connection sites are 1-based. A connection site must be between 1 and
+    /// the selected shape's native <c>ConnectionSiteCount</c>.
+    /// </summary>
+    ShapeOperationResult AddAttachedConnector(
+        ComInterop.Session.IPresentationBatch batch,
+        int slideIndex,
+        string connectorType,
+        int beginShapeIndex,
+        int beginConnectionSite,
+        int endShapeIndex,
+        int endConnectionSite);
+
     /// <summary>Gets the number of shapes on the given slide.</summary>
     ShapeOperationResult GetCount(ComInterop.Session.IPresentationBatch batch, int slideIndex);
 

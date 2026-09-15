@@ -225,6 +225,30 @@ public sealed class GeneratedContractTests
     }
 
     [Fact]
+    public void AddAttachedConnector_HasGeneratedCliWiringAndRequiredParameters()
+    {
+        Assert.Contains("add-attached-connector", ServiceRegistry.Shape.ValidActions);
+
+        Assert.Equal(
+            "shape.add-attached-connector",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "add-attached-connector",
+                slideIndex: 1,
+                connectorType: "msoConnectorStraight",
+                beginShapeIndex: 1,
+                beginConnectionSite: 2,
+                endShapeIndex: 2,
+                endConnectionSite: 4).Command);
+
+        var error = Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Shape.ValidateActionArguments(
+                "add-attached-connector",
+                """{"slideIndex":1,"connectorType":"msoConnectorStraight","beginShapeIndex":1,"beginConnectionSite":2,"endShapeIndex":2}"""));
+
+        Assert.Contains("endConnectionSite", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ShapeCopyFormatting_HasGeneratedCliAndServiceWiring()
     {
         Assert.Contains("copy-formatting", ServiceRegistry.Shape.ValidActions);

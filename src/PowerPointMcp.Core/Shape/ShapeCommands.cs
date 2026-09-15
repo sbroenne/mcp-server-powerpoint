@@ -346,6 +346,133 @@ public sealed partial class ShapeCommands : IShapeCommands
     }
 
     /// <inheritdoc/>
+    public ShapeOperationResult AddAttachedConnector(
+        IPresentationBatch batch,
+        int slideIndex,
+        string connectorType,
+        int beginShapeIndex,
+        int beginConnectionSite,
+        int endShapeIndex,
+        int endConnectionSite)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(connectorType);
+
+        return batch.Execute((ctx, ct) =>
+        {
+            if (!ConnectorTypes.TryGetValue(connectorType, out var typeValue))
+            {
+                return new ShapeOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"'{connectorType}' is not a recognized MsoConnectorType name (must be 'msoConnectorStraight', 'msoConnectorElbow', or 'msoConnectorCurve')."
+                };
+            }
+
+            PowerPoint.Slides? slides = null;
+            PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
+            PowerPoint.Shape? beginShape = null;
+            PowerPoint.Shape? endShape = null;
+            PowerPoint.Shape? connector = null;
+            PowerPoint.ConnectorFormat? connectorFormat = null;
+            try
+            {
+                slides = ctx.Presentation.Slides;
+
+                var slideValidation = ValidateSlideIndex(slides.Count, slideIndex);
+                if (slideValidation is not null) return slideValidation;
+
+                slide = slides[slideIndex];
+                shapes = slide.Shapes;
+
+                int shapeCount = shapes.Count;
+                var beginShapeValidation = ValidateShapeIndex(shapeCount, beginShapeIndex);
+                if (beginShapeValidation is not null) return beginShapeValidation;
+                var endShapeValidation = ValidateShapeIndex(shapeCount, endShapeIndex);
+                if (endShapeValidation is not null) return endShapeValidation;
+
+                beginShape = shapes[beginShapeIndex];
+                endShape = shapes[endShapeIndex];
+
+                int beginConnectionSiteCount = beginShape.ConnectionSiteCount;
+                if (beginConnectionSite < 1 || beginConnectionSite > beginConnectionSiteCount)
+                {
+                    return new ShapeOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"Begin connection site {beginConnectionSite} is out of range. Shape {beginShapeIndex} has {beginConnectionSiteCount} connection site(s) (valid range: 1-{beginConnectionSiteCount})."
+                    };
+                }
+
+                int endConnectionSiteCount = endShape.ConnectionSiteCount;
+                if (endConnectionSite < 1 || endConnectionSite > endConnectionSiteCount)
+                {
+                    return new ShapeOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"End connection site {endConnectionSite} is out of range. Shape {endShapeIndex} has {endConnectionSiteCount} connection site(s) (valid range: 1-{endConnectionSiteCount})."
+                    };
+                }
+
+                // Shapes.AddConnector takes a raw MsoConnectorType value (Office.Core/office.dll,
+                // not referenced here), so only this single call is late-bound.
+                // Reason: AddConnector's Type parameter is MsoConnectorType (office.dll), which is
+                // not exposed on the strongly-typed PIA Shapes interface without that reference.
+                connector = ((dynamic)shapes).AddConnector(typeValue, 1f, 1f, 2f, 2f);
+                try
+                {
+                    connectorFormat = connector.ConnectorFormat;
+                    connectorFormat.BeginConnect(beginShape, beginConnectionSite);
+                    connectorFormat.EndConnect(endShape, endConnectionSite);
+                }
+                catch (Exception attachException)
+                {
+                    // BeginConnect/EndConnect failed after the connector shape was already added -
+                    // delete it so a failed command doesn't leave an unconnected shape behind.
+                    try
+                    {
+                        connector.Delete();
+                    }
+                    catch (Exception deleteException)
+                    {
+                        // The rollback itself failed: the slide now has an orphaned connector
+                        // shape. Surface both failures rather than silently losing the deletion
+                        // error, so the caller knows manual cleanup may be required.
+                        throw new InvalidOperationException(
+                            $"Failed to attach connector ({attachException.Message}), and the " +
+                            $"rollback delete of the orphaned connector shape also failed " +
+                            $"({deleteException.Message}). The slide may still contain an " +
+                            "unconnected connector shape that must be removed manually.",
+                            attachException);
+                    }
+
+                    throw;
+                }
+
+                int newIndex = shapes.Count;
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    ShapeIndex = newIndex,
+                    ShapeCount = newIndex,
+                    ConnectorTypeName = connectorType
+                };
+            }
+            finally
+            {
+                if (connectorFormat is not null) ComUtilities.Release(ref connectorFormat);
+                if (connector is not null) ComUtilities.Release(ref connector);
+                if (endShape is not null) ComUtilities.Release(ref endShape);
+                if (beginShape is not null) ComUtilities.Release(ref beginShape);
+                if (shapes is not null) ComUtilities.Release(ref shapes);
+                if (slide is not null) ComUtilities.Release(ref slide);
+                if (slides is not null) ComUtilities.Release(ref slides);
+            }
+        });
+    }
+
+    /// <inheritdoc/>
     public ShapeOperationResult GetCount(IPresentationBatch batch, int slideIndex)
     {
         ArgumentNullException.ThrowIfNull(batch);

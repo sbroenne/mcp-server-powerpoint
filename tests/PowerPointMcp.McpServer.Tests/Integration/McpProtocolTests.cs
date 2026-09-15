@@ -251,6 +251,27 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
+    public async Task ShapeSchema_ExposesAddAttachedConnectorActionAndParameters()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var shape = Assert.Single(tools, tool => tool.Name == "shape");
+        var properties = shape.JsonSchema.GetProperty("properties");
+        var actions = properties
+            .GetProperty("action")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("add-attached-connector", actions);
+        Assert.True(properties.TryGetProperty("connector_type", out _));
+        Assert.True(properties.TryGetProperty("begin_shape_index", out _));
+        Assert.True(properties.TryGetProperty("begin_connection_site", out _));
+        Assert.True(properties.TryGetProperty("end_shape_index", out _));
+        Assert.True(properties.TryGetProperty("end_connection_site", out _));
+    }
+
+    [Fact]
     public async Task ShapeSchema_ExposesCopyFormattingActionAndItsShapeIndexes()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);

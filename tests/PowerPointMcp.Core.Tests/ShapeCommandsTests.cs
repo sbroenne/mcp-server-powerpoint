@@ -4,6 +4,7 @@ using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Layout;
 using Sbroenne.PowerPointMcp.Core.Shape;
 using Sbroenne.PowerPointMcp.Core.TextFrame;
+using System.Globalization;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
@@ -248,6 +249,132 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
 
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void AddAttachedConnector_RemainsAttachedWhenShapesMove_AndPersistsAfterReopen()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 40f, 80f, 100f, 60f);
+        _commands.AddRectangle(batch, 1, 300f, 220f, 120f, 70f);
+        _commands.SetName(batch, 1, 1, "Connector Begin");
+        _commands.SetName(batch, 1, 2, "Connector End");
+
+        var result = _commands.AddAttachedConnector(
+            batch, 1, "msoConnectorStraight", 1, 2, 2, 4);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Null(result.ErrorMessage);
+        Assert.Equal(3, result.ShapeIndex);
+        Assert.Equal(3, result.ShapeCount);
+        Assert.Equal("msoConnectorStraight", result.ConnectorTypeName);
+
+        int connectorIndex = Assert.IsType<int>(result.ShapeIndex);
+        var initial = ReadAttachmentState(batch, connectorIndex);
+        Assert.True(initial.BeginConnected);
+        Assert.True(initial.EndConnected);
+        Assert.Equal("Connector Begin", initial.BeginShapeName);
+        Assert.Equal("Connector End", initial.EndShapeName);
+        Assert.Equal(2, initial.BeginConnectionSite);
+        Assert.Equal(4, initial.EndConnectionSite);
+
+        _commands.SetPosition(batch, 1, 1, 120f, 160f);
+        _commands.SetPosition(batch, 1, 2, 500f, 300f);
+
+        var moved = ReadAttachmentState(batch, connectorIndex);
+        Assert.True(moved.BeginConnected);
+        Assert.True(moved.EndConnected);
+        Assert.Equal(initial.BeginShapeName, moved.BeginShapeName);
+        Assert.Equal(initial.EndShapeName, moved.EndShapeName);
+        Assert.Equal(initial.BeginConnectionSite, moved.BeginConnectionSite);
+        Assert.Equal(initial.EndConnectionSite, moved.EndConnectionSite);
+
+        _presentationCommands.Save(batch);
+        _fixture.ReopenCurrentPresentation();
+
+        var reopened = ReadAttachmentState(batch, connectorIndex);
+        Assert.True(reopened.BeginConnected);
+        Assert.True(reopened.EndConnected);
+        Assert.Equal(initial.BeginShapeName, reopened.BeginShapeName);
+        Assert.Equal(initial.EndShapeName, reopened.EndShapeName);
+        Assert.Equal(initial.BeginConnectionSite, reopened.BeginConnectionSite);
+        Assert.Equal(initial.EndConnectionSite, reopened.EndConnectionSite);
+    }
+
+    [Theory]
+    [InlineData("msoConnectorDoesNotExist", 1, 1, 2, 1, "not a recognized MsoConnectorType")]
+    [InlineData("msoConnectorStraight", 0, 1, 2, 1, "Shape index 0 is out of range")]
+    [InlineData("msoConnectorStraight", 1, 1, 3, 1, "Shape index 3 is out of range")]
+    [InlineData("msoConnectorStraight", 1, 0, 2, 1, "Begin connection site 0 is out of range")]
+    [InlineData("msoConnectorStraight", 1, 1, 2, 5, "End connection site 5 is out of range")]
+    public void AddAttachedConnector_WithInvalidEndpoint_ReturnsFailureWithoutAddingShape(
+        string connectorType,
+        int beginShapeIndex,
+        int beginConnectionSite,
+        int endShapeIndex,
+        int endConnectionSite,
+        string expectedError)
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 40f, 80f, 100f, 60f);
+        _commands.AddRectangle(batch, 1, 300f, 220f, 120f, 70f);
+
+        var result = _commands.AddAttachedConnector(
+            batch,
+            1,
+            connectorType,
+            beginShapeIndex,
+            beginConnectionSite,
+            endShapeIndex,
+            endConnectionSite);
+
+        Assert.False(result.Success);
+        Assert.Contains(expectedError, result.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(2, _commands.GetCount(batch, 1).ShapeCount);
+    }
+
+    private static (bool BeginConnected, bool EndConnected, string BeginShapeName, string EndShapeName, int BeginConnectionSite, int EndConnectionSite)
+        ReadAttachmentState(ComInterop.Session.IPresentationBatch batch, int connectorIndex)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Slides? slides = null;
+            PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
+            PowerPoint.Shape? connector = null;
+            PowerPoint.ConnectorFormat? connectorFormat = null;
+            PowerPoint.Shape? beginShape = null;
+            PowerPoint.Shape? endShape = null;
+            try
+            {
+                slides = ctx.Presentation.Slides;
+                slide = slides[1];
+                shapes = slide.Shapes;
+                connector = shapes[connectorIndex];
+                connectorFormat = connector.ConnectorFormat;
+                beginShape = connectorFormat.BeginConnectedShape;
+                endShape = connectorFormat.EndConnectedShape;
+                return (
+                    Convert.ToInt32(connectorFormat.BeginConnected, CultureInfo.InvariantCulture) != 0,
+                    Convert.ToInt32(connectorFormat.EndConnected, CultureInfo.InvariantCulture) != 0,
+                    beginShape.Name,
+                    endShape.Name,
+                    connectorFormat.BeginConnectionSite,
+                    connectorFormat.EndConnectionSite);
+            }
+            finally
+            {
+                if (endShape is not null) ComInterop.ComUtilities.Release(ref endShape);
+                if (beginShape is not null) ComInterop.ComUtilities.Release(ref beginShape);
+                if (connectorFormat is not null) ComInterop.ComUtilities.Release(ref connectorFormat);
+                if (connector is not null) ComInterop.ComUtilities.Release(ref connector);
+                if (shapes is not null) ComInterop.ComUtilities.Release(ref shapes);
+                if (slide is not null) ComInterop.ComUtilities.Release(ref slide);
+                if (slides is not null) ComInterop.ComUtilities.Release(ref slides);
+            }
+        });
     }
 
     [Fact]
