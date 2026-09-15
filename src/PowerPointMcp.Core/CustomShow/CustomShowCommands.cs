@@ -35,7 +35,7 @@ public sealed class CustomShowCommands : ICustomShowCommands
                         {
                             Index = i,
                             Name = show.Name,
-                            SlideIndices = ResolveSlideIndices(slides, show.SlideIDs)
+                            SlideIndices = ResolveSlideIndices(slides, show)
                         });
                     }
                     finally
@@ -218,26 +218,34 @@ public sealed class CustomShowCommands : ICustomShowCommands
         return -1;
     }
 
-    private static IReadOnlyList<int> ResolveSlideIndices(PowerPoint.Slides slides, object slideIdsObject)
+    private static List<int> ResolveSlideIndices(PowerPoint.Slides slides, PowerPoint.NamedSlideShow show)
     {
-        // NamedSlideShow.SlideIDs is declared as System.Object on the typed PIA (an untyped Variant
-        // SAFEARRAY), so its elements are read here via boxed conversion instead of a typed cast.
-        if (slideIdsObject is not Array slideIdArray)
+        int slideCount = show.Count;
+        var indices = new List<int>(slideCount);
+
+        // NamedSlideShow.SlideIDs is declared as System.Object on the typed PIA. At runtime it
+        // returns a 0-based System.Object[] whose element 0 is an unused placeholder, matching
+        // VBA's documented 1-based access to this array ("For i = 1 To UBound(idArray)"); the
+        // real IDs are elements 1..Count (confirmed empirically: a 2-slide show returned an
+        // array of {0, id1, id2}).
+        object slideIdsObject = show.SlideIDs;
+        if (slideIdsObject is not Array slideIdArray || slideIdArray.Length <= slideCount)
         {
-            return Array.Empty<int>();
+            return indices;
         }
 
-        var indices = new List<int>(slideIdArray.Length);
-        foreach (var rawSlideId in slideIdArray)
+        for (int i = 1; i <= slideCount; i++)
         {
-            int slideId = Convert.ToInt32(rawSlideId, System.Globalization.CultureInfo.InvariantCulture);
+            int slideId = Convert.ToInt32(slideIdArray.GetValue(i), System.Globalization.CultureInfo.InvariantCulture);
+
             PowerPoint.Slide? slide = null;
             try
             {
                 // The slide was deleted after the custom show was created; PowerPoint keeps the
                 // stale ID in the show. FindBySlideID has been observed to both return null and
-                // throw a COMException for an ID with no matching slide, so both are handled -
-                // either way, there is no slide left to resolve it to, so it is omitted.
+                // throw a COMException for a stale ID with no matching slide (confirmed by a
+                // real-COM regression test), so both are treated the same way: the slide is
+                // omitted, since either way there is nothing left to resolve it to.
                 slide = slides.FindBySlideID(slideId);
                 if (slide is not null)
                 {

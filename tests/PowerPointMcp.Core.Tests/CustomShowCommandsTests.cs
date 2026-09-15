@@ -22,7 +22,9 @@ public sealed class CustomShowCommandsTests : IClassFixture<SharedPresentationFi
     /// <summary>Adds blank slides until the presentation has exactly <paramref name="count"/> slides.</summary>
     private int EnsureSlideCount(int count)
     {
-        int current = 0;
+        var countResult = _slideCommands.GetCount(_fixture.Batch);
+        Assert.True(countResult.Success, countResult.ErrorMessage);
+        int current = countResult.SlideCount!.Value;
         while (current < count)
         {
             var result = _slideCommands.AddBlank(_fixture.Batch);
