@@ -246,18 +246,22 @@ public sealed class CustomShowCommands : ICustomShowCommands
         int slideCount = show.Count;
         var indices = new List<int>(slideCount);
 
-        // NamedSlideShow.SlideIDs is declared as System.Object on the typed PIA. At runtime it
-        // returns a 0-based System.Object[] whose element 0 is an unused placeholder, matching
-        // VBA's documented 1-based access to this array ("For i = 1 To UBound(idArray)"); the
-        // real IDs are elements 1..Count (confirmed empirically: a 2-slide show returned an
-        // array of {0, id1, id2}).
+        // NamedSlideShow.SlideIDs is declared as System.Object on the typed PIA. At runtime it has
+        // been observed to return a 0-based System.Object[] of length Count + 1 whose element 0 is
+        // an unused placeholder, matching VBA's documented 1-based access to this array ("For i = 1
+        // To UBound(idArray)"): a 2-slide show returned {0, id1, id2}. Rather than assuming that
+        // exact shape, only the array's own bounds are trusted: the real IDs are the last
+        // slideCount elements, whatever the array's lower bound turns out to be for a given
+        // PowerPoint/interop marshaling variant.
         object slideIdsObject = show.SlideIDs;
-        if (slideIdsObject is not Array slideIdArray || slideIdArray.Length <= slideCount)
+        if (slideIdsObject is not Array slideIdArray || slideIdArray.Length < slideCount)
         {
             return indices;
         }
 
-        for (int i = 1; i <= slideCount; i++)
+        int upperBound = slideIdArray.GetUpperBound(0);
+        int firstRealIndex = upperBound - slideCount + 1;
+        for (int i = firstRealIndex; i <= upperBound; i++)
         {
             int slideId = Convert.ToInt32(slideIdArray.GetValue(i), System.Globalization.CultureInfo.InvariantCulture);
 
