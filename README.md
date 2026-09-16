@@ -59,7 +59,7 @@ layout regressions that text-only automation simply cannot detect.
 - 🖼️ **Layout** (4 ops) — set/get slide layout
 - 📐 **Page Setup** (5 ops) — slide size, first slide number, footer, date/time, slide numbers
 - ♿ **Accessibility** (3 ops) — deterministic audit and reading-order management
-- 🎭 **Master** (11 ops) — theme color palettes, slide master title/body placeholder fonts, background color
+- 🎭 **Master** (12 ops) — theme color/font inspection, slide master title/body placeholder fonts, background color
 - 🎬 **Animation** (5 ops) — shape entrance/emphasis/exit effects, slide transitions
 - 🖼️ **Image** (7 ops) — insert embedded or linked pictures and adjust brightness, contrast,
   recolor, and crop

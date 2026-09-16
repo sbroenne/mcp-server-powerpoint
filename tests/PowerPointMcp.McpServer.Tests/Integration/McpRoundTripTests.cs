@@ -192,6 +192,50 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         _output.WriteLine("✓ Step 4: list_sessions confirms the session is closed");
     }
 
+    [Fact]
+    public async Task GetThemeFonts_ViaMcpProtocol_SerializesEveryLanguageSlotIncludingNullValues()
+    {
+        var createResult = await CallToolAsync(
+            "presentation",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "create",
+                ["filePath"] = _testPresentationFile
+            });
+        AssertSuccess(createResult, "create_presentation");
+        var sessionId = GetJsonProperty(createResult, "sessionId");
+        Assert.False(string.IsNullOrEmpty(sessionId), $"Expected a sessionId in create response: {createResult}");
+
+        var result = await CallToolAsync(
+            "master",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "get-theme-fonts",
+                ["session_id"] = sessionId
+            });
+        AssertSuccess(result, "get-theme-fonts");
+
+        using (var json = JsonDocument.Parse(result))
+        {
+            foreach (string mapName in new[] { "majorThemeFonts", "minorThemeFonts" })
+            {
+                var fontMap = json.RootElement.GetProperty(mapName);
+                Assert.Equal(JsonValueKind.String, fontMap.GetProperty("latin").ValueKind);
+                Assert.Equal(JsonValueKind.Null, fontMap.GetProperty("complexScript").ValueKind);
+                Assert.Equal(JsonValueKind.Null, fontMap.GetProperty("eastAsian").ValueKind);
+            }
+        }
+
+        var closeResult = await CallToolAsync(
+            "presentation",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "close",
+                ["sessionId"] = sessionId
+            });
+        AssertSuccess(closeResult, "close_presentation");
+    }
+
     private async Task<string> CallToolAsync(string toolName, Dictionary<string, object?> arguments)
     {
         var result = await _client!.CallToolAsync(toolName, arguments, cancellationToken: _cts.Token);

@@ -1,7 +1,7 @@
 # Slide Master
 
 Reference for `master(action: "...", ...)` — reads/edits the presentation's **slide master**:
-the title and body placeholder fonts, and the master background fill color/gradient. Changes here
+the theme colors/fonts, title and body placeholder fonts, and master background fill color/gradient. Changes here
 apply to every slide that inherits from the master (i.e. any slide that does not itself override
 the property) — this is the "style the whole deck at once" tool, distinct from per-slide
 formatting via `textframe`/`layout`.
@@ -12,6 +12,7 @@ formatting via `textframe`/`layout`.
 |------|--------|------------|-------|
 | `master` | `list-masters` | `session_id` | Lists masters and layouts; use its 1-based master index to select a palette. |
 | `master` | `get-theme-colors` | `session_id`, `master_index?` | Reads all twelve theme color roles as `#RRGGBB`; defaults to master 1. Does not modify the presentation. |
+| `master` | `get-theme-fonts` | `session_id`, `master_index?` | Reads major/minor theme fonts for Latin, complex-script, and East Asian text; defaults to master 1. Does not modify the presentation. |
 | `master` | `get-title-font` | `session_id` | Returns `font_name`, `font_size`, `bold`, `color_rgb` for the master's title placeholder. |
 | `master` | `set-title-font` | `session_id`, `font_name?`, `font_size?`, `bold?`, `red?`, `green?`, `blue?` | Every field is optional — omit any you do not want to change. Pass `red`/`green`/`blue` together to set color. |
 | `master` | `get-body-font` | `session_id` | Same shape as `get-title-font`, for the body placeholder. |
@@ -67,6 +68,27 @@ In multi-design decks, query the master used by the slide you are authoring;
 do not assume master 1 supplies every slide's colors. These are base theme roles,
 not effective colors after slide background mappings, tint/shade, or local overrides.
 An out-of-range index returns a validation failure rather than a partial palette.
+
+### Match the Template Typography
+
+Read the theme font roles before adding text that should match the selected template:
+
+```text
+master(action: "list-masters", session_id: sessionId)
+master(action: "get-theme-fonts", session_id: sessionId, master_index: 1)
+```
+
+CLI equivalent:
+
+```powershell
+pptcli master get-theme-fonts --session $sessionId --master-index 1
+```
+
+The result includes `masterIndex`, `masterName`, `majorThemeFonts`, and
+`minorThemeFonts`. Each font map retains the `latin`, `complexScript`, and
+`eastAsian` language slots. A slot PowerPoint cannot resolve is returned as null
+rather than omitted. Major fonts normally apply to headings and minor fonts to body
+text, but local text formatting can override either role.
 
 ### Set Master Styling
 

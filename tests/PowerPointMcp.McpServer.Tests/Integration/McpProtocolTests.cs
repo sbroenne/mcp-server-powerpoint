@@ -105,13 +105,16 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
-    public async Task ListTools_MasterExposesThemePaletteActionAndSelector()
+    public async Task ListTools_MasterExposesThemeInspectionActionsAndSelector()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
         var master = Assert.Single(tools, tool => tool.Name == "master");
         var properties = master.JsonSchema.GetProperty("properties");
-        Assert.Contains(properties.GetProperty("action").GetProperty("enum").EnumerateArray(),
+        var actions = properties.GetProperty("action").GetProperty("enum").EnumerateArray().ToArray();
+        Assert.Contains(actions,
             action => action.GetString() == "get-theme-colors");
+        Assert.Contains(actions,
+            action => action.GetString() == "get-theme-fonts");
         Assert.True(properties.TryGetProperty("master_index", out _));
     }
 

@@ -29,7 +29,7 @@ The CLI mirrors the same domain model:
 | `layout` | 4 | Slide layouts | `layout(action="...", session_id=..., ...)` | `pptcli layout <action> -s <SESSION_ID> ...` |
 | `pagesetup` | 5 | Slide size, numbering, footer, date/time | `pagesetup(action="...", session_id=..., ...)` | `pptcli pagesetup <action> -s <SESSION_ID> ...` |
 | `accessibility` | 3 | Deterministic audit and reading order | `accessibility(action="...", session_id=..., ...)` | `pptcli accessibility <action> -s <SESSION_ID> ...` |
-| `master` | 11 | Theme color palettes, slide master fonts and backgrounds | `master(action="...", session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
+| `master` | 12 | Theme color/font inspection, slide master fonts and backgrounds | `master(action="...", session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
 | `animation` | 5 | Shape effects and slide transitions | `animation(action="...", session_id=..., ...)` | `pptcli animation <action> -s <SESSION_ID> ...` |
 | `image` | 7 | Picture insertion and picture adjustments (brightness/contrast, recolor, crop) | `image(action="...", session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
 | `media` | 2 | Embedded or linked audio/video insertion and native media metadata | `media(action="...", session_id=..., ...)` | `pptcli media <action> -s <SESSION_ID> ...` |
@@ -156,13 +156,13 @@ alternative text on visual content and empty title placeholders; it is not an AI
 
 **Exact action order:** `audit`, `get-reading-order`, `set-reading-order`
 
-### `master` tool (11 operations)
+### `master` tool (12 operations)
 
-Use `master` for theme color palettes, deck-wide master placeholder fonts, and master backgrounds.
+Use `master` for theme color/font inspection, deck-wide master placeholder fonts, and master backgrounds.
 
 **Exact action order:** `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`,
 `get-background-color`, `set-background-color`, `set-gradient-background`,
-`get-gradient-background`, `list-masters`, `get-theme-colors`, `delete-master`
+`get-gradient-background`, `list-masters`, `get-theme-colors`, `get-theme-fonts`, `delete-master`
 
 ### `animation` tool (5 operations)
 

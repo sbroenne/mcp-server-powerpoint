@@ -102,6 +102,113 @@ public class MasterCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.Single(_commands.ListMasters(_fixture.Batch).Masters!);
     }
 
+    [Fact]
+    public void GetThemeFonts_ReturnsMajorAndMinorFontsForEveryLanguageSlot()
+    {
+        _fixture.CreateFreshPresentation();
+        _fixture.Batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Designs? designs = null;
+            PowerPoint.Design? design = null;
+            try
+            {
+                designs = ctx.Presentation.Designs;
+                design = designs[1];
+                SetThemeFontNameForTest(design, major: true, Office.MsoFontLanguageIndex.msoThemeComplexScript, string.Empty);
+                SetThemeFontNameForTest(design, major: true, Office.MsoFontLanguageIndex.msoThemeEastAsian, string.Empty);
+                SetThemeFontNameForTest(design, major: false, Office.MsoFontLanguageIndex.msoThemeComplexScript, string.Empty);
+                SetThemeFontNameForTest(design, major: false, Office.MsoFontLanguageIndex.msoThemeEastAsian, string.Empty);
+            }
+            finally
+            {
+                ComUtilities.Release(ref design);
+                ComUtilities.Release(ref designs);
+            }
+        });
+
+        var result = _commands.GetThemeFonts(_fixture.Batch, masterIndex: 1);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Null(result.ErrorMessage);
+        Assert.Equal(1, result.MasterIndex);
+        Assert.False(string.IsNullOrWhiteSpace(result.MasterName));
+
+        string[] languageSlots = ["latin", "complexScript", "eastAsian"];
+        foreach (var fonts in new[] { result.MajorThemeFonts, result.MinorThemeFonts })
+        {
+            Assert.NotNull(fonts);
+            Assert.Equal(languageSlots.Order(), fonts.Keys.Order());
+            Assert.False(string.IsNullOrWhiteSpace(fonts["latin"]));
+            Assert.Null(fonts["complexScript"]);
+            Assert.Null(fonts["eastAsian"]);
+        }
+    }
+
+    [Fact]
+    public void GetThemeFonts_SelectsMasterAndDoesNotChangeInventory()
+    {
+        _fixture.CreateFreshPresentation();
+        _fixture.Batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Designs? designs = null;
+            PowerPoint.Design? first = null;
+            PowerPoint.Design? second = null;
+            try
+            {
+                designs = ctx.Presentation.Designs;
+                first = designs[1];
+                second = designs.Add("ThemeFontsSecondMaster");
+                SetThemeFontNameForTest(first, major: true, Office.MsoFontLanguageIndex.msoThemeLatin, "Calibri");
+                SetThemeFontNameForTest(first, major: false, Office.MsoFontLanguageIndex.msoThemeLatin, "Cambria");
+                SetThemeFontNameForTest(second, major: true, Office.MsoFontLanguageIndex.msoThemeLatin, "Arial");
+                SetThemeFontNameForTest(second, major: false, Office.MsoFontLanguageIndex.msoThemeLatin, "Times New Roman");
+            }
+            finally
+            {
+                ComUtilities.Release(ref second);
+                ComUtilities.Release(ref first);
+                ComUtilities.Release(ref designs);
+            }
+        });
+
+        var before = _commands.ListMasters(_fixture.Batch);
+        var firstMasterRead = _commands.GetThemeFonts(_fixture.Batch, masterIndex: 1);
+        var firstRead = _commands.GetThemeFonts(_fixture.Batch, masterIndex: 2);
+        var secondRead = _commands.GetThemeFonts(_fixture.Batch, masterIndex: 2);
+        var after = _commands.ListMasters(_fixture.Batch);
+
+        Assert.True(firstMasterRead.Success, firstMasterRead.ErrorMessage);
+        Assert.True(firstRead.Success, firstRead.ErrorMessage);
+        Assert.True(secondRead.Success, secondRead.ErrorMessage);
+        Assert.Equal(2, firstRead.MasterIndex);
+        Assert.Equal(before.Masters![1].MasterName, firstRead.MasterName);
+        Assert.Equal("Arial", firstRead.MajorThemeFonts!["latin"]);
+        Assert.Equal("Times New Roman", firstRead.MinorThemeFonts!["latin"]);
+        Assert.NotEqual(firstMasterRead.MajorThemeFonts!["latin"], firstRead.MajorThemeFonts["latin"]);
+        Assert.NotEqual(firstMasterRead.MinorThemeFonts!["latin"], firstRead.MinorThemeFonts["latin"]);
+        Assert.Equal(firstRead.MajorThemeFonts, secondRead.MajorThemeFonts);
+        Assert.Equal(firstRead.MinorThemeFonts, secondRead.MinorThemeFonts);
+        Assert.Equal(before.Masters.Select(master => (master.MasterIndex, master.MasterName)),
+            after.Masters!.Select(master => (master.MasterIndex, master.MasterName)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(2)]
+    public void GetThemeFonts_InvalidMaster_ReturnsValidationFailure(int masterIndex)
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.GetThemeFonts(_fixture.Batch, masterIndex);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+        Assert.Null(result.MajorThemeFonts);
+        Assert.Null(result.MinorThemeFonts);
+        Assert.Single(_commands.ListMasters(_fixture.Batch).Masters!);
+    }
+
     private static void SetAccentForPaletteTest(PowerPoint.Design design, int oleColor)
     {
         PowerPoint.Master? master = null;
@@ -119,6 +226,36 @@ public class MasterCommandsTests : IClassFixture<SharedPresentationFixture>
         finally
         {
             ComUtilities.Release(ref accent);
+            ComUtilities.Release(ref scheme);
+            ComUtilities.Release(ref theme);
+            ComUtilities.Release(ref master);
+        }
+    }
+
+    private static void SetThemeFontNameForTest(
+        PowerPoint.Design design,
+        bool major,
+        Office.MsoFontLanguageIndex language,
+        string fontName)
+    {
+        PowerPoint.Master? master = null;
+        Office.OfficeTheme? theme = null;
+        Office.ThemeFontScheme? scheme = null;
+        Office.ThemeFonts? fonts = null;
+        Office.ThemeFont? font = null;
+        try
+        {
+            master = design.SlideMaster;
+            theme = master.Theme;
+            scheme = theme.ThemeFontScheme;
+            fonts = major ? scheme.MajorFont : scheme.MinorFont;
+            font = fonts.Item(language);
+            font.Name = fontName;
+        }
+        finally
+        {
+            ComUtilities.Release(ref font);
+            ComUtilities.Release(ref fonts);
             ComUtilities.Release(ref scheme);
             ComUtilities.Release(ref theme);
             ComUtilities.Release(ref master);
