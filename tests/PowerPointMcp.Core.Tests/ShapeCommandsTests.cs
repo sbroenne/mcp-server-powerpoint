@@ -543,6 +543,45 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         }
     }
 
+    /// <summary>
+    /// Wraps a real batch that starts healthy (so preflight validation succeeds normally) and
+    /// only reports <see cref="HasTimedOutOperation"/> as true once <paramref name="delay"/> has
+    /// elapsed, simulating a concurrently-dispatched command poisoning the session while
+    /// <c>CopyToSlide</c> is still queued waiting for the clipboard lock.
+    /// </summary>
+    private sealed class BecomesPoisonedAfterDelaySessionBatch(IPresentationBatch inner, TimeSpan delay)
+        : IPresentationBatch
+    {
+        private readonly System.Diagnostics.Stopwatch _stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        public string PresentationPath => inner.PresentationPath;
+        public bool HasTimedOutOperation => _stopwatch.Elapsed >= delay;
+        public int? PowerPointProcessId => inner.PowerPointProcessId;
+        public PowerPointProcessIdentity? PowerPointProcessIdentity => inner.PowerPointProcessIdentity;
+        public TimeSpan OperationTimeout => inner.OperationTimeout;
+
+        public void Execute(
+            Action<PresentationContext, CancellationToken> operation,
+            CancellationToken cancellationToken = default) =>
+            inner.Execute(operation, cancellationToken);
+
+        public T Execute<T>(
+            Func<PresentationContext, CancellationToken, T> operation,
+            CancellationToken cancellationToken = default) =>
+            inner.Execute(operation, cancellationToken);
+
+        public void Save(CancellationToken cancellationToken = default) => inner.Save(cancellationToken);
+
+        public void UpdatePresentationPath(string presentationPath) =>
+            inner.UpdatePresentationPath(presentationPath);
+
+        public bool IsPowerPointProcessAlive() => inner.IsPowerPointProcessAlive();
+
+        public void Dispose()
+        {
+        }
+    }
+
     [Theory]
     [InlineData(0, 2)]
     [InlineData(99, 2)]
@@ -795,6 +834,50 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
             Assert.True(
                 stopwatch.Elapsed < TimeSpan.FromSeconds(10),
                 $"A poisoned session took {stopwatch.Elapsed} to fail, so it waited on the clipboard lock first.");
+        }
+        finally
+        {
+            releaseLock.Set();
+            lockHolder.Join();
+        }
+    }
+
+    [Fact]
+    public void CopyToSlide_WhenSessionBecomesPoisonedWhileQueuedForTheLock_AbandonsQuickly()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        var slideResult = _slideCommands.AddBlank(batch);
+        Assert.True(slideResult.Success, slideResult.ErrorMessage);
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+
+        using var lockAcquired = new ManualResetEventSlim();
+        using var releaseLock = new ManualResetEventSlim();
+        Exception? holderFailure = null;
+        var lockHolder = new Thread(() =>
+            ShapeClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure))
+        {
+            IsBackground = true
+        };
+        lockHolder.Start();
+        try
+        {
+            Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(15)));
+            Assert.Null(holderFailure);
+
+            // Starts healthy - preflight validation must succeed normally - and only reports
+            // poisoned once a concurrently-dispatched command could plausibly have broken the
+            // session while this request was still queued behind the externally-held lock.
+            var becomesPoisoned = new BecomesPoisonedAfterDelaySessionBatch(batch, TimeSpan.FromMilliseconds(500));
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var ex = Assert.Throws<TimeoutException>(() => _commands.CopyToSlide(becomesPoisoned, 1, 1, 2));
+            stopwatch.Stop();
+
+            Assert.Contains("unusable", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.True(
+                stopwatch.Elapsed < TimeSpan.FromSeconds(5),
+                $"Took {stopwatch.Elapsed} to abandon after the session became poisoned mid-wait, " +
+                "so it was not polling for that while queued.");
         }
         finally
         {

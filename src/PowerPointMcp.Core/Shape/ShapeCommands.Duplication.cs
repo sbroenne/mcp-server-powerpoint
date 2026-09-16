@@ -93,13 +93,41 @@ public sealed partial class ShapeCommands
             batch.PowerPointProcessIdentity);
         ClipboardLockCoordinator.Enqueue(request);
 
-        if (Task.WaitAny([request.Acquired.Task], lockTimeout) < 0)
+        // Polls in short slices rather than waiting out the whole budget in one call: dispatch
+        // can run other commands against this same batch concurrently while this one sits queued
+        // for the clipboard, so the session can be poisoned (or PowerPoint can exit) at any point
+        // during the wait. Without polling, that would go unnoticed until this request finally
+        // reached the front of the queue, wasting most of lockTimeout on a wait that was already
+        // doomed. IsPowerPointProcessAlive() always reports false when no identity was captured
+        // (nothing to confirm against), so it is only trusted as a "confirmed dead" signal when an
+        // identity actually exists - otherwise a perfectly healthy session with no captured
+        // identity would abandon every copy-to-slide call immediately.
+        TimeSpan pollInterval = TimeSpan.FromMilliseconds(250);
+        DateTime waitDeadlineUtc = DateTime.UtcNow + lockTimeout;
+        while (!request.Acquired.Task.IsCompleted)
         {
-            request.MarkCallerGaveUp();
-            throw new TimeoutException(
-                $"Timed out after {lockTimeout.TotalSeconds:0.##} seconds waiting for the Windows " +
-                "clipboard, which another session or process is using to copy a shape. Retry the " +
-                "copy-to-slide operation.");
+            bool sessionUnusable = batch.HasTimedOutOperation
+                || (batch.PowerPointProcessIdentity is not null && !batch.IsPowerPointProcessAlive());
+            if (sessionUnusable)
+            {
+                request.MarkCallerGaveUp();
+                throw new TimeoutException(
+                    "The PowerPoint session became unusable while waiting for the shared clipboard " +
+                    "(a previous operation timed out, or the PowerPoint process exited). The " +
+                    "copy-to-slide operation was abandoned; open a new session and retry.");
+            }
+
+            TimeSpan remaining = waitDeadlineUtc - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+            {
+                request.MarkCallerGaveUp();
+                throw new TimeoutException(
+                    $"Timed out after {lockTimeout.TotalSeconds:0.##} seconds waiting for the Windows " +
+                    "clipboard, which another session or process is using to copy a shape. Retry the " +
+                    "copy-to-slide operation.");
+            }
+
+            Task.WaitAny([request.Acquired.Task], remaining < pollInterval ? remaining : pollInterval);
         }
 
         if (!request.Acquired.Task.GetAwaiter().GetResult())
