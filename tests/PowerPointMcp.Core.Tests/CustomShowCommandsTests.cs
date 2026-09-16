@@ -261,4 +261,38 @@ public sealed class CustomShowCommandsTests : IClassFixture<SharedPresentationFi
         // The deleted slide's stale ID is omitted; the other two (now renumbered) remain.
         Assert.Equal([1, 2], entry.SlideIndices);
     }
+
+    [Fact]
+    public void Create_WithNameDifferingOnlyByCase_ReturnsFailureWithoutAddingSecondShow()
+    {
+        _fixture.CreateFreshPresentation();
+        EnsureSlideCount(2);
+
+        var first = _commands.Create(_fixture.Batch, "Demo Flow", [1]);
+        Assert.True(first.Success, first.ErrorMessage);
+
+        var second = _commands.Create(_fixture.Batch, "DEMO FLOW", [2]);
+
+        Assert.False(second.Success);
+        Assert.Contains("already exists", second.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+
+        var listResult = _commands.List(_fixture.Batch);
+        Assert.Single(listResult.Shows!);
+    }
+
+    [Fact]
+    public void Delete_WithNameDifferingOnlyByCase_RemovesNamedShow()
+    {
+        _fixture.CreateFreshPresentation();
+        EnsureSlideCount(1);
+        var createResult = _commands.Create(_fixture.Batch, "Demo Flow", [1]);
+        Assert.True(createResult.Success, createResult.ErrorMessage);
+
+        var deleteResult = _commands.Delete(_fixture.Batch, "DEMO FLOW");
+
+        Assert.True(deleteResult.Success, deleteResult.ErrorMessage);
+
+        var listResult = _commands.List(_fixture.Batch);
+        Assert.Empty(listResult.Shows!);
+    }
 }

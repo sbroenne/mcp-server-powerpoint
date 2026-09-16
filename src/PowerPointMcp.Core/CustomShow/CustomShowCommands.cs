@@ -205,7 +205,11 @@ public sealed class CustomShowCommands : ICustomShowCommands
             try
             {
                 candidate = shows[i];
-                if (string.Equals(candidate.Name, name, StringComparison.Ordinal))
+                // PowerPoint's NamedSlideShows collection treats names case-insensitively: creating
+                // "Demo" when "demo" already exists reaches Add() and fails at the COM layer instead
+                // of the documented duplicate-name result, and delete-by-name would not find an
+                // existing show that differs only in casing.
+                if (string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase))
                 {
                     return i;
                 }
@@ -253,10 +257,22 @@ public sealed class CustomShowCommands : ICustomShowCommands
         // exact shape, only the array's own bounds are trusted: the real IDs are the last
         // slideCount elements, whatever the array's lower bound turns out to be for a given
         // PowerPoint/interop marshaling variant.
+        if (slideCount == 0)
+        {
+            return indices;
+        }
+
         object slideIdsObject = show.SlideIDs;
         if (slideIdsObject is not Array slideIdArray || slideIdArray.Length < slideCount)
         {
-            return indices;
+            // A non-array or undersized SlideIDs value for a non-empty show is an unexpected COM
+            // result, not the documented deleted-slide case (a stale ID is still present in the
+            // array and is filtered out below via the dictionary lookup). Throwing here lets
+            // batch.Execute() surface it as a failure instead of List() silently reporting
+            // Success=true with empty or partial slide indices.
+            throw new InvalidOperationException(
+                $"Custom show '{show.Name}' reported {slideCount} slide(s) but PowerPoint returned an " +
+                "unexpected SlideIDs value that was not an array of at least that length.");
         }
 
         int upperBound = slideIdArray.GetUpperBound(0);
