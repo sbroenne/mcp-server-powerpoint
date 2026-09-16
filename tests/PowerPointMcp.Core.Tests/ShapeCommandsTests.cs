@@ -682,6 +682,34 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
     }
 
+    // Pure, zero-COM-dependency utility - no PowerPoint or presentation state involved - so it is
+    // tested directly per the project's integration-tests-only exception for algorithmic utilities
+    // with no COM dependency, rather than only indirectly through a real wedge-and-recover
+    // scenario (which cannot be forced deterministically without actually hanging a COM call).
+    [Fact]
+    public void IsProcessConfirmedDead_TrueForNoSuchProcess_FalseForTheCurrentProcess()
+    {
+        int noSuchProcessId = FindUnusedProcessId();
+
+        Assert.True(ShapeCommands.ClipboardLockCoordinator.IsProcessConfirmedDead(noSuchProcessId));
+        Assert.False(ShapeCommands.ClipboardLockCoordinator.IsProcessConfirmedDead(Environment.ProcessId));
+    }
+
+    /// <summary>Finds a process id that does not currently identify any running process.</summary>
+    private static int FindUnusedProcessId()
+    {
+        var liveIds = System.Diagnostics.Process.GetProcesses().Select(p => p.Id).ToHashSet();
+        for (int candidate = 1; candidate < int.MaxValue; candidate++)
+        {
+            if (!liveIds.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        throw new InvalidOperationException("Could not find an unused process id.");
+    }
+
     [Fact]
     public async Task CopyToSlide_WaitsForGlobalClipboardLock()
     {

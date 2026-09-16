@@ -89,7 +89,8 @@ public sealed partial class ShapeCommands
         var request = new ClipboardLockRequest(
             DateTime.UtcNow + lockTimeout,
             batch.OperationTimeout,
-            () => Interlocked.CompareExchange(ref callbackState, 2, 0) == 0);
+            () => Interlocked.CompareExchange(ref callbackState, 2, 0) == 0,
+            batch.PowerPointProcessId);
         ClipboardLockCoordinator.Enqueue(request);
 
         if (Task.WaitAny([request.Acquired.Task], lockTimeout) < 0)
@@ -173,7 +174,11 @@ public sealed partial class ShapeCommands
                     // detected this way.
                     if (pasted.Count != 1)
                     {
+                        // Leaving whatever was actually pasted on the target slide would let a
+                        // caller retrying after this failure accumulate unrelated content, so the
+                        // partial mutation is undone before reporting it.
                         int pastedCount = pasted.Count;
+                        pasted.Delete();
                         return new ShapeOperationResult
                         {
                             Success = false,
@@ -299,12 +304,19 @@ public sealed partial class ShapeCommands
     /// <summary>
     /// A caller's turn at the clipboard lock. <paramref name="TryAbandon"/> returns true when the
     /// transfer had not started yet and can therefore never run, which is what makes releasing the
-    /// lock safe after the caller has given up.
+    /// lock safe after the caller has given up. <paramref name="PowerPointProcessId"/> identifies
+    /// the PowerPoint process this request's own transfer would run against. It is recorded only
+    /// so that, if this request is the one that later turns out to be wedged, the coordinator can
+    /// tell once that specific process is confirmed dead and safely clear the quarantine for
+    /// every caller - it does not exempt this request's own process from a quarantine already in
+    /// effect, because the clipboard being guarded is one desktop-wide resource, not a per-process
+    /// one.
     /// </summary>
-    private sealed record ClipboardLockRequest(
+    internal sealed record ClipboardLockRequest(
         DateTime DeadlineUtc,
         TimeSpan CompletionTimeout,
-        Func<bool> TryAbandon)
+        Func<bool> TryAbandon,
+        int? PowerPointProcessId)
     {
         private int _callerGaveUp;
 
@@ -334,28 +346,31 @@ public sealed partial class ShapeCommands
     /// lock is exclusive, so one owner can serve every caller; a thread per request would
     /// accumulate whenever the clipboard or PowerPoint is busy.
     /// </summary>
-    private static class ClipboardLockCoordinator
+    internal static class ClipboardLockCoordinator
     {
         private static readonly System.Collections.Concurrent.BlockingCollection<ClipboardLockRequest> Requests = new();
         private static readonly Lock StartGate = new();
         private static bool s_started;
 
-        // 0 = healthy, 1 = a previous transfer never confirmed completion within its bounded
-        // waits and may still be running. Once set, this never clears itself - the process no
-        // longer has a way to know when (or whether) the wedged COM call ever finishes, so the
-        // only safe recovery is restarting the affected PowerPoint session/process.
-        private static int s_wedged;
+        // Non-null while a previous transfer never confirmed completion within its bounded waits
+        // and may still be running. Read/written only via Volatile: Enqueue() runs on arbitrary
+        // caller threads, while the field is cleared from the single coordinator thread once the
+        // recorded process is confirmed dead, so both the wedge flag and the process ID it carries
+        // must become visible together, not as two separately-torn fields.
+        private static volatile WedgeState? s_wedge;
+
+        // The mutex handle retained (never released/disposed) for as long as a wedge is in
+        // effect. Only ever touched by the single coordinator thread - the one thread .NET's
+        // Mutex allows to release it - so no synchronization is needed here.
+        private static Mutex? s_wedgeMutex;
+
+        private sealed record WedgeState(int? PowerPointProcessId);
 
         internal static void Enqueue(ClipboardLockRequest request)
         {
-            if (Volatile.Read(ref s_wedged) == 1)
+            if (IsQuarantineStillInEffect())
             {
-                request.Acquired.TrySetException(new InvalidOperationException(
-                    "The shared shape clipboard is quarantined: a previous copy-to-slide " +
-                    "operation did not confirm completion within its timeout and may still be " +
-                    "running inside PowerPoint. Handing out the lock now could race that unknown, " +
-                    "possibly still-active Copy()/Paste() pair. Restart the affected PowerPoint " +
-                    "session or process to clear this state."));
+                request.Acquired.TrySetException(QuarantineException());
                 return;
             }
 
@@ -399,20 +414,18 @@ public sealed partial class ShapeCommands
             }
 
             // A request can already be queued (enqueued while healthy) by the time an earlier
-            // transfer discovers a wedge and sets this flag. Without this check, this coordinator
-            // thread would still be the OS-recognized owner of the never-released named mutex
-            // below, so its own next WaitOne() on that same name would re-acquire immediately
-            // (mutex ownership is per-thread and recursive) and let this request run concurrently
-            // with the still-possibly-active wedged transfer - exactly what the quarantine exists
-            // to prevent. Checking here, before ever touching the mutex again, closes that gap.
-            if (Volatile.Read(ref s_wedged) == 1)
+            // transfer discovers a wedge. Without this check, this coordinator thread would still
+            // be the OS-recognized owner of the never-released named mutex below, so its own next
+            // WaitOne() on that same name would re-acquire immediately (mutex ownership is
+            // per-thread and recursive) and let this request run concurrently with the still-
+            // possibly-active wedged transfer - exactly what the quarantine exists to prevent.
+            // TryClearResolvedQuarantine runs first and, if the recorded process is now confirmed
+            // dead, releases the retained mutex from this same thread and clears the quarantine
+            // before this request is served - the only point at which doing so is both possible
+            // (thread-affinity) and safe (the danger is actually gone, not just timed out on).
+            if (!TryClearResolvedQuarantine() && IsQuarantineStillInEffect())
             {
-                request.Acquired.TrySetException(new InvalidOperationException(
-                    "The shared shape clipboard is quarantined: a previous copy-to-slide " +
-                    "operation did not confirm completion within its timeout and may still be " +
-                    "running inside PowerPoint. Handing out the lock now could race that unknown, " +
-                    "possibly still-active Copy()/Paste() pair. Restart the affected PowerPoint " +
-                    "session or process to clear this state."));
+                request.Acquired.TrySetException(QuarantineException());
                 return;
             }
 
@@ -464,7 +477,7 @@ public sealed partial class ShapeCommands
                         if (!completed)
                         {
                             wedged = true;
-                            Volatile.Write(ref s_wedged, 1);
+                            s_wedge = new WedgeState(request.PowerPointProcessId);
                         }
                     }
                 }
@@ -476,14 +489,18 @@ public sealed partial class ShapeCommands
                 // different process's WaitOne() acquire it and run Copy()/Paste() while the
                 // original STA callback may still be active, defeating the quarantine just as much
                 // as this thread re-acquiring it would. So once wedged, this handle is deliberately
-                // never released or disposed: .NET's Mutex is thread-affine on release, and Windows
-                // keeps the underlying kernel object owned by this thread for as long as the thread
-                // itself lives, which for this dedicated background thread is the rest of the
-                // process's lifetime. Every other process's own WaitOne() then blocks or times out
-                // normally against a lock that is genuinely still held, instead of acquiring one
-                // that only looks clean. Only process/thread termination (or, later, an
-                // AbandonedMutexException on the next real acquirer once that happens) ends this.
-                if (!wedged)
+                // retained rather than released or disposed here: .NET's Mutex is thread-affine on
+                // release, and Windows keeps the underlying kernel object owned by this thread for
+                // as long as the thread itself lives, which for this dedicated background thread is
+                // the rest of the process's lifetime unless TryClearResolvedQuarantine later
+                // determines it is safe to let go. Every other process's own WaitOne() then blocks
+                // or times out normally against a lock that is genuinely still held, instead of
+                // acquiring one that only looks clean.
+                if (wedged)
+                {
+                    s_wedgeMutex = clipboardMutex;
+                }
+                else
                 {
                     if (lockTaken)
                     {
@@ -494,5 +511,70 @@ public sealed partial class ShapeCommands
                 }
             }
         }
+
+        private static bool IsQuarantineStillInEffect() => s_wedge is not null;
+
+        /// <summary>
+        /// If a wedge is recorded and the PowerPoint process it was tied to can now be confirmed
+        /// dead, releases the retained mutex from this coordinator thread and clears the
+        /// quarantine, returning <see langword="true"/>. A dead process can never complete (or
+        /// still be running) the COM call that caused the wedge, so the danger the quarantine
+        /// guards against is actually over, not merely timed out on. Only ever called from the
+        /// single coordinator thread, which is the only thread .NET's Mutex allows to release the
+        /// handle this method may dispose of.
+        /// </summary>
+        private static bool TryClearResolvedQuarantine()
+        {
+            WedgeState? wedge = s_wedge;
+            if (wedge is null)
+            {
+                return false;
+            }
+
+            if (wedge.PowerPointProcessId is not int processId || !IsProcessConfirmedDead(processId))
+            {
+                return false;
+            }
+
+            if (s_wedgeMutex is not null)
+            {
+                s_wedgeMutex.ReleaseMutex();
+                s_wedgeMutex.Dispose();
+                s_wedgeMutex = null;
+            }
+
+            s_wedge = null;
+            return true;
+        }
+
+        /// <summary>
+        /// True only when Windows confirms no process with <paramref name="processId"/> exists (it
+        /// has exited) or that the process object obtained for it reports <c>HasExited</c>. A
+        /// process id that cannot be resolved for any other reason is treated as still alive/
+        /// unknown, never as dead - an unconfirmed guess must not accidentally reopen a real race.
+        /// Internal (not private) solely so this pure, zero-COM-dependency check can be
+        /// unit-tested directly per the project's integration-tests-only exception for algorithmic
+        /// utilities with no COM dependency.
+        /// </summary>
+        internal static bool IsProcessConfirmedDead(int processId)
+        {
+            try
+            {
+                using var process = System.Diagnostics.Process.GetProcessById(processId);
+                return process.HasExited;
+            }
+            catch (ArgumentException)
+            {
+                // No running process has this Id.
+                return true;
+            }
+        }
+
+        private static InvalidOperationException QuarantineException() => new(
+            "The shared shape clipboard is quarantined: a previous copy-to-slide operation did " +
+            "not confirm completion within its timeout and the PowerPoint process it was running " +
+            "against could not yet be confirmed dead. Handing out the lock now could race that " +
+            "unknown, possibly still-active Copy()/Paste() pair. This clears automatically once " +
+            "that PowerPoint process actually exits.");
     }
 }
