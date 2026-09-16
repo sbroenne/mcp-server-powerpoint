@@ -3,13 +3,13 @@ using Sbroenne.PowerPointMcp.Core.Attributes;
 namespace Sbroenne.PowerPointMcp.Core.Shape;
 
 /// <summary>
-/// Shape commands: create, inspect, format, group, link, and edit native placeholders.
-/// Operates within an already-open IPresentationBatch, targeting a specific slide by
-/// its 1-based index.
+/// Shape commands: create, inspect, format, group, link, duplicate/copy, and edit native
+/// placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide
+/// by its 1-based index.
 /// </summary>
 [ServiceCategory("shape", "Shape")]
 [McpTool("shape", Title = "Shape Operations", Destructive = true, Category = "content",
-    Description = "Create, inspect, format, group, link, and edit native placeholders on a slide.")]
+    Description = "Create, inspect, format, group, link, duplicate/copy, and edit native placeholders on a slide.")]
 public interface IShapeCommands
 {
     /// <summary>Adds a rectangle shape to the given slide.</summary>
@@ -89,6 +89,30 @@ public interface IShapeCommands
         int slideIndex,
         int sourceShapeIndex,
         int targetShapeIndex);
+
+    /// <summary>
+    /// Creates an identical, independently editable copy of a shape on the same slide,
+    /// immediately in front of the original in z-order. Returns the new shape's 1-based index.
+    /// </summary>
+    ShapeOperationResult Duplicate(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Copies a shape to another slide in the same presentation via PowerPoint's native
+    /// copy/paste, producing an independently editable copy. <paramref name="targetSlideIndex"/>
+    /// must differ from <paramref name="slideIndex"/> - use <see cref="Duplicate"/> to copy a
+    /// shape onto the same slide. Returns the new shape's 1-based index on
+    /// <paramref name="targetSlideIndex"/>. Uses the shared Windows clipboard: concurrent calls
+    /// made through this server, from any process in the current desktop session, are serialized
+    /// automatically, but this cannot prevent an unrelated application or a manual copy/paste on
+    /// the same desktop session from replacing the clipboard contents in between. A best-effort
+    /// check after pasting fails the operation if it did not produce exactly one shape, which
+    /// catches gross clipboard interference but not a same-shape-count substitution.
+    /// </summary>
+    ShapeOperationResult CopyToSlide(
+        ComInterop.Session.IPresentationBatch batch,
+        int slideIndex,
+        int shapeIndex,
+        int targetSlideIndex);
 
     /// <summary>Sets a shape's rotation, in degrees clockwise from its upright position.</summary>
     ShapeOperationResult SetRotation(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, float degrees);

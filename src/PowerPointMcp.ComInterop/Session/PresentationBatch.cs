@@ -71,6 +71,11 @@ internal sealed class PresentationBatch : IPresentationBatch
     private int _disposed;
     private int? _powerPointProcessId;
     private PowerPointProcessIdentity? _powerPointProcessIdentity;
+
+    // Set on whichever thread's Execute() call actually times out, read via HasTimedOutOperation
+    // from any other thread that shares this batch (dispatch can run commands against the same
+    // batch concurrently) - always access through Volatile.Read/Write so a timeout recorded on one
+    // thread is guaranteed visible to a caller polling this from another.
     private bool _operationTimedOut;
 
     private PowerPoint.Application? _app;
@@ -119,7 +124,7 @@ internal sealed class PresentationBatch : IPresentationBatch
             bool completedInTime = started.Task.Wait(_operationTimeout);
             if (!completedInTime)
             {
-                _operationTimedOut = true;
+                Volatile.Write(ref _operationTimedOut, true);
                 _workQueue.Writer.TryComplete();
                 _shutdownCts.Cancel();
                 throw new TimeoutException(
@@ -485,7 +490,7 @@ internal sealed class PresentationBatch : IPresentationBatch
 
     public string PresentationPath => Volatile.Read(ref _presentationPath);
 
-    public bool HasTimedOutOperation => _operationTimedOut;
+    public bool HasTimedOutOperation => Volatile.Read(ref _operationTimedOut);
 
     public int? PowerPointProcessId => _powerPointProcessId;
 
@@ -505,7 +510,7 @@ internal sealed class PresentationBatch : IPresentationBatch
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(PresentationBatch));
 
-        if (_operationTimedOut)
+        if (Volatile.Read(ref _operationTimedOut))
         {
             throw new TimeoutException(
                 $"A previous operation timed out for '{Path.GetFileName(_presentationPath)}'. " +
@@ -564,7 +569,7 @@ internal sealed class PresentationBatch : IPresentationBatch
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            _operationTimedOut = true;
+            Volatile.Write(ref _operationTimedOut, true);
             throw new TimeoutException(
                 $"PowerPoint operation timed out after {_operationTimeout.TotalSeconds} seconds for " +
                 $"'{Path.GetFileName(_presentationPath)}'.");
@@ -665,7 +670,7 @@ internal sealed class PresentationBatch : IPresentationBatch
         _shutdownCts.Cancel();
         _workQueue.Writer.Complete();
 
-        if (_operationTimedOut && _powerPointProcessIdentity.HasValue && _staThread.IsAlive)
+        if (Volatile.Read(ref _operationTimedOut) && _powerPointProcessIdentity.HasValue && _staThread.IsAlive)
         {
             TryKillProcess(_powerPointProcessIdentity.Value);
         }

@@ -842,9 +842,9 @@ OPTIONS:
 
 ```text
 DESCRIPTION:
-Shape commands: create, inspect, format, group, link, and edit native
-placeholders. Operates within an already-open IPresentationBatch, targeting a
-specific slide by its 1-based index
+Shape commands: create, inspect, format, group, link, duplicate/copy, and edit
+native placeholders. Operates within an already-open IPresentationBatch,
+targeting a specific slide by its 1-based index
 
 USAGE:
     pptcli shape <ACTION> [OPTIONS]
@@ -901,7 +901,8 @@ OPTIONS:
         --shape-index <SHAPEINDEX>                 (required for: delete,
                                                    set-position, set-size,
                                                    set-fill, get-fill, set-line,
-                                                   get-line, set-rotation,
+                                                   get-line, duplicate,
+                                                   copy-to-slide, set-rotation,
                                                    get-rotation, flip,
                                                    set-z-order, set-shadow,
                                                    get-shadow, set-glow,
@@ -923,6 +924,7 @@ OPTIONS:
                                                    delete, set-position,
                                                    set-size, set-fill, get-fill,
                                                    set-line, get-line,
+                                                   duplicate, copy-to-slide,
                                                    set-rotation, get-rotation,
                                                    flip, set-z-order,
                                                    set-shadow, get-shadow,
@@ -966,6 +968,8 @@ OPTIONS:
         --target-shape-index <TARGETSHAPEINDEX>    (required for:
                                                    copy-formatting) (valid for:
                                                    copy-formatting)
+        --target-slide-index <TARGETSLIDEINDEX>    (required for: copy-to-slide)
+                                                   (valid for: copy-to-slide)
         --degrees <DEGREES>                        (required for: set-rotation)
                                                    (valid for: set-rotation)
         --direction <DIRECTION>                    (required for: flip) (valid

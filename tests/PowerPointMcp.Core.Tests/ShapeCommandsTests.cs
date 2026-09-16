@@ -3,6 +3,7 @@ using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Layout;
 using Sbroenne.PowerPointMcp.Core.Shape;
+using Sbroenne.PowerPointMcp.Core.Slide;
 using Sbroenne.PowerPointMcp.Core.TextFrame;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
@@ -21,6 +22,7 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     private readonly SharedPresentationFixture _fixture;
     private readonly PresentationCommands _presentationCommands = new();
     private readonly ShapeCommands _commands = new();
+    private readonly SlideCommands _slideCommands = new();
     private readonly TextFrameCommands _textFrameCommands = new();
 
     public ShapeCommandsTests(SharedPresentationFixture fixture)
@@ -541,6 +543,45 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         }
     }
 
+    /// <summary>
+    /// Wraps a real batch that starts healthy (so preflight validation succeeds normally) and
+    /// only reports <see cref="HasTimedOutOperation"/> as true once <paramref name="delay"/> has
+    /// elapsed, simulating a concurrently-dispatched command poisoning the session while
+    /// <c>CopyToSlide</c> is still queued waiting for the clipboard lock.
+    /// </summary>
+    private sealed class BecomesPoisonedAfterDelaySessionBatch(IPresentationBatch inner, TimeSpan delay)
+        : IPresentationBatch
+    {
+        private readonly System.Diagnostics.Stopwatch _stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        public string PresentationPath => inner.PresentationPath;
+        public bool HasTimedOutOperation => _stopwatch.Elapsed >= delay;
+        public int? PowerPointProcessId => inner.PowerPointProcessId;
+        public PowerPointProcessIdentity? PowerPointProcessIdentity => inner.PowerPointProcessIdentity;
+        public TimeSpan OperationTimeout => inner.OperationTimeout;
+
+        public void Execute(
+            Action<PresentationContext, CancellationToken> operation,
+            CancellationToken cancellationToken = default) =>
+            inner.Execute(operation, cancellationToken);
+
+        public T Execute<T>(
+            Func<PresentationContext, CancellationToken, T> operation,
+            CancellationToken cancellationToken = default) =>
+            inner.Execute(operation, cancellationToken);
+
+        public void Save(CancellationToken cancellationToken = default) => inner.Save(cancellationToken);
+
+        public void UpdatePresentationPath(string presentationPath) =>
+            inner.UpdatePresentationPath(presentationPath);
+
+        public bool IsPowerPointProcessAlive() => inner.IsPowerPointProcessAlive();
+
+        public void Dispose()
+        {
+        }
+    }
+
     [Theory]
     [InlineData(0, 2)]
     [InlineData(99, 2)]
@@ -562,6 +603,383 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
         Assert.Equal(0xDCD2C8, _commands.GetFill(batch, 1, 2).ColorRgb);
+    }
+
+    [Fact]
+    public void Duplicate_CreatesIndependentEditableCopy_AndPersistsAfterReopen()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+        _commands.SetFill(batch, 1, 1, 12, 34, 56);
+
+        var result = _commands.Duplicate(batch, 1, 1);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(2, result.ShapeIndex);
+        Assert.Equal(2, result.ShapeCount);
+
+        // The duplicate starts identical to the original...
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 2).ColorRgb);
+
+        // ...but is independently editable: changing the copy must not affect the original.
+        _commands.SetFill(batch, 1, 2, 200, 210, 220);
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 1).ColorRgb);
+        Assert.Equal(0xDCD2C8, _commands.GetFill(batch, 1, 2).ColorRgb);
+
+        _presentationCommands.Save(batch);
+        _fixture.ReopenCurrentPresentation();
+
+        Assert.Equal(2, _commands.GetCount(batch, 1).ShapeCount);
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 1).ColorRgb);
+        Assert.Equal(0xDCD2C8, _commands.GetFill(batch, 1, 2).ColorRgb);
+    }
+
+    [Theory]
+    [InlineData(1, 0)]
+    [InlineData(1, 99)]
+    [InlineData(0, 1)]
+    [InlineData(99, 1)]
+    public void Duplicate_WithInvalidIndex_ReturnsFailureWithoutAddingShape(int slideIndex, int shapeIndex)
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+
+        var result = _commands.Duplicate(batch, slideIndex, shapeIndex);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+        Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
+    }
+
+    [Fact]
+    public void CopyToSlide_CreatesIndependentEditableCopyOnTargetSlide_AndPersistsAfterReopen()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        var slideResult = _slideCommands.AddBlank(batch);
+        Assert.True(slideResult.Success, slideResult.ErrorMessage);
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+        _commands.SetFill(batch, 1, 1, 12, 34, 56);
+
+        var result = _commands.CopyToSlide(batch, 1, 1, 2);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.ShapeIndex);
+        Assert.Equal(1, result.ShapeCount);
+        Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
+
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 2, 1).ColorRgb);
+
+        // Independently editable: changing the copy must not affect the source shape.
+        _commands.SetFill(batch, 2, 1, 200, 210, 220);
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 1).ColorRgb);
+        Assert.Equal(0xDCD2C8, _commands.GetFill(batch, 2, 1).ColorRgb);
+
+        _presentationCommands.Save(batch);
+        _fixture.ReopenCurrentPresentation();
+
+        Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
+        Assert.Equal(1, _commands.GetCount(batch, 2).ShapeCount);
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 1).ColorRgb);
+        Assert.Equal(0xDCD2C8, _commands.GetFill(batch, 2, 1).ColorRgb);
+    }
+
+    [Theory]
+    [InlineData(1, 0, 2)]
+    [InlineData(1, 99, 2)]
+    [InlineData(1, 1, 0)]
+    [InlineData(1, 1, 99)]
+    [InlineData(0, 1, 2)]
+    [InlineData(99, 1, 2)]
+    public void CopyToSlide_WithInvalidIndex_ReturnsFailureWithoutMutatingEitherSlide(
+        int slideIndex,
+        int shapeIndex,
+        int targetSlideIndex)
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        var slideResult = _slideCommands.AddBlank(batch);
+        Assert.True(slideResult.Success, slideResult.ErrorMessage);
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+
+        var result = _commands.CopyToSlide(batch, slideIndex, shapeIndex, targetSlideIndex);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+        Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
+        Assert.Equal(0, _commands.GetCount(batch, 2).ShapeCount);
+    }
+
+    [Fact]
+    public void CopyToSlide_WithSameSourceAndTargetSlideIndex_ReturnsFailureWithoutMutatingSlide()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+
+        var result = _commands.CopyToSlide(batch, 1, 1, 1);
+
+        Assert.False(result.Success);
+        Assert.Contains("duplicate", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
+    }
+
+
+    [Fact]
+    public async Task CopyToSlide_WaitsForGlobalClipboardLock()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        var slideResult = _slideCommands.AddBlank(batch);
+        Assert.True(slideResult.Success, slideResult.ErrorMessage);
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+        _commands.SetFill(batch, 1, 1, 12, 34, 56);
+
+        using var lockAcquired = new ManualResetEventSlim();
+        using var releaseLock = new ManualResetEventSlim();
+        Exception? holderFailure = null;
+        var lockHolder = new Thread(() =>
+            ShapeClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure))
+        {
+            IsBackground = true
+        };
+        lockHolder.Start();
+        Task<ShapeOperationResult>? copyTask = null;
+        try
+        {
+            Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(15)));
+            Assert.Null(holderFailure);
+
+            copyTask = Task.Run(() => _commands.CopyToSlide(batch, 1, 1, 2));
+            var completedTask = await Task.WhenAny(copyTask, Task.Delay(TimeSpan.FromSeconds(3)));
+            Assert.False(
+                ReferenceEquals(copyTask, completedTask),
+                "CopyToSlide completed while another owner held the global clipboard lock.");
+        }
+        finally
+        {
+            releaseLock.Set();
+            await Task.Run(lockHolder.Join);
+        }
+
+        Assert.Same(copyTask, await Task.WhenAny(copyTask, Task.Delay(TimeSpan.FromMinutes(2))));
+        var result = await copyTask;
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 2, 1).ColorRgb);
+    }
+
+    [Fact]
+    public void CopyToSlide_WhenClipboardLockStaysHeld_TimesOutAndLeavesSessionUsable()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        var slideResult = _slideCommands.AddBlank(batch);
+        Assert.True(slideResult.Success, slideResult.ErrorMessage);
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+
+        using var lockAcquired = new ManualResetEventSlim();
+        using var releaseLock = new ManualResetEventSlim();
+        Exception? holderFailure = null;
+        var lockHolder = new Thread(() =>
+            ShapeClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure))
+        {
+            IsBackground = true
+        };
+        lockHolder.Start();
+        try
+        {
+            Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(15)));
+            Assert.Null(holderFailure);
+
+            var timeout = Assert.Throws<TimeoutException>(() => _commands.CopyToSlide(batch, 1, 1, 2));
+            Assert.Contains("clipboard", timeout.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            releaseLock.Set();
+            lockHolder.Join();
+        }
+
+        // The wait has to expire before batch.Execute's own operation timeout, otherwise the STA
+        // thread stays blocked on the lock and the session is poisoned by mere contention.
+        Assert.False(batch.HasTimedOutOperation);
+        Assert.Equal(0, _commands.GetCount(batch, 2).ShapeCount);
+    }
+
+    [Fact]
+    public void CopyToSlide_OnPoisonedSession_FailsFastInsteadOfWaitingForTheLock()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        var slideResult = _slideCommands.AddBlank(batch);
+        Assert.True(slideResult.Success, slideResult.ErrorMessage);
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+
+        using var lockAcquired = new ManualResetEventSlim();
+        using var releaseLock = new ManualResetEventSlim();
+        Exception? holderFailure = null;
+        var lockHolder = new Thread(() =>
+            ShapeClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure))
+        {
+            IsBackground = true
+        };
+        lockHolder.Start();
+        try
+        {
+            Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(15)));
+            Assert.Null(holderFailure);
+
+            var poisoned = new PoisonedSessionBatch(batch);
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            Assert.Throws<TimeoutException>(() => _commands.CopyToSlide(poisoned, 1, 1, 2));
+            stopwatch.Stop();
+
+            Assert.True(
+                stopwatch.Elapsed < TimeSpan.FromSeconds(10),
+                $"A poisoned session took {stopwatch.Elapsed} to fail, so it waited on the clipboard lock first.");
+        }
+        finally
+        {
+            releaseLock.Set();
+            lockHolder.Join();
+        }
+    }
+
+    [Fact]
+    public void CopyToSlide_WhenSessionBecomesPoisonedWhileQueuedForTheLock_AbandonsQuickly()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        var slideResult = _slideCommands.AddBlank(batch);
+        Assert.True(slideResult.Success, slideResult.ErrorMessage);
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+
+        using var lockAcquired = new ManualResetEventSlim();
+        using var releaseLock = new ManualResetEventSlim();
+        Exception? holderFailure = null;
+        var lockHolder = new Thread(() =>
+            ShapeClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure))
+        {
+            IsBackground = true
+        };
+        lockHolder.Start();
+        try
+        {
+            Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(15)));
+            Assert.Null(holderFailure);
+
+            // Starts healthy - preflight validation must succeed normally - and only reports
+            // poisoned once a concurrently-dispatched command could plausibly have broken the
+            // session while this request was still queued behind the externally-held lock.
+            var becomesPoisoned = new BecomesPoisonedAfterDelaySessionBatch(batch, TimeSpan.FromMilliseconds(500));
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var ex = Assert.Throws<TimeoutException>(() => _commands.CopyToSlide(becomesPoisoned, 1, 1, 2));
+            stopwatch.Stop();
+
+            Assert.Contains("unusable", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.True(
+                stopwatch.Elapsed < TimeSpan.FromSeconds(5),
+                $"Took {stopwatch.Elapsed} to abandon after the session became poisoned mid-wait, " +
+                "so it was not polling for that while queued.");
+        }
+        finally
+        {
+            releaseLock.Set();
+            lockHolder.Join();
+        }
+    }
+
+    // The two tests below drive ShapeCommands.ClipboardLockCoordinator directly through
+    // hand-built ClipboardLockRequest values, rather than through a real CopyToSlide/COM call.
+    // The coordinator itself has no COM dependency - the COM Copy()/Paste() pair lives in
+    // CopyToSlide, outside it - so this is the same kind of pure, zero-COM-dependency logic the
+    // project's integration-tests-only policy already carves out an exception for, and it is the
+    // only way to exercise the wedge-detection and quarantine-recovery branches deterministically:
+    // forcing a real PowerPoint COM call to hang for this long is not something a test can safely
+    // or reliably arrange. A short-lived real child process (not PowerPoint, not mocked) stands
+    // in for "the PowerPoint process the wedged transfer was running against", giving
+    // OwnedProcessGuard a genuine alive-then-exited process to confirm against.
+    [Fact]
+    public async Task ClipboardLockCoordinator_QuarantinesWhileRecordedProcessIsAlive_ThenClearsOnceItExits()
+    {
+        using var childProcess = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "cmd.exe",
+            Arguments = "/c ping -n 2 127.0.0.1 >NUL",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        }) ?? throw new InvalidOperationException("Failed to start the test stand-in child process.");
+
+        var identity = new PowerPointProcessIdentity(
+            childProcess.Id,
+            childProcess.StartTime.ToUniversalTime().ToFileTimeUtc());
+
+        // Claims the transfer (TryAbandon never allows giving up) and never signals completion,
+        // with a short CompletionTimeout so the coordinator concludes it is wedged quickly.
+        var wedgingRequest = new ShapeCommands.ClipboardLockRequest(
+            DateTime.UtcNow + TimeSpan.FromSeconds(10),
+            TimeSpan.FromMilliseconds(150),
+            () => false,
+            identity);
+        ShapeCommands.ClipboardLockCoordinator.Enqueue(wedgingRequest);
+        Assert.True(await wedgingRequest.Acquired.Task);
+
+        // Queues behind wedgingRequest, which is still running its two ~150ms completion waits
+        // before it records the quarantine, so this is only served once the wedge is in effect -
+        // and the child process is still alive (it sleeps ~1s), so recovery cannot happen yet.
+        var whileAliveRequest = new ShapeCommands.ClipboardLockRequest(
+            DateTime.UtcNow + TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(5), () => true, null);
+        ShapeCommands.ClipboardLockCoordinator.Enqueue(whileAliveRequest);
+        var quarantined = await Assert.ThrowsAsync<InvalidOperationException>(() => whileAliveRequest.Acquired.Task);
+        Assert.Contains("quarantined", quarantined.Message, StringComparison.OrdinalIgnoreCase);
+
+        Assert.True(childProcess.WaitForExit(TimeSpan.FromSeconds(10)));
+
+        // Now that the recorded process is confirmed exited, the coordinator must self-heal.
+        var afterExitRequest = new ShapeCommands.ClipboardLockRequest(
+            DateTime.UtcNow + TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10), () => true, null);
+        ShapeCommands.ClipboardLockCoordinator.Enqueue(afterExitRequest);
+        Assert.True(await afterExitRequest.Acquired.Task);
+        afterExitRequest.TransferFinished.TrySetResult(true);
+    }
+
+    [Fact]
+    public async Task ClipboardLockCoordinator_WedgeWithNoCapturedIdentity_NeverClearsAutomatically()
+    {
+        // No PowerPointProcessIdentity captured - the interface documents this as possible ("if
+        // captured"). With nothing to confirm dead, the coordinator must fail closed rather than
+        // guess from elapsed time, so this quarantine cannot resolve on its own. To avoid leaving
+        // the process-wide static coordinator permanently quarantined for every later test in
+        // this run, ClipboardLockCoordinator.ResetForTests() - a test-only escape hatch documented
+        // on that method - undoes it once this test has made its assertions.
+        var wedgingRequest = new ShapeCommands.ClipboardLockRequest(
+            DateTime.UtcNow + TimeSpan.FromSeconds(10),
+            TimeSpan.FromMilliseconds(150),
+            () => false,
+            null);
+        ShapeCommands.ClipboardLockCoordinator.Enqueue(wedgingRequest);
+        Assert.True(await wedgingRequest.Acquired.Task);
+
+        try
+        {
+            var rejectedRequest = new ShapeCommands.ClipboardLockRequest(
+                DateTime.UtcNow + TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(5), () => true, null);
+            ShapeCommands.ClipboardLockCoordinator.Enqueue(rejectedRequest);
+            var quarantined = await Assert.ThrowsAsync<InvalidOperationException>(() => rejectedRequest.Acquired.Task);
+            Assert.Contains("restarted", quarantined.Message, StringComparison.OrdinalIgnoreCase);
+
+            // A second request confirms it is not a one-time rejection: nothing clears this.
+            var stillRejectedRequest = new ShapeCommands.ClipboardLockRequest(
+                DateTime.UtcNow + TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(5), () => true, null);
+            ShapeCommands.ClipboardLockCoordinator.Enqueue(stillRejectedRequest);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => stillRejectedRequest.Acquired.Task);
+        }
+        finally
+        {
+            ShapeCommands.ClipboardLockCoordinator.ResetForTests();
+        }
     }
 
     [Fact]

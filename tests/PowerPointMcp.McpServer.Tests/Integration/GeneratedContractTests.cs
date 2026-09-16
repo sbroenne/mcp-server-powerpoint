@@ -246,4 +246,49 @@ public sealed class GeneratedContractTests
                 "copy-formatting",
                 """{"slideIndex":1,"sourceShapeIndex":2}"""));
     }
+
+    [Fact]
+    public void ShapeDuplicate_HasGeneratedCliAndServiceWiring()
+    {
+        Assert.Contains("duplicate", ServiceRegistry.Shape.ValidActions);
+
+        Assert.Equal(
+            "shape.duplicate",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "duplicate",
+                slideIndex: 1,
+                shapeIndex: 2).Command);
+
+        ServiceRegistry.Shape.ValidateActionArguments(
+            "duplicate",
+            """{"slideIndex":1,"shapeIndex":2}""");
+
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Shape.ValidateActionArguments(
+                "duplicate",
+                """{"slideIndex":1}"""));
+    }
+
+    [Fact]
+    public void ShapeCopyToSlide_HasGeneratedCliAndServiceWiring()
+    {
+        Assert.Contains("copy-to-slide", ServiceRegistry.Shape.ValidActions);
+
+        Assert.Equal(
+            "shape.copy-to-slide",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "copy-to-slide",
+                slideIndex: 1,
+                shapeIndex: 2,
+                targetSlideIndex: 3).Command);
+
+        ServiceRegistry.Shape.ValidateActionArguments(
+            "copy-to-slide",
+            """{"slideIndex":1,"shapeIndex":2,"targetSlideIndex":3}""");
+
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Shape.ValidateActionArguments(
+                "copy-to-slide",
+                """{"slideIndex":1,"shapeIndex":2}"""));
+    }
 }
