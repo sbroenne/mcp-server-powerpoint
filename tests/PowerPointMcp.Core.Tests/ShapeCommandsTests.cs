@@ -849,6 +849,76 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     }
 
     [Fact]
+    public void Merge_TwoOverlappingRectanglesWithUnion_ProducesOneShape_AndPersistsAfterReopen()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 100f, 100f);
+        _commands.AddRectangle(batch, 1, 50f, 50f, 100f, 100f);
+
+        var result = _commands.Merge(batch, 1, [1, 2], "msoMergeUnion");
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal("msoMergeUnion", result.MergeTypeName);
+        Assert.Equal(1, result.MergedShapeCount);
+        Assert.Equal(1, result.ShapeCount);
+        Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
+
+        _presentationCommands.Save(batch);
+        _fixture.ReopenCurrentPresentation();
+
+        Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
+    }
+
+    [Fact]
+    public void Merge_WithFewerThanTwoShapeIndexes_ReturnsFailureWithoutMutatingSlide()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 100f, 100f);
+
+        var result = _commands.Merge(batch, 1, [1], "msoMergeUnion");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+        Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
+    }
+
+    [Theory]
+    [InlineData(1, 0, "msoMergeUnion")]
+    [InlineData(1, 99, "msoMergeUnion")]
+    [InlineData(0, 1, "msoMergeUnion")]
+    [InlineData(99, 1, "msoMergeUnion")]
+    public void Merge_WithInvalidIndex_ReturnsFailureWithoutMutatingSlide(int slideIndex, int shapeIndex, string mergeType)
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 100f, 100f);
+        _commands.AddRectangle(batch, 1, 50f, 50f, 100f, 100f);
+
+        var result = _commands.Merge(batch, slideIndex, [shapeIndex, 2], mergeType);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+        Assert.Equal(2, _commands.GetCount(batch, 1).ShapeCount);
+    }
+
+    [Fact]
+    public void Merge_WithInvalidMergeType_ReturnsFailureWithoutMutatingSlide()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 100f, 100f);
+        _commands.AddRectangle(batch, 1, 50f, 50f, 100f, 100f);
+
+        var result = _commands.Merge(batch, 1, [1, 2], "notARealMergeType");
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+        Assert.Equal(2, _commands.GetCount(batch, 1).ShapeCount);
+    }
+
+    [Fact]
     public void SetName_AndGetName_RoundTripsName()
     {
         _fixture.CreateFreshPresentation();

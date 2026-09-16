@@ -3,13 +3,13 @@ using Sbroenne.PowerPointMcp.Core.Attributes;
 namespace Sbroenne.PowerPointMcp.Core.Shape;
 
 /// <summary>
-/// Shape commands: create, inspect, format, group, link, and edit native placeholders.
+/// Shape commands: create, inspect, format, group, merge, link, and edit native placeholders.
 /// Operates within an already-open IPresentationBatch, targeting a specific slide by
 /// its 1-based index.
 /// </summary>
 [ServiceCategory("shape", "Shape")]
 [McpTool("shape", Title = "Shape Operations", Destructive = true, Category = "content",
-    Description = "Create, inspect, format, group, link, and edit native placeholders on a slide.")]
+    Description = "Create, inspect, format, group, merge, link, and edit native placeholders on a slide.")]
 public interface IShapeCommands
 {
     /// <summary>Adds a rectangle shape to the given slide.</summary>
@@ -156,6 +156,18 @@ public interface IShapeCommands
 
     /// <summary>Ungroups a previously-grouped shape back into its individual member shapes.</summary>
     ShapeOperationResult Ungroup(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Merges two or more shapes on the given slide into new shape(s) using a boolean drawing
+    /// operation, identified by their 1-based shape indices. The input shapes are consumed and
+    /// replaced by the result; <paramref name="mergeType"/> is an <c>MsoMergeCmd</c> enum member
+    /// name: <c>"msoMergeUnion"</c> (outline of all inputs), <c>"msoMergeCombine"</c> (inputs
+    /// combined, overlap removed), <c>"msoMergeIntersect"</c> (only the overlapping area),
+    /// <c>"msoMergeSubtract"</c> (first shape minus the rest), or <c>"msoMergeFragment"</c>
+    /// (split into every distinct overlapping/non-overlapping piece - may produce more than one
+    /// resulting shape).
+    /// </summary>
+    ShapeOperationResult Merge(ComInterop.Session.IPresentationBatch batch, int slideIndex, IReadOnlyList<int> shapeIndexes, string mergeType);
 
     /// <summary>Sets a shape's name (as shown in the Selection Pane).</summary>
     ShapeOperationResult SetName(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, string name);

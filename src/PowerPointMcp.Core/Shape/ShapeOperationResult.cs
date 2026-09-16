@@ -77,6 +77,12 @@ public sealed class ShapeOperationResult
     /// <summary>Number of shapes produced by an Ungroup operation, if applicable.</summary>
     public int? UngroupedShapeCount { get; init; }
 
+    /// <summary>The MsoMergeCmd name used to merge shapes, for Merge.</summary>
+    public string? MergeTypeName { get; init; }
+
+    /// <summary>Number of resulting shapes produced by a Merge operation, if applicable.</summary>
+    public int? MergedShapeCount { get; init; }
+
     /// <summary>Shape name, if applicable.</summary>
     public string? Name { get; init; }
 
