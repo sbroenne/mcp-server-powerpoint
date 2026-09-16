@@ -80,6 +80,16 @@ public interface IShapeCommands
     /// <summary>Gets a shape's line/border color, weight, dash style, and visibility.</summary>
     ShapeOperationResult GetLine(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
 
+    /// <summary>
+    /// Copies native PowerPoint formatting from one shape to another without replacing the
+    /// target shape's content, position, or size.
+    /// </summary>
+    ShapeOperationResult CopyFormatting(
+        ComInterop.Session.IPresentationBatch batch,
+        int slideIndex,
+        int sourceShapeIndex,
+        int targetShapeIndex);
+
     /// <summary>Sets a shape's rotation, in degrees clockwise from its upright position.</summary>
     ShapeOperationResult SetRotation(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, float degrees);
 

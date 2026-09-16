@@ -223,4 +223,27 @@ public sealed class GeneratedContractTests
             ServiceRegistry.Shape.RouteCliArgs(
                 "set-link-auto-update", slideIndex: 1, shapeIndex: 1, autoUpdate: true).Command);
     }
+
+    [Fact]
+    public void ShapeCopyFormatting_HasGeneratedCliAndServiceWiring()
+    {
+        Assert.Contains("copy-formatting", ServiceRegistry.Shape.ValidActions);
+
+        Assert.Equal(
+            "shape.copy-formatting",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "copy-formatting",
+                slideIndex: 1,
+                sourceShapeIndex: 2,
+                targetShapeIndex: 3).Command);
+
+        ServiceRegistry.Shape.ValidateActionArguments(
+            "copy-formatting",
+            """{"slideIndex":1,"sourceShapeIndex":2,"targetShapeIndex":3}""");
+
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Shape.ValidateActionArguments(
+                "copy-formatting",
+                """{"slideIndex":1,"sourceShapeIndex":2}"""));
+    }
 }
