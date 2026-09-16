@@ -3,6 +3,7 @@ using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Layout;
 using Sbroenne.PowerPointMcp.Core.Shape;
+using Sbroenne.PowerPointMcp.Core.Slide;
 using Sbroenne.PowerPointMcp.Core.TextFrame;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
@@ -21,6 +22,7 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     private readonly SharedPresentationFixture _fixture;
     private readonly PresentationCommands _presentationCommands = new();
     private readonly ShapeCommands _commands = new();
+    private readonly SlideCommands _slideCommands = new();
     private readonly TextFrameCommands _textFrameCommands = new();
 
     public ShapeCommandsTests(SharedPresentationFixture fixture)
@@ -562,6 +564,228 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
         Assert.Equal(0xDCD2C8, _commands.GetFill(batch, 1, 2).ColorRgb);
+    }
+
+    [Fact]
+    public void Duplicate_CreatesIndependentEditableCopy_AndPersistsAfterReopen()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+        _commands.SetFill(batch, 1, 1, 12, 34, 56);
+
+        var result = _commands.Duplicate(batch, 1, 1);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(2, result.ShapeIndex);
+        Assert.Equal(2, result.ShapeCount);
+
+        // The duplicate starts identical to the original...
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 2).ColorRgb);
+
+        // ...but is independently editable: changing the copy must not affect the original.
+        _commands.SetFill(batch, 1, 2, 200, 210, 220);
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 1).ColorRgb);
+        Assert.Equal(0xDCD2C8, _commands.GetFill(batch, 1, 2).ColorRgb);
+
+        _presentationCommands.Save(batch);
+        _fixture.ReopenCurrentPresentation();
+
+        Assert.Equal(2, _commands.GetCount(batch, 1).ShapeCount);
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 1).ColorRgb);
+        Assert.Equal(0xDCD2C8, _commands.GetFill(batch, 1, 2).ColorRgb);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(99)]
+    public void Duplicate_WithInvalidShapeIndex_ReturnsFailureWithoutAddingShape(int shapeIndex)
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+
+        var result = _commands.Duplicate(batch, 1, shapeIndex);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+        Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
+    }
+
+    [Fact]
+    public void CopyToSlide_CreatesIndependentEditableCopyOnTargetSlide_AndPersistsAfterReopen()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        var slideResult = _slideCommands.AddBlank(batch);
+        Assert.True(slideResult.Success, slideResult.ErrorMessage);
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+        _commands.SetFill(batch, 1, 1, 12, 34, 56);
+
+        var result = _commands.CopyToSlide(batch, 1, 1, 2);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.ShapeIndex);
+        Assert.Equal(1, result.ShapeCount);
+        Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
+
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 2, 1).ColorRgb);
+
+        // Independently editable: changing the copy must not affect the source shape.
+        _commands.SetFill(batch, 2, 1, 200, 210, 220);
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 1).ColorRgb);
+        Assert.Equal(0xDCD2C8, _commands.GetFill(batch, 2, 1).ColorRgb);
+
+        _presentationCommands.Save(batch);
+        _fixture.ReopenCurrentPresentation();
+
+        Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
+        Assert.Equal(1, _commands.GetCount(batch, 2).ShapeCount);
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 1, 1).ColorRgb);
+        Assert.Equal(0xDCD2C8, _commands.GetFill(batch, 2, 1).ColorRgb);
+    }
+
+    [Theory]
+    [InlineData(0, 2)]
+    [InlineData(99, 2)]
+    [InlineData(1, 0)]
+    [InlineData(1, 99)]
+    public void CopyToSlide_WithInvalidIndex_ReturnsFailureWithoutMutatingEitherSlide(
+        int shapeIndex,
+        int targetSlideIndex)
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        var slideResult = _slideCommands.AddBlank(batch);
+        Assert.True(slideResult.Success, slideResult.ErrorMessage);
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+
+        var result = _commands.CopyToSlide(batch, 1, shapeIndex, targetSlideIndex);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+        Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
+        Assert.Equal(0, _commands.GetCount(batch, 2).ShapeCount);
+    }
+
+    [Fact]
+    public async Task CopyToSlide_WaitsForGlobalClipboardLock()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        var slideResult = _slideCommands.AddBlank(batch);
+        Assert.True(slideResult.Success, slideResult.ErrorMessage);
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+        _commands.SetFill(batch, 1, 1, 12, 34, 56);
+
+        using var lockAcquired = new ManualResetEventSlim();
+        using var releaseLock = new ManualResetEventSlim();
+        Exception? holderFailure = null;
+        var lockHolder = new Thread(() =>
+            ShapeClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure))
+        {
+            IsBackground = true
+        };
+        lockHolder.Start();
+        Task<ShapeOperationResult>? copyTask = null;
+        try
+        {
+            Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(15)));
+            Assert.Null(holderFailure);
+
+            copyTask = Task.Run(() => _commands.CopyToSlide(batch, 1, 1, 2));
+            var completedTask = await Task.WhenAny(copyTask, Task.Delay(TimeSpan.FromSeconds(3)));
+            Assert.False(
+                ReferenceEquals(copyTask, completedTask),
+                "CopyToSlide completed while another owner held the global clipboard lock.");
+        }
+        finally
+        {
+            releaseLock.Set();
+            await Task.Run(lockHolder.Join);
+        }
+
+        Assert.Same(copyTask, await Task.WhenAny(copyTask, Task.Delay(TimeSpan.FromMinutes(2))));
+        var result = await copyTask;
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(0x38220C, _commands.GetFill(batch, 2, 1).ColorRgb);
+    }
+
+    [Fact]
+    public void CopyToSlide_WhenClipboardLockStaysHeld_TimesOutAndLeavesSessionUsable()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        var slideResult = _slideCommands.AddBlank(batch);
+        Assert.True(slideResult.Success, slideResult.ErrorMessage);
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+
+        using var lockAcquired = new ManualResetEventSlim();
+        using var releaseLock = new ManualResetEventSlim();
+        Exception? holderFailure = null;
+        var lockHolder = new Thread(() =>
+            ShapeClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure))
+        {
+            IsBackground = true
+        };
+        lockHolder.Start();
+        try
+        {
+            Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(15)));
+            Assert.Null(holderFailure);
+
+            var timeout = Assert.Throws<TimeoutException>(() => _commands.CopyToSlide(batch, 1, 1, 2));
+            Assert.Contains("clipboard", timeout.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            releaseLock.Set();
+            lockHolder.Join();
+        }
+
+        // The wait has to expire before batch.Execute's own operation timeout, otherwise the STA
+        // thread stays blocked on the lock and the session is poisoned by mere contention.
+        Assert.False(batch.HasTimedOutOperation);
+        Assert.Equal(0, _commands.GetCount(batch, 2).ShapeCount);
+    }
+
+    [Fact]
+    public void CopyToSlide_OnPoisonedSession_FailsFastInsteadOfWaitingForTheLock()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        var slideResult = _slideCommands.AddBlank(batch);
+        Assert.True(slideResult.Success, slideResult.ErrorMessage);
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+
+        using var lockAcquired = new ManualResetEventSlim();
+        using var releaseLock = new ManualResetEventSlim();
+        Exception? holderFailure = null;
+        var lockHolder = new Thread(() =>
+            ShapeClipboardTestLock.Hold(lockAcquired, releaseLock, ref holderFailure))
+        {
+            IsBackground = true
+        };
+        lockHolder.Start();
+        try
+        {
+            Assert.True(lockAcquired.Wait(TimeSpan.FromSeconds(15)));
+            Assert.Null(holderFailure);
+
+            var poisoned = new PoisonedSessionBatch(batch);
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            Assert.Throws<TimeoutException>(() => _commands.CopyToSlide(poisoned, 1, 1, 2));
+            stopwatch.Stop();
+
+            Assert.True(
+                stopwatch.Elapsed < TimeSpan.FromSeconds(10),
+                $"A poisoned session took {stopwatch.Elapsed} to fail, so it waited on the clipboard lock first.");
+        }
+        finally
+        {
+            releaseLock.Set();
+            lockHolder.Join();
+        }
     }
 
     [Fact]

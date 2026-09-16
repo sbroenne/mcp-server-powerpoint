@@ -90,6 +90,24 @@ public interface IShapeCommands
         int sourceShapeIndex,
         int targetShapeIndex);
 
+    /// <summary>
+    /// Creates an identical, independently editable copy of a shape on the same slide,
+    /// immediately in front of the original in z-order. Returns the new shape's 1-based index.
+    /// </summary>
+    ShapeOperationResult Duplicate(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Copies a shape to another slide in the same presentation via PowerPoint's native
+    /// copy/paste, producing an independently editable copy. Returns the new shape's 1-based
+    /// index on <paramref name="targetSlideIndex"/>. Uses the shared Windows clipboard, so
+    /// concurrent calls (from this or another session) are serialized automatically.
+    /// </summary>
+    ShapeOperationResult CopyToSlide(
+        ComInterop.Session.IPresentationBatch batch,
+        int slideIndex,
+        int shapeIndex,
+        int targetSlideIndex);
+
     /// <summary>Sets a shape's rotation, in degrees clockwise from its upright position.</summary>
     ShapeOperationResult SetRotation(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, float degrees);
 
