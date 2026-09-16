@@ -117,7 +117,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// THE core protocol proof: exactly the 16 expected tools (1 hand-written + 15 generated
+    /// THE core protocol proof: exactly the 17 expected tools (1 hand-written + 16 generated
     /// action-dispatch tools) are discoverable via <c>tools/list</c> — no more, no less.
     /// </summary>
     [Fact]

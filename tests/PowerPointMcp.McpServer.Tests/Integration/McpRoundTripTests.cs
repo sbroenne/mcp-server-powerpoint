@@ -259,6 +259,19 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(deleteResult, "customshow delete");
         _output.WriteLine("✓ Step 4: customshow delete succeeded");
 
+        var listAfterDeleteResult = await CallToolAsync(
+            "customshow",
+            new Dictionary<string, object?> { ["action"] = "list", ["session_id"] = sessionId });
+        AssertSuccess(listAfterDeleteResult, "customshow list (after delete)");
+        using (var listAfterDeleteJson = JsonDocument.Parse(listAfterDeleteResult))
+        {
+            var shows = listAfterDeleteJson.RootElement.GetProperty("shows");
+            var stillFound = shows.EnumerateArray()
+                .Any(s => string.Equals(s.GetProperty("name").GetString(), "Round Trip Show", StringComparison.Ordinal));
+            Assert.False(stillFound, $"'Round Trip Show' should be gone after customshow delete: {listAfterDeleteResult}");
+        }
+        _output.WriteLine("✓ Step 5: customshow list confirms the show is gone after delete");
+
         var closeResult = await CallToolAsync(
             "presentation",
             new Dictionary<string, object?> { ["action"] = "close", ["sessionId"] = sessionId });
