@@ -377,14 +377,17 @@ public sealed partial class ShapeCommands
 
         private sealed record WedgeState(PowerPointProcessIdentity? Identity, DateTime RecordedAtUtc);
 
+        // Deliberately does NOT reject on IsQuarantineStillInEffect() here. Serve() - the only
+        // place that calls TryClearResolvedQuarantine() - runs exclusively on the single
+        // coordinator thread pulling from Requests, so a request that never reaches Requests can
+        // never give that thread a chance to notice the wedge has resolved. Rejecting upfront
+        // would make every quarantine permanent regardless of whether the recorded process later
+        // exits or the no-identity fallback duration elapses: nothing would ever queue again to
+        // trigger the recheck. Every request is therefore queued unconditionally, and Serve()
+        // itself performs the check-and-clear-if-resolved, then re-checks before deciding whether
+        // to actually reject this particular request.
         internal static void Enqueue(ClipboardLockRequest request)
         {
-            if (IsQuarantineStillInEffect())
-            {
-                request.Acquired.TrySetException(QuarantineException());
-                return;
-            }
-
             EnsureStarted();
             Requests.Add(request);
         }
