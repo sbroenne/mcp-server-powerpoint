@@ -50,7 +50,7 @@ public sealed partial class ShapeCommands
                 return new ShapeOperationResult
                 {
                     Success = true,
-                    ShapeIndex = newShape.ZOrderPosition,
+                    ShapeIndex = FindShapeIndexById(shapes, newShape.Id),
                     ShapeCount = shapes.Count
                 };
             }
@@ -141,6 +141,15 @@ public sealed partial class ShapeCommands
                     if (slideValidation is not null) return slideValidation;
                     var targetValidation = ValidateSlideIndex(slides.Count, targetSlideIndex);
                     if (targetValidation is not null) return targetValidation;
+                    if (targetSlideIndex == slideIndex)
+                    {
+                        return new ShapeOperationResult
+                        {
+                            Success = false,
+                            ErrorMessage = "targetSlideIndex must differ from slideIndex; use " +
+                                "'duplicate' to copy a shape onto the same slide."
+                        };
+                    }
 
                     sourceSlide = slides[slideIndex];
                     sourceShapes = sourceSlide.Shapes;
@@ -179,7 +188,7 @@ public sealed partial class ShapeCommands
                     return new ShapeOperationResult
                     {
                         Success = true,
-                        ShapeIndex = newShape.ZOrderPosition,
+                        ShapeIndex = FindShapeIndexById(targetShapes, newShape.Id),
                         ShapeCount = targetShapes.Count
                     };
                 }
@@ -231,6 +240,16 @@ public sealed partial class ShapeCommands
             var targetValidation = ValidateSlideIndex(slides.Count, targetSlideIndex);
             if (targetValidation is not null) return targetValidation;
 
+            if (targetSlideIndex == slideIndex)
+            {
+                return new ShapeOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = "targetSlideIndex must differ from slideIndex; use " +
+                        "'duplicate' to copy a shape onto the same slide."
+                };
+            }
+
             slide = slides[slideIndex];
             shapes = slide.Shapes;
 
@@ -242,6 +261,39 @@ public sealed partial class ShapeCommands
             if (slide is not null) ComUtilities.Release(ref slide);
             if (slides is not null) ComUtilities.Release(ref slides);
         }
+    }
+
+    /// <summary>
+    /// Returns the 1-based index of the shape identified by <paramref name="shapeId"/> within
+    /// <paramref name="shapes"/> - the same indexing every other shape command uses via
+    /// <c>Shapes[index]</c>. <see cref="PowerPoint.Shape.ZOrderPosition"/> is deliberately not
+    /// used for this: it tracks the shape's position on the z-order plane, which can diverge from
+    /// its position in the <c>Shapes</c> collection after z-order changes, while <c>Shape.Id</c>
+    /// is a stable per-presentation identifier safe to search on immediately after the shape is
+    /// created.
+    /// </summary>
+    private static int FindShapeIndexById(PowerPoint.Shapes shapes, int shapeId)
+    {
+        for (int i = 1; i <= shapes.Count; i++)
+        {
+            PowerPoint.Shape? candidate = null;
+            try
+            {
+                candidate = shapes[i];
+                if (candidate.Id == shapeId)
+                {
+                    return i;
+                }
+            }
+            finally
+            {
+                if (candidate is not null) ComUtilities.Release(ref candidate);
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Shape with Id {shapeId} was not found in the Shapes collection immediately after " +
+            "it was created.");
     }
 
     /// <summary>
@@ -346,8 +398,27 @@ public sealed partial class ShapeCommands
                 return;
             }
 
+            // A request can already be queued (enqueued while healthy) by the time an earlier
+            // transfer discovers a wedge and sets this flag. Without this check, this coordinator
+            // thread would still be the OS-recognized owner of the never-released named mutex
+            // below, so its own next WaitOne() on that same name would re-acquire immediately
+            // (mutex ownership is per-thread and recursive) and let this request run concurrently
+            // with the still-possibly-active wedged transfer - exactly what the quarantine exists
+            // to prevent. Checking here, before ever touching the mutex again, closes that gap.
+            if (Volatile.Read(ref s_wedged) == 1)
+            {
+                request.Acquired.TrySetException(new InvalidOperationException(
+                    "The shared shape clipboard is quarantined: a previous copy-to-slide " +
+                    "operation did not confirm completion within its timeout and may still be " +
+                    "running inside PowerPoint. Handing out the lock now could race that unknown, " +
+                    "possibly still-active Copy()/Paste() pair. Restart the affected PowerPoint " +
+                    "session or process to clear this state."));
+                return;
+            }
+
             Mutex? clipboardMutex = null;
             bool lockTaken = false;
+            bool wedged = false;
             try
             {
                 try
@@ -388,13 +459,11 @@ public sealed partial class ShapeCommands
                         // The callback claimed the clipboard, so only its completion can make
                         // unlocking safe. If it still has not completed after this second bounded
                         // wait, its COM call is genuinely wedged (not just slow), and its actual
-                        // hold on the real OS clipboard is now unknown. Recycling the mutex to a new
-                        // caller here would let it race that still-possibly-active Copy()/Paste()
-                        // pair, which is exactly the unsafe overlap a lock is supposed to prevent -
-                        // so quarantine every future request instead of unlocking silently.
+                        // hold on the real OS clipboard is now unknown.
                         bool completed = request.TransferFinished.Task.Wait(request.CompletionTimeout);
                         if (!completed)
                         {
+                            wedged = true;
                             Volatile.Write(ref s_wedged, 1);
                         }
                     }
@@ -402,20 +471,27 @@ public sealed partial class ShapeCommands
             }
             finally
             {
-                // Reaching here means either the transfer finished, TryAbandon closed the door on a
-                // callback that never claimed, or the wedge above was recorded. .NET's Mutex is
-                // thread-affine on release, so this coordinator thread - not the STA thread possibly
-                // still running a wedged callback - is the only one legally allowed to call
-                // ReleaseMutex() on the handle it acquired; there is no safe way to hand release back
-                // to the callback's own thread. Releasing here is therefore still required even after
-                // a wedge is recorded, but s_wedged now stops every future caller before it can reach
-                // the clipboard, rather than letting the freed mutex look like a clean lock.
-                if (lockTaken)
+                // ClipboardMutexName is a named system mutex, visible to every process in this
+                // Windows session, not just this one - releasing it after a wedge would let a
+                // different process's WaitOne() acquire it and run Copy()/Paste() while the
+                // original STA callback may still be active, defeating the quarantine just as much
+                // as this thread re-acquiring it would. So once wedged, this handle is deliberately
+                // never released or disposed: .NET's Mutex is thread-affine on release, and Windows
+                // keeps the underlying kernel object owned by this thread for as long as the thread
+                // itself lives, which for this dedicated background thread is the rest of the
+                // process's lifetime. Every other process's own WaitOne() then blocks or times out
+                // normally against a lock that is genuinely still held, instead of acquiring one
+                // that only looks clean. Only process/thread termination (or, later, an
+                // AbandonedMutexException on the next real acquirer once that happens) ends this.
+                if (!wedged)
                 {
-                    clipboardMutex!.ReleaseMutex();
-                }
+                    if (lockTaken)
+                    {
+                        clipboardMutex!.ReleaseMutex();
+                    }
 
-                clipboardMutex?.Dispose();
+                    clipboardMutex?.Dispose();
+                }
             }
         }
     }

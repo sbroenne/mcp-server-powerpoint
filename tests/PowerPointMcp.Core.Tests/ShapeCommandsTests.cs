@@ -669,6 +669,20 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     }
 
     [Fact]
+    public void CopyToSlide_WithSameSourceAndTargetSlideIndex_ReturnsFailureWithoutMutatingSlide()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
+
+        var result = _commands.CopyToSlide(batch, 1, 1, 1);
+
+        Assert.False(result.Success);
+        Assert.Contains("duplicate", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, _commands.GetCount(batch, 1).ShapeCount);
+    }
+
+    [Fact]
     public async Task CopyToSlide_WaitsForGlobalClipboardLock()
     {
         _fixture.CreateFreshPresentation();
