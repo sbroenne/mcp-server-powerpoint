@@ -140,7 +140,7 @@ configuration per tool class.
 ## Adding a New Tool
 
 **For a generated domain (Slide, Shape, TextFrame, Table, Notes, Layout, Master, Animation,
-Image, Media, Chart, Export) — the common case:**
+Image, Media, Chart, Export, CustomShow) — the common case:**
 1. Add the Core command + `{Domain}OperationResult` fields first (Core-first, tested with real
    COM per `testing-strategy.instructions.md`), with an XML doc `<summary>` — the generator uses
    it as the operation's description.

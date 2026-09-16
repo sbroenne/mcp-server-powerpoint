@@ -69,6 +69,29 @@ public sealed class CustomShowCommandsTests : IClassFixture<SharedPresentationFi
     }
 
     [Fact]
+    public void List_ReturnsMultipleShows_InCollectionOrderWithDistinctSlideIndices()
+    {
+        _fixture.CreateFreshPresentation();
+        EnsureSlideCount(4);
+
+        var first = _commands.Create(_fixture.Batch, "Executive Summary", [1, 2]);
+        Assert.True(first.Success, first.ErrorMessage);
+        var second = _commands.Create(_fixture.Batch, "Technical Deep Dive", [3, 4, 1]);
+        Assert.True(second.Success, second.ErrorMessage);
+
+        var listResult = _commands.List(_fixture.Batch);
+
+        Assert.True(listResult.Success, listResult.ErrorMessage);
+        Assert.Equal(2, listResult.Shows!.Count);
+        Assert.Equal(1, listResult.Shows![0].Index);
+        Assert.Equal("Executive Summary", listResult.Shows![0].Name);
+        Assert.Equal([1, 2], listResult.Shows![0].SlideIndices);
+        Assert.Equal(2, listResult.Shows![1].Index);
+        Assert.Equal("Technical Deep Dive", listResult.Shows![1].Name);
+        Assert.Equal([3, 4, 1], listResult.Shows![1].SlideIndices);
+    }
+
+    [Fact]
     public void Create_AllowsRepeatedSlideIndex()
     {
         _fixture.CreateFreshPresentation();
