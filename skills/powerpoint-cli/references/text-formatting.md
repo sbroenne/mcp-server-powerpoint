@@ -2,7 +2,7 @@
 
 # Text Formatting: TextFrame Tools
 
-Reference for the `textframe` tool's actions — `set-text`, `get-text`,
+Reference for the `textframe` tool's actions — `set-text`, `get-text`, `find-text`, `replace-text`,
 `set-font-size`/`get-font-size`, `set-bold`/`get-bold`, `set-font-color`/`get-font-color`,
 `set-italic`/`get-italic`, `set-underline`/`get-underline`, `set-font-name`/`get-font-name`,
 `set-alignment`/`get-alignment`, `set-bullet`/`get-bullet`, `set-autosize`/`get-autosize` — all
@@ -14,6 +14,8 @@ operate on a shape's text frame.
 |------|--------|------------|-------|
 | `textframe` | `set-text` | `session_id`, `slide_index`, `shape_index`, `text` | Replaces the shape's entire text content. |
 | `textframe` | `get-text` | `session_id`, `slide_index`, `shape_index` | Reads current text (`text`) — use before editing to avoid clobbering unrelated content. |
+| `textframe` | `find-text` | `session_id`, `slide_index`, `shape_index`, `find_what`, optional `match_case`, `whole_words` | Returns `matchCount` and `matches` containing `start`, `length`, `text`. Does not edit. |
+| `textframe` | `replace-text` | `session_id`, `slide_index`, `shape_index`, `find_what`, `replace_what`, optional `match_case`, `whole_words` | Replaces all original non-overlapping matches and returns `replacementCount`. An explicit empty replacement deletes matches. |
 | `textframe` | `set-font-size` | `session_id`, `slide_index`, `shape_index`, `font_size` (points) | Applies to the shape's **entire** text range, not a substring. |
 | `textframe` | `get-font-size` | `session_id`, `slide_index`, `shape_index` | Returns `fontSize`. Fails if the value is mixed across the text range. |
 | `textframe` | `set-bold` | `session_id`, `slide_index`, `shape_index`, `bold` (bool) | Applies to the entire text range. |
@@ -32,6 +34,38 @@ operate on a shape's text frame.
 | `textframe` | `get-bullet` | `session_id`, `slide_index`, `shape_index` | Returns `bulletEnabled` and `bulletCharacter` (null when bullets are off). |
 | `textframe` | `set-autosize` | `session_id`, `slide_index`, `shape_index`, `auto_size` | Sets the text frame's auto-fit behavior. `auto_size` is a `PpAutoSize` name (see below). |
 | `textframe` | `get-autosize` | `session_id`, `slide_index`, `shape_index` | Returns `autoSize`. Fails if the value is mixed across multiple shapes. |
+
+## Find and Replace Within One Shape
+
+Select a text-bearing shape using its 1-based `slide_index` and `shape_index`.
+Both actions use literal PowerPoint matching, not regex or wildcard patterns.
+`match_case` and `whole_words` default to `false`; whole-word boundaries follow
+PowerPoint's native rules. Empty search text is invalid, but whitespace is literal.
+Missing replacement text is an error; an explicit `replace_what: ""` deletes matches.
+
+`find-text` reports non-overlapping matches in ascending order. Each `start` is a
+1-based PowerPoint character position in the original frame, with a `length` and
+the original matched `text`. No match is a successful result with zero matches.
+
+`replace-text` collects original matches before editing, then replaces ranges from
+right to left. Inserted text is never searched again, including when it contains
+the search term. The count includes identical replacements. It does not assign a
+new string to the whole frame, preserving character formatting outside matched
+ranges. Replacement styling and paragraph merging when deleting paragraph breaks
+follow PowerPoint's native text editing behavior.
+
+These actions do not traverse groups, tables, notes, other shapes, or other slides.
+A shape without a text frame returns an error. Unexpected COM failures can leave
+partial edits; no transactional rollback is promised. Save explicitly when done.
+
+```text
+textframe(action: "find-text", session_id: ..., slide_index: 1, shape_index: 2, find_what: "Draft", whole_words: true)
+textframe(action: "replace-text", session_id: ..., slide_index: 1, shape_index: 2, find_what: "Draft", replace_what: "Final", whole_words: true)
+```
+
+CLI equivalents use `pptcli textframe find-text` / `replace-text`, `--session`,
+`--slide-index`, `--shape-index`, `--find-what`, `--replace-what`, `--match-case`,
+and `--whole-words`. Use live `--help` for exact option syntax.
 
 ## Paragraph Alignment Names
 
@@ -113,9 +147,10 @@ textframe(action: "set-font-color", session_id: ..., slide_index: ..., shape_ind
 
 ## Read Before You Overwrite
 
-`set-text` replaces the whole text frame content. If you only need to append or tweak part of an
-existing shape's text, call `get-text` first, compose the full new string yourself, and pass the
-complete result to `set-text` — there is no append/insert operation.
+`set-text` replaces the whole text frame content. For a literal substring edit, use
+`find-text` followed by `replace-text` to avoid rewriting unrelated character formatting.
+To append text, call `get-text` first, compose the full new string yourself, and pass the
+complete result to `set-text`; there is no append/insert operation.
 
 ```
 textframe(action: "get-text", session_id: ..., slide_index: ..., shape_index: ...) → "Q3 Results"

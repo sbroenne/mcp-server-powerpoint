@@ -192,6 +192,99 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         _output.WriteLine("✓ Step 4: list_sessions confirms the session is closed");
     }
 
+    [Fact]
+    public async Task TextFindReplace_ViaMcp_PreservesEmptyReplacementAndWhitespaceSearch()
+    {
+        var created = await CallToolAsync("presentation", new()
+        {
+            ["action"] = "create",
+            ["filePath"] = _testPresentationFile
+        });
+        AssertSuccess(created, "create");
+        var sessionId = GetJsonProperty(created, "sessionId");
+        Assert.False(string.IsNullOrEmpty(sessionId));
+        try
+        {
+            AssertSuccess(await CallToolAsync("shape", new()
+            {
+                ["action"] = "add-rectangle",
+                ["session_id"] = sessionId,
+                ["slide_index"] = 1,
+                ["left"] = 0,
+                ["top"] = 0,
+                ["width"] = 200,
+                ["height"] = 100
+            }), "add-rectangle");
+            AssertSuccess(await CallToolAsync("textframe", new()
+            {
+                ["action"] = "set-text",
+                ["session_id"] = sessionId,
+                ["slide_index"] = 1,
+                ["shape_index"] = 1,
+                ["text"] = "cat cat"
+            }), "set-text");
+
+            var arguments = new Dictionary<string, object?>
+            {
+                ["action"] = "find-text",
+                ["session_id"] = sessionId,
+                ["slide_index"] = 1,
+                ["shape_index"] = 1,
+                ["find_what"] = "cat"
+            };
+            var found = await CallToolAsync("textframe", arguments);
+            AssertSuccess(found, "find-text");
+            using (var json = JsonDocument.Parse(found))
+            {
+                Assert.Equal(2, json.RootElement.GetProperty("matchCount").GetInt32());
+                var matches = json.RootElement.GetProperty("matches");
+                Assert.Equal(1, matches[0].GetProperty("start").GetInt32());
+                Assert.Equal(5, matches[1].GetProperty("start").GetInt32());
+                Assert.Equal(3, matches[0].GetProperty("length").GetInt32());
+                Assert.Equal("cat", matches[0].GetProperty("text").GetString());
+            }
+
+            arguments["action"] = "replace-text";
+            using (var missing = JsonDocument.Parse(await CallToolAsync("textframe", arguments)))
+            {
+                Assert.True(missing.RootElement.GetProperty("isError").GetBoolean());
+            }
+
+            arguments["replace_what"] = "";
+            var replaced = await CallToolAsync("textframe", arguments);
+            AssertSuccess(replaced, "replace-text deletion");
+            using (var json = JsonDocument.Parse(replaced))
+            {
+                Assert.Equal(2, json.RootElement.GetProperty("replacementCount").GetInt32());
+            }
+
+            arguments["action"] = "find-text";
+            arguments["find_what"] = " ";
+            arguments.Remove("replace_what");
+            var whitespace = await CallToolAsync("textframe", arguments);
+            AssertSuccess(whitespace, "find-text whitespace");
+            using (var json = JsonDocument.Parse(whitespace))
+            {
+                Assert.Equal(1, json.RootElement.GetProperty("matchCount").GetInt32());
+            }
+
+            arguments["action"] = "get-text";
+            arguments.Remove("find_what");
+            var remaining = await CallToolAsync("textframe", arguments);
+            AssertSuccess(remaining, "get-text");
+            Assert.Equal(" ", GetJsonProperty(remaining, "text"));
+        }
+        finally
+        {
+            AssertSuccess(await CallToolAsync("presentation", new()
+            {
+                ["action"] = "close",
+                ["sessionId"] = sessionId,
+                ["save"] = false
+            }), "close");
+        }
+    }
+
     private async Task<string> CallToolAsync(string toolName, Dictionary<string, object?> arguments)
     {
         var result = await _client!.CallToolAsync(toolName, arguments, cancellationToken: _cts.Token);
