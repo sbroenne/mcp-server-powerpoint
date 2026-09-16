@@ -154,6 +154,26 @@ public sealed partial class ShapeCommands
                     targetSlide = slides[targetSlideIndex];
                     targetShapes = targetSlide.Shapes;
                     pasted = targetShapes.Paste();
+
+                    // Best-effort clipboard-integrity check: this lock only serializes calls made
+                    // through this server, not an unrelated application or a manual Ctrl+C/Ctrl+V
+                    // on the same desktop session. If something else replaced the clipboard between
+                    // Copy() and Paste(), PowerPoint pastes whatever is actually on it - often zero
+                    // or more than one shape - rather than throwing. A count other than exactly one
+                    // is a reliable signal of that, even though a same-count substitution cannot be
+                    // detected this way.
+                    if (pasted.Count != 1)
+                    {
+                        int pastedCount = pasted.Count;
+                        return new ShapeOperationResult
+                        {
+                            Success = false,
+                            ErrorMessage = $"Clipboard integrity check failed: expected exactly 1 " +
+                                $"shape after paste, got {pastedCount}. Another application or a " +
+                                "manual copy/paste may have used the clipboard concurrently."
+                        };
+                    }
+
                     newShape = pasted[1];
 
                     return new ShapeOperationResult
@@ -268,8 +288,25 @@ public sealed partial class ShapeCommands
         private static readonly Lock StartGate = new();
         private static bool s_started;
 
+        // 0 = healthy, 1 = a previous transfer never confirmed completion within its bounded
+        // waits and may still be running. Once set, this never clears itself - the process no
+        // longer has a way to know when (or whether) the wedged COM call ever finishes, so the
+        // only safe recovery is restarting the affected PowerPoint session/process.
+        private static int s_wedged;
+
         internal static void Enqueue(ClipboardLockRequest request)
         {
+            if (Volatile.Read(ref s_wedged) == 1)
+            {
+                request.Acquired.TrySetException(new InvalidOperationException(
+                    "The shared shape clipboard is quarantined: a previous copy-to-slide " +
+                    "operation did not confirm completion within its timeout and may still be " +
+                    "running inside PowerPoint. Handing out the lock now could race that unknown, " +
+                    "possibly still-active Copy()/Paste() pair. Restart the affected PowerPoint " +
+                    "session or process to clear this state."));
+                return;
+            }
+
             EnsureStarted();
             Requests.Add(request);
         }
@@ -349,25 +386,30 @@ public sealed partial class ShapeCommands
                     if (signalled != 0 && !request.TryAbandon())
                     {
                         // The callback claimed the clipboard, so only its completion can make
-                        // unlocking safe. Bounded anyway: a COM call wedged past its own timeout is
-                        // already poisoning that session, and a user-wide lock held forever would
-                        // break copy-to-slide in every session and process.
-                        request.TransferFinished.Task.Wait(request.CompletionTimeout);
+                        // unlocking safe. If it still has not completed after this second bounded
+                        // wait, its COM call is genuinely wedged (not just slow), and its actual
+                        // hold on the real OS clipboard is now unknown. Recycling the mutex to a new
+                        // caller here would let it race that still-possibly-active Copy()/Paste()
+                        // pair, which is exactly the unsafe overlap a lock is supposed to prevent -
+                        // so quarantine every future request instead of unlocking silently.
+                        bool completed = request.TransferFinished.Task.Wait(request.CompletionTimeout);
+                        if (!completed)
+                        {
+                            Volatile.Write(ref s_wedged, 1);
+                        }
                     }
                 }
             }
             finally
             {
                 // Reaching here means either the transfer finished, TryAbandon closed the door on a
-                // callback that never claimed, or the bounded wait above expired while a claimed
-                // callback was still wedged inside a hung COM call. That last case is a real,
-                // accepted gap, not an oversight: .NET's Mutex is thread-affine on release, and this
-                // coordinator thread - not the STA thread running the wedged callback - is the only
-                // one legally allowed to call ReleaseMutex() on the handle it acquired. There is no
-                // safe way to hand release back to the callback's own thread, so releasing here
-                // after the bounded wait (rather than blocking this coordinator, and therefore every
-                // future caller, forever) is the same tradeoff CopyFormatting's Format Painter lock
-                // already makes for the identical constraint.
+                // callback that never claimed, or the wedge above was recorded. .NET's Mutex is
+                // thread-affine on release, so this coordinator thread - not the STA thread possibly
+                // still running a wedged callback - is the only one legally allowed to call
+                // ReleaseMutex() on the handle it acquired; there is no safe way to hand release back
+                // to the callback's own thread. Releasing here is therefore still required even after
+                // a wedge is recorded, but s_wedged now stops every future caller before it can reach
+                // the clipboard, rather than letting the freed mutex look like a clean lock.
                 if (lockTaken)
                 {
                     clipboardMutex!.ReleaseMutex();

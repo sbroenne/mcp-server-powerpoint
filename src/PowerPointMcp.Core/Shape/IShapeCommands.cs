@@ -99,8 +99,12 @@ public interface IShapeCommands
     /// <summary>
     /// Copies a shape to another slide in the same presentation via PowerPoint's native
     /// copy/paste, producing an independently editable copy. Returns the new shape's 1-based
-    /// index on <paramref name="targetSlideIndex"/>. Uses the shared Windows clipboard, so
-    /// concurrent calls (from this or another session) are serialized automatically.
+    /// index on <paramref name="targetSlideIndex"/>. Uses the shared Windows clipboard: concurrent
+    /// calls made through this server (any session or process) are serialized automatically, but
+    /// this cannot prevent an unrelated application or a manual copy/paste on the same desktop
+    /// session from replacing the clipboard contents in between. A best-effort check after
+    /// pasting fails the operation if it did not produce exactly one shape, which catches gross
+    /// clipboard interference but not a same-shape-count substitution.
     /// </summary>
     ShapeOperationResult CopyToSlide(
         ComInterop.Session.IPresentationBatch batch,
