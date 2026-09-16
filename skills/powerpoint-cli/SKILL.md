@@ -134,7 +134,7 @@ of one flat tool per verb.
 
 Available command groups (in addition to `session` and `service`):
 
-`accessibility`, `animation`, `chart`, `export`, `image`, `layout`, `master`, `media`, `notes`, `pagesetup`, `shape`, `slide`, `smartart`, `table`, `textframe`
+`accessibility`, `animation`, `chart`, `customshow`, `export`, `image`, `layout`, `master`, `media`, `notes`, `pagesetup`, `shape`, `slide`, `smartart`, `table`, `textframe`
 
 Run `pptcli <command> --help` for the live, authoritative list of actions and flags for that
 command — the table below is a summary generated from the same Core interfaces as the MCP tool
@@ -193,6 +193,16 @@ Actions: `add-chart`, `get-chart-data`, `add-series`, `set-chart-title`, `get-ch
 | `--series-values` | (required for: replace-chart-data) |
 | `--style` | Built-in chart style number, verified against PowerPoint from 1 through 48. (required for: set-style) |
 | `--color-style` | Built-in chart color style number, verified against PowerPoint from 1 through 26. (required for: set-color-style) |
+
+
+### `customshow` — Named custom slide shows: curated, ordered subsets of a presentation's slides.
+
+Actions: `list`, `create`, `delete`
+
+| Flag | Description |
+|------|-------------|
+| `--name` | (required for: create, delete) |
+| `--slide-indices` | (required for: create) |
 
 
 ### `export` — Export commands: render presentations to PDF or slides to raster image files. Operates within an already-open .
