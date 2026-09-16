@@ -147,7 +147,12 @@ public sealed partial class ShapeCommands
                 if (Interlocked.CompareExchange(ref callbackState, 1, 0) != 0)
                 {
                     // The caller already timed out and handed the lock back, so the shared
-                    // clipboard is no longer ours to touch.
+                    // clipboard is no longer ours to touch. Still signal completion here (not
+                    // just in the outer finally): this branch can run after the coordinator's own
+                    // TryAbandon() already flipped callbackState away from this method's outer
+                    // finally, in which case that finally's own CompareExchange no longer succeeds
+                    // either, and nothing else would ever complete this task.
+                    transferFinished.TrySetResult(true);
                     return new ShapeOperationResult
                     {
                         Success = false,
@@ -227,11 +232,13 @@ public sealed partial class ShapeCommands
                 }
                 finally
                 {
+                    // Reverse acquisition order (newShape/pasted/targetShapes/targetSlide were all
+                    // acquired after sourceShape), matching CopyFormatting's release pattern.
                     if (newShape is not null) ComUtilities.Release(ref newShape);
                     if (pasted is not null) ComUtilities.Release(ref pasted);
-                    if (sourceShape is not null) ComUtilities.Release(ref sourceShape);
                     if (targetShapes is not null) ComUtilities.Release(ref targetShapes);
                     if (targetSlide is not null) ComUtilities.Release(ref targetSlide);
+                    if (sourceShape is not null) ComUtilities.Release(ref sourceShape);
                     if (sourceShapes is not null) ComUtilities.Release(ref sourceShapes);
                     if (sourceSlide is not null) ComUtilities.Release(ref sourceSlide);
                     if (slides is not null) ComUtilities.Release(ref slides);
@@ -650,9 +657,10 @@ public sealed partial class ShapeCommands
             "The shared shape clipboard is quarantined: a previous copy-to-slide operation did " +
             "not confirm completion within its timeout. Handing out the lock now could race that " +
             "unknown, possibly still-active Copy()/Paste() pair. This clears automatically once " +
-            "the affected PowerPoint process is confirmed to have exited. If that process could " +
-            "not be identified when the wedge occurred, this quarantine cannot clear automatically " +
-            "and the host process must be restarted.");
+            "that operation actually completes (even if it was merely slow, not stuck) or, failing " +
+            "that, once the affected PowerPoint process is confirmed to have exited. If that " +
+            "process could not be identified when the wedge occurred, this quarantine cannot clear " +
+            "automatically and the host process must be restarted.");
 
         // Test-only escape hatch: safely undoes a quarantine that this coordinator's own design
         // deliberately makes unrecoverable when no PowerPointProcessIdentity was captured (see

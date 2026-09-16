@@ -636,15 +636,17 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(99)]
-    public void Duplicate_WithInvalidShapeIndex_ReturnsFailureWithoutAddingShape(int shapeIndex)
+    [InlineData(1, 0)]
+    [InlineData(1, 99)]
+    [InlineData(0, 1)]
+    [InlineData(99, 1)]
+    public void Duplicate_WithInvalidIndex_ReturnsFailureWithoutAddingShape(int slideIndex, int shapeIndex)
     {
         _fixture.CreateFreshPresentation();
         var batch = _fixture.Batch;
         _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
 
-        var result = _commands.Duplicate(batch, 1, shapeIndex);
+        var result = _commands.Duplicate(batch, slideIndex, shapeIndex);
 
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
@@ -685,11 +687,14 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     }
 
     [Theory]
-    [InlineData(0, 2)]
-    [InlineData(99, 2)]
-    [InlineData(1, 0)]
-    [InlineData(1, 99)]
+    [InlineData(1, 0, 2)]
+    [InlineData(1, 99, 2)]
+    [InlineData(1, 1, 0)]
+    [InlineData(1, 1, 99)]
+    [InlineData(0, 1, 2)]
+    [InlineData(99, 1, 2)]
     public void CopyToSlide_WithInvalidIndex_ReturnsFailureWithoutMutatingEitherSlide(
+        int slideIndex,
         int shapeIndex,
         int targetSlideIndex)
     {
@@ -699,7 +704,7 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.True(slideResult.Success, slideResult.ErrorMessage);
         _commands.AddRectangle(batch, 1, 10f, 20f, 120f, 40f);
 
-        var result = _commands.CopyToSlide(batch, 1, shapeIndex, targetSlideIndex);
+        var result = _commands.CopyToSlide(batch, slideIndex, shapeIndex, targetSlideIndex);
 
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
