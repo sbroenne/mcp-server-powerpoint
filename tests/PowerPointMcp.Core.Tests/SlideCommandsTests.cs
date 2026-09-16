@@ -1,6 +1,9 @@
+using Sbroenne.PowerPointMcp.ComInterop;
+using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Shape;
 using Sbroenne.PowerPointMcp.Core.Slide;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
 
@@ -21,6 +24,115 @@ public class SlideCommandsTests : IClassFixture<SharedPresentationFixture>
     public SlideCommandsTests(SharedPresentationFixture fixture)
     {
         _fixture = fixture;
+    }
+
+    [Theory]
+    [InlineData("SetHidden", true)]
+    [InlineData("SetDisplayMasterShapes", false)]
+    public void SetVisibility_ChangesOnlyTargetSlideAndPersists(string methodName, bool value)
+    {
+        _fixture.CreateFreshPresentation();
+        Assert.True(_commands.AddBlank(_fixture.Batch).Success);
+        var before = ReadVisibilityStates();
+        Assert.Equal((false, true), before[0]);
+        Assert.Equal(before[0], before[1]);
+
+        var result = InvokeVisibilityCommand(methodName, _fixture.Batch, 1, value);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(value, GetReturnedVisibility(methodName, result));
+        var changed = ReadVisibilityStates();
+        var expected = methodName == "SetHidden" ? (value, true) : (false, value);
+        Assert.Equal(expected, changed[0]);
+        Assert.Equal(before[1], changed[1]);
+
+        var repeated = InvokeVisibilityCommand(methodName, _fixture.Batch, 1, value);
+        Assert.True(repeated.Success, repeated.ErrorMessage);
+        Assert.Equal(value, GetReturnedVisibility(methodName, repeated));
+        Assert.Equal(changed, ReadVisibilityStates());
+
+        var reversed = InvokeVisibilityCommand(methodName, _fixture.Batch, 1, !value);
+        Assert.True(reversed.Success, reversed.ErrorMessage);
+        Assert.Equal(!value, GetReturnedVisibility(methodName, reversed));
+        Assert.Equal(before, ReadVisibilityStates());
+
+        Assert.True(InvokeVisibilityCommand(methodName, _fixture.Batch, 1, value).Success);
+
+        Assert.True(_presentationCommands.Save(_fixture.Batch).Success);
+        _fixture.ReopenCurrentPresentation();
+        Assert.Equal(changed, ReadVisibilityStates());
+    }
+
+    [Theory]
+    [InlineData("SetHidden", 0)]
+    [InlineData("SetHidden", -1)]
+    [InlineData("SetHidden", 3)]
+    [InlineData("SetDisplayMasterShapes", 0)]
+    [InlineData("SetDisplayMasterShapes", -1)]
+    [InlineData("SetDisplayMasterShapes", 3)]
+    public void SetVisibility_WithInvalidSlideIndex_DoesNotMutate(string methodName, int slideIndex)
+    {
+        _fixture.CreateFreshPresentation();
+        Assert.True(_commands.AddBlank(_fixture.Batch).Success);
+        var before = ReadVisibilityStates();
+
+        var result = InvokeVisibilityCommand(methodName, _fixture.Batch, slideIndex, true);
+
+        Assert.False(result.Success);
+        Assert.NotEmpty(result.ErrorMessage!);
+        Assert.Equal(before, ReadVisibilityStates());
+    }
+
+    private SlideOperationResult InvokeVisibilityCommand(
+        string methodName,
+        IPresentationBatch batch,
+        int slideIndex,
+        bool value)
+        => methodName switch
+        {
+            "SetHidden" => _commands.SetHidden(batch, slideIndex, value),
+            "SetDisplayMasterShapes" => _commands.SetDisplayMasterShapes(batch, slideIndex, value),
+            _ => throw new ArgumentOutOfRangeException(nameof(methodName), methodName, "Unknown visibility command.")
+        };
+
+    private static bool? GetReturnedVisibility(string methodName, SlideOperationResult result)
+        => methodName == "SetHidden" ? result.Hidden : result.DisplaysMasterShapes;
+
+    private (bool Hidden, bool DisplaysMasterShapes)[] ReadVisibilityStates()
+    {
+        return _fixture.Batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Slides? slides = null;
+            try
+            {
+                slides = ctx.Presentation.Slides;
+                var states = new (bool Hidden, bool DisplaysMasterShapes)[slides.Count];
+                for (int index = 1; index <= slides.Count; index++)
+                {
+                    dynamic? slide = null;
+                    dynamic? transition = null;
+                    try
+                    {
+                        slide = slides[index];
+                        transition = slide.SlideShowTransition;
+                        states[index - 1] = (
+                            Convert.ToInt32(transition.Hidden) != 0,
+                            Convert.ToInt32(slide.DisplayMasterShapes) != 0);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref transition!);
+                        ComUtilities.Release(ref slide!);
+                    }
+                }
+
+                return states;
+            }
+            finally
+            {
+                ComUtilities.Release(ref slides!);
+            }
+        });
     }
 
     [Fact]

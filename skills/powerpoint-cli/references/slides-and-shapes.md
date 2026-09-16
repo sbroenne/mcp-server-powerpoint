@@ -3,7 +3,7 @@
 # Slides and Shapes
 
 Reference for the `slide` tool (`add-blank`, `get-count`, `delete`, `duplicate`, `move-to`,
-`set-background-color`, `get-background-color`, sections, comments, import) and the `shape` tool
+`set-background-color`, `get-background-color`, visibility, sections, comments, import) and the `shape` tool
 (`add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`,
 `delete`, `set-position`, `set-size`, plus the fill/line/rotation/flip/z-order/shadow/glow/
 reflection/soft-edge/bevel/group/name/alt-text/hyperlink formatting actions below).
@@ -30,6 +30,8 @@ reflection/soft-edge/bevel/group/name/alt-text/hyperlink formatting actions belo
 | `slide` | `add-comment` | `session_id`, `slide_index`, `author`, `initials`, `text`, optional `left`/`top` | Adds a legacy comment. PowerPoint may replace author details with the signed-in Office identity. |
 | `slide` | `delete-comment` | `session_id`, `slide_index`, `comment_index` | Deletes one legacy comment by 1-based index. |
 | `slide` | `clear-comments` | `session_id`, `slide_index` | Deletes all legacy comments on the slide. |
+| `slide` | `set-hidden` | `session_id`, `slide_index`, `hidden` | Excludes the slide from slide-show playback when `hidden` is true; the slide remains in the deck and editable. Returns `hidden`. |
+| `slide` | `set-display-master-shapes` | `session_id`, `slide_index`, `display` | Shows or hides shapes inherited from the slide master. This does not control headers, footers, or the slide background. Returns `displaysMasterShapes`. |
 | `slide` | `import-from-file` | `session_id`, `source_file_path`, `destination_slide_index`, optional source range | Inserts an inclusive 1-based source range after the destination slide; it never replaces destination slides. |
 
 Slides always append at the end via `add-blank` — there is no "insert blank at position N" action;

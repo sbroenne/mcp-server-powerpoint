@@ -1048,8 +1048,10 @@ OPTIONS:
                                                              add-comment,
                                                              delete-comment,
                                                              clear-comments,
-                                                             set-tag, get-tag,
-                                                             list-tags,
+                                                             set-hidden,
+                                                             set-display-master-
+                                                             shapes, set-tag,
+                                                             get-tag, list-tags,
                                                              delete-tag) (valid
                                                              for: delete,
                                                              duplicate, move-to,
@@ -1065,8 +1067,10 @@ OPTIONS:
                                                              add-comment,
                                                              delete-comment,
                                                              clear-comments,
-                                                             set-tag, get-tag,
-                                                             list-tags,
+                                                             set-hidden,
+                                                             set-display-master-
+                                                             shapes, set-tag,
+                                                             get-tag, list-tags,
                                                              delete-tag)
         --to-position <TOPOSITION>                           (required for:
                                                              move-to) (valid
@@ -1156,6 +1160,14 @@ OPTIONS:
                                                              delete-comment)
                                                              (valid for:
                                                              delete-comment)
+        --hidden <HIDDEN>                                    (required for:
+                                     set-hidden) (valid
+                                     for: set-hidden)
+        --display <DISPLAY>                                  (required for:
+                                     set-display-master-
+                                     shapes) (valid for:
+                                     set-display-master-
+                                     shapes)
         --source-file-path <SOURCEFILEPATH>                  (required for:
                                                              import-from-file)
                                                              (valid for:
