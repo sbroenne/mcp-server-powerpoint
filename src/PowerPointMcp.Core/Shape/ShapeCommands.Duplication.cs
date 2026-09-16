@@ -368,6 +368,17 @@ public sealed partial class ShapeCommands
 
         private sealed record WedgeState(PowerPointProcessIdentity? Identity);
 
+        // How often the coordinator thread re-checks a standing quarantine when no new request
+        // has arrived to trigger the check itself (see Run()). Recovery must not depend on some
+        // other caller happening to try again: this is a session-scoped named mutex, so a
+        // different MCP/CLI process could be the one waiting on it while this process sits idle.
+        private static readonly TimeSpan WedgeRecoveryPollInterval = TimeSpan.FromSeconds(15);
+
+        // Test-only: set by ResetForTests() and consumed by Run() on the coordinator thread -
+        // the only thread allowed to release s_wedgeMutex. See ResetForTests() for why this
+        // indirection exists instead of releasing directly from the calling (test) thread.
+        private static TaskCompletionSource<bool>? s_pendingTestReset;
+
         // Deliberately does NOT reject on IsQuarantineStillInEffect() here. Serve() - the only
         // place that calls TryClearResolvedQuarantine() - runs exclusively on the single
         // coordinator thread pulling from Requests, so a request that never reaches Requests can
@@ -376,6 +387,8 @@ public sealed partial class ShapeCommands
         // exits: nothing would ever queue again to trigger the recheck. Every request is therefore
         // queued unconditionally, and Serve() itself performs the check-and-clear-if-resolved,
         // then re-checks before deciding whether to actually reject this particular request.
+        // Run()'s own idle polling (see below) covers the case where no request ever arrives at
+        // all after a wedge.
         internal static void Enqueue(ClipboardLockRequest request)
         {
             EnsureStarted();
@@ -399,11 +412,42 @@ public sealed partial class ShapeCommands
             }
         }
 
+        // Runs for the lifetime of the process on a single dedicated thread. Normally blocks
+        // indefinitely for the next request, same as a plain consuming enumerator. While a
+        // quarantine is in effect, instead polls on WedgeRecoveryPollInterval so recovery does not
+        // depend on some other request arriving to trigger TryClearResolvedQuarantine(): without
+        // this, a wedge that resolves while this process is otherwise idle would hold the
+        // session-scoped named mutex forever, blocking every other process waiting on it too.
         private static void Run()
         {
-            foreach (var request in Requests.GetConsumingEnumerable())
+            while (true)
             {
-                Serve(request);
+                TaskCompletionSource<bool>? pendingReset = Interlocked.Exchange(ref s_pendingTestReset, null);
+                if (pendingReset is not null)
+                {
+                    if (s_wedgeMutex is not null)
+                    {
+                        s_wedgeMutex.ReleaseMutex();
+                        s_wedgeMutex.Dispose();
+                        s_wedgeMutex = null;
+                    }
+
+                    s_wedge = null;
+                    pendingReset.TrySetResult(true);
+                }
+
+                TimeSpan waitTimeout = IsQuarantineStillInEffect()
+                    ? WedgeRecoveryPollInterval
+                    : Timeout.InfiniteTimeSpan;
+
+                if (Requests.TryTake(out var request, waitTimeout))
+                {
+                    Serve(request);
+                }
+                else if (IsQuarantineStillInEffect())
+                {
+                    TryClearResolvedQuarantine();
+                }
             }
         }
 
@@ -572,18 +616,28 @@ public sealed partial class ShapeCommands
         // genuine no-identity wedge really does require restarting the host process - but a test
         // that deliberately forces this state to prove it fails closed must not leave this shared
         // static coordinator permanently quarantined for every later test sharing this process.
-        // Disposing (not releasing) the retained handle is safe specifically because the
-        // coordinator's dedicated background thread still recognizes itself as the named mutex's
-        // owner afterward (Windows mutex ownership is thread-, not handle-based) and so
-        // transparently re-acquires it recursively on its own next WaitOne(), the same reasoning
-        // already documented where quarantined requests are rejected before reaching the mutex at
-        // all. Calling ReleaseMutex() here instead would throw: this method runs on the caller's
-        // thread, not the coordinator thread that actually owns the mutex.
+        // The actual release/dispose happens on Run()'s coordinator thread (see the
+        // s_pendingTestReset handling there), not here: Mutex.ReleaseMutex() requires the exact
+        // thread that acquired ownership, and this method runs on the calling (test) thread.
+        // Disposing the retained handle from here instead - without a matching ReleaseMutex() -
+        // would leave the named mutex's OS-level ownership permanently held by the coordinator
+        // thread with an unbalanced recursion count, silently blocking every later real holder.
         internal static void ResetForTests()
         {
-            s_wedgeMutex?.Dispose();
-            s_wedgeMutex = null;
-            s_wedge = null;
+            EnsureStarted();
+            var pendingReset = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Volatile.Write(ref s_pendingTestReset, pendingReset);
+
+            // Wakes Run() immediately instead of waiting for its next poll: served as a no-op via
+            // the CallerGaveUp early-return, so it never touches the mutex itself.
+            var wakeRequest = new ClipboardLockRequest(DateTime.UtcNow, TimeSpan.Zero, () => true, null);
+            wakeRequest.MarkCallerGaveUp();
+            Requests.Add(wakeRequest);
+
+            if (!pendingReset.Task.Wait(TimeSpan.FromSeconds(10)))
+            {
+                throw new TimeoutException("ClipboardLockCoordinator.ResetForTests timed out waiting for the coordinator thread.");
+            }
         }
     }
 }
