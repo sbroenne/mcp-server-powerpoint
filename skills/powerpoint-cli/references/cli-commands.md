@@ -842,9 +842,9 @@ OPTIONS:
 
 ```text
 DESCRIPTION:
-Shape commands: create, inspect, align, distribute, format, group, link, and
-edit native placeholders. Operates within an already-open IPresentationBatch,
-targeting a specific slide by its 1-based index
+Shape commands: create, inspect, format, group, link, and edit native
+placeholders. Operates within an already-open IPresentationBatch, targeting a
+specific slide by its 1-based index
 
 USAGE:
     pptcli shape <ACTION> [OPTIONS]
@@ -853,159 +853,166 @@ ARGUMENTS:
     <ACTION>    The action to perform
 
 OPTIONS:
-    -h, --help                                   Prints help information
-    -s, --session <SESSION>                      Session ID from 'session open'
-                                                 command
-        --slide-index <SLIDEINDEX>               (required)
-        --left <LEFT>                            (required for: add-rectangle,
-                                                 add-text-box, add-auto-shape,
-                                                 set-position) (valid for:
-                                                 add-rectangle, add-text-box,
-                                                 add-auto-shape, set-position)
-        --top <TOP>                              (required for: add-rectangle,
-                                                 add-text-box, add-auto-shape,
-                                                 set-position) (valid for:
-                                                 add-rectangle, add-text-box,
-                                                 add-auto-shape, set-position)
-        --width <WIDTH>                          (required for: add-rectangle,
-                                                 add-text-box, add-auto-shape,
-                                                 set-size) (valid for:
-                                                 add-rectangle, add-text-box,
-                                                 add-auto-shape, set-size)
-        --height <HEIGHT>                        (required for: add-rectangle,
-                                                 add-text-box, add-auto-shape,
-                                                 set-size) (valid for:
-                                                 add-rectangle, add-text-box,
-                                                 add-auto-shape, set-size)
-        --text <TEXT>                            (required for: add-text-box,
-                                                 set-placeholder-text) (valid
-                                                 for: add-text-box,
-                                                 set-placeholder-text)
-        --shape-type <SHAPETYPE>                 (required for: add-auto-shape)
-                                                 (valid for: add-auto-shape)
-        --begin-x <BEGINX>                       (required for: add-line,
-                                                 add-connector) (valid for:
-                                                 add-line, add-connector)
-        --begin-y <BEGINY>                       (required for: add-line,
-                                                 add-connector) (valid for:
-                                                 add-line, add-connector)
-        --end-x <ENDX>                           (required for: add-line,
-                                                 add-connector) (valid for:
-                                                 add-line, add-connector)
-        --end-y <ENDY>                           (required for: add-line,
-                                                 add-connector) (valid for:
-                                                 add-line, add-connector)
-        --connector-type <CONNECTORTYPE>         (required for: add-connector)
-                                                 (valid for: add-connector)
-        --shape-index <SHAPEINDEX>               (required for: delete,
-                                                 set-position, set-size,
-                                                 set-fill, get-fill, set-line,
-                                                 get-line, set-rotation,
-                                                 get-rotation, flip,
-                                                 set-z-order, set-shadow,
-                                                 get-shadow, set-glow, get-glow,
-                                                 set-reflection, get-reflection,
-                                                 set-soft-edge, get-soft-edge,
-                                                 set-bevel, get-bevel, ungroup,
-                                                 set-name, get-name,
-                                                 set-alt-text, get-alt-text,
-                                                 set-hyperlink, get-hyperlink,
-                                                 remove-hyperlink,
-                                                 get-link-info, update-link,
-                                                 break-link,
-                                                 set-link-auto-update,
-                                                 set-placeholder-text,
-                                                 set-placeholder-image, set-tag,
-                                                 get-tag, list-tags, delete-tag)
-                                                 (valid for: delete,
-                                                 set-position, set-size,
-                                                 set-fill, get-fill, set-line,
-                                                 get-line, set-rotation,
-                                                 get-rotation, flip,
-                                                 set-z-order, set-shadow,
-                                                 get-shadow, set-glow, get-glow,
-                                                 set-reflection, get-reflection,
-                                                 set-soft-edge, get-soft-edge,
-                                                 set-bevel, get-bevel, ungroup,
-                                                 set-name, get-name,
-                                                 set-alt-text, get-alt-text,
-                                                 set-hyperlink, get-hyperlink,
-                                                 remove-hyperlink,
-                                                 get-link-info, update-link,
-                                                 break-link,
-                                                 set-link-auto-update,
-                                                 set-placeholder-text,
-                                                 set-placeholder-image, set-tag,
-                                                 get-tag, list-tags, delete-tag)
-        --red <RED>                              (required for: set-fill,
-                                                 set-glow) (valid for: set-fill,
-                                                 set-line, set-shadow, set-glow)
-        --green <GREEN>                          (required for: set-fill,
-                                                 set-glow) (valid for: set-fill,
-                                                 set-line, set-shadow, set-glow)
-        --blue <BLUE>                            (required for: set-fill,
-                                                 set-glow) (valid for: set-fill,
-                                                 set-line, set-shadow, set-glow)
-        --weight <WEIGHT>                        (valid for: set-line)
-        --dash-style <DASHSTYLE>                 (valid for: set-line)
-        --visible <VISIBLE>                      (required for: set-shadow,
-                                                 set-reflection) (valid for:
-                                                 set-line, set-shadow,
-                                                 set-reflection)
-        --degrees <DEGREES>                      (required for: set-rotation)
-                                                 (valid for: set-rotation)
-        --direction <DIRECTION>                  (required for: flip) (valid
-                                                 for: flip)
-        --z-order-command <ZORDERCOMMAND>        (required for: set-z-order)
-                                                 (valid for: set-z-order)
-        --transparency <TRANSPARENCY>            (valid for: set-shadow,
-                                                 set-glow, set-reflection)
-        --blur <BLUR>                            (valid for: set-shadow,
-                                                 set-reflection)
-        --offset-x <OFFSETX>                     (valid for: set-shadow)
-        --offset-y <OFFSETY>                     (valid for: set-shadow)
-        --radius <RADIUS>                        (required for: set-glow,
-                                                 set-soft-edge) (valid for:
-                                                 set-glow, set-soft-edge)
-        --size <SIZE>                            (valid for: set-reflection)
-        --bevel-type <BEVELTYPE>                 (required for: set-bevel)
-                                                 (valid for: set-bevel)
-        --depth <DEPTH>                          (valid for: set-bevel)
-        --inset <INSET>                          (valid for: set-bevel)
-        --shape-indexes <SHAPEINDEXES>           (required for: group, align,
-                                                 distribute) (valid for: group,
-                                                 align, distribute) (JSON
-                                                 format)
-        --align-cmd <ALIGNCMD>                   (required for: align) (valid
-                                                 for: align)
-        --relative-to-slide <RELATIVETOSLIDE>    (valid for: align, distribute)
-        --distribute-cmd <DISTRIBUTECMD>         (required for: distribute)
-                                                 (valid for: distribute)
-        --name <NAME>                            (required for: set-name) (valid
-                                                 for: set-name)
-        --alt-text <ALTTEXT>                     (required for: set-alt-text)
-                                                 (valid for: set-alt-text)
-        --address <ADDRESS>                      (required for: set-hyperlink)
-                                                 (valid for: set-hyperlink)
-        --screen-tip <SCREENTIP>                 (valid for: set-hyperlink)
-        --auto-update <AUTOUPDATE>               True for automatic refresh or
-                                                 false for manual refresh.
-                                                 (required for:
-                                                 set-link-auto-update) (valid
-                                                 for: set-link-auto-update)
-        --image-path <IMAGEPATH>                 (required for:
-                                                 set-placeholder-image) (valid
-                                                 for: set-placeholder-image)
-        --tag-name <TAGNAME>                     (required for: set-tag,
-                                                 get-tag, delete-tag) (valid
-                                                 for: set-tag, get-tag,
-                                                 delete-tag)
-        --tag-value <TAGVALUE>                   (required for: set-tag) (valid
-                                                 for: set-tag)
-    -o, --output <PATH>                          Write output to file instead of
-                                                 stdout. For image results,
-                                                 decodes and saves as binary
-                                                 file
+    -h, --help                                     Prints help information
+    -s, --session <SESSION>                        Session ID from 'session
+                                                   open' command
+        --slide-index <SLIDEINDEX>                 (required)
+        --left <LEFT>                              (required for: add-rectangle,
+                                                   add-text-box, add-auto-shape,
+                                                   set-position) (valid for:
+                                                   add-rectangle, add-text-box,
+                                                   add-auto-shape, set-position)
+        --top <TOP>                                (required for: add-rectangle,
+                                                   add-text-box, add-auto-shape,
+                                                   set-position) (valid for:
+                                                   add-rectangle, add-text-box,
+                                                   add-auto-shape, set-position)
+        --width <WIDTH>                            (required for: add-rectangle,
+                                                   add-text-box, add-auto-shape,
+                                                   set-size) (valid for:
+                                                   add-rectangle, add-text-box,
+                                                   add-auto-shape, set-size)
+        --height <HEIGHT>                          (required for: add-rectangle,
+                                                   add-text-box, add-auto-shape,
+                                                   set-size) (valid for:
+                                                   add-rectangle, add-text-box,
+                                                   add-auto-shape, set-size)
+        --text <TEXT>                              (required for: add-text-box,
+                                                   set-placeholder-text) (valid
+                                                   for: add-text-box,
+                                                   set-placeholder-text)
+        --shape-type <SHAPETYPE>                   (required for:
+                                                   add-auto-shape) (valid for:
+                                                   add-auto-shape)
+        --begin-x <BEGINX>                         (required for: add-line,
+                                                   add-connector) (valid for:
+                                                   add-line, add-connector)
+        --begin-y <BEGINY>                         (required for: add-line,
+                                                   add-connector) (valid for:
+                                                   add-line, add-connector)
+        --end-x <ENDX>                             (required for: add-line,
+                                                   add-connector) (valid for:
+                                                   add-line, add-connector)
+        --end-y <ENDY>                             (required for: add-line,
+                                                   add-connector) (valid for:
+                                                   add-line, add-connector)
+        --connector-type <CONNECTORTYPE>           (required for: add-connector)
+                                                   (valid for: add-connector)
+        --shape-index <SHAPEINDEX>                 (required for: delete,
+                                                   set-position, set-size,
+                                                   set-fill, get-fill, set-line,
+                                                   get-line, set-rotation,
+                                                   get-rotation, flip,
+                                                   set-z-order, set-shadow,
+                                                   get-shadow, set-glow,
+                                                   get-glow, set-reflection,
+                                                   get-reflection,
+                                                   set-soft-edge, get-soft-edge,
+                                                   set-bevel, get-bevel,
+                                                   ungroup, set-name, get-name,
+                                                   set-alt-text, get-alt-text,
+                                                   set-hyperlink, get-hyperlink,
+                                                   remove-hyperlink,
+                                                   get-link-info, update-link,
+                                                   break-link,
+                                                   set-link-auto-update,
+                                                   set-placeholder-text,
+                                                   set-placeholder-image,
+                                                   set-tag, get-tag, list-tags,
+                                                   delete-tag) (valid for:
+                                                   delete, set-position,
+                                                   set-size, set-fill, get-fill,
+                                                   set-line, get-line,
+                                                   set-rotation, get-rotation,
+                                                   flip, set-z-order,
+                                                   set-shadow, get-shadow,
+                                                   set-glow, get-glow,
+                                                   set-reflection,
+                                                   get-reflection,
+                                                   set-soft-edge, get-soft-edge,
+                                                   set-bevel, get-bevel,
+                                                   ungroup, set-name, get-name,
+                                                   set-alt-text, get-alt-text,
+                                                   set-hyperlink, get-hyperlink,
+                                                   remove-hyperlink,
+                                                   get-link-info, update-link,
+                                                   break-link,
+                                                   set-link-auto-update,
+                                                   set-placeholder-text,
+                                                   set-placeholder-image,
+                                                   set-tag, get-tag, list-tags,
+                                                   delete-tag)
+        --red <RED>                                (required for: set-fill,
+                                                   set-glow) (valid for:
+                                                   set-fill, set-line,
+                                                   set-shadow, set-glow)
+        --green <GREEN>                            (required for: set-fill,
+                                                   set-glow) (valid for:
+                                                   set-fill, set-line,
+                                                   set-shadow, set-glow)
+        --blue <BLUE>                              (required for: set-fill,
+                                                   set-glow) (valid for:
+                                                   set-fill, set-line,
+                                                   set-shadow, set-glow)
+        --weight <WEIGHT>                          (valid for: set-line)
+        --dash-style <DASHSTYLE>                   (valid for: set-line)
+        --visible <VISIBLE>                        (required for: set-shadow,
+                                                   set-reflection) (valid for:
+                                                   set-line, set-shadow,
+                                                   set-reflection)
+        --source-shape-index <SOURCESHAPEINDEX>    (required for:
+                                                   copy-formatting) (valid for:
+                                                   copy-formatting)
+        --target-shape-index <TARGETSHAPEINDEX>    (required for:
+                                                   copy-formatting) (valid for:
+                                                   copy-formatting)
+        --degrees <DEGREES>                        (required for: set-rotation)
+                                                   (valid for: set-rotation)
+        --direction <DIRECTION>                    (required for: flip) (valid
+                                                   for: flip)
+        --z-order-command <ZORDERCOMMAND>          (required for: set-z-order)
+                                                   (valid for: set-z-order)
+        --transparency <TRANSPARENCY>              (valid for: set-shadow,
+                                                   set-glow, set-reflection)
+        --blur <BLUR>                              (valid for: set-shadow,
+                                                   set-reflection)
+        --offset-x <OFFSETX>                       (valid for: set-shadow)
+        --offset-y <OFFSETY>                       (valid for: set-shadow)
+        --radius <RADIUS>                          (required for: set-glow,
+                                                   set-soft-edge) (valid for:
+                                                   set-glow, set-soft-edge)
+        --size <SIZE>                              (valid for: set-reflection)
+        --bevel-type <BEVELTYPE>                   (required for: set-bevel)
+                                                   (valid for: set-bevel)
+        --depth <DEPTH>                            (valid for: set-bevel)
+        --inset <INSET>                            (valid for: set-bevel)
+        --shape-indexes <SHAPEINDEXES>             (required for: group) (valid
+                                                   for: group) (JSON format)
+        --name <NAME>                              (required for: set-name)
+                                                   (valid for: set-name)
+        --alt-text <ALTTEXT>                       (required for: set-alt-text)
+                                                   (valid for: set-alt-text)
+        --address <ADDRESS>                        (required for: set-hyperlink)
+                                                   (valid for: set-hyperlink)
+        --screen-tip <SCREENTIP>                   (valid for: set-hyperlink)
+        --auto-update <AUTOUPDATE>                 True for automatic refresh or
+                                                   false for manual refresh.
+                                                   (required for:
+                                                   set-link-auto-update) (valid
+                                                   for: set-link-auto-update)
+        --image-path <IMAGEPATH>                   (required for:
+                                                   set-placeholder-image) (valid
+                                                   for: set-placeholder-image)
+        --tag-name <TAGNAME>                       (required for: set-tag,
+                                                   get-tag, delete-tag) (valid
+                                                   for: set-tag, get-tag,
+                                                   delete-tag)
+        --tag-value <TAGVALUE>                     (required for: set-tag)
+                                                   (valid for: set-tag)
+    -o, --output <PATH>                            Write output to file instead
+                                                   of stdout. For image results,
+                                                   decodes and saves as binary
+                                                   file
 ```
 
 ## `pptcli slide`
