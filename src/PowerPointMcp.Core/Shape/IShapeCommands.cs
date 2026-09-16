@@ -3,13 +3,13 @@ using Sbroenne.PowerPointMcp.Core.Attributes;
 namespace Sbroenne.PowerPointMcp.Core.Shape;
 
 /// <summary>
-/// Shape commands: create, inspect, format, group, link, and edit native placeholders.
-/// Operates within an already-open IPresentationBatch, targeting a specific slide by
-/// its 1-based index.
+/// Shape commands: create, inspect, format, group, link, duplicate/copy, and edit native
+/// placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide
+/// by its 1-based index.
 /// </summary>
 [ServiceCategory("shape", "Shape")]
 [McpTool("shape", Title = "Shape Operations", Destructive = true, Category = "content",
-    Description = "Create, inspect, format, group, link, and edit native placeholders on a slide.")]
+    Description = "Create, inspect, format, group, link, duplicate/copy, and edit native placeholders on a slide.")]
 public interface IShapeCommands
 {
     /// <summary>Adds a rectangle shape to the given slide.</summary>

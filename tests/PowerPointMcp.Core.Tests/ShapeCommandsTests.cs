@@ -803,6 +803,97 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         }
     }
 
+    // The two tests below drive ShapeCommands.ClipboardLockCoordinator directly through
+    // hand-built ClipboardLockRequest values, rather than through a real CopyToSlide/COM call.
+    // The coordinator itself has no COM dependency - the COM Copy()/Paste() pair lives in
+    // CopyToSlide, outside it - so this is the same kind of pure, zero-COM-dependency logic the
+    // project's integration-tests-only policy already carves out an exception for, and it is the
+    // only way to exercise the wedge-detection and quarantine-recovery branches deterministically:
+    // forcing a real PowerPoint COM call to hang for this long is not something a test can safely
+    // or reliably arrange. A short-lived real child process (not PowerPoint, not mocked) stands
+    // in for "the PowerPoint process the wedged transfer was running against", giving
+    // OwnedProcessGuard a genuine alive-then-exited process to confirm against.
+    [Fact]
+    public async Task ClipboardLockCoordinator_QuarantinesWhileRecordedProcessIsAlive_ThenClearsOnceItExits()
+    {
+        using var childProcess = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "cmd.exe",
+            Arguments = "/c ping -n 2 127.0.0.1 >NUL",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        }) ?? throw new InvalidOperationException("Failed to start the test stand-in child process.");
+
+        var identity = new PowerPointProcessIdentity(
+            childProcess.Id,
+            childProcess.StartTime.ToUniversalTime().ToFileTimeUtc());
+
+        // Claims the transfer (TryAbandon never allows giving up) and never signals completion,
+        // with a short CompletionTimeout so the coordinator concludes it is wedged quickly.
+        var wedgingRequest = new ShapeCommands.ClipboardLockRequest(
+            DateTime.UtcNow + TimeSpan.FromSeconds(10),
+            TimeSpan.FromMilliseconds(150),
+            () => false,
+            identity);
+        ShapeCommands.ClipboardLockCoordinator.Enqueue(wedgingRequest);
+        Assert.True(await wedgingRequest.Acquired.Task);
+
+        // Queues behind wedgingRequest, which is still running its two ~150ms completion waits
+        // before it records the quarantine, so this is only served once the wedge is in effect -
+        // and the child process is still alive (it sleeps ~1s), so recovery cannot happen yet.
+        var whileAliveRequest = new ShapeCommands.ClipboardLockRequest(
+            DateTime.UtcNow + TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(5), () => true, null);
+        ShapeCommands.ClipboardLockCoordinator.Enqueue(whileAliveRequest);
+        var quarantined = await Assert.ThrowsAsync<InvalidOperationException>(() => whileAliveRequest.Acquired.Task);
+        Assert.Contains("quarantined", quarantined.Message, StringComparison.OrdinalIgnoreCase);
+
+        Assert.True(childProcess.WaitForExit(TimeSpan.FromSeconds(10)));
+
+        // Now that the recorded process is confirmed exited, the coordinator must self-heal.
+        var afterExitRequest = new ShapeCommands.ClipboardLockRequest(
+            DateTime.UtcNow + TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10), () => true, null);
+        ShapeCommands.ClipboardLockCoordinator.Enqueue(afterExitRequest);
+        Assert.True(await afterExitRequest.Acquired.Task);
+        afterExitRequest.TransferFinished.TrySetResult(true);
+    }
+
+    [Fact]
+    public async Task ClipboardLockCoordinator_WedgeWithNoCapturedIdentity_NeverClearsAutomatically()
+    {
+        // No PowerPointProcessIdentity captured - the interface documents this as possible ("if
+        // captured"). With nothing to confirm dead, the coordinator must fail closed rather than
+        // guess from elapsed time, so this quarantine cannot resolve on its own. To avoid leaving
+        // the process-wide static coordinator permanently quarantined for every later test in
+        // this run, ClipboardLockCoordinator.ResetForTests() - a test-only escape hatch documented
+        // on that method - undoes it once this test has made its assertions.
+        var wedgingRequest = new ShapeCommands.ClipboardLockRequest(
+            DateTime.UtcNow + TimeSpan.FromSeconds(10),
+            TimeSpan.FromMilliseconds(150),
+            () => false,
+            null);
+        ShapeCommands.ClipboardLockCoordinator.Enqueue(wedgingRequest);
+        Assert.True(await wedgingRequest.Acquired.Task);
+
+        try
+        {
+            var rejectedRequest = new ShapeCommands.ClipboardLockRequest(
+                DateTime.UtcNow + TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(5), () => true, null);
+            ShapeCommands.ClipboardLockCoordinator.Enqueue(rejectedRequest);
+            var quarantined = await Assert.ThrowsAsync<InvalidOperationException>(() => rejectedRequest.Acquired.Task);
+            Assert.Contains("restarted", quarantined.Message, StringComparison.OrdinalIgnoreCase);
+
+            // A second request confirms it is not a one-time rejection: nothing clears this.
+            var stillRejectedRequest = new ShapeCommands.ClipboardLockRequest(
+                DateTime.UtcNow + TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(5), () => true, null);
+            ShapeCommands.ClipboardLockCoordinator.Enqueue(stillRejectedRequest);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => stillRejectedRequest.Acquired.Task);
+        }
+        finally
+        {
+            ShapeCommands.ClipboardLockCoordinator.ResetForTests();
+        }
+    }
+
     [Fact]
     public void SetRotation_AndGetRotation_RoundTripsDegrees()
     {

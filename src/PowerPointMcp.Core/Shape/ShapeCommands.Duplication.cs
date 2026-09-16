@@ -314,7 +314,7 @@ public sealed partial class ShapeCommands
     /// resource, not a per-process one. It is <see langword="null"/> when the batch had not yet
     /// captured the identity of its owned process.
     /// </summary>
-    private sealed record ClipboardLockRequest(
+    internal sealed record ClipboardLockRequest(
         DateTime DeadlineUtc,
         TimeSpan CompletionTimeout,
         Func<bool> TryAbandon,
@@ -348,7 +348,7 @@ public sealed partial class ShapeCommands
     /// lock is exclusive, so one owner can serve every caller; a thread per request would
     /// accumulate whenever the clipboard or PowerPoint is busy.
     /// </summary>
-    private static class ClipboardLockCoordinator
+    internal static class ClipboardLockCoordinator
     {
         private static readonly System.Collections.Concurrent.BlockingCollection<ClipboardLockRequest> Requests = new();
         private static readonly Lock StartGate = new();
@@ -357,8 +357,8 @@ public sealed partial class ShapeCommands
         // Non-null while a previous transfer never confirmed completion within its bounded waits
         // and may still be running. Read/written only via Volatile: Enqueue() runs on arbitrary
         // caller threads, while the field is cleared from the single coordinator thread once the
-        // recorded process is confirmed dead, so both the wedge state and the identity/timestamp
-        // it carries must become visible together, not as separately-torn fields.
+        // recorded process is confirmed dead, so both the wedge state and the identity it carries
+        // must become visible together, not as separately-torn fields.
         private static volatile WedgeState? s_wedge;
 
         // The mutex handle retained (never released/disposed) for as long as a wedge is in
@@ -366,26 +366,16 @@ public sealed partial class ShapeCommands
         // Mutex allows to release it - so no synchronization is needed here.
         private static Mutex? s_wedgeMutex;
 
-        // Applies only when no PowerPointProcessIdentity was captured for the wedged request (the
-        // interface documents this as "if captured", so it is not always available). Without an
-        // identity there is no way to confirm the specific process is gone, so this is a
-        // deliberately conservative, time-based fallback rather than a permanent quarantine: a COM
-        // call cannot plausibly still be in flight after this long, and the alternative -
-        // quarantining copy-to-slide for the rest of the host process's lifetime on every such
-        // occurrence - is worse than the small residual risk this bound accepts.
-        private static readonly TimeSpan NoIdentityFallbackQuarantineDuration = TimeSpan.FromMinutes(30);
-
-        private sealed record WedgeState(PowerPointProcessIdentity? Identity, DateTime RecordedAtUtc);
+        private sealed record WedgeState(PowerPointProcessIdentity? Identity);
 
         // Deliberately does NOT reject on IsQuarantineStillInEffect() here. Serve() - the only
         // place that calls TryClearResolvedQuarantine() - runs exclusively on the single
         // coordinator thread pulling from Requests, so a request that never reaches Requests can
         // never give that thread a chance to notice the wedge has resolved. Rejecting upfront
         // would make every quarantine permanent regardless of whether the recorded process later
-        // exits or the no-identity fallback duration elapses: nothing would ever queue again to
-        // trigger the recheck. Every request is therefore queued unconditionally, and Serve()
-        // itself performs the check-and-clear-if-resolved, then re-checks before deciding whether
-        // to actually reject this particular request.
+        // exits: nothing would ever queue again to trigger the recheck. Every request is therefore
+        // queued unconditionally, and Serve() itself performs the check-and-clear-if-resolved,
+        // then re-checks before deciding whether to actually reject this particular request.
         internal static void Enqueue(ClipboardLockRequest request)
         {
             EnsureStarted();
@@ -491,7 +481,7 @@ public sealed partial class ShapeCommands
                         if (!completed)
                         {
                             wedged = true;
-                            s_wedge = new WedgeState(request.PowerPointProcessIdentity, DateTime.UtcNow);
+                            s_wedge = new WedgeState(request.PowerPointProcessIdentity);
                         }
                     }
                 }
@@ -531,14 +521,18 @@ public sealed partial class ShapeCommands
         /// <summary>
         /// If a wedge is recorded and it can now be resolved, releases the retained mutex from
         /// this coordinator thread and clears the quarantine, returning <see langword="true"/>.
-        /// When the wedged request captured a <see cref="PowerPointProcessIdentity"/>,
-        /// resolution means <see cref="OwnedProcessGuard.TryConfirmExited"/> confirms that exact
-        /// process (matched by PID and creation time, so PID reuse cannot fool this) is gone - a
-        /// dead process can never complete or still be running the COM call that caused the
-        /// wedge, so this is a genuine resolution, not a timeout-based guess. When no identity was
-        /// captured, resolution instead falls back to <see cref="NoIdentityFallbackQuarantineDuration"/>
-        /// having elapsed. Only ever called from the single coordinator thread, which is the only
-        /// thread .NET's Mutex allows to release the handle this method may dispose of.
+        /// Resolution requires a captured <see cref="PowerPointProcessIdentity"/> for which
+        /// <see cref="OwnedProcessGuard.TryConfirmExited"/> confirms that exact process (matched
+        /// by PID and creation time, so PID reuse cannot fool this) is gone - a dead process can
+        /// never complete or still be running the COM call that caused the wedge, so this is a
+        /// genuine resolution, not a guess. When no identity was captured for the wedged request,
+        /// there is no way to ever confirm the responsible process is gone, so the quarantine
+        /// fails closed and never clears: a time-based fallback would let a later request run
+        /// Copy()/Paste() concurrently with a COM call that, for all this coordinator can prove,
+        /// might still be active, corrupting the shared clipboard or pasting into the wrong
+        /// presentation - exactly what the quarantine exists to prevent. Only ever called from the
+        /// single coordinator thread, which is the only thread .NET's Mutex allows to release the
+        /// handle this method may dispose of.
         /// </summary>
         private static bool TryClearResolvedQuarantine()
         {
@@ -548,11 +542,7 @@ public sealed partial class ShapeCommands
                 return false;
             }
 
-            bool resolved = wedge.Identity is PowerPointProcessIdentity identity
-                ? OwnedProcessGuard.TryConfirmExited(identity)
-                : DateTime.UtcNow - wedge.RecordedAtUtc >= NoIdentityFallbackQuarantineDuration;
-
-            if (!resolved)
+            if (wedge.Identity is not PowerPointProcessIdentity identity || !OwnedProcessGuard.TryConfirmExited(identity))
             {
                 return false;
             }
@@ -572,8 +562,28 @@ public sealed partial class ShapeCommands
             "The shared shape clipboard is quarantined: a previous copy-to-slide operation did " +
             "not confirm completion within its timeout. Handing out the lock now could race that " +
             "unknown, possibly still-active Copy()/Paste() pair. This clears automatically once " +
-            "the affected PowerPoint process is confirmed to have exited, or - if that process " +
-            $"could not be identified - after {NoIdentityFallbackQuarantineDuration.TotalMinutes:0} " +
-            "minutes.");
+            "the affected PowerPoint process is confirmed to have exited. If that process could " +
+            "not be identified when the wedge occurred, this quarantine cannot clear automatically " +
+            "and the host process must be restarted.");
+
+        // Test-only escape hatch: safely undoes a quarantine that this coordinator's own design
+        // deliberately makes unrecoverable when no PowerPointProcessIdentity was captured (see
+        // TryClearResolvedQuarantine's fail-closed branch). Real callers must never need this - a
+        // genuine no-identity wedge really does require restarting the host process - but a test
+        // that deliberately forces this state to prove it fails closed must not leave this shared
+        // static coordinator permanently quarantined for every later test sharing this process.
+        // Disposing (not releasing) the retained handle is safe specifically because the
+        // coordinator's dedicated background thread still recognizes itself as the named mutex's
+        // owner afterward (Windows mutex ownership is thread-, not handle-based) and so
+        // transparently re-acquires it recursively on its own next WaitOne(), the same reasoning
+        // already documented where quarantined requests are rejected before reaching the mutex at
+        // all. Calling ReleaseMutex() here instead would throw: this method runs on the caller's
+        // thread, not the coordinator thread that actually owns the mutex.
+        internal static void ResetForTests()
+        {
+            s_wedgeMutex?.Dispose();
+            s_wedgeMutex = null;
+            s_wedge = null;
+        }
     }
 }

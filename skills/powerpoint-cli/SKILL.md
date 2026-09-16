@@ -314,7 +314,7 @@ Actions: `get-settings`, `set-size`, `set-first-slide-number`, `get-footer`, `se
 | `--show-on-title-slide` |  |
 
 
-### `shape` — Shape commands: create, inspect, format, group, link, and edit native placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
+### `shape` — Shape commands: create, inspect, format, group, link, duplicate/copy, and edit native placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
 
 Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `copy-formatting`, `duplicate`, `copy-to-slide`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 

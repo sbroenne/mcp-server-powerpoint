@@ -842,9 +842,9 @@ OPTIONS:
 
 ```text
 DESCRIPTION:
-Shape commands: create, inspect, format, group, link, and edit native
-placeholders. Operates within an already-open IPresentationBatch, targeting a
-specific slide by its 1-based index
+Shape commands: create, inspect, format, group, link, duplicate/copy, and edit
+native placeholders. Operates within an already-open IPresentationBatch,
+targeting a specific slide by its 1-based index
 
 USAGE:
     pptcli shape <ACTION> [OPTIONS]
