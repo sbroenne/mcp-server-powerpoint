@@ -6,6 +6,7 @@ using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Accessibility;
 using Sbroenne.PowerPointMcp.Core.Animation;
 using Sbroenne.PowerPointMcp.Core.Chart;
+using Sbroenne.PowerPointMcp.Core.CustomShow;
 using Sbroenne.PowerPointMcp.Core.Export;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Layout;
@@ -66,6 +67,7 @@ public sealed class PowerPointMcpService : IDisposable
     private readonly PageSetupCommands _pageSetupCommands = new();
     private readonly AccessibilityCommands _accessibilityCommands = new();
     private readonly MediaCommands _mediaCommands = new();
+    private readonly CustomShowCommands _customShowCommands = new();
 
     /// <summary>Gets the UTC time this daemon instance started.</summary>
     public DateTime StartTime => _startTime;
@@ -81,7 +83,7 @@ public sealed class PowerPointMcpService : IDisposable
     /// ways: in-process (direct calls, no pipe) by the MCP server, and via
     /// named-pipe/StreamJsonRpc by the separate CLI daemon process. The generated domain MCP
     /// tools (Slide, Shape, TextFrame, Table, Chart, Image, Media, Notes, Layout, Master, Animation,
-    /// SmartArt, Export, PageSetup, Accessibility) DO call <see cref="ProcessAsync"/> in-process
+    /// SmartArt, Export, PageSetup, Accessibility, CustomShow) DO call <see cref="ProcessAsync"/> in-process
     /// via <c>ServiceBridge.ForwardToService</c> — only the hand-written
     /// <c>PresentationTools</c> bypass it and use <see cref="Sessions"/> directly.
     /// </summary>
@@ -298,6 +300,9 @@ public sealed class PowerPointMcpService : IDisposable
                 "accessibility" => DispatchSimple<AccessibilityAction>(action, request,
                     ServiceRegistry.Accessibility.TryParseAction,
                     (a, batch) => ServiceRegistry.Accessibility.DispatchToCore(_accessibilityCommands, a, batch, request.Args)),
+                "customshow" => DispatchSimple<CustomShowAction>(action, request,
+                    ServiceRegistry.CustomShow.TryParseAction,
+                    (a, batch) => ServiceRegistry.CustomShow.DispatchToCore(_customShowCommands, a, batch, request.Args)),
                 _ => new ServiceResponse { Success = false, ErrorMessage = $"Unknown command category: {category}" }
             };
 

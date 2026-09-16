@@ -22,6 +22,7 @@ public sealed class CustomShowCommands : ICustomShowCommands
                 settings = ctx.Presentation.SlideShowSettings;
                 shows = settings.NamedSlideShows;
                 slides = ctx.Presentation.Slides;
+                var slideIndexById = BuildSlideIndexById(slides);
 
                 int count = shows.Count;
                 var entries = new List<CustomShowOperationResult.CustomShowEntry>(count);
@@ -35,7 +36,7 @@ public sealed class CustomShowCommands : ICustomShowCommands
                         {
                             Index = i,
                             Name = show.Name,
-                            SlideIndices = ResolveSlideIndices(slides, show)
+                            SlideIndices = ResolveSlideIndices(slideIndexById, show)
                         });
                     }
                     finally
@@ -218,7 +219,29 @@ public sealed class CustomShowCommands : ICustomShowCommands
         return -1;
     }
 
-    private static List<int> ResolveSlideIndices(PowerPoint.Slides slides, PowerPoint.NamedSlideShow show)
+    /// <summary>Maps every current slide's SlideID to its 1-based index via one pass over <paramref name="slides"/>.</summary>
+    private static Dictionary<int, int> BuildSlideIndexById(PowerPoint.Slides slides)
+    {
+        int count = slides.Count;
+        var map = new Dictionary<int, int>(count);
+        for (int i = 1; i <= count; i++)
+        {
+            PowerPoint.Slide? slide = null;
+            try
+            {
+                slide = slides[i];
+                map[slide.SlideID] = i;
+            }
+            finally
+            {
+                if (slide != null) ComUtilities.Release(ref slide);
+            }
+        }
+
+        return map;
+    }
+
+    private static List<int> ResolveSlideIndices(Dictionary<int, int> slideIndexById, PowerPoint.NamedSlideShow show)
     {
         int slideCount = show.Count;
         var indices = new List<int>(slideCount);
@@ -238,26 +261,15 @@ public sealed class CustomShowCommands : ICustomShowCommands
         {
             int slideId = Convert.ToInt32(slideIdArray.GetValue(i), System.Globalization.CultureInfo.InvariantCulture);
 
-            PowerPoint.Slide? slide = null;
-            try
+            // The slide was deleted after the custom show was created; PowerPoint keeps the
+            // stale ID in the show. Rather than asking PowerPoint to resolve it (FindBySlideID's
+            // failure behavior for a missing ID has been observed to vary - both a null return
+            // and a COMException - and is not a safe signal to distinguish from a genuine COM
+            // failure), the current slide list is looked up once per List() call and checked
+            // here with a plain, non-throwing dictionary lookup.
+            if (slideIndexById.TryGetValue(slideId, out int slideIndex))
             {
-                // The slide was deleted after the custom show was created; PowerPoint keeps the
-                // stale ID in the show. FindBySlideID has been observed to both return null and
-                // throw a COMException for a stale ID with no matching slide (confirmed by a
-                // real-COM regression test), so both are treated the same way: the slide is
-                // omitted, since either way there is nothing left to resolve it to.
-                slide = slides.FindBySlideID(slideId);
-                if (slide is not null)
-                {
-                    indices.Add(slide.SlideIndex);
-                }
-            }
-            catch (System.Runtime.InteropServices.COMException)
-            {
-            }
-            finally
-            {
-                if (slide != null) ComUtilities.Release(ref slide);
+                indices.Add(slideIndex);
             }
         }
 

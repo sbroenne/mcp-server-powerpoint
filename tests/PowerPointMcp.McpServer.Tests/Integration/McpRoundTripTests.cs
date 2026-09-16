@@ -192,6 +192,79 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         _output.WriteLine("✓ Step 4: list_sessions confirms the session is closed");
     }
 
+    /// <summary>
+    /// Exercises a generated domain tool (customshow) end to end through the real MCP dispatch
+    /// path (tools/call → PowerPointMcpService.ProcessAsync → Core), not just the schema/registry
+    /// layer. A missing PowerPointMcpService wiring for a new [ServiceCategory] domain compiles
+    /// and passes schema/registry tests but fails at this layer with "Unknown command category" -
+    /// this test exists to catch exactly that class of gap for new domains going forward.
+    /// </summary>
+    [Fact]
+    public async Task CustomShowLifecycle_ViaMcpProtocol_CreateListDelete()
+    {
+        var createResult = await CallToolAsync(
+            "presentation",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "create",
+                ["filePath"] = _testPresentationFile
+            });
+        AssertSuccess(createResult, "create_presentation");
+        var sessionId = GetJsonProperty(createResult, "sessionId");
+        Assert.False(string.IsNullOrEmpty(sessionId), $"Expected a sessionId in create response: {createResult}");
+
+        var addSlideResult = await CallToolAsync(
+            "slide",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "add-blank",
+                ["session_id"] = sessionId
+            });
+        AssertSuccess(addSlideResult, "slide add-blank");
+        _output.WriteLine("✓ Step 1: added a second slide via the slide tool");
+
+        var showCreateResult = await CallToolAsync(
+            "customshow",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "create",
+                ["session_id"] = sessionId,
+                ["name"] = "Round Trip Show",
+                ["slide_indices"] = new List<int> { 1, 2 }
+            });
+        AssertSuccess(showCreateResult, "customshow create");
+        _output.WriteLine("✓ Step 2: customshow create succeeded via the real MCP dispatch path");
+
+        var listResult = await CallToolAsync(
+            "customshow",
+            new Dictionary<string, object?> { ["action"] = "list", ["session_id"] = sessionId });
+        AssertSuccess(listResult, "customshow list");
+        using (var listJson = JsonDocument.Parse(listResult))
+        {
+            var shows = listJson.RootElement.GetProperty("shows");
+            var found = shows.EnumerateArray()
+                .Any(s => string.Equals(s.GetProperty("name").GetString(), "Round Trip Show", StringComparison.Ordinal));
+            Assert.True(found, $"Expected 'Round Trip Show' in customshow list response: {listResult}");
+        }
+        _output.WriteLine("✓ Step 3: customshow list shows the created show");
+
+        var deleteResult = await CallToolAsync(
+            "customshow",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "delete",
+                ["session_id"] = sessionId,
+                ["name"] = "Round Trip Show"
+            });
+        AssertSuccess(deleteResult, "customshow delete");
+        _output.WriteLine("✓ Step 4: customshow delete succeeded");
+
+        var closeResult = await CallToolAsync(
+            "presentation",
+            new Dictionary<string, object?> { ["action"] = "close", ["sessionId"] = sessionId });
+        AssertSuccess(closeResult, "close_presentation");
+    }
+
     private async Task<string> CallToolAsync(string toolName, Dictionary<string, object?> arguments)
     {
         var result = await _client!.CallToolAsync(toolName, arguments, cancellationToken: _cts.Token);
