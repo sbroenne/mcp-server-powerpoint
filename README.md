@@ -51,7 +51,7 @@ layout regressions that text-only automation simply cannot detect.
   PowerPoint's advisory Mark as Final flag, read/write built-in and custom document properties,
   and manage string tags
 - 📑 **Slide** (23 ops) — lifecycle, backgrounds, sections, comments, slide import, and string tags
-- ▭ **Shape** (47 ops) — shapes, styling, grouping, hyperlinks, linked assets, placeholder editing,
+- ▭ **Shape** (48 ops) — shapes, styling, grouping, hyperlinks, linked assets, placeholder editing,
   and string tags
 - ✏️ **TextFrame** (20 ops) — text, font size/name/color, bold, italic, underline, alignment, bullets
 - 📊 **Table** (12 ops) — add, cell text, insert/delete rows &amp; columns, cell fill/border, merge cells
