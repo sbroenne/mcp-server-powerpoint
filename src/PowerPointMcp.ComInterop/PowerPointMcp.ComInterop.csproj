@@ -29,6 +29,11 @@
          the entry above, which never actually matched. Grant access under the real name too so
          SharedPresentationFixture.cs can call PresentationBatch.ReopenPresentation internally. -->
     <InternalsVisibleTo Include="PowerPointMcp.Core.Tests" />
+    <!-- ShapeCommands.Duplication.cs's clipboard-lock coordinator needs OwnedProcessGuard to
+         confirm a wedged transfer's PowerPoint process has actually exited before recycling the
+         lock, matching PID-reuse-safe process identity checks already used for session
+         poisoning; Core has no reason to duplicate that logic. -->
+    <InternalsVisibleTo Include="Sbroenne.PowerPointMcp.Core" />
   </ItemGroup>
 
   <ItemGroup>
