@@ -105,6 +105,22 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
+    public async Task ShapeSchema_ExposesArrangementActionsAndParameters()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var shape = Assert.Single(tools, tool => tool.Name == "shape");
+        var properties = shape.JsonSchema.GetProperty("properties");
+        var actions = properties.GetProperty("action").GetProperty("enum").EnumerateArray()
+            .Select(action => action.GetString()).ToArray();
+        Assert.Contains("align", actions);
+        Assert.Contains("distribute", actions);
+        Assert.True(properties.TryGetProperty("shape_indexes", out _));
+        Assert.True(properties.TryGetProperty("align_cmd", out _));
+        Assert.True(properties.TryGetProperty("distribute_cmd", out _));
+        Assert.True(properties.TryGetProperty("relative_to_slide", out _));
+    }
+
+    [Fact]
     public async Task ListTools_MasterExposesThemePaletteActionAndSelector()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
