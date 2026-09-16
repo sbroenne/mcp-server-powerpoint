@@ -358,8 +358,16 @@ public sealed partial class ShapeCommands
             }
             finally
             {
-                // Reaching here means either the transfer finished, or it can no longer start:
-                // TryAbandon closes the door on a callback that never claimed.
+                // Reaching here means either the transfer finished, TryAbandon closed the door on a
+                // callback that never claimed, or the bounded wait above expired while a claimed
+                // callback was still wedged inside a hung COM call. That last case is a real,
+                // accepted gap, not an oversight: .NET's Mutex is thread-affine on release, and this
+                // coordinator thread - not the STA thread running the wedged callback - is the only
+                // one legally allowed to call ReleaseMutex() on the handle it acquired. There is no
+                // safe way to hand release back to the callback's own thread, so releasing here
+                // after the bounded wait (rather than blocking this coordinator, and therefore every
+                // future caller, forever) is the same tradeoff CopyFormatting's Format Painter lock
+                // already makes for the identical constraint.
                 if (lockTaken)
                 {
                     clipboardMutex!.ReleaseMutex();
