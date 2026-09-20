@@ -147,17 +147,26 @@ public sealed class ReleasePackagingTests
             File.Copy(source, destination);
         }
 
-        var readme = Path.Combine(temp.Path, "README.md");
-        File.WriteAllText(
-            readme,
-            File.ReadAllText(readme)
-                .Replace("17 MCP tools with 191 operations", "1 MCP tools with 2 operations", StringComparison.Ordinal)
-                .Replace("**Presentation** (20 ops)", "**Presentation** (1 ops)", StringComparison.Ordinal));
-        var manifest = Path.Combine(temp.Path, "mcpb", "manifest.json");
-        File.WriteAllText(
-            manifest,
-            File.ReadAllText(manifest)
-                .Replace("17 tools (191 operations across 17 domains", "1 tools (2 operations across 3 domains", StringComparison.Ordinal));
+        CorruptOnce(
+            Path.Combine(temp.Path, "README.md"),
+            @"\d+ MCP tools with \d+ operations",
+            "1 MCP tools with 2 operations");
+        CorruptOnce(
+            Path.Combine(temp.Path, "README.md"),
+            @"\*\*Presentation\*\* \(\d+ ops\)",
+            "**Presentation** (1 ops)");
+        CorruptOnce(
+            Path.Combine(temp.Path, "mcpb", "manifest.json"),
+            @"\d+ tools \(\d+ operations across \d+ domains",
+            "1 tools (2 operations across 3 domains");
+        CorruptOnce(
+            Path.Combine(temp.Path, "skills", "powerpoint-mcp", "SKILL.md"),
+            @"Provides \d+ PowerPoint MCP tools \(one presentation tool \+ \d+ domain action-dispatch tools\)",
+            "Provides 1 PowerPoint MCP tools (one presentation tool + 2 domain action-dispatch tools)");
+        CorruptOnce(
+            Path.Combine(temp.Path, "skills", "shared", "behavioral-rules.md"),
+            @"The other \d+ domain tools",
+            "The other 1 domain tools");
 
         var arguments = new[]
         {
@@ -264,9 +273,19 @@ public sealed class ReleasePackagingTests
         Path.Combine("gh-pages", "docs", "features.md"),
         Path.Combine("gh-pages", "docs", "mcp-server.md"),
         Path.Combine("skills", "CLAUDE.md"),
+        Path.Combine("skills", "powerpoint-mcp", "SKILL.md"),
         Path.Combine("skills", "shared", "behavioral-rules.md"),
         Path.Combine("skills", "shared", "workflows.md"),
     ];
+
+    private static void CorruptOnce(string path, string pattern, string replacement)
+    {
+        var original = File.ReadAllText(path);
+        var corrupted = new System.Text.RegularExpressions.Regex(pattern)
+            .Replace(original, replacement, 1);
+        Assert.NotEqual(original, corrupted);
+        File.WriteAllText(path, corrupted);
+    }
 
     [Theory]
     [InlineData("")]
