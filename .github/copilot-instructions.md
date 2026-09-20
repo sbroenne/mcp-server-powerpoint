@@ -41,9 +41,9 @@ dotnet build Sbroenne.PowerPointMcp.slnx -c Release --no-restore
 Build with zero warnings. Run focused checks from the
 [testing strategy](instructions/testing-strategy.instructions.md) and existing
 gates in `scripts/pre-commit.ps1` / `.github/workflows/ci.yml`; do not invent
-replacement audits. `scripts/check-doc-counts.ps1` needs a current Release build
-in this worktree. Documentation/configuration-only changes do not need synthetic
-tests or PowerPoint launches; validate their links, syntax, and affected behavior.
+replacement audits. Release automation generates documentation counts from a
+current Release build. Documentation/configuration-only changes do not need
+synthetic tests or PowerPoint launches; validate their links, syntax, and affected behavior.
 Report unavailable COM checks as not run, never as passed.
 
 ## Git and release

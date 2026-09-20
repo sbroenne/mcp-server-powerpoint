@@ -128,12 +128,6 @@ jobs:
           & scripts/check-core-interface-completeness.ps1
           if ($LASTEXITCODE -ne 0) { throw "A Core Commands method is implemented but not declared on its interface - it is invisible to the MCP/CLI generators." }
 
-      - name: Documentation tool/operation counts
-        shell: pwsh
-        run: |
-          & scripts/check-doc-counts.ps1
-          if ($LASTEXITCODE -ne 0) { throw "A doc advertises a tool/operation count that does not match the code-derived canonical count." }
-
       - name: Release metadata and Agent Skills packaging tests
         run: dotnet test tests/PowerPointMcp.SkillGeneration.Tests --configuration Release --no-build -p:PowerPointMcpSkipCleanup=true
 

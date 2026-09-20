@@ -134,6 +134,82 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
+    public void UpdateDocumentationCounts_RestoresCanonicalCountsAndIsIdempotent()
+    {
+        using var temp = new TemporaryDirectory();
+        var expected = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var relativePath in DocumentationCountPaths)
+        {
+            var source = Path.Combine(RepoRoot, relativePath);
+            var destination = Path.Combine(temp.Path, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            expected[relativePath] = File.ReadAllText(source);
+            File.Copy(source, destination);
+        }
+
+        CorruptOnce(
+            Path.Combine(temp.Path, "README.md"),
+            @"\d+ MCP tools with \d+ operations",
+            "1 MCP tools with 2 operations");
+        CorruptOnce(
+            Path.Combine(temp.Path, "README.md"),
+            @"\*\*Presentation\*\* \(\d+ ops\)",
+            "**Presentation** (1 ops)");
+        CorruptOnce(
+            Path.Combine(temp.Path, "mcpb", "manifest.json"),
+            @"\d+ tools \(\d+ operations across \d+ domains",
+            "1 tools (2 operations across 3 domains");
+        CorruptOnce(
+            Path.Combine(temp.Path, "skills", "powerpoint-mcp", "SKILL.md"),
+            @"Provides \d+ PowerPoint MCP tools \(one presentation tool \+ \d+ domain action-dispatch tools\)",
+            "Provides 1 PowerPoint MCP tools (one presentation tool + 2 domain action-dispatch tools)");
+        CorruptOnce(
+            Path.Combine(temp.Path, "skills", "shared", "behavioral-rules.md"),
+            @"The other \d+ domain tools",
+            "The other 1 domain tools");
+
+        var arguments = new[]
+        {
+            "-RepoRoot", RepoRoot,
+            "-DocsRoot", temp.Path,
+            "-SkipBuild",
+        };
+        RunPowerShell(
+            Path.Combine(RepoRoot, "scripts", "Update-DocumentationCounts.ps1"),
+            arguments);
+
+        foreach (var (relativePath, content) in expected)
+        {
+            Assert.Equal(content, File.ReadAllText(Path.Combine(temp.Path, relativePath)));
+        }
+
+        RunPowerShell(
+            Path.Combine(RepoRoot, "scripts", "Update-DocumentationCounts.ps1"),
+            arguments);
+        foreach (var (relativePath, content) in expected)
+        {
+            Assert.Equal(content, File.ReadAllText(Path.Combine(temp.Path, relativePath)));
+        }
+    }
+
+    [Fact]
+    public void ReleaseWorkflow_GeneratesDocumentationCountsBeforePackaging()
+    {
+        var workflow = File.ReadAllText(ReleaseWorkflow);
+
+        Assert.Contains("prepare-release-docs:", workflow, StringComparison.Ordinal);
+        Assert.Contains("./scripts/Update-DocumentationCounts.ps1 -SkipBuild", workflow, StringComparison.Ordinal);
+        Assert.Contains("name: generated-documentation", workflow, StringComparison.Ordinal);
+        Assert.Contains("skills/shared/*.md", workflow, StringComparison.Ordinal);
+        Assert.Contains("path: .", workflow, StringComparison.Ordinal);
+        Assert.Contains("git add CHANGELOG.md package.json .changeset", workflow, StringComparison.Ordinal);
+        Assert.Contains("git add --update", workflow, StringComparison.Ordinal);
+
+        Assert.DoesNotContain("check-doc-counts.ps1", File.ReadAllText(CiWorkflow), StringComparison.Ordinal);
+        Assert.DoesNotContain("check-doc-counts.ps1", File.ReadAllText(PreCommitScript), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CoreTestProject_IsExplicitlyMarkedForTestDiscovery()
     {
         var project = XDocument.Load(Path.Combine(
@@ -185,6 +261,31 @@ public sealed class ReleasePackagingTests
         Path.Combine("vscode-extension", "package-lock.json"),
         Path.Combine("src", "PowerPointMcp.McpServer", ".mcp", "server.json"),
     ];
+
+    private static readonly string[] DocumentationCountPaths =
+    [
+        "README.md",
+        Path.Combine("src", "PowerPointMcp.McpServer", "README.md"),
+        Path.Combine("mcpb", "README.md"),
+        Path.Combine("mcpb", "manifest.json"),
+        Path.Combine("gh-pages", "docs", "index.md"),
+        Path.Combine("gh-pages", "docs", "installation.md"),
+        Path.Combine("gh-pages", "docs", "features.md"),
+        Path.Combine("gh-pages", "docs", "mcp-server.md"),
+        Path.Combine("skills", "CLAUDE.md"),
+        Path.Combine("skills", "powerpoint-mcp", "SKILL.md"),
+        Path.Combine("skills", "shared", "behavioral-rules.md"),
+        Path.Combine("skills", "shared", "workflows.md"),
+    ];
+
+    private static void CorruptOnce(string path, string pattern, string replacement)
+    {
+        var original = File.ReadAllText(path);
+        var corrupted = new System.Text.RegularExpressions.Regex(pattern)
+            .Replace(original, replacement, 1);
+        Assert.NotEqual(original, corrupted);
+        File.WriteAllText(path, corrupted);
+    }
 
     [Theory]
     [InlineData("")]
