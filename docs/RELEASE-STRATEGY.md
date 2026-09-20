@@ -8,7 +8,9 @@ MCPB, Agent Skills, MCP Registry entry) under a single version number, via the
 
 1. Trigger `Release All Components` from the Actions tab with a `version_bump`
    (major/minor/patch) or a `custom_version`.
-2. The workflow calculates the next version from the latest git tag, builds and
+2. The workflow calculates the next version from the latest git tag and generates
+   tool, operation, domain, and per-domain operation counts from the built code.
+3. It applies those generated documentation updates to every package, builds and
    publishes every component (NuGet, standalone exe zips, VS Code Marketplace,
    MCPB, Agent Skills zip, MCP Registry), creates the git tag, then creates the
    GitHub Release.
@@ -34,8 +36,8 @@ MCPB, Agent Skills, MCP Registry entry) under a single version number, via the
      substituted into [`.github/release-notes-template.md`](../.github/release-notes-template.md)
      to produce the GitHub Release body.
 - A follow-up step opens a PR (`chore/changelog-v<version>`) committing the
-  updated `CHANGELOG.md`, `package.json`, and consumed `.changeset/*.md`
-  deletions back to `main`, since branch protection prevents a direct push.
+  updated documentation counts, `CHANGELOG.md`, `package.json`, and consumed
+  `.changeset/*.md` deletions back to `main`, since branch protection prevents a direct push.
   This step deliberately does **not** use `continue-on-error` — if it fails
   (e.g. missing permissions), the release is left visibly incomplete rather
   than silently missing its changelog commit-back.

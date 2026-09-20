@@ -11,6 +11,8 @@ param(
 
     [switch]$PopulateReferences,
 
+    [switch]$SkipCliReference,
+
     [string]$CliPath
 )
 
@@ -124,10 +126,12 @@ $script:ResolvedCliPath = $CliPath
 if ($PopulateReferences) {
     Copy-SharedReferences (Join-Path $SkillsDir 'powerpoint-mcp')
     Copy-SharedReferences (Join-Path $SkillsDir 'powerpoint-cli') -CliSyntax
-    if (-not (Test-Path -LiteralPath $script:ResolvedCliPath -PathType Leaf)) {
-        throw "pptcli was not found at '$script:ResolvedCliPath'. Build the Release CLI first."
+    if (-not $SkipCliReference) {
+        if (-not (Test-Path -LiteralPath $script:ResolvedCliPath -PathType Leaf)) {
+            throw "pptcli was not found at '$script:ResolvedCliPath'. Build the Release CLI first."
+        }
+        Generate-CliReference (Join-Path $SkillsDir 'powerpoint-cli')
     }
-    Generate-CliReference (Join-Path $SkillsDir 'powerpoint-cli')
     exit 0
 }
 

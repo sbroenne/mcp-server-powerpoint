@@ -191,7 +191,8 @@ public sealed class ReleasePackagingTests
         Assert.Contains("prepare-release-docs:", workflow, StringComparison.Ordinal);
         Assert.Contains("./scripts/Update-DocumentationCounts.ps1 -SkipBuild", workflow, StringComparison.Ordinal);
         Assert.Contains("name: generated-documentation", workflow, StringComparison.Ordinal);
-        Assert.Contains("git apply generated-documentation.patch", workflow, StringComparison.Ordinal);
+        Assert.Contains("skills/shared/*.md", workflow, StringComparison.Ordinal);
+        Assert.Contains("path: .", workflow, StringComparison.Ordinal);
         Assert.Contains("git add CHANGELOG.md package.json .changeset", workflow, StringComparison.Ordinal);
         Assert.Contains("git add --update", workflow, StringComparison.Ordinal);
 
