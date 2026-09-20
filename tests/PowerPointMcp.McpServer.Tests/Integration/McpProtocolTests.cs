@@ -38,7 +38,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     /// The MCP tool surface: one hand-written action-dispatch tool (Presentation — session
     /// lifecycle + template + document properties) plus one generated action-dispatch tool per
     /// remaining Core domain (Slide, Shape, TextFrame, Table, Notes, Layout, PageSetup,
-    /// Accessibility, Master, Animation, SmartArt, Image, Media, Chart, Export) — enumerated directly
+    /// Accessibility, Master, Animation, SmartArt, Image, Media, Chart, Export, CustomShow) — enumerated directly
     /// from every <c>[McpServerTool]</c> in
     /// <c>src/PowerPointMcp.McpServer/Tools/*.cs</c> (hand-written) and the generated
     /// <c>PowerPointMcp.Generators.Mcp</c> output (one action-dispatch tool per domain, matching
@@ -50,7 +50,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         // PresentationTools.cs (1, hand-written action-dispatch tool — session lifecycle,
         // Save As/copy, template, Mark as Final, and document properties; 16 actions)
         "presentation",
-        // Generated action-dispatch tools (15, one per remaining Core domain)
+        // Generated action-dispatch tools (16, one per remaining Core domain)
         "slide",
         "shape",
         "textframe",
@@ -65,7 +65,8 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         "image",
         "media",
         "chart",
-        "export"
+        "export",
+        "customshow"
     ];
 
     public McpProtocolTests(ITestOutputHelper output)
@@ -116,7 +117,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// THE core protocol proof: exactly the 16 expected tools (1 hand-written + 15 generated
+    /// THE core protocol proof: exactly the 17 expected tools (1 hand-written + 16 generated
     /// action-dispatch tools) are discoverable via <c>tools/list</c> — no more, no less.
     /// </summary>
     [Fact]
@@ -273,6 +274,31 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
                 properties.TryGetProperty(parameter, out var schema),
                 $"The shape tool schema is missing '{parameter}'.");
             Assert.Contains("copy-formatting", schema.GetProperty("description").GetString());
+        }
+    }
+
+    [Fact]
+    public async Task CustomShowSchema_ExposesActionsAndParameters()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var customShow = Assert.Single(tools, tool => tool.Name == "customshow");
+        var properties = customShow.JsonSchema.GetProperty("properties");
+        var actions = properties
+            .GetProperty("action")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("list", actions);
+        Assert.Contains("create", actions);
+        Assert.Contains("delete", actions);
+
+        foreach (string parameter in new[] { "name", "slide_indices" })
+        {
+            Assert.True(
+                properties.TryGetProperty(parameter, out _),
+                $"The customshow tool schema is missing '{parameter}'.");
         }
     }
 

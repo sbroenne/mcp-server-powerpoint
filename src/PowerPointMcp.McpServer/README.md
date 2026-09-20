@@ -32,7 +32,7 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 
 ## Capabilities
 
-**16 tools with 188 operations across 16 domains:**
+**17 tools with 191 operations across 17 domains:**
 
 | Tool | Ops | Coverage |
 | --- | --- | --- |
@@ -52,6 +52,7 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 | `chart` | 16 | charts, series, titles, legend, data replacement, styles, colors, data tables |
 | `smartart` | 7 | SmartArt insertion and node editing |
 | `export` | 3 | export to PDF or images |
+| `customshow` | 3 | named custom shows: curated, ordered subsets of a presentation's slides |
 
 Every domain is exposed as a single **action-dispatch tool** taking an `action`
 parameter — including `presentation`. Example MCP calls:

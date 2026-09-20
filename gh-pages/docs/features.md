@@ -1,12 +1,12 @@
 ---
 title: Complete Feature Reference
-description: 16 MCP tools with 188 operations across 16 domains for live PowerPoint automation through single action-dispatch tools.
+description: 17 MCP tools with 191 operations across 17 domains for live PowerPoint automation through single action-dispatch tools.
 keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, media tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **16 MCP tools with 188 operations across 16 domains**.
+PowerPoint MCP Server exposes **17 MCP tools with 191 operations across 17 domains**.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
 `chart(action="add-chart", session_id="...", slide_index=2, ...)`.
@@ -36,6 +36,7 @@ The CLI mirrors the same domain model:
 | `chart` | 16 | Native charts, titles, legend, data replacement, styles, colors, data tables | `chart(action="...", session_id=..., ...)` | `pptcli chart <action> -s <SESSION_ID> ...` |
 | `smartart` | 7 | SmartArt diagrams and node editing | `smartart(action="...", session_id=..., ...)` | `pptcli smartart <action> -s <SESSION_ID> ...` |
 | `export` | 3 | PDF delivery and export-to-verify image rendering | `export(action="...", session_id=..., ...)` | `pptcli export <action> -s <SESSION_ID> ...` |
+| `customshow` | 3 | Named custom shows: curated, ordered subsets of a presentation's slides | `customshow(action="...", session_id=..., ...)` | `pptcli customshow <action> -s <SESSION_ID> ...` |
 
 ## Domain reference
 
@@ -204,6 +205,20 @@ Use `export` for the project's export-to-verify loop.
 
 **Exact action order:** `export-to-pdf`, `export-slide-to-image`,
 `export-all-slides-to-images`
+
+### `customshow` tool (3 operations)
+
+Use `customshow` for named custom shows: curated, ordered subsets of a presentation's slides,
+used to reuse one deck for different audiences. A custom show may repeat a slide and does not
+need to include every slide.
+
+| Action | What it does |
+|--------|---------------|
+| `list` | List all custom shows, each with its current 1-based slide indices in playback order. |
+| `create` | Create a named custom show from an ordered list of 1-based slide indices. |
+| `delete` | Delete a custom show by name. |
+
+**Exact action order:** `list`, `create`, `delete`
 
 !!! tip "Why export-to-verify matters"
     Because the tools drive a **real PowerPoint desktop instance**, every visual edit can be
