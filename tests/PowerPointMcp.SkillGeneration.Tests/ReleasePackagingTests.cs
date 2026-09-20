@@ -134,6 +134,72 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
+    public void UpdateDocumentationCounts_RestoresCanonicalCountsAndIsIdempotent()
+    {
+        using var temp = new TemporaryDirectory();
+        var expected = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var relativePath in DocumentationCountPaths)
+        {
+            var source = Path.Combine(RepoRoot, relativePath);
+            var destination = Path.Combine(temp.Path, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            expected[relativePath] = File.ReadAllText(source);
+            File.Copy(source, destination);
+        }
+
+        var readme = Path.Combine(temp.Path, "README.md");
+        File.WriteAllText(
+            readme,
+            File.ReadAllText(readme)
+                .Replace("17 MCP tools with 191 operations", "1 MCP tools with 2 operations", StringComparison.Ordinal)
+                .Replace("**Presentation** (20 ops)", "**Presentation** (1 ops)", StringComparison.Ordinal));
+        var manifest = Path.Combine(temp.Path, "mcpb", "manifest.json");
+        File.WriteAllText(
+            manifest,
+            File.ReadAllText(manifest)
+                .Replace("17 tools (191 operations across 17 domains", "1 tools (2 operations across 3 domains", StringComparison.Ordinal));
+
+        var arguments = new[]
+        {
+            "-RepoRoot", RepoRoot,
+            "-DocsRoot", temp.Path,
+            "-SkipBuild",
+        };
+        RunPowerShell(
+            Path.Combine(RepoRoot, "scripts", "Update-DocumentationCounts.ps1"),
+            arguments);
+
+        foreach (var (relativePath, content) in expected)
+        {
+            Assert.Equal(content, File.ReadAllText(Path.Combine(temp.Path, relativePath)));
+        }
+
+        RunPowerShell(
+            Path.Combine(RepoRoot, "scripts", "Update-DocumentationCounts.ps1"),
+            arguments);
+        foreach (var (relativePath, content) in expected)
+        {
+            Assert.Equal(content, File.ReadAllText(Path.Combine(temp.Path, relativePath)));
+        }
+    }
+
+    [Fact]
+    public void ReleaseWorkflow_GeneratesDocumentationCountsBeforePackaging()
+    {
+        var workflow = File.ReadAllText(ReleaseWorkflow);
+
+        Assert.Contains("prepare-release-docs:", workflow, StringComparison.Ordinal);
+        Assert.Contains("./scripts/Update-DocumentationCounts.ps1 -SkipBuild", workflow, StringComparison.Ordinal);
+        Assert.Contains("name: generated-documentation", workflow, StringComparison.Ordinal);
+        Assert.Contains("git apply generated-documentation.patch", workflow, StringComparison.Ordinal);
+        Assert.Contains("git add CHANGELOG.md package.json .changeset", workflow, StringComparison.Ordinal);
+        Assert.Contains("git add --update", workflow, StringComparison.Ordinal);
+
+        Assert.DoesNotContain("check-doc-counts.ps1", File.ReadAllText(CiWorkflow), StringComparison.Ordinal);
+        Assert.DoesNotContain("check-doc-counts.ps1", File.ReadAllText(PreCommitScript), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CoreTestProject_IsExplicitlyMarkedForTestDiscovery()
     {
         var project = XDocument.Load(Path.Combine(
@@ -184,6 +250,21 @@ public sealed class ReleasePackagingTests
         Path.Combine("vscode-extension", "package.json"),
         Path.Combine("vscode-extension", "package-lock.json"),
         Path.Combine("src", "PowerPointMcp.McpServer", ".mcp", "server.json"),
+    ];
+
+    private static readonly string[] DocumentationCountPaths =
+    [
+        "README.md",
+        Path.Combine("src", "PowerPointMcp.McpServer", "README.md"),
+        Path.Combine("mcpb", "README.md"),
+        Path.Combine("mcpb", "manifest.json"),
+        Path.Combine("gh-pages", "docs", "index.md"),
+        Path.Combine("gh-pages", "docs", "installation.md"),
+        Path.Combine("gh-pages", "docs", "features.md"),
+        Path.Combine("gh-pages", "docs", "mcp-server.md"),
+        Path.Combine("skills", "CLAUDE.md"),
+        Path.Combine("skills", "shared", "behavioral-rules.md"),
+        Path.Combine("skills", "shared", "workflows.md"),
     ];
 
     [Theory]
