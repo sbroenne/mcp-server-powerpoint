@@ -107,7 +107,7 @@ remaining edit/read actions use that `sessionId`.
 ### `shape` tool (50 operations)
 
 Use `shape` for shape creation, geometry, styling, effects, grouping, naming, alt text, hyperlinks,
-linked pictures, and placeholders.
+linked pictures, placeholders, same-slide duplication, and cross-slide copying.
 
 **Exact action order:** `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`,
 `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`,
@@ -116,7 +116,8 @@ linked pictures, and placeholders.
 `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`,
 `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`,
 `get-link-info`, `update-link`, `break-link`, `set-link-auto-update`, `list-placeholders`,
-`set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
+`set-placeholder-text`, `set-placeholder-image`, `duplicate`, `copy-to-slide`, `set-tag`, `get-tag`,
+`list-tags`, `delete-tag`
 
 ### `textframe` tool (20 operations)
 
