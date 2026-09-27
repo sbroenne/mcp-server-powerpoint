@@ -47,10 +47,10 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     /// </summary>
     private static readonly HashSet<string> ExpectedToolNames =
     [
-        // PresentationTools.cs (1, hand-written action-dispatch tool — session lifecycle,
-        // Save As/copy, template, Mark as Final, and document properties; 16 actions)
+        // PresentationTools.cs (hand-written action-dispatch tool — session lifecycle,
+        // Save As/copy, template, Mark as Final, and document properties)
         "presentation",
-        // Generated action-dispatch tools (16, one per remaining Core domain)
+        // Generated action-dispatch tools (one per remaining Core domain)
         "slide",
         "shape",
         "textframe",
@@ -130,6 +130,22 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         Assert.Contains(properties.GetProperty("action").GetProperty("enum").EnumerateArray(),
             action => action.GetString() == "get-theme-colors");
         Assert.True(properties.TryGetProperty("master_index", out _));
+    }
+
+    [Fact]
+    public async Task ListTools_TextFrameExposesFindReplaceParameters()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var textFrame = Assert.Single(tools, tool => tool.Name == "textframe");
+        var properties = textFrame.JsonSchema.GetProperty("properties");
+        var actions = properties.GetProperty("action").GetProperty("enum").EnumerateArray()
+            .Select(action => action.GetString()).ToArray();
+        Assert.Contains("find-text", actions);
+        Assert.Contains("replace-text", actions);
+        foreach (string parameter in new[] { "slide_index", "shape_index", "find_what", "replace_what", "match_case", "whole_words" })
+        {
+            Assert.True(properties.TryGetProperty(parameter, out _), $"Missing {parameter}");
+        }
     }
 
     /// <summary>

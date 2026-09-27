@@ -102,6 +102,12 @@ jobs:
       - name: Build (Release)
         run: dotnet build Sbroenne.PowerPointMcp.slnx --configuration Release --no-restore -p:NuGetAudit=false
 
+      - name: Documentation count structure
+        shell: pwsh
+        run: |
+          & scripts/check-doc-counts.ps1 -SkipBuild -AllowStaleAdvertisedCounts
+          if ($LASTEXITCODE -ne 0) { throw "Documentation count derivation or managed locations are inconsistent." }
+
       # --- PowerPoint-free correctness gates (ported from scripts/pre-commit.ps1) ---
 
       - name: Success flag check (Rule 1)

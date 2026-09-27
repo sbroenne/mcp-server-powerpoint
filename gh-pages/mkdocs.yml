@@ -22,6 +22,7 @@ watch:
   - ../skills
   - ../src/PowerPointMcp.McpServer/README.md
   - ../src/PowerPointMcp.CLI/README.md
+  - ../doc-counts.json
 
 # Generated snippets live outside docs_dir. Exclude stale copies that may remain
 # in long-lived clones from the former docs/_generated location.
