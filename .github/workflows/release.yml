@@ -127,10 +127,10 @@ jobs:
     - name: Build generated metadata
       run: dotnet build Sbroenne.PowerPointMcp.slnx --configuration Release --no-restore -p:PowerPointMcpSkipCleanup=true
 
-    - name: Generate documentation counts
+    - name: Validate documentation counts
       shell: pwsh
       run: |
-        ./scripts/Update-DocumentationCounts.ps1 -SkipBuild
+        ./scripts/check-doc-counts.ps1 -SkipBuild
         ./scripts/Build-AgentSkills.ps1 -PopulateReferences -SkipCliReference
 
     - name: Upload generated documentation
