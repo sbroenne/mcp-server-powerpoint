@@ -29,7 +29,7 @@ action-dispatch: one tool per domain, called as `tool(action:
 | Step | Tool | Action | When |
 |------|------|--------|------|
 | 1. Create or open | `presentation(action: "create"/"open")` | Start a session, get `sessionId` | Always, before any edit |
-| 3. Build | `slide(action: "add-blank")`, `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector")`, `table(action: "add-table")`, `chart(action: "add-chart")`, `image(action: "add-picture")`, `media(action: "add-media")` | Add structure and content | As needed |
+| 3. Build | `slide(action: "add-blank")`, `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector"/"add-attached-connector")`, `table(action: "add-table")`, `chart(action: "add-chart")`, `image(action: "add-picture")`, `media(action: "add-media")` | Add structure and content | As needed |
 | 4. Format | `textframe(action: "set-font-size"/"set-bold"/"set-font-color")`, `layout(action: "set-layout")` | Apply formatting | After adding content |
 | 5. Animate (optional) | `animation(action: "add-effect"/"set-transition")` | Add entrance/emphasis/exit effects or slide transitions | After content/layout are final |
 | 6. Annotate | `notes(action: "set-notes-text")` | Add speaker notes | After each slide's content is final |
@@ -99,10 +99,12 @@ saved.
 | Document metadata (built-in and custom properties) | `presentation` property actions |
 | String metadata on presentations, slides, or shapes | owner-specific `set-tag`/`get-tag`/`list-tags`/`delete-tag` actions |
 | Add/count/delete/duplicate/reorder slides | `slide(action: "add-blank"/"get-count"/"delete"/"duplicate"/"move-to")` |
-| Per-slide background color, sections | `slide(action: "set-background-color"/"get-background-color"/"add-section"/"rename-section"/"delete-section"/"get-section-count"/"get-section-name")` |
-| Add/count/delete/move/resize shapes | `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector"/"get-count"/"delete"/"set-position"/"set-size")` |
-| Format shapes and manage links | `shape(action: "set-fill"/"get-fill"/"set-line"/"get-line"/"copy-formatting"/"set-rotation"/"get-rotation"/"flip"/"set-z-order"/"set-shadow"/"get-shadow"/"set-glow"/"get-glow"/"set-reflection"/"get-reflection"/"set-soft-edge"/"get-soft-edge"/"set-bevel"/"get-bevel"/"group"/"ungroup"/"merge"/"set-name"/"get-name"/"set-alt-text"/"get-alt-text"/"set-hyperlink"/"get-hyperlink"/"remove-hyperlink"/"get-link-info"/"update-link"/"break-link"/"set-link-auto-update")` |
-| Set/read text and font formatting | `textframe(action: "set-text"/"get-text"/"set-font-size"/"set-bold"/"set-font-color"/"set-italic"/"set-underline"/"set-font-name"/"set-alignment"/"set-bullet")` |
+| Per-slide visibility, background color, sections | `slide(action: "set-hidden"/"set-display-master-shapes"/"set-background-color"/"get-background-color"/"add-section"/"rename-section"/"delete-section"/"get-section-count"/"get-section-name")` |
+| Add/count/delete/move/resize shapes | `shape(action: "add-rectangle"/"add-text-box"/"add-text-effect"/"add-auto-shape"/"add-line"/"add-connector"/"add-attached-connector"/"get-count"/"delete"/"set-position"/"set-size")` |
+| Align/distribute shapes | `shape(action: "align"/"distribute", shape_indexes: [...], align_cmd/distribute_cmd: "...", relative_to_slide: true|false)` |
+| Merge shapes | `shape(action: "merge", shape_indexes: [...], merge_type: "msoMergeUnion" / "msoMergeCombine" / "msoMergeIntersect" / "msoMergeSubtract" / "msoMergeFragment")` |
+| Format shapes and manage links | `shape(action: "set-fill"/"get-fill"/"set-line"/"get-line"/"copy-formatting"/"set-rotation"/"get-rotation"/"set-3d-rotation"/"get-3d-rotation"/"flip"/"set-z-order"/"set-shadow"/"get-shadow"/"set-glow"/"get-glow"/"set-reflection"/"get-reflection"/"set-soft-edge"/"get-soft-edge"/"set-bevel"/"get-bevel"/"group"/"ungroup"/"set-name"/"get-name"/"set-alt-text"/"get-alt-text"/"set-hyperlink"/"get-hyperlink"/"remove-hyperlink"/"get-link-info"/"update-link"/"break-link"/"set-link-auto-update")` |
+| Set/read/find/replace text and font formatting | `textframe(action: "set-text"/"get-text"/"find-text"/"replace-text"/"set-font-size"/"set-bold"/"set-font-color"/"set-italic"/"set-underline"/"set-font-name"/"set-alignment"/"set-bullet")` |
 | Tables | `table(action: "add-table"/"set-cell-text"/"get-cell-text"/"insert-row"/"delete-row"/"insert-column"/"delete-column"/"set-cell-fill"/"get-cell-fill"/"set-cell-border"/"get-cell-border"/"merge-cells")` |
 | Native charts | `chart(action: "add-chart"/"get-chart-data"/"add-series"/"replace-chart-data"/"set-chart-title"/"get-chart-title"/"set-axis-title"/"get-axis-title"/"set-legend-visibility"/"get-legend-visibility"/"set-style"/"get-style"/"set-color-style"/"get-color-style"/"set-data-table"/"get-data-table")` |
 | SmartArt diagrams | `smartart(action: "add-smart-art"/"add-node"/"add-child-node"/"set-node-text"/"get-node-text"/"delete-node"/"get-node-count")` |
@@ -110,7 +112,7 @@ saved.
 | Audio and video | `media(action: "add-media"/"get-media-info")` |
 | Speaker notes | `notes(action: "set-notes-text"/"get-notes-text")` |
 | Slide layouts | `layout(action: "set-layout"/"get-layout")` |
-| Slide master title/body font, background color | `master(action: "get-title-font"/"set-title-font"/"get-body-font"/"set-body-font"/"get-background-color"/"set-background-color")` |
+| Slide master theme, title/body font, background color | `master(action: "list-masters"/"get-theme-colors"/"get-theme-fonts"/"get-title-font"/"set-title-font"/"get-body-font"/"set-body-font"/"get-background-color"/"set-background-color")` |
 | Shape entrance/emphasis/exit effects, slide transitions | `animation(action: "add-effect"/"get-effect-count"/"delete-effect"/"get-transition"/"set-transition")` |
 | Visual verification | `export(action: "export-slide-to-image"/"export-all-slides-to-images")` |
 | Named custom shows (curated, ordered slide subsets) | `customshow(action: "list"/"create"/"delete")` |
@@ -132,7 +134,7 @@ See `references/` for detailed guidance:
 - [Audio and video — embedded/linked insertion and media metadata](./references/media.md)
 - [Speaker notes — set/get notes](./references/speaker-notes.md)
 - [Layouts — set/get slide layout](./references/layouts.md)
-- [Slide master — title/body font and background color](./references/master.md)
+- [Slide master — theme colors/fonts, title/body font, and background color](./references/master.md)
 - [Animations — entrance/emphasis/exit effects and slide transitions](./references/animations.md)
 - [Export and verify — the visual verification loop](./references/export-and-verify.md)
 - [Anti-patterns — common mistakes to avoid](./references/anti-patterns.md)

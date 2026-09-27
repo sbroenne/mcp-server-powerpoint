@@ -17,6 +17,15 @@ public sealed class TextFrameOperationResult
     /// <summary>The text content, for GetText or after SetText.</summary>
     public string? Text { get; init; }
 
+    /// <summary>Number of original non-overlapping matches replaced, including identical replacements.</summary>
+    public int? ReplacementCount { get; init; }
+
+    /// <summary>Number of non-overlapping matches found.</summary>
+    public int? MatchCount { get; init; }
+
+    /// <summary>Original matches in ascending 1-based PowerPoint character order; empty when none are found.</summary>
+    public List<TextMatch>? Matches { get; init; }
+
     /// <summary>Font size in points, if applicable.</summary>
     public float? FontSize { get; init; }
 

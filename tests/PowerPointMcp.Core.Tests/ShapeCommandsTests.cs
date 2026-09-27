@@ -1,9 +1,11 @@
+using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Layout;
 using Sbroenne.PowerPointMcp.Core.Shape;
 using Sbroenne.PowerPointMcp.Core.TextFrame;
+using System.Globalization;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
@@ -18,6 +20,7 @@ namespace Sbroenne.PowerPointMcp.Core.Tests;
 [Trait("Feature", "Shape")]
 public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
 {
+    private static readonly int[] ArrangementIndexes = [3, 1, 2];
     private readonly SharedPresentationFixture _fixture;
     private readonly PresentationCommands _presentationCommands = new();
     private readonly ShapeCommands _commands = new();
@@ -26,6 +29,227 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     public ShapeCommandsTests(SharedPresentationFixture fixture)
     {
         _fixture = fixture;
+    }
+
+    [Theory]
+    [InlineData("Align", "msoAlignLefts", 10f, 10f)]
+    [InlineData("Distribute", "msoDistributeHorizontally", 145f, 300f)]
+    public void ArrangeShapes_ChangesOnlySelectedPositions(string methodName, string command, float secondLeft, float thirdLeft)
+    {
+        CreateArrangement();
+        var before = ReadArrangement();
+        var result = methodName == "Align"
+            ? _commands.Align(_fixture.Batch, 1, ArrangementIndexes, command)
+            : _commands.Distribute(_fixture.Batch, 1, ArrangementIndexes, command);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        var after = ReadArrangement();
+        Assert.Equal(10f, after[0].Left);
+        Assert.Equal(secondLeft, after[1].Left);
+        Assert.Equal(thirdLeft, after[2].Left);
+        Assert.Equal(before[3], after[3]);
+        for (int index = 0; index < 3; index++)
+        {
+            Assert.Equal(before[index].Top, after[index].Top);
+            Assert.Equal(before[index].Width, after[index].Width);
+            Assert.Equal(before[index].Height, after[index].Height);
+        }
+    }
+
+    [Theory]
+    [InlineData("msoAlignLefts", true, 0f, false)]
+    [InlineData("msoAlignCenters", true, 0.5f, false)]
+    [InlineData("msoAlignRights", true, 1f, false)]
+    [InlineData("msoAlignTops", false, 0f, false)]
+    [InlineData("msoAlignMiddles", false, 0.5f, false)]
+    [InlineData("msoAlignBottoms", false, 1f, false)]
+    [InlineData("MSOALIGNLEFTS", true, 0f, true)]
+    [InlineData("msoAlignCenters", true, 0.5f, true)]
+    [InlineData("msoAlignRights", true, 1f, true)]
+    [InlineData("msoAlignTops", false, 0f, true)]
+    [InlineData("msoAlignMiddles", false, 0.5f, true)]
+    [InlineData("msoAlignBottoms", false, 1f, true)]
+    public void ArrangeShapes_AlignsAgainstExplicitReference(string command, bool horizontal, float fraction, bool relativeToSlide)
+    {
+        CreateArrangement();
+        var before = ReadArrangement();
+
+        var result = _commands.Align(_fixture.Batch, 1, ArrangementIndexes, command, relativeToSlide);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(4, result.ShapeCount);
+        var after = ReadArrangement();
+        float origin = relativeToSlide ? 0f : horizontal ? 10f : 20f;
+        float extent = relativeToSlide ? horizontal ? 600f : 400f : 350f;
+        for (int index = 0; index < 3; index++)
+        {
+            float size = horizontal ? before[index].Width : before[index].Height;
+            float expected = origin + ((extent - size) * fraction);
+            Assert.InRange(horizontal ? after[index].Left : after[index].Top, expected - 0.01f, expected + 0.01f);
+            Assert.Equal(horizontal ? before[index].Top : before[index].Left, horizontal ? after[index].Top : after[index].Left);
+            Assert.Equal(before[index].Width, after[index].Width);
+            Assert.Equal(before[index].Height, after[index].Height);
+        }
+
+        Assert.Equal(before[3], after[3]);
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    public void ArrangeShapes_DistributesEdgesWithUnequalSizes(bool horizontal, bool relativeToSlide)
+    {
+        CreateArrangement();
+        var before = ReadArrangement();
+        string command = horizontal ? "msoDistributeHorizontally" : "MSODISTRIBUTEVERTICALLY";
+
+        var result = _commands.Distribute(_fixture.Batch, 1, ArrangementIndexes, command, relativeToSlide);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        var after = ReadArrangement();
+        float origin = relativeToSlide ? 0f : horizontal ? 10f : 20f;
+        float extent = relativeToSlide ? horizontal ? 600f : 400f : 350f;
+        float totalSize = before.Take(3).Sum(bounds => horizontal ? bounds.Width : bounds.Height);
+        float gap = (extent - totalSize) / (relativeToSlide ? 4f : 2f);
+        float expected = origin + (relativeToSlide ? gap : 0f);
+        for (int index = 0; index < 3; index++)
+        {
+            Assert.InRange(horizontal ? after[index].Left : after[index].Top, expected - 0.01f, expected + 0.01f);
+            Assert.Equal(horizontal ? before[index].Top : before[index].Left, horizontal ? after[index].Top : after[index].Left);
+            Assert.Equal(before[index].Width, after[index].Width);
+            Assert.Equal(before[index].Height, after[index].Height);
+            expected += (horizontal ? before[index].Width : before[index].Height) + gap;
+        }
+
+        Assert.Equal(before[3], after[3]);
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("empty")]
+    [InlineData("single")]
+    [InlineData("duplicate")]
+    [InlineData("zeroShape")]
+    [InlineData("negativeShape")]
+    [InlineData("missingShape")]
+    [InlineData("zeroSlide")]
+    [InlineData("negativeSlide")]
+    [InlineData("missingSlide")]
+    [InlineData("emptyCommand")]
+    [InlineData("numericCommand")]
+    [InlineData("unknownCommand")]
+    public void ArrangeShapes_RejectsInvalidInputWithoutMutation(string scenario)
+    {
+        CreateArrangement();
+        var before = ReadArrangement();
+        int[]? indexes = scenario switch
+        {
+            "null" => null,
+            "empty" => [],
+            "single" => [1],
+            "duplicate" => [1, 2, 1],
+            "zeroShape" => [1, 2, 0],
+            "negativeShape" => [1, 2, -1],
+            "missingShape" => [1, 2, 5],
+            _ => ArrangementIndexes
+        };
+        int slideIndex = scenario switch { "zeroSlide" => 0, "negativeSlide" => -1, "missingSlide" => 2, _ => 1 };
+        string? invalidCommand = scenario switch { "emptyCommand" => "", "numericCommand" => "0", "unknownCommand" => "left-ish", _ => null };
+        var aligned = _commands.Align(_fixture.Batch, slideIndex, indexes!, invalidCommand ?? "msoAlignLefts");
+        var distributed = _commands.Distribute(_fixture.Batch, slideIndex, indexes!, invalidCommand ?? "msoDistributeHorizontally");
+
+        Assert.False(aligned.Success);
+        Assert.NotEmpty(aligned.ErrorMessage!);
+        Assert.False(distributed.Success);
+        Assert.NotEmpty(distributed.ErrorMessage!);
+        Assert.Equal(before, ReadArrangement());
+    }
+
+    [Fact]
+    public void ArrangeShapes_SupportsSingleShapeSlideAlignmentAndPersists()
+    {
+        CreateArrangement();
+        var before = ReadArrangement();
+        var aligned = _commands.Align(_fixture.Batch, 1, [4], "msoAlignRights", true);
+        Assert.True(aligned.Success, aligned.ErrorMessage);
+        var distributed = _commands.Distribute(_fixture.Batch, 1, ArrangementIndexes, "msoDistributeVertically");
+        Assert.True(distributed.Success, distributed.ErrorMessage);
+        var arranged = ReadArrangement();
+        Assert.Equal(520f, arranged[3].Left);
+        Assert.Equal(before[3].Top, arranged[3].Top);
+        Assert.Equal(150f, arranged[1].Top);
+
+        Assert.True(_presentationCommands.Save(_fixture.Batch).Success);
+        _fixture.ReopenCurrentPresentation();
+
+        Assert.Equal(arranged, ReadArrangement());
+    }
+
+    [Fact]
+    public void ArrangeShapes_AllowsTwoForAlignmentButRequiresThreeForDistribution()
+    {
+        CreateArrangement();
+        var before = ReadArrangement();
+        var invalid = _commands.Distribute(_fixture.Batch, 1, [1, 2], "msoDistributeHorizontally", true);
+        Assert.False(invalid.Success);
+        Assert.Equal(before, ReadArrangement());
+
+        var aligned = _commands.Align(_fixture.Batch, 1, [1, 2], "msoAlignTops");
+        Assert.True(aligned.Success, aligned.ErrorMessage);
+        var after = ReadArrangement();
+        Assert.Equal(20f, after[1].Top);
+        Assert.Equal(before[2], after[2]);
+        Assert.Equal(before[3], after[3]);
+    }
+
+    private void CreateArrangement()
+    {
+        _fixture.CreateFreshPresentation();
+        Assert.True(new Core.PageSetup.PageSetupCommands().SetSize(_fixture.Batch, 600f, 400f).Success);
+        Assert.True(_commands.AddRectangle(_fixture.Batch, 1, 10f, 20f, 20f, 30f).Success);
+        Assert.True(_commands.AddRectangle(_fixture.Batch, 1, 90f, 120f, 40f, 50f).Success);
+        Assert.True(_commands.AddRectangle(_fixture.Batch, 1, 300f, 300f, 60f, 70f).Success);
+        Assert.True(_commands.AddRectangle(_fixture.Batch, 1, 400f, 100f, 80f, 80f).Success);
+    }
+
+    private (float Left, float Top, float Width, float Height)[] ReadArrangement()
+    {
+        return _fixture.Batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Slides? slides = null;
+            PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
+            try
+            {
+                slides = ctx.Presentation.Slides;
+                slide = slides[1];
+                shapes = slide.Shapes;
+                var bounds = new (float Left, float Top, float Width, float Height)[shapes.Count];
+                for (int index = 1; index <= shapes.Count; index++)
+                {
+                    PowerPoint.Shape? shape = null;
+                    try
+                    {
+                        shape = shapes[index];
+                        bounds[index - 1] = (shape.Left, shape.Top, shape.Width, shape.Height);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref shape!);
+                    }
+                }
+
+                return bounds;
+            }
+            finally
+            {
+                ComUtilities.Release(ref shapes!);
+                ComUtilities.Release(ref slide!);
+                ComUtilities.Release(ref slides!);
+            }
+        });
     }
 
     [Fact]
@@ -64,6 +288,150 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         string text = batch.Execute((ctx, ct) =>
             ctx.Presentation.Slides[1].Shapes[1].TextFrame.TextRange.Text);
         Assert.Equal("Hello PowerPoint", text);
+    }
+
+    [Fact]
+    public void AddTextEffect_CreatesEditableWordArt_AndPersistsAfterSave()
+    {
+        // MsoTriState: msoTrue is -1, msoFalse is 0. Asymmetric flags catch an argument swap.
+        const int MsoTrue = -1;
+        const int MsoFalse = 0;
+
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+
+        var result = _commands.AddTextEffect(
+            batch, 1, "msoTextEffect1", "Quarterly outlook", "Arial", 36f, 40f, 50f,
+            bold: true, italic: false);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(1, result.ShapeIndex);
+        Assert.Equal(1, result.ShapeCount);
+
+        _presentationCommands.Save(batch);
+        _fixture.ReopenCurrentPresentation();
+
+        var persisted = batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Slides? slides = null;
+            PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
+            PowerPoint.Shape? shape = null;
+            PowerPoint.TextEffectFormat? effect = null;
+            try
+            {
+                slides = ctx.Presentation.Slides;
+                slide = slides[1];
+                shapes = slide.Shapes;
+                shape = shapes[1];
+                effect = shape.TextEffect;
+                return (
+                    Text: effect.Text,
+                    FontName: effect.FontName,
+                    FontSize: effect.FontSize,
+                    Bold: (int)effect.FontBold,
+                    Italic: (int)effect.FontItalic);
+            }
+            finally
+            {
+                if (effect is not null) ComUtilities.Release(ref effect);
+                if (shape is not null) ComUtilities.Release(ref shape);
+                if (shapes is not null) ComUtilities.Release(ref shapes);
+                if (slide is not null) ComUtilities.Release(ref slide);
+                if (slides is not null) ComUtilities.Release(ref slides);
+            }
+        });
+
+        Assert.Equal("Quarterly outlook", persisted.Text);
+        Assert.Equal("Arial", persisted.FontName);
+        Assert.Equal(36f, persisted.FontSize);
+        Assert.Equal(MsoTrue, persisted.Bold);
+        Assert.Equal(MsoFalse, persisted.Italic);
+    }
+
+    [Fact]
+    public void AddTextEffect_WithInvalidPreset_ReturnsFailure()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.AddTextEffect(
+            _fixture.Batch, 1, "msoTextEffect51", "Text", "Arial", 36f, 40f, 50f);
+
+        Assert.False(result.Success);
+        Assert.Contains("msoTextEffect1", result.ErrorMessage);
+    }
+
+    [Fact]
+    public void AddTextEffect_WithMixedPreset_ReturnsUnsupportedFailure()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.AddTextEffect(
+            _fixture.Batch, 1, "msoTextEffectMixed", "Text", "Arial", 36f, 40f, 50f);
+
+        Assert.False(result.Success);
+        Assert.Contains("not supported", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("msoTextEffect1", result.ErrorMessage);
+        Assert.Equal(0, _commands.GetCount(_fixture.Batch, 1).ShapeCount);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("1")]
+    [InlineData("49")]
+    public void AddTextEffect_WithUnderlyingNumericPreset_ReturnsFailure(string presetEffect)
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.AddTextEffect(
+            _fixture.Batch, 1, presetEffect, "Text", "Arial", 36f, 40f, 50f);
+
+        Assert.False(result.Success);
+        Assert.Contains("msoTextEffect1", result.ErrorMessage);
+        Assert.Equal(0, _commands.GetCount(_fixture.Batch, 1).ShapeCount);
+    }
+
+    [Fact]
+    public void AddTextEffect_WithNonPositiveFontSize_ReturnsFailure()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.AddTextEffect(
+            _fixture.Batch, 1, "msoTextEffect1", "Text", "Arial", 0f, 40f, 50f);
+
+        Assert.False(result.Success);
+        Assert.Contains("greater than 0", result.ErrorMessage);
+    }
+
+    [Theory]
+    [InlineData(float.NaN)]
+    [InlineData(float.PositiveInfinity)]
+    [InlineData(float.NegativeInfinity)]
+    public void AddTextEffect_WithNonFiniteFontSize_ReturnsFailure(float fontSize)
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.AddTextEffect(
+            _fixture.Batch, 1, "msoTextEffect1", "Text", "Arial", fontSize, 40f, 50f);
+
+        Assert.False(result.Success);
+        Assert.Contains("finite", result.ErrorMessage);
+        Assert.Equal(0, _commands.GetCount(_fixture.Batch, 1).ShapeCount);
+    }
+
+    [Theory]
+    [InlineData(float.NaN, 50f)]
+    [InlineData(40f, float.PositiveInfinity)]
+    public void AddTextEffect_WithNonFinitePosition_ReturnsFailure(float left, float top)
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.AddTextEffect(
+            _fixture.Batch, 1, "msoTextEffect1", "Text", "Arial", 36f, left, top);
+
+        Assert.False(result.Success);
+        Assert.Contains("finite", result.ErrorMessage);
+        Assert.Equal(0, _commands.GetCount(_fixture.Batch, 1).ShapeCount);
     }
 
     [Fact]
@@ -248,6 +616,132 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
 
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void AddAttachedConnector_RemainsAttachedWhenShapesMove_AndPersistsAfterReopen()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 40f, 80f, 100f, 60f);
+        _commands.AddRectangle(batch, 1, 300f, 220f, 120f, 70f);
+        _commands.SetName(batch, 1, 1, "Connector Begin");
+        _commands.SetName(batch, 1, 2, "Connector End");
+
+        var result = _commands.AddAttachedConnector(
+            batch, 1, "msoConnectorStraight", 1, 2, 2, 4);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Null(result.ErrorMessage);
+        Assert.Equal(3, result.ShapeIndex);
+        Assert.Equal(3, result.ShapeCount);
+        Assert.Equal("msoConnectorStraight", result.ConnectorTypeName);
+
+        int connectorIndex = Assert.IsType<int>(result.ShapeIndex);
+        var initial = ReadAttachmentState(batch, connectorIndex);
+        Assert.True(initial.BeginConnected);
+        Assert.True(initial.EndConnected);
+        Assert.Equal("Connector Begin", initial.BeginShapeName);
+        Assert.Equal("Connector End", initial.EndShapeName);
+        Assert.Equal(2, initial.BeginConnectionSite);
+        Assert.Equal(4, initial.EndConnectionSite);
+
+        _commands.SetPosition(batch, 1, 1, 120f, 160f);
+        _commands.SetPosition(batch, 1, 2, 500f, 300f);
+
+        var moved = ReadAttachmentState(batch, connectorIndex);
+        Assert.True(moved.BeginConnected);
+        Assert.True(moved.EndConnected);
+        Assert.Equal(initial.BeginShapeName, moved.BeginShapeName);
+        Assert.Equal(initial.EndShapeName, moved.EndShapeName);
+        Assert.Equal(initial.BeginConnectionSite, moved.BeginConnectionSite);
+        Assert.Equal(initial.EndConnectionSite, moved.EndConnectionSite);
+
+        _presentationCommands.Save(batch);
+        _fixture.ReopenCurrentPresentation();
+
+        var reopened = ReadAttachmentState(batch, connectorIndex);
+        Assert.True(reopened.BeginConnected);
+        Assert.True(reopened.EndConnected);
+        Assert.Equal(initial.BeginShapeName, reopened.BeginShapeName);
+        Assert.Equal(initial.EndShapeName, reopened.EndShapeName);
+        Assert.Equal(initial.BeginConnectionSite, reopened.BeginConnectionSite);
+        Assert.Equal(initial.EndConnectionSite, reopened.EndConnectionSite);
+    }
+
+    [Theory]
+    [InlineData("msoConnectorDoesNotExist", 1, 1, 2, 1, "not a recognized MsoConnectorType")]
+    [InlineData("msoConnectorStraight", 0, 1, 2, 1, "Shape index 0 is out of range")]
+    [InlineData("msoConnectorStraight", 1, 1, 3, 1, "Shape index 3 is out of range")]
+    [InlineData("msoConnectorStraight", 1, 0, 2, 1, "Begin connection site 0 is out of range")]
+    [InlineData("msoConnectorStraight", 1, 1, 2, 5, "End connection site 5 is out of range")]
+    public void AddAttachedConnector_WithInvalidEndpoint_ReturnsFailureWithoutAddingShape(
+        string connectorType,
+        int beginShapeIndex,
+        int beginConnectionSite,
+        int endShapeIndex,
+        int endConnectionSite,
+        string expectedError)
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 40f, 80f, 100f, 60f);
+        _commands.AddRectangle(batch, 1, 300f, 220f, 120f, 70f);
+
+        var result = _commands.AddAttachedConnector(
+            batch,
+            1,
+            connectorType,
+            beginShapeIndex,
+            beginConnectionSite,
+            endShapeIndex,
+            endConnectionSite);
+
+        Assert.False(result.Success);
+        Assert.Contains(expectedError, result.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(2, _commands.GetCount(batch, 1).ShapeCount);
+    }
+
+    private static (bool BeginConnected, bool EndConnected, string BeginShapeName, string EndShapeName, int BeginConnectionSite, int EndConnectionSite)
+        ReadAttachmentState(ComInterop.Session.IPresentationBatch batch, int connectorIndex)
+    {
+        return batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Slides? slides = null;
+            PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
+            PowerPoint.Shape? connector = null;
+            PowerPoint.ConnectorFormat? connectorFormat = null;
+            PowerPoint.Shape? beginShape = null;
+            PowerPoint.Shape? endShape = null;
+            try
+            {
+                slides = ctx.Presentation.Slides;
+                slide = slides[1];
+                shapes = slide.Shapes;
+                connector = shapes[connectorIndex];
+                connectorFormat = connector.ConnectorFormat;
+                beginShape = connectorFormat.BeginConnectedShape;
+                endShape = connectorFormat.EndConnectedShape;
+                return (
+                    Convert.ToInt32(connectorFormat.BeginConnected, CultureInfo.InvariantCulture) != 0,
+                    Convert.ToInt32(connectorFormat.EndConnected, CultureInfo.InvariantCulture) != 0,
+                    beginShape.Name,
+                    endShape.Name,
+                    connectorFormat.BeginConnectionSite,
+                    connectorFormat.EndConnectionSite);
+            }
+            finally
+            {
+                if (endShape is not null) ComInterop.ComUtilities.Release(ref endShape);
+                if (beginShape is not null) ComInterop.ComUtilities.Release(ref beginShape);
+                if (connectorFormat is not null) ComInterop.ComUtilities.Release(ref connectorFormat);
+                if (connector is not null) ComInterop.ComUtilities.Release(ref connector);
+                if (shapes is not null) ComInterop.ComUtilities.Release(ref shapes);
+                if (slide is not null) ComInterop.ComUtilities.Release(ref slide);
+                if (slides is not null) ComInterop.ComUtilities.Release(ref slides);
+            }
+        });
     }
 
     [Fact]
@@ -587,6 +1081,154 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
         var batch = _fixture.Batch;
 
         var result = _commands.SetRotation(batch, 1, 99, 45f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void Set3DRotation_AndGet3DRotation_RoundTripsWithoutChanging2DRotation_AndPersists()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 100f, 60f);
+        _commands.SetRotation(batch, 1, 1, 15f);
+
+        var setResult = _commands.Set3DRotation(batch, 1, 1, 20f, -30f, 40f);
+
+        Assert.True(setResult.Success, setResult.ErrorMessage);
+        Assert.Equal(20f, setResult.RotationX);
+        Assert.Equal(-30f, setResult.RotationY);
+        Assert.Equal(40f, setResult.RotationZ);
+        Assert.Equal(15f, _commands.GetRotation(batch, 1, 1).Rotation);
+
+        _presentationCommands.Save(batch);
+        _fixture.ReopenCurrentPresentation();
+
+        var persisted = _commands.Get3DRotation(batch, 1, 1);
+        Assert.True(persisted.Success, persisted.ErrorMessage);
+        Assert.Equal(20f, persisted.RotationX);
+        Assert.Equal(-30f, persisted.RotationY);
+        Assert.Equal(40f, persisted.RotationZ);
+        Assert.Equal(15f, _commands.GetRotation(batch, 1, 1).Rotation);
+    }
+
+    [Fact]
+    public void Set3DRotation_WithNoAxes_ReturnsFailure()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.Set3DRotation(_fixture.Batch, 1, 1);
+
+        Assert.False(result.Success);
+        Assert.Contains("At least one", result.ErrorMessage);
+    }
+
+    [Theory]
+    [InlineData(-91f, null)]
+    [InlineData(91f, null)]
+    [InlineData(null, -91f)]
+    [InlineData(null, 91f)]
+    public void Set3DRotation_WithXOrYOutsideRange_ReturnsFailure(float? rotationX, float? rotationY)
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.Set3DRotation(_fixture.Batch, 1, 1, rotationX, rotationY);
+
+        Assert.False(result.Success);
+        Assert.Contains("between -90 and 90", result.ErrorMessage);
+    }
+
+    [Theory]
+    [InlineData(-90f, 90f)]
+    [InlineData(90f, -90f)]
+    public void Set3DRotation_WithInclusiveRangeEndpoints_Succeeds(float rotationX, float rotationY)
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 100f, 60f);
+
+        var result = _commands.Set3DRotation(batch, 1, 1, rotationX, rotationY);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(rotationX, result.RotationX);
+        Assert.Equal(rotationY, result.RotationY);
+    }
+
+    [Theory]
+    [InlineData(float.NaN, null, null)]
+    [InlineData(float.PositiveInfinity, null, null)]
+    [InlineData(null, float.NaN, null)]
+    [InlineData(null, float.NegativeInfinity, null)]
+    [InlineData(null, null, float.NaN)]
+    [InlineData(null, null, float.PositiveInfinity)]
+    public void Set3DRotation_WithNonFiniteAxis_ReturnsFailure(float? rotationX, float? rotationY, float? rotationZ)
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 100f, 60f);
+
+        var result = _commands.Set3DRotation(batch, 1, 1, rotationX, rotationY, rotationZ);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void Set3DRotation_WithOneAxis_PreservesOmittedAxes()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        _commands.AddRectangle(batch, 1, 0f, 0f, 100f, 60f);
+        _commands.Set3DRotation(batch, 1, 1, 10f, 20f, 30f);
+
+        var result = _commands.Set3DRotation(batch, 1, 1, rotationY: -25f);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(10f, result.RotationX);
+        Assert.Equal(-25f, result.RotationY);
+        Assert.Equal(30f, result.RotationZ);
+    }
+
+    [Fact]
+    public void Set3DRotation_WithInvalidSlideIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.Set3DRotation(_fixture.Batch, 99, 1, rotationX: 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void Set3DRotation_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.Set3DRotation(_fixture.Batch, 1, 99, rotationX: 10f);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void Get3DRotation_WithInvalidSlideIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.Get3DRotation(_fixture.Batch, 99, 1);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrEmpty(result.ErrorMessage));
+    }
+
+    [Fact]
+    public void Get3DRotation_WithInvalidShapeIndex_ReturnsFailure_NotException()
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.Get3DRotation(_fixture.Batch, 1, 99);
 
         Assert.False(result.Success);
         Assert.False(string.IsNullOrEmpty(result.ErrorMessage));

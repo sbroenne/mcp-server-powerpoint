@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Sbroenne.PowerPointMcp.Core.Chart;
+using Sbroenne.PowerPointMcp.Core.Slide;
 using Sbroenne.PowerPointMcp.Generated;
 using Sbroenne.PowerPointMcp.McpServer.Tools;
 
@@ -130,6 +131,46 @@ public sealed class GeneratedContractTests
     }
 
     [Fact]
+    public void SlideVisibilityActions_HaveGeneratedCliAndServiceWiring()
+    {
+        Assert.Contains("set-hidden", ServiceRegistry.Slide.ValidActions);
+        Assert.Contains("set-display-master-shapes", ServiceRegistry.Slide.ValidActions);
+
+        Assert.Equal(
+            "slide.set-hidden",
+            ServiceRegistry.Slide.RouteCliArgs("set-hidden", slideIndex: 1, hidden: true).Command);
+        Assert.Equal(
+            "slide.set-display-master-shapes",
+            ServiceRegistry.Slide.RouteCliArgs("set-display-master-shapes", slideIndex: 1, display: false).Command);
+
+        ServiceRegistry.Slide.ValidateActionArguments(
+            "set-hidden",
+            """{"slideIndex":1,"hidden":true}""");
+        ServiceRegistry.Slide.ValidateActionArguments(
+            "set-display-master-shapes",
+            """{"slideIndex":1,"display":false}""");
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Slide.ValidateActionArguments("set-hidden", """{"slideIndex":1}"""));
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Slide.ValidateActionArguments("set-display-master-shapes", """{"slideIndex":1}"""));
+    }
+
+    [Fact]
+    public void SlideVisibilityResult_SerializesReturnedStates()
+    {
+        var result = new SlideOperationResult
+        {
+            Success = true,
+            Hidden = true,
+            DisplaysMasterShapes = false
+        };
+
+        using var document = JsonDocument.Parse(PowerPointToolsBase.Serialize(result));
+        Assert.True(document.RootElement.GetProperty("hidden").GetBoolean());
+        Assert.False(document.RootElement.GetProperty("displaysMasterShapes").GetBoolean());
+    }
+
+    [Fact]
     public void ChartCli_RoutesQuickFormattingActions()
     {
         string[] expectedActions =
@@ -222,6 +263,97 @@ public sealed class GeneratedContractTests
             "shape.set-link-auto-update",
             ServiceRegistry.Shape.RouteCliArgs(
                 "set-link-auto-update", slideIndex: 1, shapeIndex: 1, autoUpdate: true).Command);
+    }
+
+    [Fact]
+    public void ShapeCli_RoutesWordArtAnd3DRotationActions()
+    {
+        string[] expectedActions = ["add-text-effect", "set-3d-rotation", "get-3d-rotation"];
+
+        Assert.All(expectedActions, action => Assert.Contains(action, ServiceRegistry.Shape.ValidActions));
+
+        Assert.Equal(
+            "shape.add-text-effect",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "add-text-effect",
+                slideIndex: 1,
+                presetEffect: "msoTextEffect1",
+                text: "Quarterly outlook",
+                fontName: "Arial",
+                fontSize: 36f,
+                left: 40f,
+                top: 50f).Command);
+
+        Assert.Equal(
+            "shape.set-3d-rotation",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "set-3d-rotation",
+                slideIndex: 1,
+                shapeIndex: 1,
+                rotationX: 20f,
+                rotationY: -30f,
+                rotationZ: 40f).Command);
+
+        Assert.Equal(
+            "shape.get-3d-rotation",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "get-3d-rotation", slideIndex: 1, shapeIndex: 1).Command);
+    }
+
+    [Fact]
+    public void Shape3DRotationCli_AcceptsIndividualAxesAndRejectsInapplicableOnes()
+    {
+        foreach (var axis in new (string Name, float? X, float? Y, float? Z)[]
+        {
+            ("rotationX", 20f, null, null),
+            ("rotationY", null, -30f, null),
+            ("rotationZ", null, null, 40f)
+        })
+        {
+            var (command, args) = ServiceRegistry.Shape.RouteCliArgs(
+                "set-3d-rotation",
+                slideIndex: 1,
+                shapeIndex: 1,
+                rotationX: axis.X,
+                rotationY: axis.Y,
+                rotationZ: axis.Z);
+
+            Assert.Equal("shape.set-3d-rotation", command);
+            Assert.Contains($"\"{axis.Name}\":", JsonSerializer.Serialize(args), StringComparison.Ordinal);
+        }
+
+        // The read action takes no axis arguments, and the 2D action must not accept 3D ones.
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Shape.RouteCliArgs(
+                "get-3d-rotation", slideIndex: 1, shapeIndex: 1, rotationX: 20f));
+
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Shape.RouteCliArgs(
+                "set-rotation", slideIndex: 1, shapeIndex: 1, degrees: 15f, rotationZ: 40f));
+    }
+
+    [Fact]
+    public void AddAttachedConnector_HasGeneratedCliWiringAndRequiredParameters()
+    {
+        Assert.Contains("add-attached-connector", ServiceRegistry.Shape.ValidActions);
+
+        Assert.Equal(
+            "shape.add-attached-connector",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "add-attached-connector",
+                slideIndex: 1,
+                connectorType: "msoConnectorStraight",
+                beginShapeIndex: 1,
+                beginConnectionSite: 2,
+                endShapeIndex: 2,
+                endConnectionSite: 4).Command);
+
+        var error = Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Shape.ValidateActionArguments(
+                "add-attached-connector",
+                """{"slideIndex":1,"connectorType":"msoConnectorStraight","beginShapeIndex":1,"beginConnectionSite":2,"endShapeIndex":2}"""));
+
+        Assert.Contains("endConnectionSite", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

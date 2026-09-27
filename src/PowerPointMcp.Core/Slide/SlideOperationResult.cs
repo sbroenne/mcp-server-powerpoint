@@ -38,6 +38,12 @@ public sealed class SlideOperationResult
     /// <summary>Whether the slide currently follows the slide master's background.</summary>
     public bool? FollowsMasterBackground { get; init; }
 
+    /// <summary>Whether the slide is excluded from slide-show playback.</summary>
+    public bool? Hidden { get; init; }
+
+    /// <summary>Whether shapes inherited from the slide master are displayed.</summary>
+    public bool? DisplaysMasterShapes { get; init; }
+
     /// <summary>1-based index of the section the operation created or acted on, if applicable.</summary>
     public int? SectionIndex { get; init; }
 

@@ -19,6 +19,10 @@ public sealed partial class ShapeCommands
     };
 
     /// <inheritdoc/>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Performance",
+        "CA1822:Mark members as static",
+        Justification = "IShapeCommands requires this operation to remain an instance command method.")]
     public ShapeOperationResult Merge(IPresentationBatch batch, int slideIndex, IReadOnlyList<int> shapeIndexes, string mergeType)
     {
         ArgumentNullException.ThrowIfNull(batch);

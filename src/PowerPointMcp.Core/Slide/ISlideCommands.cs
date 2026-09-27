@@ -4,11 +4,11 @@ using Sbroenne.PowerPointMcp.Core.Attributes;
 namespace Sbroenne.PowerPointMcp.Core.Slide;
 
 /// <summary>
-/// Slide lifecycle, background, section, legacy comment, and slide-import commands.
+/// Slide lifecycle, visibility, background, section, legacy comment, and slide-import commands.
 /// </summary>
 [ServiceCategory("slide", "Slide")]
 [McpTool("slide", Title = "Slide Operations", Destructive = true, Category = "content",
-    Description = "Manage slides, backgrounds, sections, legacy comments, and slide import in an open presentation session.")]
+    Description = "Manage slides, visibility, backgrounds, sections, legacy comments, and slide import in an open presentation session.")]
 public interface ISlideCommands
 {
     /// <summary>
@@ -122,6 +122,12 @@ public interface ISlideCommands
 
     /// <summary>Deletes every legacy comment on a slide.</summary>
     SlideOperationResult ClearComments(IPresentationBatch batch, int slideIndex);
+
+    /// <summary>Includes or excludes a slide from slide-show playback without deleting it.</summary>
+    SlideOperationResult SetHidden(IPresentationBatch batch, int slideIndex, bool hidden);
+
+    /// <summary>Shows or hides shapes inherited from the slide master on a slide.</summary>
+    SlideOperationResult SetDisplayMasterShapes(IPresentationBatch batch, int slideIndex, bool display);
 
     /// <summary>
     /// Imports an inclusive, 1-based range of slides from another presentation after the given

@@ -18,10 +18,14 @@ Claude can now create and edit PowerPoint decks directly.
 
 A self-contained Windows x64 build of the MCP server (no .NET runtime install
 required) plus the manifest, license, and changelog. The server exposes 17
-tools (192 operations across 17 domains) — see the
+tools (203 operations across 17 domains) — see the
 [documentation](https://powerpointmcpserver.dev) for the full list.
 Linked pictures are managed through the generated `shape` actions `get-link-info`, `update-link`,
 `break-link`, and `set-link-auto-update`.
+Connectors can be free-floating or attached to shape connection sites with `add-connector` and
+`add-attached-connector`.
+Shapes can be combined with PowerPoint's boolean merge operations through the `shape` tool's
+`merge` action.
 
 ## Building locally
 

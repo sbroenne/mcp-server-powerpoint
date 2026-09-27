@@ -32,20 +32,20 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 
 ## Capabilities
 
-**17 tools with 192 operations across 17 domains:**
+**17 tools with 203 operations across 17 domains:**
 
 | Tool | Ops | Coverage |
 | --- | --- | --- |
 | `presentation` | 20 | create, open, Save As, Save Copy As, close, list, templates, get/set final, document properties, string tags |
-| `slide` | 23 | slide lifecycle, backgrounds, sections, comments, import, string tags |
-| `shape` | 49 | shape creation, styling, grouping, merging, hyperlinks, placeholders, string tags, `copy-formatting`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update` |
-| `textframe` | 20 | text content, font formatting, alignment, bullets, auto-size |
+| `slide` | 25 | slide lifecycle, visibility, backgrounds, sections, comments, import, string tags |
+| `shape` | 55 | shape creation, free-floating and attached connectors, editable WordArt, per-axis 3D rotation, alignment/distribution, styling, grouping, boolean merging, hyperlinks, placeholders, string tags, `copy-formatting`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update` |
+| `textframe` | 22 | text content, find/replace, font formatting, alignment, bullets, auto-size |
 | `table` | 12 | tables, cell text, row/column edits, cell fill/border, merge |
 | `notes` | 2 | set/get speaker notes |
 | `layout` | 4 | set/get slide layout |
 | `pagesetup` | 5 | slide size, numbering, footer, date/time |
 | `accessibility` | 3 | deterministic audit and reading order |
-| `master` | 11 | theme color palettes, title/body placeholder fonts, solid + gradient master backgrounds |
+| `master` | 12 | theme color/font inspection, title/body placeholder fonts, solid + gradient master backgrounds |
 | `animation` | 5 | shape effects, transition read/write |
 | `image` | 7 | add picture, brightness/contrast, recolor, crop |
 | `media` | 2 | add embedded/linked audio or video, get native media info |
