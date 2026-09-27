@@ -246,4 +246,33 @@ public sealed class GeneratedContractTests
                 "copy-formatting",
                 """{"slideIndex":1,"sourceShapeIndex":2}"""));
     }
+
+    [Fact]
+    public void CustomShow_HasGeneratedCliAndServiceWiring()
+    {
+        Assert.Contains("list", ServiceRegistry.CustomShow.ValidActions);
+        Assert.Contains("create", ServiceRegistry.CustomShow.ValidActions);
+        Assert.Contains("delete", ServiceRegistry.CustomShow.ValidActions);
+
+        Assert.Equal(
+            "customshow.create",
+            ServiceRegistry.CustomShow.RouteCliArgs(
+                "create",
+                name: "Demo",
+                slideIndices: [1, 3]).Command);
+
+        ServiceRegistry.CustomShow.ValidateActionArguments(
+            "create",
+            """{"name":"Demo","slideIndices":[1,3]}""");
+
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.CustomShow.ValidateActionArguments(
+                "create",
+                """{"name":"Demo"}"""));
+
+        ServiceRegistry.CustomShow.ValidateActionArguments("delete", """{"name":"Demo"}""");
+
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.CustomShow.ValidateActionArguments("delete", """{}"""));
+    }
 }
