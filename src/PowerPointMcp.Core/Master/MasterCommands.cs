@@ -31,6 +31,13 @@ public sealed class MasterCommands : IMasterCommands
     private static readonly Dictionary<int, string> GradientStylesByValue =
         GradientStyles.ToDictionary(kv => kv.Value, kv => kv.Key);
 
+    private static readonly (string Name, Office.MsoFontLanguageIndex Index)[] ThemeFontLanguages =
+    [
+        ("latin", Office.MsoFontLanguageIndex.msoThemeLatin),
+        ("complexScript", Office.MsoFontLanguageIndex.msoThemeComplexScript),
+        ("eastAsian", Office.MsoFontLanguageIndex.msoThemeEastAsian)
+    ];
+
     /// <inheritdoc/>
     public MasterOperationResult GetTitleFont(IPresentationBatch batch)
     {
@@ -358,6 +365,64 @@ public sealed class MasterCommands : IMasterCommands
     }
 
     /// <inheritdoc/>
+    public MasterOperationResult GetThemeFonts(IPresentationBatch batch, int masterIndex = 1)
+    {
+        ArgumentNullException.ThrowIfNull(batch);
+        if (masterIndex < 1)
+        {
+            return new MasterOperationResult { ErrorMessage = "Master index must be 1 or greater." };
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Designs? designs = null;
+            PowerPoint.Design? design = null;
+            PowerPoint.Master? master = null;
+            Office.OfficeTheme? theme = null;
+            Office.ThemeFontScheme? scheme = null;
+            Office.ThemeFonts? majorFonts = null;
+            Office.ThemeFonts? minorFonts = null;
+            try
+            {
+                designs = ctx.Presentation.Designs;
+                if (masterIndex > designs.Count)
+                {
+                    return new MasterOperationResult
+                    {
+                        ErrorMessage = $"Master index {masterIndex} is out of range. The presentation has {designs.Count} master(s) (valid range: 1-{designs.Count})."
+                    };
+                }
+
+                design = designs[masterIndex];
+                master = design.SlideMaster;
+                theme = master.Theme;
+                scheme = theme.ThemeFontScheme;
+                majorFonts = scheme.MajorFont;
+                minorFonts = scheme.MinorFont;
+
+                return new MasterOperationResult
+                {
+                    Success = true,
+                    MasterIndex = masterIndex,
+                    MasterName = GetMasterName(design, master),
+                    MajorThemeFonts = ReadThemeFonts(majorFonts),
+                    MinorThemeFonts = ReadThemeFonts(minorFonts)
+                };
+            }
+            finally
+            {
+                ComUtilities.Release(ref minorFonts);
+                ComUtilities.Release(ref majorFonts);
+                ComUtilities.Release(ref scheme);
+                ComUtilities.Release(ref theme);
+                ComUtilities.Release(ref master);
+                ComUtilities.Release(ref design);
+                ComUtilities.Release(ref designs);
+            }
+        });
+    }
+
+    /// <inheritdoc/>
     public MasterOperationResult DeleteMaster(IPresentationBatch batch, int masterIndex)
     {
         ArgumentNullException.ThrowIfNull(batch);
@@ -578,6 +643,26 @@ public sealed class MasterCommands : IMasterCommands
 
     private static string? TryGetString(object? value)
         => value is null ? null : value.ToString();
+
+    private static Dictionary<string, string?> ReadThemeFonts(Office.ThemeFonts fonts)
+    {
+        var result = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach ((string name, Office.MsoFontLanguageIndex index) in ThemeFontLanguages)
+        {
+            Office.ThemeFont? font = null;
+            try
+            {
+                font = fonts.Item(index);
+                result.Add(name, string.IsNullOrWhiteSpace(font.Name) ? null : font.Name);
+            }
+            finally
+            {
+                ComUtilities.Release(ref font);
+            }
+        }
+
+        return result;
+    }
 
     private static MasterOperationResult ReadFont(PowerPoint.Shape placeholder)
     {

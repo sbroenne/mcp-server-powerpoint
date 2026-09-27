@@ -38,14 +38,20 @@ public sealed class MasterOperationResult
     /// <summary>Inventory of the slide masters in the presentation, for ListMasters.</summary>
     public IReadOnlyList<MasterInventoryEntry>? Masters { get; init; }
 
-    /// <summary>Selected 1-based master index, for GetThemeColors; matches ListMasters.</summary>
+    /// <summary>Selected 1-based master index, for GetThemeColors/GetThemeFonts; matches ListMasters.</summary>
     public int? MasterIndex { get; init; }
 
-    /// <summary>Selected master name, for GetThemeColors.</summary>
+    /// <summary>Selected master name, for GetThemeColors/GetThemeFonts.</summary>
     public string? MasterName { get; init; }
 
     /// <summary>Twelve named theme roles mapped to #RRGGBB strings, for GetThemeColors.</summary>
     public IReadOnlyDictionary<string, string>? ThemeColors { get; init; }
+
+    /// <summary>Major theme font names by language slot, for GetThemeFonts.</summary>
+    public IReadOnlyDictionary<string, string?>? MajorThemeFonts { get; init; }
+
+    /// <summary>Minor theme font names by language slot, for GetThemeFonts.</summary>
+    public IReadOnlyDictionary<string, string?>? MinorThemeFonts { get; init; }
 
     /// <summary>Represents one slide master and the layouts attached to it.</summary>
     public sealed class MasterInventoryEntry

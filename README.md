@@ -44,22 +44,22 @@ layout regressions that text-only automation simply cannot detect.
 
 ## 🎯 What You Can Do
 
-**17 MCP tools with 192 operations across 17 domains:**
+**17 MCP tools with 202 operations across 17 domains:**
 
 - 🗂️ **Presentation** (20 ops) — create, open, Save As, Save Copy As, close, list sessions, apply a
   `.potx`/`.pptx` template's masters/theme/layouts, read the current theme name, set/read
   PowerPoint's advisory Mark as Final flag, read/write built-in and custom document properties,
   and manage string tags
-- 📑 **Slide** (23 ops) — lifecycle, backgrounds, sections, comments, slide import, and string tags
-- ▭ **Shape** (49 ops) — shapes, styling, grouping, hyperlinks, linked assets, placeholder editing,
+- 📑 **Slide** (25 ops) — lifecycle, visibility, backgrounds, sections, comments, slide import, and string tags
+- ▭ **Shape** (54 ops) — shapes, free-floating and attached connectors, WordArt, 3D rotation, alignment/distribution, styling, grouping, hyperlinks, linked assets, placeholder editing,
   and string tags
-- ✏️ **TextFrame** (20 ops) — text, font size/name/color, bold, italic, underline, alignment, bullets
+- ✏️ **TextFrame** (22 ops) — text, find/replace, font size/name/color, bold, italic, underline, alignment, bullets
 - 📊 **Table** (12 ops) — add, cell text, insert/delete rows &amp; columns, cell fill/border, merge cells
 - 🗣️ **Notes** (2 ops) — set/get speaker notes
 - 🖼️ **Layout** (4 ops) — set/get slide layout
 - 📐 **Page Setup** (5 ops) — slide size, first slide number, footer, date/time, slide numbers
 - ♿ **Accessibility** (3 ops) — deterministic audit and reading-order management
-- 🎭 **Master** (11 ops) — theme color palettes, slide master title/body placeholder fonts, background color
+- 🎭 **Master** (12 ops) — theme color/font inspection, slide master title/body placeholder fonts, background color
 - 🎬 **Animation** (5 ops) — shape entrance/emphasis/exit effects, slide transitions
 - 🖼️ **Image** (7 ops) — insert embedded or linked pictures and adjust brightness, contrast,
   recolor, and crop

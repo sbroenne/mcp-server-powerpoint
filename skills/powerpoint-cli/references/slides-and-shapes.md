@@ -3,11 +3,11 @@
 # Slides and Shapes
 
 Reference for the `slide` tool (`add-blank`, `get-count`, `delete`, `duplicate`, `move-to`,
-`set-background-color`, `get-background-color`, sections, comments, import) and the `shape` tool
-(`add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`,
-`add-attached-connector`, `get-count`, `delete`, `set-position`, `set-size`, plus the
-fill/line/rotation/flip/z-order/shadow/glow/reflection/soft-edge/bevel/group/name/alt-text/
-hyperlink formatting actions below).
+`set-background-color`, `get-background-color`, visibility, sections, comments, import) and the `shape` tool
+(`add-rectangle`, `add-text-box`, `add-text-effect`, `add-auto-shape`, `add-line`, `add-connector`,
+`add-attached-connector`, `get-count`,
+`delete`, `set-position`, `set-size`, `align`, `distribute`, plus the fill/line/rotation/flip/z-order/shadow/glow/
+reflection/soft-edge/bevel/group/name/alt-text/hyperlink formatting actions below).
 
 ## Slide Actions
 
@@ -31,6 +31,8 @@ hyperlink formatting actions below).
 | `slide` | `add-comment` | `session_id`, `slide_index`, `author`, `initials`, `text`, optional `left`/`top` | Adds a legacy comment. PowerPoint may replace author details with the signed-in Office identity. |
 | `slide` | `delete-comment` | `session_id`, `slide_index`, `comment_index` | Deletes one legacy comment by 1-based index. |
 | `slide` | `clear-comments` | `session_id`, `slide_index` | Deletes all legacy comments on the slide. |
+| `slide` | `set-hidden` | `session_id`, `slide_index`, `hidden` | Excludes the slide from slide-show playback when `hidden` is true; the slide remains in the deck and editable. Returns `hidden`. |
+| `slide` | `set-display-master-shapes` | `session_id`, `slide_index`, `display` | Shows or hides shapes inherited from the slide master. This does not control headers, footers, or the slide background. Returns `displaysMasterShapes`. |
 | `slide` | `import-from-file` | `session_id`, `source_file_path`, `destination_slide_index`, optional source range | Inserts an inclusive 1-based source range after the destination slide; it never replaces destination slides. |
 
 Slides always append at the end via `add-blank` — there is no "insert blank at position N" action;
@@ -59,10 +61,11 @@ slide(action: "rename-section", session_id: ..., section_index: 2, section_name:
 |------|--------|------------|-------|
 | `shape` | `add-rectangle` | `session_id`, `slide_index`, `left`, `top`, `width`, `height` | Plain rectangle, no fill/line color parameters — style comes from PowerPoint's theme default. Returns `shapeIndex`. |
 | `shape` | `add-text-box` | `session_id`, `slide_index`, `left`, `top`, `width`, `height`, `text` | Creates the text box AND sets its initial text in one call. Returns `shapeIndex`. |
+| `shape` | `add-text-effect` | `session_id`, `slide_index`, `preset_effect`, `text`, `font_name`, `font_size`, `left`, `top`, optional `bold`/`italic` | Adds editable WordArt using `msoTextEffect1` through `msoTextEffect50`. PowerPoint determines the shape's width and height. Returns `shapeIndex` and `shapeCount`. |
 | `shape` | `add-auto-shape` | `session_id`, `slide_index`, `shape_type`, `left`, `top`, `width`, `height` | Adds any non-rectangle built-in shape (oval, diamond, arrow, star bracket, etc.) by its `MsoAutoShapeType` name. Returns `shapeIndex` and echoes `shapeTypeName`. See "Auto Shape Types" below for the supported name list. |
 | `shape` | `add-line` | `session_id`, `slide_index`, `begin_x`, `begin_y`, `end_x`, `end_y` | Straight line between two points. Returns `shapeIndex` and echoes `beginX`/`beginY`/`endX`/`endY`. |
 | `shape` | `add-connector` | `session_id`, `slide_index`, `connector_type`, `begin_x`, `begin_y`, `end_x`, `end_y` | Adds a connector shape (`msoConnectorStraight`, `msoConnectorElbow`, or `msoConnectorCurve`) between two points. Free-floating — not glued to other shapes. Returns `shapeIndex` and echoes `connectorTypeName`. |
-| `shape` | `add-attached-connector` | `session_id`, `slide_index`, `connector_type`, `begin_shape_index`, `begin_connection_site`, `end_shape_index`, `end_connection_site` | Adds a connector whose endpoints stay glued to connection sites on two existing shapes — unlike `add-connector`, it keeps its attachment when either shape moves. `begin_shape_index`/`end_shape_index` are 1-based shape indexes on the same slide; `begin_connection_site`/`end_connection_site` are 1-based and must be within the target shape's `ConnectionSiteCount` (typically 4 for a rectangle). Returns `shapeIndex` and echoes `connectorTypeName`. |
+| `shape` | `add-attached-connector` | `session_id`, `slide_index`, `connector_type`, `begin_shape_index`, `begin_connection_site`, `end_shape_index`, `end_connection_site` | Adds a connector whose endpoints stay attached to connection sites on two existing shapes, so it follows them when they move. Shape indexes and connection sites are 1-based; each site must be within the selected shape's `ConnectionSiteCount`. Returns `shapeIndex` and echoes `connectorTypeName`. |
 | `shape` | `get-count` | `session_id`, `slide_index` | Number of shapes currently on the slide (`shapeCount`). |
 | `shape` | `delete` | `session_id`, `slide_index`, `shape_index` (1-based) | Removes one shape; later shapes on that slide shift down by one index. |
 | `shape` | `set-position` | `session_id`, `slide_index`, `shape_index`, `left`, `top` | Moves an existing shape. |
@@ -77,6 +80,31 @@ slide(action: "rename-section", session_id: ..., section_index: 2, section_name:
 
 All position/size values are **points** (see `deck-builder.md` for the 960×540pt 16:9 reference).
 
+## Align and Distribute
+
+Use `shape(action: "align", ..., shape_indexes: [3, 1, 2], align_cmd: "msoAlignTops")`
+to align a selection. `align_cmd` accepts `msoAlignLefts`, `msoAlignCenters`,
+`msoAlignRights`, `msoAlignTops`, `msoAlignMiddles`, or `msoAlignBottoms`.
+Names are case-insensitive; numeric enum values are rejected.
+
+By default, alignment uses the selection's original bounding rectangle and needs two
+shapes. Set `relative_to_slide: true` to use slide bounds; this also allows one shape.
+Array order does not choose an anchor shape.
+
+Use `shape(action: "distribute", ..., shape_indexes: [3, 1, 2],
+distribute_cmd: "msoDistributeHorizontally")` for equal horizontal edge gaps, or
+`msoDistributeVertically` for vertical gaps. At least three shapes are required.
+By default the outer shapes retain the selection's original span.
+With `relative_to_slide: true`, equal gaps include the margins at both slide edges.
+This spaces edges, not centers: unequal-sized shapes have unequal center distances.
+
+Both actions require `session_id`, `slide_index`, and distinct 1-based top-level
+`shape_indexes`. Invalid indexes, duplicates, or commands fail before any movement.
+The result returns the total slide `shapeCount`. No shapes are resized or regrouped.
+Groups are treated as whole top-level shapes; rotated shapes use native PowerPoint
+geometry. This is not collision avoidance: insufficient space can produce overlap.
+Export the slide to verify the result after arranging it.
+
 ## Shape Formatting Actions
 
 | Tool | Action | Parameters | Notes |
@@ -88,6 +116,8 @@ All position/size values are **points** (see `deck-builder.md` for the 960×540p
 | `shape` | `copy-formatting` | `session_id`, `slide_index`, `source_shape_index`, `target_shape_index` | Applies PowerPoint's native Format Painter from the source shape to the target shape. Copies appearance without replacing the target's content, position, or size. Both shapes must be on the same slide. Returns the target `shapeIndex`. |
 | `shape` | `set-rotation` | `session_id`, `slide_index`, `shape_index`, `degrees` | Sets rotation in degrees clockwise from upright. Returns `rotation`. |
 | `shape` | `get-rotation` | `session_id`, `slide_index`, `shape_index` | Returns the current rotation in degrees. |
+| `shape` | `set-3d-rotation` | `session_id`, `slide_index`, `shape_index`, optional `rotation_x`/`rotation_y`/`rotation_z` | Sets one or more axes of 3D rotation. At least one axis is required; omitted axes remain unchanged. X and Y must be between -90 and 90 degrees. Z rotates the shape around its Z axis and is tracked separately from the shape's 2D `rotation`. Returns all three axes. |
+| `shape` | `get-3d-rotation` | `session_id`, `slide_index`, `shape_index` | Returns `rotationX`, `rotationY` and `rotationZ` in degrees. |
 | `shape` | `flip` | `session_id`, `slide_index`, `shape_index`, `direction` (`horizontal` or `vertical`) | Flips the shape in place. Returns `flipDirection`. |
 | `shape` | `set-z-order` | `session_id`, `slide_index`, `shape_index`, `z_order_command` | Moves the shape's stacking position. `z_order_command` is one of `bring-to-front`, `send-to-back`, `bring-forward`, `send-backward`. Returns `zOrderCommand`. |
 | `shape` | `set-shadow` | `session_id`, `slide_index`, `shape_index`, `visible`, plus optional `red`/`green`/`blue`, `transparency` (0-1), `blur`, `offset_x`, `offset_y` (points) | Turns the shape's drop shadow on/off. When `visible` is true, the optional color/formatting parameters set an "offset" style shadow — any omitted parameter uses PowerPoint's default. Returns `visible` and, when visible, `colorRgb`, `transparency`, `blur`, `offsetX`, `offsetY`. |
@@ -176,8 +206,8 @@ z-order members — bring/send relative to text — are intentionally not expose
 Passing an unrecognized string returns `success: false` — double-check spelling rather than
 guessing variants (e.g. star/callout shapes are not in this curated set).
 
-For lines and connectors, `connector_type` (`add-connector` and `add-attached-connector`) must be
-one of `msoConnectorStraight`, `msoConnectorElbow`, or `msoConnectorCurve`.
+For lines and connectors, `connector_type` must be one of
+`msoConnectorStraight`, `msoConnectorElbow`, or `msoConnectorCurve`.
 
 ## Shape Indexing Within a Slide
 

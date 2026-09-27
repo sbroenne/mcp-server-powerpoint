@@ -245,6 +245,7 @@ function Update-DomainCounts([string]$RelativePath, [string]$Pattern) {
 
 $headlineChecks = @(
     @{ File = 'README.md'; Pattern = '(?<t>\d+) MCP tools with (?<o>\d+) operations across (?<d>\d+) domains'; Groups = @('t', 'o', 'd') }
+    @{ File = 'docs\POWERPOINT-NATIVE-FEATURE-AUDIT.md'; Pattern = 'current (?<t>\d+) tools and (?<o>\d+) operations'; Groups = @('t', 'o') }
     @{ File = 'src\PowerPointMcp.McpServer\README.md'; Pattern = '(?<t>\d+) tools with (?<o>\d+) operations across (?<d>\d+) domains'; Groups = @('t', 'o', 'd') }
     @{ File = 'mcpb\README.md'; Pattern = 'tools \((?<o>\d+) operations across (?<d>\d+) domains\)'; Groups = @('o', 'd') }
     @{ File = 'mcpb\manifest.json'; Pattern = '(?<t>\d+) tools \((?<o>\d+) operations across (?<d>\d+) domains'; Groups = @('t', 'o', 'd') }

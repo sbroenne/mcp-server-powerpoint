@@ -29,4 +29,3 @@ public interface ICustomShowCommands
     /// <summary>Deletes the custom show with the given name.</summary>
     CustomShowOperationResult Delete(IPresentationBatch batch, string name);
 }
-
