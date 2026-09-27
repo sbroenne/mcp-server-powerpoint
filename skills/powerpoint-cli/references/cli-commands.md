@@ -866,9 +866,9 @@ OPTIONS:
 
 ```text
 DESCRIPTION:
-Shape commands: create, inspect, format, group, link, and edit native
-placeholders. Operates within an already-open IPresentationBatch, targeting a
-specific slide by its 1-based index
+Shape commands: create, inspect, align, distribute, format, group, link, and
+edit native placeholders. Operates within an already-open IPresentationBatch,
+targeting a specific slide by its 1-based index
 
 USAGE:
     pptcli shape <ACTION> [OPTIONS]
@@ -1010,8 +1010,16 @@ OPTIONS:
                                                    (valid for: set-bevel)
         --depth <DEPTH>                            (valid for: set-bevel)
         --inset <INSET>                            (valid for: set-bevel)
-        --shape-indexes <SHAPEINDEXES>             (required for: group) (valid
-                                                   for: group) (JSON format)
+        --shape-indexes <SHAPEINDEXES>             (required for: group, align,
+                                                   distribute) (valid for:
+                                                   group, align, distribute)
+                                                   (JSON format)
+        --align-cmd <ALIGNCMD>                     (required for: align) (valid
+                                                   for: align)
+        --relative-to-slide <RELATIVETOSLIDE>      (valid for: align,
+                                                   distribute)
+        --distribute-cmd <DISTRIBUTECMD>           (required for: distribute)
+                                                   (valid for: distribute)
         --name <NAME>                              (required for: set-name)
                                                    (valid for: set-name)
         --alt-text <ALTTEXT>                       (required for: set-alt-text)
