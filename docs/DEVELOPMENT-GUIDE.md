@@ -61,7 +61,8 @@ Use these sources rather than retaining a snapshot of those numbers:
 - The generated `_SkillManifest.g.cs` lists generated domains and operations.
 - `PresentationToolAction` supplies the hand-written presentation actions.
 - `McpProtocolTests.ExpectedToolNames` defines the expected MCP tool list.
-- `scripts/check-doc-counts.ps1` checks advertised counts after a current Release build.
+- `scripts/Update-DocumentationCounts.ps1` refreshes advertised counts from a current Release
+  build when the release workflow packages and commits documentation.
 
 The MCP SDK resolves `PresentationSessionRegistry registry` and
 `PowerPointMcpService service` from dependency injection rather than exposing

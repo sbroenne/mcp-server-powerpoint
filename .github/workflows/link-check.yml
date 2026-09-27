@@ -58,14 +58,14 @@ jobs:
         uses: lycheeverse/lychee-action@v2
         with:
           args: >-
-            --base '${{ github.workspace }}/gh-pages/_site'
+            --root-dir ${{ github.workspace }}/gh-pages/_site
             --no-progress
             --max-concurrency 4
             --accept 200,206,429
             --exclude '^https?://localhost'
             --exclude '^https?://127\.0\.0\.1'
             --exclude 'example\.com'
-            'gh-pages/_site/**/*.html'
+            gh-pages/_site/**/*.html
           fail: true
           output: lychee-report.md
 

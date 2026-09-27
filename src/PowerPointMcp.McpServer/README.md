@@ -32,13 +32,13 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 
 ## Capabilities
 
-**16 tools with 189 operations across 16 domains:**
+**17 tools with 192 operations across 17 domains:**
 
 | Tool | Ops | Coverage |
 | --- | --- | --- |
 | `presentation` | 20 | create, open, Save As, Save Copy As, close, list, templates, get/set final, document properties, string tags |
 | `slide` | 23 | slide lifecycle, backgrounds, sections, comments, import, string tags |
-| `shape` | 49 | shape creation, styling, grouping, hyperlinks, placeholders, string tags, `copy-formatting`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update` |
+| `shape` | 49 | shape creation, styling, grouping, merging, hyperlinks, placeholders, string tags, `copy-formatting`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update` |
 | `textframe` | 20 | text content, font formatting, alignment, bullets, auto-size |
 | `table` | 12 | tables, cell text, row/column edits, cell fill/border, merge |
 | `notes` | 2 | set/get speaker notes |
@@ -52,6 +52,7 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 | `chart` | 16 | charts, series, titles, legend, data replacement, styles, colors, data tables |
 | `smartart` | 7 | SmartArt insertion and node editing |
 | `export` | 3 | export to PDF or images |
+| `customshow` | 3 | named custom shows: curated, ordered subsets of a presentation's slides |
 
 Every domain is exposed as a single **action-dispatch tool** taking an `action`
 parameter — including `presentation`. Example MCP calls:

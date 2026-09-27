@@ -11,7 +11,7 @@ compatibility: Windows with Microsoft PowerPoint desktop installed.
 
 # PowerPoint MCP Server Skill
 
-Provides 16 PowerPoint MCP tools (one presentation tool + 15 domain action-dispatch tools)
+Provides 17 PowerPoint MCP tools (one presentation tool + 16 domain action-dispatch tools)
 via the Model Context Protocol, driving a live PowerPoint desktop instance through the official
 `Microsoft.Office.Interop.PowerPoint` PIA. Tools are auto-discovered via MCP `tools/list` — this
 skill documents session lifecycle, indexing conventions, workflows, and gotchas that aren't
@@ -20,7 +20,7 @@ obvious from tool schemas alone.
 Session lifecycle, Save As/copy, templates, the advisory Mark as Final flag, document properties,
 and presentation tags use the `presentation` action-dispatch tool with camelCase arguments.
 Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`, `media`,
-`notes`, `layout`, `master`, `smartart`, `animation`, `export`, `pagesetup`, `accessibility`) are
+`notes`, `layout`, `master`, `smartart`, `animation`, `export`, `pagesetup`, `accessibility`, `customshow`) are
 action-dispatch: one tool per domain, called as `tool(action:
 "kebab-action", session_id: ..., snake_case_param: ...)`.
 
@@ -101,7 +101,7 @@ saved.
 | Add/count/delete/duplicate/reorder slides | `slide(action: "add-blank"/"get-count"/"delete"/"duplicate"/"move-to")` |
 | Per-slide background color, sections | `slide(action: "set-background-color"/"get-background-color"/"add-section"/"rename-section"/"delete-section"/"get-section-count"/"get-section-name")` |
 | Add/count/delete/move/resize shapes | `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector"/"get-count"/"delete"/"set-position"/"set-size")` |
-| Format shapes and manage links | `shape(action: "set-fill"/"get-fill"/"set-line"/"get-line"/"copy-formatting"/"set-rotation"/"get-rotation"/"flip"/"set-z-order"/"set-shadow"/"get-shadow"/"set-glow"/"get-glow"/"set-reflection"/"get-reflection"/"set-soft-edge"/"get-soft-edge"/"set-bevel"/"get-bevel"/"group"/"ungroup"/"set-name"/"get-name"/"set-alt-text"/"get-alt-text"/"set-hyperlink"/"get-hyperlink"/"remove-hyperlink"/"get-link-info"/"update-link"/"break-link"/"set-link-auto-update")` |
+| Format shapes and manage links | `shape(action: "set-fill"/"get-fill"/"set-line"/"get-line"/"copy-formatting"/"set-rotation"/"get-rotation"/"flip"/"set-z-order"/"set-shadow"/"get-shadow"/"set-glow"/"get-glow"/"set-reflection"/"get-reflection"/"set-soft-edge"/"get-soft-edge"/"set-bevel"/"get-bevel"/"group"/"ungroup"/"merge"/"set-name"/"get-name"/"set-alt-text"/"get-alt-text"/"set-hyperlink"/"get-hyperlink"/"remove-hyperlink"/"get-link-info"/"update-link"/"break-link"/"set-link-auto-update")` |
 | Set/read text and font formatting | `textframe(action: "set-text"/"get-text"/"set-font-size"/"set-bold"/"set-font-color"/"set-italic"/"set-underline"/"set-font-name"/"set-alignment"/"set-bullet")` |
 | Tables | `table(action: "add-table"/"set-cell-text"/"get-cell-text"/"insert-row"/"delete-row"/"insert-column"/"delete-column"/"set-cell-fill"/"get-cell-fill"/"set-cell-border"/"get-cell-border"/"merge-cells")` |
 | Native charts | `chart(action: "add-chart"/"get-chart-data"/"add-series"/"replace-chart-data"/"set-chart-title"/"get-chart-title"/"set-axis-title"/"get-axis-title"/"set-legend-visibility"/"get-legend-visibility"/"set-style"/"get-style"/"set-color-style"/"get-color-style"/"set-data-table"/"get-data-table")` |
@@ -113,6 +113,7 @@ saved.
 | Slide master title/body font, background color | `master(action: "get-title-font"/"set-title-font"/"get-body-font"/"set-body-font"/"get-background-color"/"set-background-color")` |
 | Shape entrance/emphasis/exit effects, slide transitions | `animation(action: "add-effect"/"get-effect-count"/"delete-effect"/"get-transition"/"set-transition")` |
 | Visual verification | `export(action: "export-slide-to-image"/"export-all-slides-to-images")` |
+| Named custom shows (curated, ordered slide subsets) | `customshow(action: "list"/"create"/"delete")` |
 
 ## Reference Documentation
 

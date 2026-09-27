@@ -100,6 +100,7 @@ All position/size values are **points** (see `deck-builder.md` for the 960×540p
 | `shape` | `get-bevel` | `session_id`, `slide_index`, `shape_index` | Returns the shape's current `bevelTypeName`, `bevelDepth`, `bevelInset`. |
 | `shape` | `group` | `session_id`, `slide_index`, `shape_indexes` (JSON array of 1-based indices, at least 2) | Groups multiple shapes into one. Returns the new total `shapeCount` on the slide — **not** the grouped shape's index (see NoPIA note below). |
 | `shape` | `ungroup` | `session_id`, `slide_index`, `shape_index` | Splits a group back into its member shapes. Returns `ungroupedShapeCount` (members produced) and the new total `shapeCount`. |
+| `shape` | `merge` | `session_id`, `slide_index`, `shape_indexes` (JSON array of unique 1-based indices, at least 2), `merge_type` | Merges shapes with PowerPoint's `MsoMergeCmd`: `msoMergeUnion`, `msoMergeCombine`, `msoMergeIntersect`, `msoMergeSubtract`, or `msoMergeFragment`. Returns `mergeTypeName`, `mergedShapeCount`, and the new total `shapeCount`. Inputs are consumed and replaced by the result; `msoMergeFragment` can produce multiple shapes. |
 | `shape` | `set-name` | `session_id`, `slide_index`, `shape_index`, `name` | Sets the shape's name (as shown in PowerPoint's Selection Pane). Returns `name`. |
 | `shape` | `get-name` | `session_id`, `slide_index`, `shape_index` | Returns the shape's current name. |
 | `shape` | `set-alt-text` | `session_id`, `slide_index`, `shape_index`, `alt_text` | Sets the shape's alternative text (accessibility description). Returns `altText`. |

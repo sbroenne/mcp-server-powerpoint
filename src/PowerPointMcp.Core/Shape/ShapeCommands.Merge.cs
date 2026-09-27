@@ -41,48 +41,68 @@ public sealed partial class ShapeCommands
             var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
             if (slideValidation is not null) return slideValidation;
 
-            PowerPoint.Slide slide = ctx.Presentation.Slides[slideIndex];
-            int shapeCountBefore = slide.Shapes.Count;
-
-            if (shapeIndexes.Count < 2)
-            {
-                return new ShapeOperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"At least 2 shape indexes are required to merge (got {shapeIndexes.Count})."
-                };
-            }
-
-            foreach (var index in shapeIndexes)
-            {
-                var validation = ValidateShapeIndex(shapeCountBefore, index);
-                if (validation is not null) return validation;
-            }
-
-            object[] indexArray = shapeIndexes.Select(i => (object)i).ToArray();
-            PowerPoint.ShapeRange? range = null;
+            PowerPoint.Slide? slide = null;
             try
             {
-                range = slide.Shapes.Range(indexArray);
-                range.MergeShapes(mergeCmd);
+                slide = ctx.Presentation.Slides[slideIndex];
+                int shapeCountBefore = slide.Shapes.Count;
+
+                if (shapeIndexes.Count < 2)
+                {
+                    return new ShapeOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"At least 2 shape indexes are required to merge (got {shapeIndexes.Count})."
+                    };
+                }
+
+                if (shapeIndexes.Distinct().Count() != shapeIndexes.Count)
+                {
+                    return new ShapeOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = "Shape indexes must be unique."
+                    };
+                }
+
+                foreach (var index in shapeIndexes)
+                {
+                    var validation = ValidateShapeIndex(shapeCountBefore, index);
+                    if (validation is not null) return validation;
+                }
+
+                object[] indexArray = shapeIndexes.Select(i => (object)i).ToArray();
+                PowerPoint.ShapeRange? range = null;
+                try
+                {
+                    range = slide.Shapes.Range(indexArray);
+                    range.MergeShapes(mergeCmd);
+                }
+                finally
+                {
+                    if (range != null)
+                    {
+                        ComUtilities.Release(ref range!);
+                    }
+                }
+
+                int shapeCountAfter = slide.Shapes.Count;
+
+                return new ShapeOperationResult
+                {
+                    Success = true,
+                    MergeTypeName = mergeType,
+                    MergedShapeCount = shapeCountAfter - shapeCountBefore + shapeIndexes.Count,
+                    ShapeCount = shapeCountAfter
+                };
             }
             finally
             {
-                if (range != null)
+                if (slide != null)
                 {
-                    ComUtilities.Release(ref range!);
+                    ComUtilities.Release(ref slide!);
                 }
             }
-
-            int shapeCountAfter = slide.Shapes.Count;
-
-            return new ShapeOperationResult
-            {
-                Success = true,
-                MergeTypeName = mergeType,
-                MergedShapeCount = shapeCountAfter - shapeCountBefore + shapeIndexes.Count,
-                ShapeCount = shapeCountAfter
-            };
         });
     }
 }

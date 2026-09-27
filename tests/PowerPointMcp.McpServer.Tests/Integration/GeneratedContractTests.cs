@@ -240,10 +240,62 @@ public sealed class GeneratedContractTests
         ServiceRegistry.Shape.ValidateActionArguments(
             "copy-formatting",
             """{"slideIndex":1,"sourceShapeIndex":2,"targetShapeIndex":3}""");
+    }
+
+    [Fact]
+    public void ShapeMerge_HasGeneratedCliAndServiceWiring()
+    {
+        Assert.Contains("merge", ServiceRegistry.Shape.ValidActions);
+
+        Assert.Equal(
+            "shape.merge",
+            ServiceRegistry.Shape.RouteCliArgs(
+                "merge",
+                slideIndex: 1,
+                shapeIndexes: [1, 2],
+                mergeType: "msoMergeUnion").Command);
+
+        ServiceRegistry.Shape.ValidateActionArguments(
+            "merge",
+            """{"slideIndex":1,"shapeIndexes":[1,2],"mergeType":"msoMergeUnion"}""");
+
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Shape.ValidateActionArguments(
+                "merge",
+                """{"slideIndex":1,"shapeIndexes":[1,2]}"""));
 
         Assert.Throws<ArgumentException>(() =>
             ServiceRegistry.Shape.ValidateActionArguments(
                 "copy-formatting",
                 """{"slideIndex":1,"sourceShapeIndex":2}"""));
+    }
+
+    [Fact]
+    public void CustomShow_HasGeneratedCliAndServiceWiring()
+    {
+        Assert.Contains("list", ServiceRegistry.CustomShow.ValidActions);
+        Assert.Contains("create", ServiceRegistry.CustomShow.ValidActions);
+        Assert.Contains("delete", ServiceRegistry.CustomShow.ValidActions);
+
+        Assert.Equal(
+            "customshow.create",
+            ServiceRegistry.CustomShow.RouteCliArgs(
+                "create",
+                name: "Demo",
+                slideIndices: [1, 3]).Command);
+
+        ServiceRegistry.CustomShow.ValidateActionArguments(
+            "create",
+            """{"name":"Demo","slideIndices":[1,3]}""");
+
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.CustomShow.ValidateActionArguments(
+                "create",
+                """{"name":"Demo"}"""));
+
+        ServiceRegistry.CustomShow.ValidateActionArguments("delete", """{"name":"Demo"}""");
+
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.CustomShow.ValidateActionArguments("delete", """{}"""));
     }
 }
