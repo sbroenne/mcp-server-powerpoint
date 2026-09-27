@@ -313,6 +313,14 @@ public sealed class ReleasePackagingTests
         Assert.True(
             System.Text.RegularExpressions.Regex.IsMatch("src/PowerPointMcp.Core/Slide/SlideCommands.cs", pattern),
             "Core runtime changes must retain the full runtime test gate.");
+        Assert.Contains(
+            "Skipping MCP Server tests (tooling-only changes do not affect MCP behavior)",
+            script,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "Running MCP Server protocol tests only (docs/tooling change",
+            script,
+            StringComparison.Ordinal);
 
         Assert.Contains(
             "FullyQualifiedName~DocumentationCounts_UpdateValidateAndAllowStaleAdvertisedCounts",

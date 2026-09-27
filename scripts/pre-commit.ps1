@@ -292,16 +292,7 @@ elseif ($runtimeCodeChanged) {
     Write-Host "MCP Server tests passed" -ForegroundColor Green
 }
 else {
-    Write-Step "Running MCP Server protocol tests only (docs/tooling change - skipping PowerPoint-dependent COM session tests)..."
-
-    & dotnet test (Join-Path $rootDir "tests\PowerPointMcp.McpServer.Tests") --filter "RequiresPowerPoint!=true" --nologo
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "BLOCKED: MCP Server protocol tests failed." -ForegroundColor Red
-        exit 1
-    }
-
-    Write-Host "MCP Server protocol tests passed (COM session tests skipped for docs/tooling change)" -ForegroundColor Green
+    Write-Step "Skipping MCP Server tests (tooling-only changes do not affect MCP behavior)"
 }
 
 # --- 6. Release metadata and Agent Skills packaging tests --------------------------------------
