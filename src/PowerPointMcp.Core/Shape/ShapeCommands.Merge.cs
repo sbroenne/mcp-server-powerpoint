@@ -42,14 +42,19 @@ public sealed partial class ShapeCommands
                 };
             }
 
-            var slideValidation = ValidateSlideIndex(ctx.Presentation.Slides.Count, slideIndex);
-            if (slideValidation is not null) return slideValidation;
-
+            PowerPoint.Slides? slides = null;
             PowerPoint.Slide? slide = null;
+            PowerPoint.Shapes? shapes = null;
+            PowerPoint.ShapeRange? range = null;
             try
             {
-                slide = ctx.Presentation.Slides[slideIndex];
-                int shapeCountBefore = slide.Shapes.Count;
+                slides = ctx.Presentation.Slides;
+                var slideValidation = ValidateSlideIndex(slides.Count, slideIndex);
+                if (slideValidation is not null) return slideValidation;
+
+                slide = slides[slideIndex];
+                shapes = slide.Shapes;
+                int shapeCountBefore = shapes.Count;
 
                 if (shapeIndexes.Count < 2)
                 {
@@ -76,21 +81,10 @@ public sealed partial class ShapeCommands
                 }
 
                 object[] indexArray = shapeIndexes.Select(i => (object)i).ToArray();
-                PowerPoint.ShapeRange? range = null;
-                try
-                {
-                    range = slide.Shapes.Range(indexArray);
-                    range.MergeShapes(mergeCmd);
-                }
-                finally
-                {
-                    if (range != null)
-                    {
-                        ComUtilities.Release(ref range!);
-                    }
-                }
+                range = shapes.Range(indexArray);
+                range.MergeShapes(mergeCmd);
 
-                int shapeCountAfter = slide.Shapes.Count;
+                int shapeCountAfter = shapes.Count;
 
                 return new ShapeOperationResult
                 {
@@ -102,10 +96,10 @@ public sealed partial class ShapeCommands
             }
             finally
             {
-                if (slide != null)
-                {
-                    ComUtilities.Release(ref slide!);
-                }
+                ComUtilities.Release(ref range!);
+                ComUtilities.Release(ref shapes!);
+                ComUtilities.Release(ref slide!);
+                ComUtilities.Release(ref slides!);
             }
         });
     }
