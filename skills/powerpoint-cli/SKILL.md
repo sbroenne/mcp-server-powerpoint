@@ -134,7 +134,7 @@ of one flat tool per verb.
 
 Available command groups (in addition to `session` and `service`):
 
-`accessibility`, `animation`, `chart`, `export`, `image`, `layout`, `master`, `media`, `notes`, `pagesetup`, `shape`, `slide`, `smartart`, `table`, `textframe`
+`accessibility`, `animation`, `chart`, `customshow`, `export`, `image`, `layout`, `master`, `media`, `notes`, `pagesetup`, `shape`, `slide`, `smartart`, `table`, `textframe`
 
 Run `pptcli <command> --help` for the live, authoritative list of actions and flags for that
 command — the table below is a summary generated from the same Core interfaces as the MCP tool
@@ -193,6 +193,16 @@ Actions: `add-chart`, `get-chart-data`, `add-series`, `set-chart-title`, `get-ch
 | `--series-values` | (required for: replace-chart-data) |
 | `--style` | Built-in chart style number, verified against PowerPoint from 1 through 48. (required for: set-style) |
 | `--color-style` | Built-in chart color style number, verified against PowerPoint from 1 through 26. (required for: set-color-style) |
+
+
+### `customshow` — Named custom slide shows: curated, ordered subsets of a presentation's slides.
+
+Actions: `list`, `create`, `delete`
+
+| Flag | Description |
+|------|-------------|
+| `--name` | (required for: create, delete) |
+| `--slide-indices` | (required for: create) |
 
 
 ### `export` — Export commands: render presentations to PDF or slides to raster image files. Operates within an already-open .
@@ -314,7 +324,7 @@ Actions: `get-settings`, `set-size`, `set-first-slide-number`, `get-footer`, `se
 | `--show-on-title-slide` |  |
 
 
-### `shape` — Shape commands: create, inspect, format, group, link, and edit native placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
+### `shape` — Shape commands: create, inspect, format, group, link, create editable WordArt, rotate shapes in 3D, and edit native placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
 
 Actions: `add-rectangle`, `add-text-box`, `add-text-effect`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `copy-formatting`, `set-rotation`, `get-rotation`, `set-3d-rotation`, `get-3d-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 

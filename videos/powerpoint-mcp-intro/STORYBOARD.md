@@ -167,17 +167,17 @@ Scene 4 (9.0–10.0s): “Verify.” becomes the dominant word above the complet
 - roles: powerpoint-mcp-server = supporting product anchor behind the capability field
 
 narrativeRole: Show the breadth behind the demo without turning the video into a long feature list.
-keyMessage: The same system covers the full presentation workflow across 16 tool domains.
+keyMessage: The same system covers the full presentation workflow across 17 tool domains.
 
 Reproduce: keep the short-path card assembly and avoid a shared-center burst for the eight-item field.
 Scene 1 (0.0–1.8s): “Control the whole deck.” enters at the upper-left while the product mark fixes the opposite corner — asymmetric editorial header, medium density.
 Scene 2 (1.8–6.5s): eight capability cards arrive in two waves directly into their slots — Slides, Shapes, Text, Tables, then Charts, Notes, Accessibility, Export — four-column grid, three depth layers; short-path stagger assembly (`center-outward-expansion`) with binary waterfall timing.
-Scene 3 (6.5–9.0s): the mono proof line “16 TOOL DOMAINS · 186 OPERATIONS” draws in under the grid, an orange sweep passes once behind the cards, then everything holds — traveling sheen (`ambient-glow-bloom`) used once, not as a loop.
+Scene 3 (6.5–9.0s): the mono proof line “17 TOOL DOMAINS · 191 OPERATIONS” draws in under the grid, an orange sweep passes once behind the cards, then everything holds — traveling sheen (`ambient-glow-bloom`) used once, not as a loop.
 
 ## Frame 7 — Use the interface that fits
 
 - scene: MCP-first positioning and the optional CLI resolve into the PowerPoint MCP lockup and website call to action.
-- voiceover: "Sixteen domains. One hundred eighty-six operations. Get started at powerpointmcpserver.dev."
+- voiceover: "Seventeen domains. One hundred ninety-one operations. Get started at powerpointmcpserver.dev."
 - duration: 7s
 - poster: 5s
 - transition_in: push-slide LEFT

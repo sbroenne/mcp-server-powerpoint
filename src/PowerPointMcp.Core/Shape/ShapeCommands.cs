@@ -245,13 +245,21 @@ public sealed partial class ShapeCommands : IShapeCommands
         string presetName = presetEffect.Trim();
         if (!presetName.StartsWith("msoTextEffect", StringComparison.OrdinalIgnoreCase) ||
             !Enum.TryParse(presetName, ignoreCase: true, out Office.MsoPresetTextEffect effect) ||
-            !Enum.IsDefined(effect) ||
-            effect == Office.MsoPresetTextEffect.msoTextEffectMixed)
+            !Enum.IsDefined(effect))
         {
             return new ShapeOperationResult
             {
                 Success = false,
                 ErrorMessage = $"'{presetEffect}' is not a recognized MsoPresetTextEffect member name (must be 'msoTextEffect1' through 'msoTextEffect50')."
+            };
+        }
+
+        if (effect == Office.MsoPresetTextEffect.msoTextEffectMixed)
+        {
+            return new ShapeOperationResult
+            {
+                Success = false,
+                ErrorMessage = "msoTextEffectMixed is not supported; use msoTextEffect1 through msoTextEffect50."
             };
         }
 

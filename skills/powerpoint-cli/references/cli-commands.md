@@ -174,6 +174,30 @@ OPTIONS:
                                           saves as binary file
 ```
 
+## `pptcli customshow`
+
+```text
+DESCRIPTION:
+Named custom slide shows: curated, ordered subsets of a presentation's slides
+
+USAGE:
+    pptcli customshow <ACTION> [OPTIONS]
+
+ARGUMENTS:
+    <ACTION>    The action to perform
+
+OPTIONS:
+    -h, --help                            Prints help information
+    -s, --session <SESSION>               Session ID from 'session open' command
+        --name <NAME>                     (required for: create, delete) (valid
+                                          for: create, delete)
+        --slide-indices <SLIDEINDICES>    (required for: create) (valid for:
+                                          create) (JSON format)
+    -o, --output <PATH>                   Write output to file instead of
+                                          stdout. For image results, decodes and
+                                          saves as binary file
+```
+
 ## `pptcli export`
 
 ```text
@@ -842,9 +866,9 @@ OPTIONS:
 
 ```text
 DESCRIPTION:
-Shape commands: create, inspect, format, group, link, and edit native
-placeholders. Operates within an already-open IPresentationBatch, targeting a
-specific slide by its 1-based index
+Shape commands: create, inspect, format, group, link, create editable WordArt,
+rotate shapes in 3D, and edit native placeholders. Operates within an
+already-open IPresentationBatch, targeting a specific slide by its 1-based index
 
 USAGE:
     pptcli shape <ACTION> [OPTIONS]
