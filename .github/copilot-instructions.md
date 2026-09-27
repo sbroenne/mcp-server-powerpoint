@@ -28,8 +28,9 @@ Read only the additional instructions matching the work:
   such as PIA embedding and the absence of `Application.ScreenUpdating`.
   Flag shared bugs for Excel or `mcp-windows` without changing those repos.
 - Keep rules in their linked files, not duplicated here. Tool and operation
-  counts come from the generated skill manifest, `PresentationToolAction`, and
-  `McpProtocolTests.ExpectedToolNames`, not remembered inventories.
+  counts are derived and validated by `scripts/check-doc-counts.ps1` from the
+  generated skill manifest, `PresentationToolAction`, and the MCP protocol tool
+  surface. `doc-counts.json` is the generated count source for other consumers.
 
 ## Build and validation
 

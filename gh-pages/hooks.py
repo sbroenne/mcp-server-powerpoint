@@ -78,9 +78,6 @@ _FRONTMATTER = re.compile(r"\A---\r?\n.*?\r?\n---\r?\n", re.DOTALL)
 _PAGE_MARKDOWN: dict[str, dict[str, str]] = {}
 _NAV: list = []
 SITE_URL = "https://powerpointmcpserver.dev/"
-_FEATURE_HEADLINE = re.compile(
-    r"exposes \*\*(?P<tools>\d+) MCP tools with (?P<operations>\d+) operations"
-)
 
 
 def _rewrite_links(text: str, source_rel: str) -> str:
@@ -159,11 +156,12 @@ def _read(rel: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _feature_totals(features: str) -> tuple[int, int]:
-    headline = _FEATURE_HEADLINE.search(features)
-    if headline is None:
-        raise RuntimeError("could not read tool totals from gh-pages/docs/features.md")
-    return int(headline.group("tools")), int(headline.group("operations"))
+def _feature_totals() -> tuple[int, int]:
+    counts_path = REPO_ROOT / "doc-counts.json"
+    if not counts_path.is_file():
+        raise FileNotFoundError(f"Canonical tool counts not found: {counts_path}")
+    counts = json.loads(counts_path.read_text(encoding="utf-8"))
+    return int(counts["tools"]), int(counts["operations"])
 
 
 def _write(name: str, source_rel: str, content: str) -> None:
@@ -259,9 +257,7 @@ def _nav_entries(items, output: list) -> None:
 
 def _write_llm_outputs(config) -> None:
     site_dir = Path(config["site_dir"])
-    tool_count, operation_count = _feature_totals(
-        _read("gh-pages/docs/features.md")
-    )
+    tool_count, operation_count = _feature_totals()
 
     for entry in _PAGE_MARKDOWN.values():
         destination = site_dir / entry["dest"]
@@ -348,7 +344,7 @@ def _write_llm_outputs(config) -> None:
 
 def _write_tools_json(config) -> None:
     features = _read("gh-pages/docs/features.md")
-    expected_tools, expected_operations = _feature_totals(features)
+    expected_tools, expected_operations = _feature_totals()
 
     matrix = {}
     for match in re.finditer(
