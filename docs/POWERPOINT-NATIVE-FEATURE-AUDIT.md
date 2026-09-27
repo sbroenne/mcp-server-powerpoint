@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit compares the current 16 tools and 188 operations with the restored
+This audit compares the current 17 tools and 191 operations with the restored
 `Microsoft.Office.Interop.PowerPoint` 15.0.4420.1018 assembly. It looks for useful PowerPoint
 features that fit the existing live-session model. It does not copy Excel-only worksheet, Power
 Query, Data Model, PivotTable, or calculation APIs.
@@ -16,7 +16,7 @@ real-PowerPoint integration test before implementation.
 The existing surface already covers the main editing workflow:
 
 - presentation sessions, templates, themes, and document properties
-- slides, sections, legacy comments, and slide import
+- slides, sections, legacy comments, slide import, and named custom shows
 - shapes, placeholders, hyperlinks, text, tables, images, audio/video, charts, and SmartArt
 - speaker notes, layouts, masters, page setup, animations, and transitions
 - accessibility checks, reading order, PDF export, and rendered slide images
@@ -34,6 +34,7 @@ The existing legacy comment operations are therefore correctly scoped.
 | 4 | Chart quick formatting | `get-style`, `set-style`, `get-color-style`, `set-color-style`, `get-data-table`, `set-data-table` | Useful visual control on the already acquired chart object | Style/color values are COM variants and need range tests against real PowerPoint |
 | 5 | Linked pictures | optional `link_to_file` on `image: add-picture`; `shape: get-link-info`, `update-link`, `break-link`, `set-link-auto-update` | Enables linked-asset workflows and repair | `LinkFormat` is valid only for linked shapes |
 | 6 | Audio and video (delivered) | `media: add-media`, `get-media-info` | Closes a PowerPoint-specific capability gap | Uses repository-owned synthetic WAV and H.264 MP4 fixtures |
+| 7 | Named custom shows (delivered) | `customshow: list`, `create`, `delete` | Reuses one deck for different audiences without duplicating slides | `NamedSlideShows.Item(...).SlideIDs` returns an array shape that needs care to map back to slide indices |
 
 ### 1. Save As and Save Copy As — implemented
 
@@ -166,6 +167,31 @@ instead of silently skipping core behavior. Media may be embedded (`false`/`true
 
 References: [Shapes.AddMediaObject2](https://learn.microsoft.com/office/vba/api/powerpoint.shapes.addmediaobject2),
 [Shape.MediaType](https://learn.microsoft.com/office/vba/api/powerpoint.shape.mediatype).
+
+### 7. Named custom shows — implemented
+
+The restored PIA exposes a typed `NamedSlideShows` collection on
+`_Presentation.SlideShowSettings`: `Add(name, slideIDs)`, indexed `Item(index)` access, and
+`Count`. Each `NamedSlideShow` has a typed `Name`, a typed `Count`, and a `SlideIDs` member that
+returns the underlying slide identifiers as an untyped array.
+
+Implemented as the `customshow` domain with `list`, `create`, and `delete`. `create` resolves
+requested slide positions to stable `Slide.SlideID` values before calling `Add`, so a show survives
+later slide reordering. `list` reads every show back and maps its `SlideIDs` to the presentation's
+*current* slide positions using a single `SlideID -> index` lookup built once per call, rather than
+repeated linear scans. `delete` looks the show up by name and calls `Delete()`.
+
+Real-PowerPoint testing found that `SlideIDs` does not return exactly `Count` elements: the array's
+length is `Count + 1` with an unused placeholder in the first slot, matching the 1-based indexing
+the VBA documentation's sample loop implies but does not state directly. The implementation reads
+the last `Count` elements from the array using its actual bounds rather than assuming a fixed
+offset, so it tolerates either a 0-based or 1-based marshaling shape.
+
+Tests cover create with valid and out-of-range indices, duplicate names, list with zero and
+multiple shows, a show that repeats a slide, delete of an existing and a missing show, and that a
+show's reported slide indices stay correct after slides are reordered.
+
+Reference: [NamedSlideShows object](https://learn.microsoft.com/office/vba/api/powerpoint.namedslideshows).
 
 ## Later, separately scoped work
 
