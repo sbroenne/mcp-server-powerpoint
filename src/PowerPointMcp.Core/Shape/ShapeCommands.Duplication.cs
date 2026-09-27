@@ -90,7 +90,10 @@ public sealed partial class ShapeCommands
             DateTime.UtcNow + lockTimeout,
             batch.OperationTimeout,
             () => Interlocked.CompareExchange(ref callbackState, 2, 0) == 0,
-            batch.PowerPointProcessIdentity);
+            batch.PowerPointProcessIdentity)
+        {
+            IsCallbackClaimed = () => Volatile.Read(ref callbackState) == 1
+        };
         ClipboardLockCoordinator.Enqueue(request);
 
         // Polls in short slices rather than waiting out the whole budget in one call: dispatch
@@ -368,6 +371,13 @@ public sealed partial class ShapeCommands
         /// <summary>True once the caller stopped waiting, so the lock must not be handed to it.</summary>
         public bool CallerGaveUp => Volatile.Read(ref _callerGaveUp) == 1;
 
+        /// <summary>
+        /// Identifies the only non-abandonable race outcome: the callback claimed the clipboard
+        /// before the caller gave up. A caller that already abandoned has no callback that can
+        /// touch PowerPoint, so its lock can be released without waiting for TransferFinished.
+        /// </summary>
+        public Func<bool> IsCallbackClaimed { get; init; } = static () => true;
+
         // Deliberately internal, not public: check-core-interface-completeness.ps1 scans *Commands.cs
         // for public methods without distinguishing nested types, and would demand this on
         // IShapeCommands. The type itself is private, so this costs nothing.
@@ -553,7 +563,7 @@ public sealed partial class ShapeCommands
                         request.CompletionTimeout);
 
                     // The transfer cannot legitimately outlive the batch's own operation timeout.
-                    if (signalled != 0 && !request.TryAbandon())
+                    if (signalled != 0 && !request.TryAbandon() && request.IsCallbackClaimed())
                     {
                         // The callback claimed the clipboard, so only its completion can make
                         // unlocking safe. If it still has not completed after this second bounded
@@ -682,7 +692,10 @@ public sealed partial class ShapeCommands
 
             // Wakes Run() immediately instead of waiting for its next poll: served as a no-op via
             // the CallerGaveUp early-return, so it never touches the mutex itself.
-            var wakeRequest = new ClipboardLockRequest(DateTime.UtcNow, TimeSpan.Zero, () => true, null);
+            var wakeRequest = new ClipboardLockRequest(DateTime.UtcNow, TimeSpan.Zero, () => true, null)
+            {
+                IsCallbackClaimed = static () => false
+            };
             wakeRequest.MarkCallerGaveUp();
             Requests.Add(wakeRequest);
 

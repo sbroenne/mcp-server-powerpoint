@@ -946,6 +946,38 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     }
 
     [Fact]
+    public async Task ClipboardLockCoordinator_DoesNotQuarantineWhenCallerAbandonsBeforeCallbackClaimsLock()
+    {
+        var abandonedRequest = new ShapeCommands.ClipboardLockRequest(
+            DateTime.UtcNow + TimeSpan.FromSeconds(10),
+            TimeSpan.FromMilliseconds(150),
+            () => false,
+            null)
+        {
+            IsCallbackClaimed = static () => false
+        };
+
+        ShapeCommands.ClipboardLockCoordinator.Enqueue(abandonedRequest);
+        Assert.True(await abandonedRequest.Acquired.Task);
+
+        // Model the timeout race: the caller has already abandoned after the coordinator
+        // acquired the mutex, but the callback never claimed the transfer.
+        abandonedRequest.MarkCallerGaveUp();
+
+        var nextRequest = new ShapeCommands.ClipboardLockRequest(
+            DateTime.UtcNow + TimeSpan.FromSeconds(2),
+            TimeSpan.FromSeconds(1),
+            () => true,
+            null);
+        ShapeCommands.ClipboardLockCoordinator.Enqueue(nextRequest);
+
+        Assert.True(
+            await nextRequest.Acquired.Task.WaitAsync(TimeSpan.FromSeconds(2)),
+            "An abandoned-before-claim request must release the clipboard lock.");
+        nextRequest.TransferFinished.TrySetResult(true);
+    }
+
+    [Fact]
     public async Task ClipboardLockCoordinator_WedgeWithNoCapturedIdentity_NeverClearsAutomatically()
     {
         // No PowerPointProcessIdentity captured - the interface documents this as possible ("if
