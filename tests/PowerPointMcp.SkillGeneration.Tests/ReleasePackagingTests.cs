@@ -134,7 +134,7 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
-    public void UpdateDocumentationCounts_RestoresCanonicalCountsAndIsIdempotent()
+    public void DocumentationCounts_UpdateValidateAndAllowStaleAdvertisedCounts()
     {
         using var temp = new TemporaryDirectory();
         var expected = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -173,9 +173,10 @@ public sealed class ReleasePackagingTests
             "-RepoRoot", RepoRoot,
             "-DocsRoot", temp.Path,
             "-SkipBuild",
+            "-Update",
         };
         RunPowerShell(
-            Path.Combine(RepoRoot, "scripts", "Update-DocumentationCounts.ps1"),
+            Path.Combine(RepoRoot, "scripts", "check-doc-counts.ps1"),
             arguments);
 
         foreach (var (relativePath, content) in expected)
@@ -183,9 +184,73 @@ public sealed class ReleasePackagingTests
             Assert.Equal(content, File.ReadAllText(Path.Combine(temp.Path, relativePath)));
         }
 
+        var headline = System.Text.RegularExpressions.Regex.Match(
+            expected["README.md"],
+            @"(?<tools>\d+) MCP tools with (?<operations>\d+) operations across (?<domains>\d+) domains");
+        Assert.True(headline.Success);
+        using (var counts = JsonDocument.Parse(File.ReadAllText(Path.Combine(temp.Path, "doc-counts.json"))))
+        {
+            Assert.Equal(
+                int.Parse(headline.Groups["tools"].Value, System.Globalization.CultureInfo.InvariantCulture),
+                counts.RootElement.GetProperty("tools").GetInt32());
+            Assert.Equal(
+                int.Parse(headline.Groups["operations"].Value, System.Globalization.CultureInfo.InvariantCulture),
+                counts.RootElement.GetProperty("operations").GetInt32());
+            Assert.Equal(
+                int.Parse(headline.Groups["domains"].Value, System.Globalization.CultureInfo.InvariantCulture),
+                counts.RootElement.GetProperty("domains").GetInt32());
+        }
+
+        var validateArguments = new[]
+        {
+            "-RepoRoot", RepoRoot,
+            "-DocsRoot", temp.Path,
+            "-SkipBuild",
+        };
         RunPowerShell(
-            Path.Combine(RepoRoot, "scripts", "Update-DocumentationCounts.ps1"),
-            arguments);
+            Path.Combine(RepoRoot, "scripts", "check-doc-counts.ps1"),
+            validateArguments);
+
+        CorruptOnce(
+            Path.Combine(temp.Path, "README.md"),
+            @"\d+ MCP tools with \d+ operations",
+            "1 MCP tools with 2 operations");
+        var stale = RunPowerShellRaw(
+            Path.Combine(RepoRoot, "scripts", "check-doc-counts.ps1"),
+            validateArguments);
+        Assert.NotEqual(0, stale.ExitCode);
+        Assert.Contains("README.md", stale.Output, StringComparison.Ordinal);
+        RunPowerShell(
+            Path.Combine(RepoRoot, "scripts", "check-doc-counts.ps1"),
+            [.. validateArguments, "-AllowStaleAdvertisedCounts"]);
+
+        var docCountsPath = Path.Combine(temp.Path, "doc-counts.json");
+        var staleCounts = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(docCountsPath))!.AsObject();
+        staleCounts["tools"] = 1;
+        File.WriteAllText(docCountsPath, staleCounts.ToJsonString());
+        var staleDocCounts = RunPowerShellRaw(
+            Path.Combine(RepoRoot, "scripts", "check-doc-counts.ps1"),
+            validateArguments);
+        Assert.NotEqual(0, staleDocCounts.ExitCode);
+        Assert.Contains("doc-counts.json", staleDocCounts.Output, StringComparison.Ordinal);
+        RunPowerShell(
+            Path.Combine(RepoRoot, "scripts", "check-doc-counts.ps1"),
+            [.. validateArguments, "-AllowStaleAdvertisedCounts"]);
+
+        var incompatible = RunPowerShellRaw(
+            Path.Combine(RepoRoot, "scripts", "check-doc-counts.ps1"),
+            [.. validateArguments, "-Update", "-AllowStaleAdvertisedCounts"]);
+        Assert.NotEqual(0, incompatible.ExitCode);
+        Assert.Contains("cannot be used together", incompatible.Output, StringComparison.Ordinal);
+
+        RunPowerShell(
+            Path.Combine(RepoRoot, "scripts", "check-doc-counts.ps1"),
+            [.. validateArguments, "-Update"]);
+        var updatedDocCounts = File.ReadAllText(docCountsPath);
+        RunPowerShell(
+            Path.Combine(RepoRoot, "scripts", "check-doc-counts.ps1"),
+            [.. validateArguments, "-Update"]);
+        Assert.Equal(updatedDocCounts, File.ReadAllText(docCountsPath));
         foreach (var (relativePath, content) in expected)
         {
             Assert.Equal(content, File.ReadAllText(Path.Combine(temp.Path, relativePath)));
@@ -193,20 +258,89 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
-    public void ReleaseWorkflow_GeneratesDocumentationCountsBeforePackaging()
+    public void DocumentationCountWorkflow_UpdatesCountsOnMainAndReleaseValidatesThem()
     {
         var workflow = File.ReadAllText(ReleaseWorkflow);
+        var docCountsWorkflow = File.ReadAllText(Path.Combine(
+            RepoRoot,
+            ".github",
+            "workflows",
+            "doc-counts.yml"));
 
         Assert.Contains("prepare-release-docs:", workflow, StringComparison.Ordinal);
-        Assert.Contains("./scripts/Update-DocumentationCounts.ps1 -SkipBuild", workflow, StringComparison.Ordinal);
+        Assert.Contains("./scripts/check-doc-counts.ps1 -SkipBuild", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("Update-DocumentationCounts.ps1", workflow, StringComparison.Ordinal);
         Assert.Contains("name: generated-documentation", workflow, StringComparison.Ordinal);
         Assert.Contains("skills/shared/*.md", workflow, StringComparison.Ordinal);
         Assert.Contains("path: .", workflow, StringComparison.Ordinal);
         Assert.Contains("git add CHANGELOG.md package.json .changeset", workflow, StringComparison.Ordinal);
         Assert.Contains("git add --update", workflow, StringComparison.Ordinal);
 
-        Assert.DoesNotContain("check-doc-counts.ps1", File.ReadAllText(CiWorkflow), StringComparison.Ordinal);
+        Assert.Contains("branches: [main]", docCountsWorkflow, StringComparison.Ordinal);
+        Assert.Contains("check-doc-counts.ps1 -Update", docCountsWorkflow, StringComparison.Ordinal);
+        Assert.Contains(
+            "Build-AgentSkills.ps1 -PopulateReferences -SkipCliReference",
+            docCountsWorkflow,
+            StringComparison.Ordinal);
+        Assert.Matches(
+            @"git diff --cached --quiet\s+if \(\$LASTEXITCODE -eq 0\) \{",
+            docCountsWorkflow);
+        Assert.Contains(
+            "if ($LASTEXITCODE -ne 1) {",
+            docCountsWorkflow,
+            StringComparison.Ordinal);
+        Assert.Contains("git push origin HEAD:main", docCountsWorkflow, StringComparison.Ordinal);
+        Assert.Contains(
+            "check-doc-counts.ps1 -SkipBuild -AllowStaleAdvertisedCounts",
+            File.ReadAllText(CiWorkflow),
+            StringComparison.Ordinal);
         Assert.DoesNotContain("check-doc-counts.ps1", File.ReadAllText(PreCommitScript), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PreCommit_SkillGenerationTestsDoNotTriggerFullMcpSuite()
+    {
+        var script = File.ReadAllText(PreCommitScript);
+        var patternMatch = System.Text.RegularExpressions.Regex.Match(
+            script,
+            @"\$runtimeCodePattern\s*=\s*'(?<pattern>[^']+)'");
+
+        Assert.True(patternMatch.Success, "The pre-commit runtime classification pattern was not found.");
+        var pattern = patternMatch.Groups["pattern"].Value;
+        Assert.False(
+            System.Text.RegularExpressions.Regex.IsMatch(
+                "tests/PowerPointMcp.SkillGeneration.Tests/ReleasePackagingTests.cs",
+                pattern),
+            "SkillGeneration tests exercise tooling and packaging, not the MCP runtime.");
+        Assert.True(
+            System.Text.RegularExpressions.Regex.IsMatch(
+                "tests/PowerPointMcp.McpServer.Tests/Integration/McpProtocolTests.cs",
+                pattern),
+            "MCP server test changes must retain the full runtime test gate.");
+        Assert.True(
+            System.Text.RegularExpressions.Regex.IsMatch("src/PowerPointMcp.Core/Slide/SlideCommands.cs", pattern),
+            "Core runtime changes must retain the full runtime test gate.");
+        Assert.Contains(
+            "Skipping MCP Server tests (tooling-only changes do not affect MCP behavior)",
+            script,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "Running MCP Server protocol tests only (docs/tooling change",
+            script,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            "FullyQualifiedName~DocumentationCounts_UpdateValidateAndAllowStaleAdvertisedCounts",
+            script,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "FullyQualifiedName~DocumentationCountWorkflow_UpdatesCountsOnMainAndReleaseValidatesThem",
+            script,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "FullyQualifiedName~PreCommit_SkillGenerationTestsDoNotTriggerFullMcpSuite",
+            script,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -402,6 +536,7 @@ public sealed class ReleasePackagingTests
     private static readonly string[] DocumentationCountPaths =
     [
         "README.md",
+        Path.Combine("docs", "POWERPOINT-NATIVE-FEATURE-AUDIT.md"),
         Path.Combine("src", "PowerPointMcp.McpServer", "README.md"),
         Path.Combine("mcpb", "README.md"),
         Path.Combine("mcpb", "manifest.json"),

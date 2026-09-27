@@ -256,9 +256,9 @@ Actions: `set-layout`, `get-layout`, `list-layouts`, `delete-layout`
 | `--layout-index` | (required for: delete-layout) |
 
 
-### `master` — Slide master commands: read theme color palettes or read/edit the title and body placeholder fonts on the presentation's slide master, and read/edit the slide master's background fill color. Operates within an already-open . Changes here apply to every slide that inherits from the master (i.e. any slide that does not itself override the property), which is the practical "edit the master, not each slide" workflow PowerPoint's COM object model supports safely.
+### `master` — Slide master commands: read theme color palettes and theme fonts, or read/edit the title and body placeholder fonts on the presentation's slide master, and read/edit the slide master's background fill color. Operates within an already-open . Changes here apply to every slide that inherits from the master (i.e. any slide that does not itself override the property), which is the practical "edit the master, not each slide" workflow PowerPoint's COM object model supports safely.
 
-Actions: `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`, `get-background-color`, `set-background-color`, `set-gradient-background`, `get-gradient-background`, `list-masters`, `get-theme-colors`, `delete-master`
+Actions: `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`, `get-background-color`, `set-background-color`, `set-gradient-background`, `get-gradient-background`, `list-masters`, `get-theme-colors`, `get-theme-fonts`, `delete-master`
 
 | Flag | Description |
 |------|-------------|
@@ -324,9 +324,9 @@ Actions: `get-settings`, `set-size`, `set-first-slide-number`, `get-footer`, `se
 | `--show-on-title-slide` |  |
 
 
-### `shape` — Shape commands: create, inspect, format, group, link, create editable WordArt, rotate shapes in 3D, and edit native placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
+### `shape` — Shape commands: create, inspect, align, distribute, format, group, link, create editable WordArt, rotate shapes in 3D, and edit native placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
 
-Actions: `add-rectangle`, `add-text-box`, `add-text-effect`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `copy-formatting`, `set-rotation`, `get-rotation`, `set-3d-rotation`, `get-3d-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
+Actions: `add-rectangle`, `add-text-box`, `add-text-effect`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `copy-formatting`, `set-rotation`, `get-rotation`, `set-3d-rotation`, `get-3d-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `align`, `distribute`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
 | Flag | Description |
 |------|-------------|
@@ -371,7 +371,10 @@ Actions: `add-rectangle`, `add-text-box`, `add-text-effect`, `add-auto-shape`, `
 | `--bevel-type` | (required for: set-bevel) |
 | `--depth` |  |
 | `--inset` |  |
-| `--shape-indexes` | (required for: group) |
+| `--shape-indexes` | (required for: group, align, distribute) |
+| `--align-cmd` | (required for: align) |
+| `--relative-to-slide` |  |
+| `--distribute-cmd` | (required for: distribute) |
 | `--name` | (required for: set-name) |
 | `--alt-text` | (required for: set-alt-text) |
 | `--address` | (required for: set-hyperlink) |
@@ -382,13 +385,13 @@ Actions: `add-rectangle`, `add-text-box`, `add-text-effect`, `add-auto-shape`, `
 | `--tag-value` | (required for: set-tag) |
 
 
-### `slide` — Slide lifecycle, background, section, legacy comment, and slide-import commands.
+### `slide` — Slide lifecycle, visibility, background, section, legacy comment, and slide-import commands.
 
-Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-background-color`, `get-background-color`, `set-gradient-background`, `get-gradient-background`, `add-section`, `rename-section`, `delete-section`, `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`, `clear-comments`, `import-from-file`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
+Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-background-color`, `get-background-color`, `set-gradient-background`, `get-gradient-background`, `add-section`, `rename-section`, `delete-section`, `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`, `clear-comments`, `set-hidden`, `set-display-master-shapes`, `import-from-file`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
 | Flag | Description |
 |------|-------------|
-| `--slide-index` | (required for: delete, duplicate, move-to, set-background-color, get-background-color, set-gradient-background, get-gradient-background, list-comments, add-comment, delete-comment, clear-comments, set-tag, get-tag, list-tags, delete-tag) |
+| `--slide-index` | (required for: delete, duplicate, move-to, set-background-color, get-background-color, set-gradient-background, get-gradient-background, list-comments, add-comment, delete-comment, clear-comments, set-hidden, set-display-master-shapes, set-tag, get-tag, list-tags, delete-tag) |
 | `--to-position` | (required for: move-to) |
 | `--red` | (required for: set-background-color) |
 | `--green` | (required for: set-background-color) |
@@ -410,6 +413,8 @@ Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-backgr
 | `--left` |  |
 | `--top` |  |
 | `--comment-index` | (required for: delete-comment) |
+| `--hidden` | (required for: set-hidden) |
+| `--display` | (required for: set-display-master-shapes) |
 | `--source-file-path` | (required for: import-from-file) |
 | `--destination-slide-index` | (required for: import-from-file) |
 | `--source-start-slide` |  |
@@ -466,15 +471,19 @@ Actions: `add-table`, `set-cell-text`, `get-cell-text`, `insert-row`, `delete-ro
 | `--merge-to-column` | (required for: merge-cells) |
 
 
-### `textframe` — Text frame commands: set/get text and basic font formatting (size, bold, italic, underline, font name, color, alignment, bullets) for a shape's text range. Operates within an already-open IPresentationBatch, targeting a specific shape by its 1-based slide and shape index.
+### `textframe` — Text frame commands: set/get/find/replace text and basic font formatting (size, bold, italic, underline, font name, color, alignment, bullets) for a shape's text range. Operates within an already-open IPresentationBatch, targeting a specific shape by its 1-based slide and shape index.
 
-Actions: `set-text`, `get-text`, `set-font-size`, `get-font-size`, `set-bold`, `get-bold`, `set-font-color`, `get-font-color`, `set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`, `set-auto-size`, `get-auto-size`
+Actions: `set-text`, `get-text`, `find-text`, `replace-text`, `set-font-size`, `get-font-size`, `set-bold`, `get-bold`, `set-font-color`, `get-font-color`, `set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`, `set-auto-size`, `get-auto-size`
 
 | Flag | Description |
 |------|-------------|
 | `--slide-index` | (required) |
 | `--shape-index` | (required) |
 | `--text` | (required for: set-text) |
+| `--find-what` | (required for: find-text, replace-text) |
+| `--match-case` |  |
+| `--whole-words` |  |
+| `--replace-what` | (required for: replace-text) |
 | `--font-size` | (required for: set-font-size) |
 | `--bold` | (required for: set-bold) |
 | `--red` | (required for: set-font-color) |
