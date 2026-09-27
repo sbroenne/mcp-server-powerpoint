@@ -291,6 +291,44 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
+    public void PreCommit_SkillGenerationTestsDoNotTriggerFullMcpSuite()
+    {
+        var script = File.ReadAllText(PreCommitScript);
+        var patternMatch = System.Text.RegularExpressions.Regex.Match(
+            script,
+            @"\$runtimeCodePattern\s*=\s*'(?<pattern>[^']+)'");
+
+        Assert.True(patternMatch.Success, "The pre-commit runtime classification pattern was not found.");
+        var pattern = patternMatch.Groups["pattern"].Value;
+        Assert.False(
+            System.Text.RegularExpressions.Regex.IsMatch(
+                "tests/PowerPointMcp.SkillGeneration.Tests/ReleasePackagingTests.cs",
+                pattern),
+            "SkillGeneration tests exercise tooling and packaging, not the MCP runtime.");
+        Assert.True(
+            System.Text.RegularExpressions.Regex.IsMatch(
+                "tests/PowerPointMcp.McpServer.Tests/Integration/McpProtocolTests.cs",
+                pattern),
+            "MCP server test changes must retain the full runtime test gate.");
+        Assert.True(
+            System.Text.RegularExpressions.Regex.IsMatch("src/PowerPointMcp.Core/Slide/SlideCommands.cs", pattern),
+            "Core runtime changes must retain the full runtime test gate.");
+
+        Assert.Contains(
+            "FullyQualifiedName~DocumentationCounts_UpdateValidateAndAllowStaleAdvertisedCounts",
+            script,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "FullyQualifiedName~DocumentationCountWorkflow_UpdatesCountsOnMainAndReleaseValidatesThem",
+            script,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "FullyQualifiedName~PreCommit_SkillGenerationTestsDoNotTriggerFullMcpSuite",
+            script,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CoreTestProject_IsExplicitlyMarkedForTestDiscovery()
     {
         var project = XDocument.Load(Path.Combine(
