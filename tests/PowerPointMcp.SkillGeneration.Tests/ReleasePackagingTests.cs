@@ -282,6 +282,13 @@ public sealed class ReleasePackagingTests
             "Build-AgentSkills.ps1 -PopulateReferences -SkipCliReference",
             docCountsWorkflow,
             StringComparison.Ordinal);
+        Assert.Matches(
+            @"git diff --cached --quiet\s+if \(\$LASTEXITCODE -eq 0\) \{",
+            docCountsWorkflow);
+        Assert.Contains(
+            "if ($LASTEXITCODE -ne 1) {",
+            docCountsWorkflow,
+            StringComparison.Ordinal);
         Assert.Contains("git push origin HEAD:main", docCountsWorkflow, StringComparison.Ordinal);
         Assert.Contains(
             "check-doc-counts.ps1 -SkipBuild -AllowStaleAdvertisedCounts",
