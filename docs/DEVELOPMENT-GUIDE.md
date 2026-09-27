@@ -60,9 +60,11 @@ Use these sources rather than retaining a snapshot of those numbers:
 
 - The generated `_SkillManifest.g.cs` lists generated domains and operations.
 - `PresentationToolAction` supplies the hand-written presentation actions.
-- `McpProtocolTests.ExpectedToolNames` defines the expected MCP tool list.
-- `scripts/Update-DocumentationCounts.ps1` refreshes advertised counts from a current Release
-  build when the release workflow packages and commits documentation.
+- `McpProtocolTests.ExpectedToolNames` is checked against the generated tool names; the protocol
+  test verifies that list against the live `tools/list` response.
+- `scripts/check-doc-counts.ps1` validates these sources and updates advertised totals plus
+  `doc-counts.json`. CI checks count structure on pull requests; a main-branch workflow updates
+  counts after merge.
 
 The MCP SDK resolves `PresentationSessionRegistry registry` and
 `PowerPointMcpService service` from dependency injection rather than exposing
