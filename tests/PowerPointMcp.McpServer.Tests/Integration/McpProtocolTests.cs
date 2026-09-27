@@ -106,6 +106,22 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
+    public async Task ShapeSchema_ExposesArrangementActionsAndParameters()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var shape = Assert.Single(tools, tool => tool.Name == "shape");
+        var properties = shape.JsonSchema.GetProperty("properties");
+        var actions = properties.GetProperty("action").GetProperty("enum").EnumerateArray()
+            .Select(action => action.GetString()).ToArray();
+        Assert.Contains("align", actions);
+        Assert.Contains("distribute", actions);
+        Assert.True(properties.TryGetProperty("shape_indexes", out _));
+        Assert.True(properties.TryGetProperty("align_cmd", out _));
+        Assert.True(properties.TryGetProperty("distribute_cmd", out _));
+        Assert.True(properties.TryGetProperty("relative_to_slide", out _));
+    }
+
+    [Fact]
     public async Task ListTools_MasterExposesThemePaletteActionAndSelector()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
@@ -114,6 +130,22 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         Assert.Contains(properties.GetProperty("action").GetProperty("enum").EnumerateArray(),
             action => action.GetString() == "get-theme-colors");
         Assert.True(properties.TryGetProperty("master_index", out _));
+    }
+
+    [Fact]
+    public async Task ListTools_TextFrameExposesFindReplaceParameters()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var textFrame = Assert.Single(tools, tool => tool.Name == "textframe");
+        var properties = textFrame.JsonSchema.GetProperty("properties");
+        var actions = properties.GetProperty("action").GetProperty("enum").EnumerateArray()
+            .Select(action => action.GetString()).ToArray();
+        Assert.Contains("find-text", actions);
+        Assert.Contains("replace-text", actions);
+        foreach (string parameter in new[] { "slide_index", "shape_index", "find_what", "replace_what", "match_case", "whole_words" })
+        {
+            Assert.True(properties.TryGetProperty(parameter, out _), $"Missing {parameter}");
+        }
     }
 
     /// <summary>

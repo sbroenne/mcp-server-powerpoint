@@ -5,7 +5,7 @@ using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 namespace Sbroenne.PowerPointMcp.Core.TextFrame;
 
 /// <inheritdoc cref="ITextFrameCommands"/>
-public sealed class TextFrameCommands : ITextFrameCommands
+public sealed partial class TextFrameCommands : ITextFrameCommands
 {
     private const int MsoTrue = -1;
     private const int MsoFalse = 0;

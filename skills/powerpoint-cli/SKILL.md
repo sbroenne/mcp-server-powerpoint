@@ -324,9 +324,9 @@ Actions: `get-settings`, `set-size`, `set-first-slide-number`, `get-footer`, `se
 | `--show-on-title-slide` |  |
 
 
-### `shape` — Shape commands: create, inspect, format, group, link, and edit native placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
+### `shape` — Shape commands: create, inspect, align, distribute, format, group, link, and edit native placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
 
-Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `copy-formatting`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
+Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `copy-formatting`, `set-rotation`, `get-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `align`, `distribute`, `ungroup`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
 | Flag | Description |
 |------|-------------|
@@ -363,7 +363,10 @@ Actions: `add-rectangle`, `add-text-box`, `add-auto-shape`, `add-line`, `add-con
 | `--bevel-type` | (required for: set-bevel) |
 | `--depth` |  |
 | `--inset` |  |
-| `--shape-indexes` | (required for: group) |
+| `--shape-indexes` | (required for: group, align, distribute) |
+| `--align-cmd` | (required for: align) |
+| `--relative-to-slide` |  |
+| `--distribute-cmd` | (required for: distribute) |
 | `--name` | (required for: set-name) |
 | `--alt-text` | (required for: set-alt-text) |
 | `--address` | (required for: set-hyperlink) |
@@ -460,15 +463,19 @@ Actions: `add-table`, `set-cell-text`, `get-cell-text`, `insert-row`, `delete-ro
 | `--merge-to-column` | (required for: merge-cells) |
 
 
-### `textframe` — Text frame commands: set/get text and basic font formatting (size, bold, italic, underline, font name, color, alignment, bullets) for a shape's text range. Operates within an already-open IPresentationBatch, targeting a specific shape by its 1-based slide and shape index.
+### `textframe` — Text frame commands: set/get/find/replace text and basic font formatting (size, bold, italic, underline, font name, color, alignment, bullets) for a shape's text range. Operates within an already-open IPresentationBatch, targeting a specific shape by its 1-based slide and shape index.
 
-Actions: `set-text`, `get-text`, `set-font-size`, `get-font-size`, `set-bold`, `get-bold`, `set-font-color`, `get-font-color`, `set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`, `set-auto-size`, `get-auto-size`
+Actions: `set-text`, `get-text`, `find-text`, `replace-text`, `set-font-size`, `get-font-size`, `set-bold`, `get-bold`, `set-font-color`, `get-font-color`, `set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`, `set-auto-size`, `get-auto-size`
 
 | Flag | Description |
 |------|-------------|
 | `--slide-index` | (required) |
 | `--shape-index` | (required) |
 | `--text` | (required for: set-text) |
+| `--find-what` | (required for: find-text, replace-text) |
+| `--match-case` |  |
+| `--whole-words` |  |
+| `--replace-what` | (required for: replace-text) |
 | `--font-size` | (required for: set-font-size) |
 | `--bold` | (required for: set-bold) |
 | `--red` | (required for: set-font-color) |
