@@ -11,7 +11,7 @@ compatibility: Windows with Microsoft PowerPoint desktop installed.
 
 # PowerPoint MCP Server Skill
 
-Provides 16 PowerPoint MCP tools (one presentation tool + 15 domain action-dispatch tools)
+Provides 17 PowerPoint MCP tools (one presentation tool + 16 domain action-dispatch tools)
 via the Model Context Protocol, driving a live PowerPoint desktop instance through the official
 `Microsoft.Office.Interop.PowerPoint` PIA. Tools are auto-discovered via MCP `tools/list` — this
 skill documents session lifecycle, indexing conventions, workflows, and gotchas that aren't
@@ -20,7 +20,7 @@ obvious from tool schemas alone.
 Session lifecycle, Save As/copy, templates, the advisory Mark as Final flag, document properties,
 and presentation tags use the `presentation` action-dispatch tool with camelCase arguments.
 Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`, `media`,
-`notes`, `layout`, `master`, `smartart`, `animation`, `export`, `pagesetup`, `accessibility`) are
+`notes`, `layout`, `master`, `smartart`, `animation`, `export`, `pagesetup`, `accessibility`, `customshow`) are
 action-dispatch: one tool per domain, called as `tool(action:
 "kebab-action", session_id: ..., snake_case_param: ...)`.
 
@@ -113,6 +113,7 @@ saved.
 | Slide master title/body font, background color | `master(action: "get-title-font"/"set-title-font"/"get-body-font"/"set-body-font"/"get-background-color"/"set-background-color")` |
 | Shape entrance/emphasis/exit effects, slide transitions | `animation(action: "add-effect"/"get-effect-count"/"delete-effect"/"get-transition"/"set-transition")` |
 | Visual verification | `export(action: "export-slide-to-image"/"export-all-slides-to-images")` |
+| Named custom shows (curated, ordered slide subsets) | `customshow(action: "list"/"create"/"delete")` |
 
 ## Reference Documentation
 

@@ -33,7 +33,7 @@ Most of the MCP tool surface is **generated**, not hand-written. Before editing 
   need custom session-registry behavior and optional `sessionId`.
 - **Generated** (everything else — `slide`, `shape`, `textframe`, `table`, `notes`, `layout`,
   `master`, `animation`, `image`, `media`, `chart`, `smartart`, `export`, `pagesetup`,
-  `accessibility`): one action-dispatch tool per
+  `accessibility`, `customshow`): one action-dispatch tool per
   `[ServiceCategory]` Core domain, emitted by `PowerPointMcp.Generators.Mcp` from the Core
   interface's `[ServiceCategory]`/`[McpTool]` attributes and XML doc comments. **Never hand-write a
   new tool class for one of these domains** — add the operation to the Core interface (with XML
@@ -140,7 +140,7 @@ configuration per tool class.
 ## Adding a New Tool
 
 **For a generated domain (Slide, Shape, TextFrame, Table, Notes, Layout, Master, Animation,
-Image, Media, Chart, Export) — the common case:**
+Image, Media, Chart, Export, CustomShow) — the common case:**
 1. Add the Core command + `{Domain}OperationResult` fields first (Core-first, tested with real
    COM per `testing-strategy.instructions.md`), with an XML doc `<summary>` — the generator uses
    it as the operation's description.

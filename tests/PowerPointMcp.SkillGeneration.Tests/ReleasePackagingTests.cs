@@ -134,6 +134,82 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
+    public void UpdateDocumentationCounts_RestoresCanonicalCountsAndIsIdempotent()
+    {
+        using var temp = new TemporaryDirectory();
+        var expected = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var relativePath in DocumentationCountPaths)
+        {
+            var source = Path.Combine(RepoRoot, relativePath);
+            var destination = Path.Combine(temp.Path, relativePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            expected[relativePath] = File.ReadAllText(source);
+            File.Copy(source, destination);
+        }
+
+        CorruptOnce(
+            Path.Combine(temp.Path, "README.md"),
+            @"\d+ MCP tools with \d+ operations",
+            "1 MCP tools with 2 operations");
+        CorruptOnce(
+            Path.Combine(temp.Path, "README.md"),
+            @"\*\*Presentation\*\* \(\d+ ops\)",
+            "**Presentation** (1 ops)");
+        CorruptOnce(
+            Path.Combine(temp.Path, "mcpb", "manifest.json"),
+            @"\d+ tools \(\d+ operations across \d+ domains",
+            "1 tools (2 operations across 3 domains");
+        CorruptOnce(
+            Path.Combine(temp.Path, "skills", "powerpoint-mcp", "SKILL.md"),
+            @"Provides \d+ PowerPoint MCP tools \(one presentation tool \+ \d+ domain action-dispatch tools\)",
+            "Provides 1 PowerPoint MCP tools (one presentation tool + 2 domain action-dispatch tools)");
+        CorruptOnce(
+            Path.Combine(temp.Path, "skills", "shared", "behavioral-rules.md"),
+            @"The other \d+ domain tools",
+            "The other 1 domain tools");
+
+        var arguments = new[]
+        {
+            "-RepoRoot", RepoRoot,
+            "-DocsRoot", temp.Path,
+            "-SkipBuild",
+        };
+        RunPowerShell(
+            Path.Combine(RepoRoot, "scripts", "Update-DocumentationCounts.ps1"),
+            arguments);
+
+        foreach (var (relativePath, content) in expected)
+        {
+            Assert.Equal(content, File.ReadAllText(Path.Combine(temp.Path, relativePath)));
+        }
+
+        RunPowerShell(
+            Path.Combine(RepoRoot, "scripts", "Update-DocumentationCounts.ps1"),
+            arguments);
+        foreach (var (relativePath, content) in expected)
+        {
+            Assert.Equal(content, File.ReadAllText(Path.Combine(temp.Path, relativePath)));
+        }
+    }
+
+    [Fact]
+    public void ReleaseWorkflow_GeneratesDocumentationCountsBeforePackaging()
+    {
+        var workflow = File.ReadAllText(ReleaseWorkflow);
+
+        Assert.Contains("prepare-release-docs:", workflow, StringComparison.Ordinal);
+        Assert.Contains("./scripts/Update-DocumentationCounts.ps1 -SkipBuild", workflow, StringComparison.Ordinal);
+        Assert.Contains("name: generated-documentation", workflow, StringComparison.Ordinal);
+        Assert.Contains("skills/shared/*.md", workflow, StringComparison.Ordinal);
+        Assert.Contains("path: .", workflow, StringComparison.Ordinal);
+        Assert.Contains("git add CHANGELOG.md package.json .changeset", workflow, StringComparison.Ordinal);
+        Assert.Contains("git add --update", workflow, StringComparison.Ordinal);
+
+        Assert.DoesNotContain("check-doc-counts.ps1", File.ReadAllText(CiWorkflow), StringComparison.Ordinal);
+        Assert.DoesNotContain("check-doc-counts.ps1", File.ReadAllText(PreCommitScript), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void CoreTestProject_IsExplicitlyMarkedForTestDiscovery()
     {
         var project = XDocument.Load(Path.Combine(
@@ -155,6 +231,143 @@ public sealed class ReleasePackagingTests
 
         Assert.Contains(testProject, File.ReadAllText(CiWorkflow), StringComparison.Ordinal);
         Assert.Contains(testProject, File.ReadAllText(PreCommitScript), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ComLeakAudit_RejectsUnrelatedRelease()
+    {
+        var result = RunComLeakAudit("""
+            class Commands
+            {
+                void Read(dynamic source)
+                {
+                    dynamic released = source.First;
+                    dynamic leaked = source.Second;
+                    ComUtilities.Release(ref released);
+                }
+            }
+            """);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("leaked", result.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("dynamic item = source.Child; ComUtilities.Release(ref item);", 0, 1)]
+    [InlineData("dynamic /* optional */ ? item = source.Child;", 1, 1)]
+    [InlineData("dynamic item = source.Child; ComUtilities /* cleanup */ .Release(ref item);", 0, 1)]
+    [InlineData("dynamic @item = source.Child; ComUtilities.Release(ref @item!);", 0, 1)]
+    [InlineData("dynamic? item = null; try { item = source.Child; } finally { ComUtilities.Release(ref item!); }", 0, 1)]
+    [InlineData("dynamic? item = null; item = source.Child;", 1, 1)]
+    [InlineData("dynamic borrowed = ctx.Presentation;", 0, 0)]
+    [InlineData("dynamic borrowed = ctx.App;", 0, 0)]
+    [InlineData("dynamic dispatch = source;", 0, 0)]
+    [InlineData("dynamic dispatch = (dynamic)(source!);", 0, 0)]
+    [InlineData("dynamic? dispatch = null; dispatch = source;", 0, 0)]
+    [InlineData("dynamic item = (dynamic)(source.Child!);", 1, 1)]
+    [InlineData("dynamic? item = null;", 0, 0)]
+    [InlineData("dynamic item = source.Child; /* ComUtilities.Release(ref item); */", 1, 1)]
+    [InlineData("dynamic item = source.Child; var text = \"ComUtilities.Release(ref item);\";", 1, 1)]
+    [InlineData("var text = \"dynamic leaked = source.Child;\";", 0, 0)]
+    [InlineData("dynamic item = source.Child; ComUtilities.Release(ref Item);", 1, 1)]
+    [InlineData("dynamic item = source.Child; void Cleanup() { ComUtilities.Release(ref item); }", 1, 1)]
+    [InlineData("for (dynamic item = source.Child; item != null; ) { break; }", 1, 1)]
+    [InlineData("for (dynamic item = source.Child; item != null; ) { ComUtilities.Release(ref item); break; }", 0, 1)]
+    [InlineData("for (dynamic item = source.Child; item != null; ) { break; } for (dynamic item = source.Other; item != null; ) { ComUtilities.Release(ref item); break; }", 1, 2)]
+    [InlineData("using (dynamic item = source.Child) { }", 1, 1)]
+    [InlineData("using dynamic item = source.Child;", 1, 1)]
+    [InlineData("dynamic borrowed = (ctx).Presentation;", 0, 0)]
+    [InlineData("dynamic borrowed = ((dynamic)ctx).Presentation;", 0, 0)]
+    [InlineData("dynamic borrowed = context!.App;", 0, 0)]
+    [InlineData("dynamic borrowed = ((dynamic)(context!)).App;", 0, 0)]
+    [InlineData("dynamic item = (ctx).Presentation.Slides;", 1, 1)]
+    [InlineData("dynamic item = ((dynamic)context).App.Presentations;", 1, 1)]
+    [InlineData("dynamic? item = null; Retry(() => { item = source.Child; });", 1, 1)]
+    [InlineData("dynamic? item = null; Retry(() => { item = source.Child; }); ComUtilities.Release(ref item);", 0, 1)]
+    [InlineData("dynamic? item = null; void Acquire() { item = source.Child; } Acquire();", 1, 1)]
+    [InlineData("dynamic? item = null; Retry(() => { dynamic item = null; item = source.Child; ComUtilities.Release(ref item); });", 0, 1)]
+    [InlineData("dynamic? item = null; Retry((dynamic item) => { item = source.Child; });", 0, 0)]
+    [InlineData("dynamic item = source.Child; other.ComUtilities.Release(ref item);", 1, 1)]
+    [InlineData("dynamic item = source.Child; ComUtilities.ReleaseIfNotNull(ref item);", 1, 1)]
+    [InlineData("dynamic item = source.Child; Sbroenne.PowerPointMcp.ComInterop.ComUtilities.Release(ref item);", 0, 1)]
+    [InlineData("dynamic item = source.Child; global::Sbroenne.PowerPointMcp.ComInterop.ComUtilities.Release(ref item);", 0, 1)]
+    public void ComLeakAudit_RecognizesSupportedSyntax(string body, int exitCode, int acquisitions)
+    {
+        var result = RunComLeakAudit($"class Commands {{ void Read(dynamic source) {{ {body} }} }}");
+
+        Assert.True(result.ExitCode == exitCode, result.Output);
+        Assert.Contains($"Checked {acquisitions} dynamic acquisition variables", result.Output, StringComparison.Ordinal);
+        Assert.Contains("typed PIA ownership, control flow, and release-in-finally are not verified", result.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("void Other() { dynamic item = source.Child; ComUtilities.Release(ref item); }", "void Read() { dynamic item = source.Child; }")]
+    [InlineData("void Read() { { dynamic item = source.Child; ComUtilities.Release(ref item); }", "{ dynamic item = source.Child; } }")]
+    public void ComLeakAudit_RejectsReleaseFromAnotherScope(string first, string second)
+    {
+        var result = RunComLeakAudit($"class Commands {{ {first} {second} }}");
+
+        Assert.True(result.ExitCode == 1, result.Output);
+        Assert.Contains("Checked 2 dynamic acquisition variables; 1 missing releases", result.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("obj/Commands.cs")]
+    [InlineData("bin/Commands.cs")]
+    [InlineData("Commands.g.cs")]
+    public void ComLeakAudit_ExcludesGeneratedFiles(string generatedPath)
+    {
+        var result = RunComLeakAudit("class Commands { }", generatedPath: generatedPath);
+
+        Assert.True(result.ExitCode == 0, result.Output);
+        Assert.Contains("Scanned 1 source files", result.Output, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(true, "No C# source files found")]
+    [InlineData(false, "Source directory not found")]
+    public void ComLeakAudit_RejectsBrokenSourceDiscovery(bool createSourceDirectory, string message)
+    {
+        var result = RunComLeakAudit(null, createSourceDirectory);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains(message, result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ComLeakAudit_RejectsUnparseableSource()
+    {
+        var result = RunComLeakAudit("class Commands { void Read( {");
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("Cannot parse", result.Output, StringComparison.Ordinal);
+    }
+
+    private static ProcessResult RunComLeakAudit(string? source, bool createSourceDirectory = true, string? generatedPath = null)
+    {
+        using var temp = new TemporaryDirectory();
+        var root = Path.Combine(temp.Path, "audit fixture");
+        var scripts = Path.Combine(root, "scripts");
+        var sources = Path.Combine(root, "src");
+        Directory.CreateDirectory(scripts);
+        if (createSourceDirectory)
+        {
+            Directory.CreateDirectory(sources);
+        }
+        var script = Path.Combine(scripts, "check-com-leaks.ps1");
+        File.Copy(Path.Combine(RepoRoot, "scripts", "check-com-leaks.ps1"), script);
+        if (source != null)
+        {
+            File.WriteAllText(Path.Combine(sources, "Commands.cs"), source);
+        }
+        if (generatedPath != null)
+        {
+            var generatedFile = Path.Combine(sources, generatedPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(generatedFile)!);
+            File.WriteAllText(generatedFile, "class Generated { void Read() { dynamic leaked = source.Child; } }");
+        }
+
+        return RunPowerShellRaw(script);
     }
 
     [Fact]
@@ -185,6 +398,31 @@ public sealed class ReleasePackagingTests
         Path.Combine("vscode-extension", "package-lock.json"),
         Path.Combine("src", "PowerPointMcp.McpServer", ".mcp", "server.json"),
     ];
+
+    private static readonly string[] DocumentationCountPaths =
+    [
+        "README.md",
+        Path.Combine("src", "PowerPointMcp.McpServer", "README.md"),
+        Path.Combine("mcpb", "README.md"),
+        Path.Combine("mcpb", "manifest.json"),
+        Path.Combine("gh-pages", "docs", "index.md"),
+        Path.Combine("gh-pages", "docs", "installation.md"),
+        Path.Combine("gh-pages", "docs", "features.md"),
+        Path.Combine("gh-pages", "docs", "mcp-server.md"),
+        Path.Combine("skills", "CLAUDE.md"),
+        Path.Combine("skills", "powerpoint-mcp", "SKILL.md"),
+        Path.Combine("skills", "shared", "behavioral-rules.md"),
+        Path.Combine("skills", "shared", "workflows.md"),
+    ];
+
+    private static void CorruptOnce(string path, string pattern, string replacement)
+    {
+        var original = File.ReadAllText(path);
+        var corrupted = new System.Text.RegularExpressions.Regex(pattern)
+            .Replace(original, replacement, 1);
+        Assert.NotEqual(original, corrupted);
+        File.WriteAllText(path, corrupted);
+    }
 
     [Theory]
     [InlineData("")]

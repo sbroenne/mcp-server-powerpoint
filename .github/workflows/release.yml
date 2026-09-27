@@ -104,10 +104,10 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   # =============================================================================
-  # Job 1: Build CLI (standalone exe — primary + NuGet pack — secondary)
+  # Job 0b: Generate release documentation counts
   # =============================================================================
-  build-cli:
-    name: CLI
+  prepare-release-docs:
+    name: Generate Documentation Counts
     needs: [version]
     runs-on: windows-latest
     permissions:
@@ -115,6 +115,62 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore
+      run: dotnet restore Sbroenne.PowerPointMcp.slnx
+
+    - name: Build generated metadata
+      run: dotnet build Sbroenne.PowerPointMcp.slnx --configuration Release --no-restore -p:PowerPointMcpSkipCleanup=true
+
+    - name: Generate documentation counts
+      shell: pwsh
+      run: |
+        ./scripts/Update-DocumentationCounts.ps1 -SkipBuild
+        ./scripts/Build-AgentSkills.ps1 -PopulateReferences -SkipCliReference
+
+    - name: Upload generated documentation
+      uses: actions/upload-artifact@v7
+      with:
+        name: generated-documentation
+        path: |
+          README.md
+          src/PowerPointMcp.McpServer/README.md
+          mcpb/README.md
+          mcpb/manifest.json
+          gh-pages/docs/index.md
+          gh-pages/docs/installation.md
+          gh-pages/docs/features.md
+          gh-pages/docs/mcp-server.md
+          skills/CLAUDE.md
+          skills/shared/*.md
+          skills/powerpoint-mcp/SKILL.md
+          skills/powerpoint-mcp/references/*.md
+          skills/powerpoint-cli/SKILL.md
+          skills/powerpoint-cli/references/*.md
+
+  # =============================================================================
+  # Job 1: Build CLI (standalone exe — primary + NuGet pack — secondary)
+  # =============================================================================
+  build-cli:
+    name: CLI
+    needs: [version, prepare-release-docs]
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Download generated documentation
+      uses: actions/download-artifact@v8
+      with:
+        name: generated-documentation
+        path: .
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
@@ -189,13 +245,19 @@ jobs:
   # =============================================================================
   build-mcp-server:
     name: MCP Server
-    needs: [version]
+    needs: [version, prepare-release-docs]
     runs-on: windows-latest
     permissions:
       contents: read
 
     steps:
     - uses: actions/checkout@v7
+
+    - name: Download generated documentation
+      uses: actions/download-artifact@v8
+      with:
+        name: generated-documentation
+        path: .
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
@@ -278,13 +340,19 @@ jobs:
   # =============================================================================
   build-vscode:
     name: VS Code Extension
-    needs: [version]
+    needs: [version, prepare-release-docs]
     runs-on: windows-latest
     permissions:
       contents: read
 
     steps:
     - uses: actions/checkout@v7
+
+    - name: Download generated documentation
+      uses: actions/download-artifact@v8
+      with:
+        name: generated-documentation
+        path: .
 
     - name: Setup Node.js
       uses: actions/setup-node@v7
@@ -343,13 +411,19 @@ jobs:
   # =============================================================================
   build-mcpb:
     name: MCPB Bundle
-    needs: [version]
+    needs: [version, prepare-release-docs]
     runs-on: windows-latest
     permissions:
       contents: read
 
     steps:
     - uses: actions/checkout@v7
+
+    - name: Download generated documentation
+      uses: actions/download-artifact@v8
+      with:
+        name: generated-documentation
+        path: .
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
@@ -383,13 +457,19 @@ jobs:
   # =============================================================================
   build-agent-skills:
     name: Agent Skills
-    needs: [version, build-cli]
+    needs: [version, prepare-release-docs, build-cli]
     runs-on: windows-latest
     permissions:
       contents: read
 
     steps:
     - uses: actions/checkout@v7
+
+    - name: Download generated documentation
+      uses: actions/download-artifact@v8
+      with:
+        name: generated-documentation
+        path: .
 
     - name: Set Version
       run: |
@@ -635,7 +715,7 @@ jobs:
   # =============================================================================
   create-release:
     name: Create GitHub Release
-    needs: [version, create-tag, publish]
+    needs: [version, prepare-release-docs, create-tag, publish]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -643,6 +723,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+
+    - name: Download generated documentation
+      uses: actions/download-artifact@v8
+      with:
+        name: generated-documentation
+        path: .
 
     - name: Set Version
       run: |
@@ -706,10 +792,10 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Create a PR to commit the CHANGELOG.md/package.json changes produced by
-    # Build-Changelog.ps1 above (and the consumed .changeset/*.md deletions),
-    # since branch protection prevents direct push.
-    - name: Commit Changelog Update
+    # Create a PR to commit generated release documentation, CHANGELOG.md,
+    # package.json, and consumed changesets since branch protection prevents
+    # a direct push.
+    - name: Commit Release Documentation
       run: |
         VERSION=${{ env.VERSION }}
         BRANCH="chore/changelog-v${VERSION}"
@@ -719,6 +805,7 @@ jobs:
 
         git checkout -b "$BRANCH"
         git add CHANGELOG.md package.json .changeset
+        git add --update
 
         if git diff --cached --quiet; then
           echo "No changelog changes to commit."
@@ -731,8 +818,8 @@ jobs:
         gh pr create \
           --base main \
           --head "$BRANCH" \
-          --title "chore: update CHANGELOG.md for v${VERSION} release" \
-          --body "Automated post-release changelog update: compiles pending .changeset/*.md fragments into a new \`## [$VERSION]\` entry in CHANGELOG.md via \`scripts/Build-Changelog.ps1\`." \
+          --title "chore: update release documentation for v${VERSION}" \
+          --body "Automated post-release documentation update: compiles pending changesets into CHANGELOG.md and refreshes tool and operation counts from generated code metadata." \
           --label "documentation"
 
         # Merge the changelog PR automatically. Previously this PR was only
