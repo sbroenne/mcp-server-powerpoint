@@ -174,6 +174,30 @@ OPTIONS:
                                           saves as binary file
 ```
 
+## `pptcli customshow`
+
+```text
+DESCRIPTION:
+Named custom slide shows: curated, ordered subsets of a presentation's slides
+
+USAGE:
+    pptcli customshow <ACTION> [OPTIONS]
+
+ARGUMENTS:
+    <ACTION>    The action to perform
+
+OPTIONS:
+    -h, --help                            Prints help information
+    -s, --session <SESSION>               Session ID from 'session open' command
+        --name <NAME>                     (required for: create, delete) (valid
+                                          for: create, delete)
+        --slide-indices <SLIDEINDICES>    (required for: create) (valid for:
+                                          create) (JSON format)
+    -o, --output <PATH>                   Write output to file instead of
+                                          stdout. For image results, decodes and
+                                          saves as binary file
+```
+
 ## `pptcli export`
 
 ```text
@@ -1019,7 +1043,8 @@ OPTIONS:
 
 ```text
 DESCRIPTION:
-Slide lifecycle, background, section, legacy comment, and slide-import commands
+Slide lifecycle, visibility, background, section, legacy comment, and
+slide-import commands
 
 USAGE:
     pptcli slide <ACTION> [OPTIONS]
@@ -1161,13 +1186,13 @@ OPTIONS:
                                                              (valid for:
                                                              delete-comment)
         --hidden <HIDDEN>                                    (required for:
-                                     set-hidden) (valid
-                                     for: set-hidden)
+                                                             set-hidden) (valid
+                                                             for: set-hidden)
         --display <DISPLAY>                                  (required for:
-                                     set-display-master-
-                                     shapes) (valid for:
-                                     set-display-master-
-                                     shapes)
+                                                             set-display-master-
+                                                             shapes) (valid for:
+                                                             set-display-master-
+                                                             shapes)
         --source-file-path <SOURCEFILEPATH>                  (required for:
                                                              import-from-file)
                                                              (valid for:

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Presentation;
@@ -109,15 +110,15 @@ public class SlideCommandsTests : IClassFixture<SharedPresentationFixture>
                 var states = new (bool Hidden, bool DisplaysMasterShapes)[slides.Count];
                 for (int index = 1; index <= slides.Count; index++)
                 {
-                    dynamic? slide = null;
-                    dynamic? transition = null;
+                    PowerPoint.Slide? slide = null;
+                    PowerPoint.SlideShowTransition? transition = null;
                     try
                     {
                         slide = slides[index];
                         transition = slide.SlideShowTransition;
                         states[index - 1] = (
-                            Convert.ToInt32(transition.Hidden) != 0,
-                            Convert.ToInt32(slide.DisplayMasterShapes) != 0);
+                            Convert.ToInt32(transition.Hidden, CultureInfo.InvariantCulture) != 0,
+                            Convert.ToInt32(slide.DisplayMasterShapes, CultureInfo.InvariantCulture) != 0);
                     }
                     finally
                     {
