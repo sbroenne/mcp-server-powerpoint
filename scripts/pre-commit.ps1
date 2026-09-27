@@ -32,8 +32,8 @@
                             .gitignore) only the fast in-memory protocol tests run — the
                             PowerPoint-dependent COM session-lifecycle tests
                             (RequiresPowerPoint=true) are excluded. The full suite runs only when
-                            compiled runtime code (src/tests *.cs, *.csproj, *.slnx,
-                            Directory.Build/Packages, global.json) changes.
+                            compiled runtime code changes. SkillGeneration test sources cover
+                            tooling and packaging, not runtime behavior, so they use this fast path.
     6. Release packaging tests - validates version metadata and generated Agent Skills packages
     7. TODO/FIXME/HACK scan - blocks unresolved markers in staged files
 
@@ -71,9 +71,9 @@ $hasCodeChanges = @($codeChangedFilesForGate).Count -gt 0
 
 # Distinguish compiled runtime-code changes (which can alter MCP/COM behavior and therefore
 # warrant the real-COM session-lifecycle tests) from docs/tooling changes (gh-pages, scripts,
-# workflows, .gitignore) which cannot. The PowerPoint-dependent MCP tests are marked with the
-# [Trait("RequiresPowerPoint","true")] attribute and are excluded unless runtime code changed.
-$runtimeCodePattern = '(^src[/\\].*\.cs$)|(^tests[/\\].*\.cs$)|(\.csproj$)|(\.slnx$)|(^Directory\.(Build|Packages)\.)|(^global\.json$)|(^NuGet\.Config$)'
+# workflows, .gitignore, and SkillGeneration tests) which cannot. The PowerPoint-dependent MCP
+# tests are marked with [Trait("RequiresPowerPoint","true")] and excluded unless runtime changes.
+$runtimeCodePattern = '(^src[/\\].*\.cs$)|(^tests[/\\](?!PowerPointMcp\.SkillGeneration\.Tests[/\\]).*\.cs$)|(\.csproj$)|(\.slnx$)|(^Directory\.(Build|Packages)\.)|(^global\.json$)|(^NuGet\.Config$)'
 $runtimeCodeChanged = @($allStagedFilesForGate | Where-Object { $_ -match $runtimeCodePattern }).Count -gt 0
 
 # --- 1. Branch guard (never commit directly to main) ---------------------------------------
@@ -292,23 +292,14 @@ elseif ($runtimeCodeChanged) {
     Write-Host "MCP Server tests passed" -ForegroundColor Green
 }
 else {
-    Write-Step "Running MCP Server protocol tests only (docs/tooling change - skipping PowerPoint-dependent COM session tests)..."
-
-    & dotnet test (Join-Path $rootDir "tests\PowerPointMcp.McpServer.Tests") --filter "RequiresPowerPoint!=true" --nologo
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "BLOCKED: MCP Server protocol tests failed." -ForegroundColor Red
-        exit 1
-    }
-
-    Write-Host "MCP Server protocol tests passed (COM session tests skipped for docs/tooling change)" -ForegroundColor Green
+    Write-Step "Skipping MCP Server tests (tooling-only changes do not affect MCP behavior)"
 }
 
 # --- 6. Release metadata and Agent Skills packaging tests --------------------------------------
 if (-not $hasCodeChanges) {
     Write-Step "Skipping release packaging tests (no code changes detected - docs/changeset only)"
 }
-else {
+elseif ($runtimeCodeChanged) {
     Write-Step "Running release metadata and Agent Skills packaging tests..."
 
     & dotnet test (Join-Path $rootDir "tests\PowerPointMcp.SkillGeneration.Tests") -c Release --no-build --nologo -p:PowerPointMcpSkipCleanup=true
@@ -319,6 +310,19 @@ else {
     }
 
     Write-Host "Release metadata and Agent Skills packaging tests passed" -ForegroundColor Green
+}
+else {
+    Write-Step "Running focused documentation count tests (tooling-only change)..."
+
+    $countTestFilter = "FullyQualifiedName~DocumentationCounts_UpdateValidateAndAllowStaleAdvertisedCounts|FullyQualifiedName~DocumentationCountWorkflow_UpdatesCountsOnMainAndReleaseValidatesThem|FullyQualifiedName~PreCommit_SkillGenerationTestsDoNotTriggerFullMcpSuite"
+    & dotnet test (Join-Path $rootDir "tests\PowerPointMcp.SkillGeneration.Tests") -c Release --no-build --filter $countTestFilter --nologo -p:PowerPointMcpSkipCleanup=true
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "BLOCKED: Documentation count tests failed." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "Documentation count tests passed" -ForegroundColor Green
 }
 
 # --- 7. TODO/FIXME/HACK scan ------------------------------------------------------------------
