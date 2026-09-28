@@ -536,6 +536,7 @@ public sealed class ReleasePackagingTests
     private static readonly string[] DocumentationCountPaths =
     [
         "README.md",
+        Path.Combine("docs", "POWERPOINT-NATIVE-FEATURE-AUDIT.md"),
         Path.Combine("src", "PowerPointMcp.McpServer", "README.md"),
         Path.Combine("mcpb", "README.md"),
         Path.Combine("mcpb", "manifest.json"),

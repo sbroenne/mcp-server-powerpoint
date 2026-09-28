@@ -68,6 +68,15 @@ public sealed class ShapeOperationResult
     /// <summary>Shape rotation in degrees clockwise from upright, if applicable.</summary>
     public float? Rotation { get; init; }
 
+    /// <summary>Shape 3D rotation around the X axis in degrees, if applicable.</summary>
+    public float? RotationX { get; init; }
+
+    /// <summary>Shape 3D rotation around the Y axis in degrees, if applicable.</summary>
+    public float? RotationY { get; init; }
+
+    /// <summary>Shape 3D rotation around the Z axis in degrees, if applicable.</summary>
+    public float? RotationZ { get; init; }
+
     /// <summary>The flip direction applied ("horizontal" or "vertical"), if applicable.</summary>
     public string? FlipDirection { get; init; }
 
@@ -76,6 +85,12 @@ public sealed class ShapeOperationResult
 
     /// <summary>Number of shapes produced by an Ungroup operation, if applicable.</summary>
     public int? UngroupedShapeCount { get; init; }
+
+    /// <summary>The MsoMergeCmd name used to merge shapes, for Merge.</summary>
+    public string? MergeTypeName { get; init; }
+
+    /// <summary>Number of resulting shapes produced by a Merge operation, if applicable.</summary>
+    public int? MergedShapeCount { get; init; }
 
     /// <summary>Shape name, if applicable.</summary>
     public string? Name { get; init; }

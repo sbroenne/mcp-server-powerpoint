@@ -3,13 +3,14 @@ using Sbroenne.PowerPointMcp.Core.Attributes;
 namespace Sbroenne.PowerPointMcp.Core.Shape;
 
 /// <summary>
-/// Shape commands: create, inspect, format, group, link, duplicate/copy, and edit native
-/// placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide
-/// by its 1-based index.
+/// Shape commands: create, inspect, align, distribute, format, group, merge, link, create editable
+/// WordArt, rotate shapes in 3D, duplicate/copy, and edit native placeholders.
+/// Operates within an already-open IPresentationBatch, targeting a specific slide by
+/// its 1-based index.
 /// </summary>
 [ServiceCategory("shape", "Shape")]
 [McpTool("shape", Title = "Shape Operations", Destructive = true, Category = "content",
-    Description = "Create, inspect, format, group, link, duplicate/copy, and edit native placeholders on a slide.")]
+    Description = "Create, inspect, align, distribute, format, group, merge, link, create editable WordArt, rotate shapes in 3D, duplicate/copy, and edit native placeholders on a slide.")]
 public interface IShapeCommands
 {
     /// <summary>Adds a rectangle shape to the given slide.</summary>
@@ -17,6 +18,23 @@ public interface IShapeCommands
 
     /// <summary>Adds a text box with the given text to the given slide.</summary>
     ShapeOperationResult AddTextBox(ComInterop.Session.IPresentationBatch batch, int slideIndex, float left, float top, float width, float height, string text);
+
+    /// <summary>
+    /// Adds editable WordArt using an <c>MsoPresetTextEffect</c> member name from
+    /// <c>msoTextEffect1</c> through <c>msoTextEffect50</c>. PowerPoint determines the resulting
+    /// shape's width and height from the text and font settings.
+    /// </summary>
+    ShapeOperationResult AddTextEffect(
+        ComInterop.Session.IPresentationBatch batch,
+        int slideIndex,
+        string presetEffect,
+        string text,
+        string fontName,
+        float fontSize,
+        float left,
+        float top,
+        bool bold = false,
+        bool italic = false);
 
     /// <summary>
     /// Adds a non-rectangle "auto shape" (oval, diamond, arrow, star bracket, etc.) to the given
@@ -41,6 +59,20 @@ public interface IShapeCommands
     /// specific shapes is not exposed by this tool surface.
     /// </summary>
     ShapeOperationResult AddConnector(ComInterop.Session.IPresentationBatch batch, int slideIndex, string connectorType, float beginX, float beginY, float endX, float endY);
+
+    /// <summary>
+    /// Adds a connector whose endpoints remain attached to connection sites on two shapes.
+    /// Shape indexes and connection sites are 1-based. A connection site must be between 1 and
+    /// the selected shape's native <c>ConnectionSiteCount</c>.
+    /// </summary>
+    ShapeOperationResult AddAttachedConnector(
+        ComInterop.Session.IPresentationBatch batch,
+        int slideIndex,
+        string connectorType,
+        int beginShapeIndex,
+        int beginConnectionSite,
+        int endShapeIndex,
+        int endConnectionSite);
 
     /// <summary>Gets the number of shapes on the given slide.</summary>
     ShapeOperationResult GetCount(ComInterop.Session.IPresentationBatch batch, int slideIndex);
@@ -120,6 +152,25 @@ public interface IShapeCommands
     /// <summary>Gets a shape's rotation, in degrees clockwise from its upright position.</summary>
     ShapeOperationResult GetRotation(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
 
+    /// <summary>
+    /// Sets one or more axes of a shape's 3D rotation. At least one axis must be supplied;
+    /// omitted axes remain unchanged.
+    /// <paramref name="rotationX"/> and <paramref name="rotationY"/> must be between -90 and 90 degrees.
+    /// This is independent of the shape's 2D <c>Rotation</c> property.
+    /// </summary>
+    [ServiceAction("set-3d-rotation")]
+    ShapeOperationResult Set3DRotation(
+        ComInterop.Session.IPresentationBatch batch,
+        int slideIndex,
+        int shapeIndex,
+        float? rotationX = null,
+        float? rotationY = null,
+        float? rotationZ = null);
+
+    /// <summary>Gets a shape's 3D rotation around the X, Y, and Z axes.</summary>
+    [ServiceAction("get-3d-rotation")]
+    ShapeOperationResult Get3DRotation(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
     /// <summary>Flips a shape horizontally or vertically in place (<paramref name="direction"/>: <c>"horizontal"</c> or <c>"vertical"</c>).</summary>
     ShapeOperationResult Flip(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, string direction);
 
@@ -178,8 +229,42 @@ public interface IShapeCommands
     /// </summary>
     ShapeOperationResult Group(ComInterop.Session.IPresentationBatch batch, int slideIndex, IReadOnlyList<int> shapeIndexes);
 
+    /// <summary>
+    /// Aligns distinct top-level shapes using msoAlignLefts, msoAlignCenters, msoAlignRights,
+    /// msoAlignTops, msoAlignMiddles, or msoAlignBottoms (case-insensitive names, not numbers).
+    /// Defaults to the selection's original bounds (at least two shapes); relativeToSlide=true
+    /// uses slide bounds and permits one shape. Shape indexes are 1-based, in any order.
+    /// Does not resize or regroup shapes. Invalid selections fail before any movement.
+    /// Native geometry applies to rotated/grouped shapes; this is not collision avoidance.
+    /// </summary>
+    ShapeOperationResult Align(ComInterop.Session.IPresentationBatch batch, int slideIndex,
+        IReadOnlyList<int> shapeIndexes, string alignCmd, bool relativeToSlide = false);
+
+    /// <summary>
+    /// Distributes at least three distinct top-level shapes using msoDistributeHorizontally
+    /// or msoDistributeVertically (case-insensitive names, not numbers). Defaults to the
+    /// selection's original span; relativeToSlide=true includes equal gaps at both slide edges.
+    /// Shape indexes are 1-based, in any order. Uses native edge spacing, not center spacing;
+    /// shapes may overlap if space is insufficient. Invalid selections fail before movement.
+    /// </summary>
+    ShapeOperationResult Distribute(ComInterop.Session.IPresentationBatch batch, int slideIndex,
+        IReadOnlyList<int> shapeIndexes, string distributeCmd, bool relativeToSlide = false);
+
     /// <summary>Ungroups a previously-grouped shape back into its individual member shapes.</summary>
     ShapeOperationResult Ungroup(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex);
+
+    /// <summary>
+    /// Merges two or more shapes on the given slide into new shape(s) using a boolean drawing
+    /// operation, identified by their 1-based shape indexes. The inputs are consumed and replaced
+    /// by the result. <paramref name="mergeType"/> is an <c>MsoMergeCmd</c> enum member name:
+    /// <c>"msoMergeUnion"</c>, <c>"msoMergeCombine"</c>, <c>"msoMergeIntersect"</c>,
+    /// <c>"msoMergeSubtract"</c>, or <c>"msoMergeFragment"</c> (which may produce multiple shapes).
+    /// </summary>
+    ShapeOperationResult Merge(
+        ComInterop.Session.IPresentationBatch batch,
+        int slideIndex,
+        IReadOnlyList<int> shapeIndexes,
+        string mergeType);
 
     /// <summary>Sets a shape's name (as shown in the Selection Pane).</summary>
     ShapeOperationResult SetName(ComInterop.Session.IPresentationBatch batch, int slideIndex, int shapeIndex, string name);
