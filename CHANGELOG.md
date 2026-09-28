@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.2.1] - 2026-09-28
+
+### Minor Changes
+
+- [#88](https://github.com/sbroenne/mcp-server-powerpoint/pull/88) [`3cbf441`](https://github.com/sbroenne/mcp-server-powerpoint/commit/3cbf44184b27c13abac29c3c33ae90f568bcd9d0) Thanks [@trsdn](https://github.com/trsdn)! - Add editable WordArt creation and independent 3D shape rotation controls to both the MCP server and CLI. 3D rotations can update individual axes without changing the shape's existing 2D rotation.
+
+- [#90](https://github.com/sbroenne/mcp-server-powerpoint/pull/90) [`dc67ab6`](https://github.com/sbroenne/mcp-server-powerpoint/commit/dc67ab6c89aac50aac1eae00008648e8ce2c946e) Thanks [@trsdn](https://github.com/trsdn)! - Add `customshow` tool for named custom slide shows: list, create, and delete curated, ordered subsets of a presentation's slides, so one deck can be reused for different audiences without duplicating slides.
+
+- [#82](https://github.com/sbroenne/mcp-server-powerpoint/pull/82) [`8835dc1`](https://github.com/sbroenne/mcp-server-powerpoint/commit/8835dc19d093bf1239d256951b45a186b67176f8) Thanks [@trsdn](https://github.com/trsdn)! - Add `textframe` find-text and replace-text actions to MCP and CLI for literal matching in one selected shape. Find reports 1-based match positions; replace supports deletion, case and whole-word options, preserves character formatting outside matches, and never searches inserted text again.
+
+- [#83](https://github.com/sbroenne/mcp-server-powerpoint/pull/83) [`723bb2f`](https://github.com/sbroenne/mcp-server-powerpoint/commit/723bb2fd6836ad3e99dfecc72a9e3f3be3006504) Thanks [@trsdn](https://github.com/trsdn)! - Add native shape alignment and distribution to MCP and CLI. Align six directions or
+  distribute horizontal/vertical edge gaps against the selection or slide, with
+  selection validation before movement and no resizing or regrouping.
+
+- [#89](https://github.com/sbroenne/mcp-server-powerpoint/pull/89) [`ba5af55`](https://github.com/sbroenne/mcp-server-powerpoint/commit/ba5af5529b2a7666d8182599c9b7e69d70e7df4b) Thanks [@trsdn](https://github.com/trsdn)! - **Attached connectors** (`shape(action: "add-attached-connector", ...)`): adds a connector shape
+  whose endpoints stay glued to connection sites on two existing shapes, so the connection is
+  preserved when either shape is moved. Previously, `add-connector` only supported free-floating
+  connectors between fixed coordinates.
+
+- [#87](https://github.com/sbroenne/mcp-server-powerpoint/pull/87) [`ffeb999`](https://github.com/sbroenne/mcp-server-powerpoint/commit/ffeb9993973c09e1225b6ce3c806194fe1f6e7ca) Thanks [@trsdn](https://github.com/trsdn)! - Add `shape copy-formatting` to apply one existing shape's appearance to another without replacing the target's content or geometry.
+
+- [#91](https://github.com/sbroenne/mcp-server-powerpoint/pull/91) [`1c85214`](https://github.com/sbroenne/mcp-server-powerpoint/commit/1c85214da12bfe37711ac56e2a3649dc49327c73) Thanks [@trsdn](https://github.com/trsdn)! - Add `shape duplicate` to create an independently editable copy of a shape on the same slide, and `shape copy-to-slide` to copy a shape to another slide in the same presentation via PowerPoint's native copy/paste.
+
+- [#92](https://github.com/sbroenne/mcp-server-powerpoint/pull/92) [`5864aa8`](https://github.com/sbroenne/mcp-server-powerpoint/commit/5864aa8a43701d0a7f123352d9b9db12af525031) Thanks [@trsdn](https://github.com/trsdn)! - Add the `shape merge` action for PowerPoint boolean drawing operations: union, combine, intersect, subtract, and fragment.
+
+- [#84](https://github.com/sbroenne/mcp-server-powerpoint/pull/84) [`1f60e88`](https://github.com/sbroenne/mcp-server-powerpoint/commit/1f60e88094527b22218ad5ae6ce8fd11cdcd9d26) Thanks [@trsdn](https://github.com/trsdn)! - Add slide visibility controls for excluding slides from slide-show playback and showing or hiding inherited master shapes.
+
+- [#85](https://github.com/sbroenne/mcp-server-powerpoint/pull/85) [`bb0f9a6`](https://github.com/sbroenne/mcp-server-powerpoint/commit/bb0f9a612f08e9ac6b0e3ef56433016674a81076) Thanks [@trsdn](https://github.com/trsdn)! - Read major and minor theme fonts for any slide master with `master get-theme-fonts` in the CLI or the matching MCP action. Results preserve the Latin, complex-script, and East Asian language slots so new text can follow the selected template's intended typography.
+
 ## [0.2.0] - 2026-09-11
 
 ### Minor Changes
