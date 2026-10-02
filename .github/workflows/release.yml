@@ -34,6 +34,11 @@ on:
         description: 'Custom version (e.g., 1.2.3, overrides version_bump)'
         required: false
         type: string
+      resume_release:
+        description: 'Resume a partially published custom version'
+        required: false
+        type: boolean
+        default: false
 
 env:
   DOTNET_VERSION: '10.0.x'
@@ -635,8 +640,26 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Create and push tag
+        env:
+          RESUME_RELEASE: ${{ inputs.resume_release }}
         run: |
           TAG="${{ needs.version.outputs.tag }}"
+
+          if git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1; then
+            if [[ "$RESUME_RELEASE" != "true" ]]; then
+              echo "::error::Tag $TAG already exists. Set resume_release to resume a partial release."
+              exit 1
+            fi
+
+            echo "Resume requested, and tag $TAG already exists."
+            exit 0
+          fi
+
+          if [[ "$RESUME_RELEASE" == "true" ]]; then
+            echo "::error::Cannot resume because tag $TAG does not exist."
+            exit 1
+          fi
+
           echo "Creating tag: $TAG"
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
@@ -806,7 +829,17 @@ jobs:
           'pptcli',
           'mcp-server-powerpoint'
         )) {
+          $package = "@sbroenne/$name"
+          $publishedVersion = npm view "$package@$env:VERSION" version 2>$null
+          if ($LASTEXITCODE -eq 0 -and $publishedVersion -eq $env:VERSION) {
+            Write-Output "Skipping $package@$env:VERSION because it is already published."
+            continue
+          }
+
           npm publish "./npm/sbroenne-$name-$env:VERSION.tgz" --access public
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to publish $package@$env:VERSION."
+          }
         }
 
     - name: Install VS Code publishing dependencies

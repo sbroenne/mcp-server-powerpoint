@@ -120,6 +120,20 @@ public sealed class ReleasePackagingTests
         Assert.Contains("sha256sum *.zip", workflow, StringComparison.Ordinal);
         Assert.Contains("artifacts/standalone-checksums/SHA256SUMS", workflow, StringComparison.Ordinal);
 
+        Assert.Contains("resume_release:", workflow, StringComparison.Ordinal);
+        Assert.Contains(
+            "Resume requested, and tag $TAG already exists.",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "npm view \"$package@$env:VERSION\" version",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "Skipping $package@$env:VERSION because it is already published.",
+            workflow,
+            StringComparison.Ordinal);
+
         var registryStepStart = workflow.IndexOf("- name: Publish to MCP Registry", StringComparison.Ordinal);
         Assert.True(registryStepStart >= 0);
         var nextJobStart = workflow.IndexOf(
