@@ -54,6 +54,7 @@ jobs:
     outputs:
       version: ${{ steps.calculate_version.outputs.version }}
       tag: ${{ steps.calculate_version.outputs.tag }}
+      source_ref: ${{ steps.calculate_version.outputs.source_ref }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -123,6 +124,11 @@ jobs:
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if [[ "$RESUME_RELEASE" == "true" ]]; then
+            echo "source_ref=$TAG" >> "$GITHUB_OUTPUT"
+          else
+            echo "source_ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          fi
 
   # =============================================================================
   # Job 0b: Generate release documentation counts
@@ -136,6 +142,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ needs.version.outputs.source_ref }}
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
@@ -186,6 +194,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ needs.version.outputs.source_ref }}
 
     - name: Download generated documentation
       uses: actions/download-artifact@v8
@@ -297,6 +307,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ needs.version.outputs.source_ref }}
 
     - name: Download generated documentation
       uses: actions/download-artifact@v8
@@ -416,6 +428,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ needs.version.outputs.source_ref }}
 
     - name: Download generated documentation
       uses: actions/download-artifact@v8
@@ -466,6 +480,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ needs.version.outputs.source_ref }}
 
     - name: Download generated documentation
       uses: actions/download-artifact@v8
@@ -512,6 +528,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ needs.version.outputs.source_ref }}
 
     - name: Download generated documentation
       uses: actions/download-artifact@v8
@@ -553,6 +571,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ needs.version.outputs.source_ref }}
 
     - name: Download CLI Archive
       uses: actions/download-artifact@v8
@@ -592,6 +612,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ needs.version.outputs.source_ref }}
 
     - name: Setup Node.js
       uses: actions/setup-node@v7
@@ -949,6 +971,8 @@ jobs:
         EXISTING_PR=$(gh pr list --state open --head "$BRANCH" --json number --jq '.[0].number // empty')
         if [ -n "$EXISTING_PR" ]; then
           echo "Release documentation PR #$EXISTING_PR already exists."
+          gh pr merge "$EXISTING_PR" --squash --delete-branch --auto \
+            || gh pr merge "$EXISTING_PR" --squash --delete-branch
           exit 0
         fi
 

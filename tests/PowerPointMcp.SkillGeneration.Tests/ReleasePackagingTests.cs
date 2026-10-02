@@ -126,6 +126,14 @@ public sealed class ReleasePackagingTests
             workflow,
             StringComparison.Ordinal);
         Assert.Contains(
+            "source_ref=$TAG",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "ref: ${{ needs.version.outputs.source_ref }}",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains(
             "./scripts/Publish-NpmPackage.ps1",
             workflow,
             StringComparison.Ordinal);
@@ -135,6 +143,10 @@ public sealed class ReleasePackagingTests
             StringComparison.Ordinal);
         Assert.Contains(
             "Release documentation PR #$EXISTING_PR already exists.",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "gh pr merge \"$EXISTING_PR\" --squash --delete-branch --auto",
             workflow,
             StringComparison.Ordinal);
 
