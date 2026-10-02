@@ -9,6 +9,10 @@ Directory.Build.props.user
 !/.github/plugins/*/bin/**
 !/.github/plugins/*/com.github.copilot/bin/
 !/.github/plugins/*/com.github.copilot/bin/**
+!/npm-packages/mcp-server-powerpoint/bin/
+!/npm-packages/mcp-server-powerpoint/bin/**
+!/npm-packages/pptcli/bin/
+!/npm-packages/pptcli/bin/**
 
 ## Node (changesets tooling only — see docs/RELEASE-STRATEGY.md)
 node_modules/

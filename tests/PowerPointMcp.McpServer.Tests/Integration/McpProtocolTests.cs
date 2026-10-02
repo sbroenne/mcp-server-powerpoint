@@ -244,6 +244,26 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
+    public async Task PresentationOutputSchema_DescribesEveryOperationResultField()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var presentation = tools.Single(tool => tool.Name == "presentation");
+        var schema = Assert.IsType<JsonElement>(presentation.ReturnJsonSchema);
+        var properties = schema.GetProperty("properties");
+
+        foreach (var field in new[]
+        {
+            "presentationPath", "themeName", "isFinal", "propertyName", "propertyValue",
+            "tagName", "tagValue", "tagIndex", "tagCount", "tags"
+        })
+        {
+            Assert.True(
+                properties.TryGetProperty(field, out _),
+                $"presentation output schema does not describe {field}.");
+        }
+    }
+
+    [Fact]
     public async Task ToolResults_IncludeStructuredContentAndProtocolErrorState()
     {
         var result = await _client!.CallToolAsync(

@@ -85,4 +85,20 @@ describe('MCP registration and launch', () => {
 			.rejects.toThrow(/install.*PowerPoint/i);
 		expect(JSON.stringify(output.appendLine.mock.calls)).not.toContain('private-fixture');
 	});
+
+	it('maps launch cancellation and disposes the listener', async () => {
+		const dispose = vi.fn();
+		const token = {
+			isCancellationRequested: true,
+			onCancellationRequested: vi.fn(() => ({ dispose }))
+		};
+		const { provider } = await registeredProvider();
+		const definitions = await provider.provideMcpServerDefinitions(noCancellation);
+
+		await expect(provider.resolveMcpServerDefinition?.(definitions![0], token))
+			.rejects.toBeInstanceOf(vscode.CancellationError);
+		expect(dispose).toHaveBeenCalledOnce();
+		expect(probes.access).not.toHaveBeenCalled();
+		expect(probes.query).not.toHaveBeenCalled();
+	});
 });

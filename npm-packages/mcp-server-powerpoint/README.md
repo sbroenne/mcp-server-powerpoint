@@ -18,7 +18,7 @@ PowerPoint automation continue to run in the existing PowerPointMcp implementati
 
 `@latest` selects the current npm release at startup using normal npm caching.
 Network access is needed for downloads and update checks. Restart your MCP
-server after safely finishing workbook work to run an updated version.
+server after safely finishing presentation work to run an updated version.
 
 [Documentation](https://powerpointmcpserver.dev/installation-mcp-server/) |
 [Source](https://github.com/sbroenne/mcp-server-powerpoint) |
