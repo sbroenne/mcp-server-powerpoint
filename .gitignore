@@ -12,6 +12,8 @@ Directory.Build.props.user
 
 ## Node (changesets tooling only — see docs/RELEASE-STRATEGY.md)
 node_modules/
+vscode-extension/tests/**/*.js
+vscode-extension/tests/**/*.js.map
 
 ## IDE
 .vs/
