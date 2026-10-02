@@ -63,6 +63,7 @@ jobs:
         id: calculate_version
         env:
           CUSTOM_VERSION: ${{ inputs.custom_version }}
+          RESUME_RELEASE: ${{ inputs.resume_release }}
           VERSION_BUMP: ${{ inputs.version_bump }}
         run: |
           # If custom version is provided, use it
@@ -112,11 +113,13 @@ jobs:
 
           TAG="v${VERSION}"
 
-          # Check if tag already exists
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "::error::Tag $TAG already exists"
-            exit 1
+          RESUME_ARGUMENT=()
+          if [[ "$RESUME_RELEASE" == "true" ]]; then
+            RESUME_ARGUMENT+=("-ResumeRelease")
           fi
+          pwsh -File ./scripts/Assert-ReleaseTagState.ps1 \
+            -Version "$VERSION" \
+            "${RESUME_ARGUMENT[@]}"
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -640,29 +643,16 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Create and push tag
-        env:
-          RESUME_RELEASE: ${{ inputs.resume_release }}
+        shell: pwsh
         run: |
-          TAG="${{ needs.version.outputs.tag }}"
-
-          if git rev-parse --verify "refs/tags/$TAG" >/dev/null 2>&1; then
-            if [[ "$RESUME_RELEASE" != "true" ]]; then
-              echo "::error::Tag $TAG already exists. Set resume_release to resume a partial release."
-              exit 1
-            fi
-
-            echo "Resume requested, and tag $TAG already exists."
-            exit 0
-          fi
-
-          if [[ "$RESUME_RELEASE" == "true" ]]; then
-            echo "::error::Cannot resume because tag $TAG does not exist."
-            exit 1
-          fi
-
-          echo "Creating tag: $TAG"
-          git tag -a "$TAG" -m "Release $TAG"
-          git push origin "$TAG"
+          $arguments = @{
+            Version = "${{ needs.version.outputs.version }}"
+            CreateTag = $true
+          }
+          if ("${{ inputs.resume_release }}" -eq "true") {
+            $arguments.ResumeRelease = $true
+          }
+          ./scripts/Assert-ReleaseTagState.ps1 @arguments
 
   # =============================================================================
   # Job 8: Wait for NuGet Propagation + MCP Registry
@@ -830,16 +820,10 @@ jobs:
           'mcp-server-powerpoint'
         )) {
           $package = "@sbroenne/$name"
-          $publishedVersion = npm view "$package@$env:VERSION" version 2>$null
-          if ($LASTEXITCODE -eq 0 -and $publishedVersion -eq $env:VERSION) {
-            Write-Output "Skipping $package@$env:VERSION because it is already published."
-            continue
-          }
-
-          npm publish "./npm/sbroenne-$name-$env:VERSION.tgz" --access public
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to publish $package@$env:VERSION."
-          }
+          ./scripts/Publish-NpmPackage.ps1 `
+            -PackageName $package `
+            -Version $env:VERSION `
+            -PackageTarball "./npm/sbroenne-$name-$env:VERSION.tgz"
         }
 
     - name: Install VS Code publishing dependencies
@@ -940,9 +924,17 @@ jobs:
 
         echo "Creating release with artifacts:$ARTIFACTS"
 
-        gh release create "$TAG" $ARTIFACTS \
-          --title "PowerPointMcp $VERSION" \
-          --notes-file release_notes.md
+        if gh release view "$TAG" >/dev/null 2>&1; then
+          echo "Updating existing release $TAG"
+          gh release upload "$TAG" $ARTIFACTS --clobber
+          gh release edit "$TAG" \
+            --title "PowerPointMcp $VERSION" \
+            --notes-file release_notes.md
+        else
+          gh release create "$TAG" $ARTIFACTS \
+            --title "PowerPointMcp $VERSION" \
+            --notes-file release_notes.md
+        fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -953,6 +945,12 @@ jobs:
       run: |
         VERSION=${{ env.VERSION }}
         BRANCH="chore/changelog-v${VERSION}"
+
+        EXISTING_PR=$(gh pr list --state open --head "$BRANCH" --json number --jq '.[0].number // empty')
+        if [ -n "$EXISTING_PR" ]; then
+          echo "Release documentation PR #$EXISTING_PR already exists."
+          exit 0
+        fi
 
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
