@@ -15,10 +15,13 @@
   "homepage": "https://powerpointmcpserver.dev/",
   "license": "MIT",
   "engines": {
-    "vscode": "^1.118.0"
+    "vscode": "^1.125.0"
   },
   "os": [
     "win32"
+  ],
+  "extensionKind": [
+    "ui"
   ],
   "categories": [
     "AI",
@@ -52,25 +55,30 @@
     ],
     "chatSkills": [
       {
+        "name": "powerpoint-mcp",
+        "description": "PowerPoint MCP Server skill for Windows presentation automation.",
         "path": "./skills/powerpoint-mcp/SKILL.md"
       }
     ]
   },
   "scripts": {
-    "clean": "cd .. && dotnet build-server shutdown && dotnet clean src/PowerPointMcp.McpServer/PowerPointMcp.McpServer.csproj -c Release -nodeReuse:false",
-    "clean:bin": "node -e \"const fs=require('fs'); try{fs.rmSync('bin',{recursive:true,force:true})}catch{}\"",
-    "copy:skills": "powershell -NoProfile -ExecutionPolicy Bypass -File ..\\scripts\\Copy-VscodeSkills.ps1",
-    "build:mcp-server": "npm run clean && npm run clean:bin && cd .. && dotnet publish src/PowerPointMcp.McpServer/PowerPointMcp.McpServer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -p:PublishReadyToRun=false -p:NuGetAudit=false -nodeReuse:false -o vscode-extension/bin --verbosity minimal",
-    "copy:changelog": "node -e \"const fs=require('fs'); fs.copyFileSync('../CHANGELOG.md','CHANGELOG.md');\"",
-    "vscode:prepublish": "npm run build:mcp-server && npm run copy:skills && npm run copy:changelog && npm run compile",
+    "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package"
+    "package": "pwsh -NoProfile -File ..\\scripts\\Build-VscodeExtension.ps1",
+    "lint": "oxlint src tests -D correctness -D suspicious -D perf --deny-warnings",
+    "test": "vitest run",
+    "typecheck:tests": "tsc --noEmit -p tsconfig.test.json"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
-    "@types/vscode": "~1.118.0",
-    "@vscode/vsce": "^3.9.2",
-    "typescript": "^7.0.2"
+    "@types/vscode": "^1.125.0",
+    "@vscode/vsce": "^4.0.0",
+    "oxlint": "^1.77.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  },
+  "overrides": {
+    "uuid": "^14.0.1"
   }
 }

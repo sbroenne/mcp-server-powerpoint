@@ -1,0 +1,513 @@
+---
+name: powerpoint-cli
+description: >
+  PowerPoint CLI automation skill for Windows presentations. Use when a coding agent needs
+  token-efficient, scriptable, or unattended PowerPoint automation via pptcli commands. Best
+  for CI/CD, scheduled jobs, batch processing, PowerShell workflows, and bulk deck edits.
+  Supports slides, shapes, text frames, tables, charts, images, audio, video, speaker notes, layouts, and
+  .potx template restyling. Triggers: pptcli, PowerPoint CLI, command line, batch, script,
+  automation, CI/CD, scheduled, PowerShell, unattended, coding agent, deck processing.
+compatibility: Windows with Microsoft PowerPoint desktop installed.
+---
+
+# PowerPoint Automation with pptcli
+
+## Preconditions
+
+- Windows host with Microsoft PowerPoint installed (2016+)
+- Uses COM interop — does NOT work on macOS or Linux
+- Requires `pptcli.exe` on PATH (`dotnet tool install --global Sbroenne.PowerPointMcp.CLI`)
+
+## How pptcli Works — a Background Daemon, Not a Cold Start Per Command
+
+Launching PowerPoint and tearing it down again can take 90-150 seconds. To avoid paying that
+cost on every single CLI invocation, `pptcli` keeps one PowerPoint instance alive in a small
+background daemon (`pptcli service run`), auto-started the first time you open or create a
+session, and reused by every subsequent command that references the same session id — even
+though each command is a separate OS process.
+
+## Workflow Checklist
+
+| Step | Command | When |
+|------|---------|------|
+| 1. Session | `session create/open` | Always first |
+| 2. Slides | `slide add-blank` | If needed |
+| 3. Edit content | See command reference below | Shapes, text, tables, charts, images, media, notes |
+| 4. Save & close | `session close --save` | Always last |
+
+## CRITICAL RULES (MUST FOLLOW)
+
+### Rule 1: NEVER Ask Clarifying Questions
+
+Execute commands to discover the answer instead:
+
+| DON'T ASK | DO THIS INSTEAD |
+|-----------|-----------------|
+| "Which file should I use?" | `pptcli session list` |
+| "How many slides does the deck have?" | `pptcli slide get-count -s <id>` |
+| "How many shapes are on this slide?" | `pptcli shape get-count -s <id> --slide-index N` |
+
+**You have commands to answer your own questions. USE THEM.**
+
+### Rule 2: Always End With a Text Summary
+
+**NEVER end your turn with only a command execution.** After completing all operations, always
+provide a brief text message confirming what was done. Silent command-only responses are
+incomplete.
+
+### Rule 3: Session Lifecycle
+
+**Creating vs Opening Files:**
+```powershell
+# NEW file - use session create
+pptcli session create C:\decks\demo.pptx   # Creates file + returns session ID
+
+# EXISTING file - use session open
+pptcli session open C:\decks\demo.pptx     # Opens file + returns session ID
+```
+
+**CRITICAL: Use `session create` for new files. `session open` on non-existent files will fail!**
+
+**CRITICAL: ALWAYS use the session ID returned by `session create` or `session open` in
+subsequent commands via `-s`/`--session`. NEVER guess or hardcode session IDs. The session ID is
+in the JSON output (e.g., `{"sessionId":"abc123"}`). Parse it and use it.**
+
+```powershell
+# Example: capture session ID from output, then use it
+pptcli session create C:\decks\demo.pptx        # Returns JSON with sessionId
+pptcli slide add-blank -s <returned-session-id>
+pptcli session close <returned-session-id> --save
+```
+
+**Unclosed sessions leave PowerPoint processes running, locking files** — but the daemon shuts
+down automatically after an idle period with no open sessions, or immediately via
+`pptcli service stop`.
+
+### Rule 4: 1-Based Indexing Everywhere
+
+`--slide-index`, `--shape-index`, `--row`, `--column` are all **1-based**, matching PowerPoint's
+native object model — not 0-based.
+
+### Rule 5: Restyling an Existing Deck via a .potx Template
+
+```powershell
+$session = pptcli session open C:\decks\demo.pptx | ConvertFrom-Json
+pptcli presentation apply-template -s $session.sessionId --template-path C:\templates\corp.potx
+pptcli presentation get-theme-name -s $session.sessionId   # verify the theme actually changed
+pptcli session close $session.sessionId --save
+```
+
+Slide content is preserved; only masters/theme/layouts change.
+
+### Rule 6: Mark as Final Is Advisory, Not Security
+
+```powershell
+pptcli session get-final <session-id>
+pptcli session set-final <session-id> true
+pptcli session set-final <session-id> false
+```
+
+Mark as Final only communicates that editing is discouraged. It is not authentication,
+encryption, or access control. Setting it to `true` first saves all current changes, then
+PowerPoint persists the flag and makes the presentation read-only; `session close --save` remains
+valid without losing edits made before `set-final`. After clearing the flag, close with `--save`
+to persist the cleared state.
+
+### Rule 7: Report File Errors Immediately
+
+If you see "File not found" or "Path not found" - STOP and report to user. Don't retry.
+
+### Rule 8: Managing the Daemon Directly
+
+```powershell
+pptcli service status         # Report starting/running/unresponsive/stopped state
+pptcli service stop           # Graceful shutdown
+pptcli service stop --force   # Stop only PID + start-time identities owned by this daemon
+```
+
+## CLI Command Reference
+
+**Syntax rule:** CLI commands use `pptcli <command> <action> -s <SESSION_ID> --kebab-case-flags ...`.
+Do not use MCP call syntax such as `shape(action: "add-rectangle", session_id: ..., slide_index: ...)` or
+snake_case parameters — the CLI uses kebab-case flags and a `<command> <action>` shape instead
+of one flat tool per verb.
+
+Available command groups (in addition to `session` and `service`):
+
+`accessibility`, `animation`, `chart`, `customshow`, `export`, `image`, `layout`, `master`, `media`, `notes`, `pagesetup`, `shape`, `slide`, `smartart`, `table`, `textframe`
+
+Run `pptcli <command> --help` for the live, authoritative list of actions and flags for that
+command — the table below is a summary generated from the same Core interfaces as the MCP tool
+surface, so it can lag a `--help` run for in-flight changes.
+
+
+### `accessibility` — Deterministic presentation accessibility checks and reading-order operations.
+
+Actions: `audit`, `get-reading-order`, `set-reading-order`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | (required for: get-reading-order, set-reading-order) |
+| `--shape-indexes` | (required for: set-reading-order) |
+
+
+### `animation` — Animation commands: add/delete entrance, emphasis, and exit effects on a shape's slide timeline (Slide.TimeLine.MainSequence), and read/set a slide's transition (Slide.SlideShowTransition). Operates within an already-open , targeting a specific slide (and, for shape effects, a specific shape) by 1-based index.
+
+Actions: `add-effect`, `get-effect-count`, `delete-effect`, `get-transition`, `set-transition`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | (required) |
+| `--shape-index` | (required for: add-effect) |
+| `--effect-name` | (required for: add-effect) |
+| `--is-exit` | When true, the effect is applied as the shape leaving the slide (exit) rather than the     default entrance/emphasis behavior. |
+| `--trigger` | When the effect starts: "on-click" (default), "with-previous", or     "after-previous". |
+| `--effect-index` | (required for: delete-effect) |
+| `--transition-name` | (required for: set-transition) |
+| `--duration-seconds` |  |
+| `--advance-on-click` |  |
+| `--advance-on-time` |  |
+| `--advance-time-seconds` |  |
+
+
+### `chart` — Chart lifecycle, data, and quick-formatting operations.
+
+Actions: `add-chart`, `get-chart-data`, `add-series`, `set-chart-title`, `get-chart-title`, `set-axis-title`, `get-axis-title`, `set-legend-visibility`, `get-legend-visibility`, `replace-chart-data`, `get-style`, `set-style`, `get-color-style`, `set-color-style`, `get-data-table`, `set-data-table`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | 1-based slide index. (required) |
+| `--chart-type` | Chart type: "bar", "line", or "pie". (required for: add-chart) |
+| `--left` | Left position in points. (required for: add-chart) |
+| `--top` | Top position in points. (required for: add-chart) |
+| `--width` | Width in points. (required for: add-chart) |
+| `--height` | Height in points. (required for: add-chart) |
+| `--categories` | Category labels (x-axis / pie slice labels). (required for: add-chart, replace-chart-data) |
+| `--series-name` | Name of the single data series. (required for: add-chart, add-series) |
+| `--values` | Data values, one per category. (required for: add-chart, add-series) |
+| `--shape-index` | (required for: get-chart-data, add-series, set-chart-title, get-chart-title, set-axis-title, get-axis-title, set-legend-visibility, get-legend-visibility, replace-chart-data, get-style, set-style, get-color-style, set-color-style, get-data-table, set-data-table) |
+| `--title` | (required for: set-chart-title, set-axis-title) |
+| `--axis-type` | (required for: set-axis-title, get-axis-title) |
+| `--visible` | True to show the chart element; false to hide it. (required for: set-legend-visibility, set-data-table) |
+| `--series-names` | (required for: replace-chart-data) |
+| `--series-values` | (required for: replace-chart-data) |
+| `--style` | Built-in chart style number, verified against PowerPoint from 1 through 48. (required for: set-style) |
+| `--color-style` | Built-in chart color style number, verified against PowerPoint from 1 through 26. (required for: set-color-style) |
+
+
+### `customshow` — Named custom slide shows: curated, ordered subsets of a presentation's slides.
+
+Actions: `list`, `create`, `delete`
+
+| Flag | Description |
+|------|-------------|
+| `--name` | (required for: create, delete) |
+| `--slide-indices` | (required for: create) |
+
+
+### `export` — Export commands: render presentations to PDF or slides to raster image files. Operates within an already-open .
+
+Actions: `export-to-pdf`, `export-slide-to-image`, `export-all-slides-to-images`
+
+| Flag | Description |
+|------|-------------|
+| `--output-path` | Full path for the output .pdf file. (required for: export-to-pdf, export-slide-to-image) |
+| `--overwrite` | Whether an existing PDF may be replaced. Defaults to false. |
+| `--slide-index` | 1-based index of the slide to export. (required for: export-slide-to-image) |
+| `--format` | PowerPoint filter name for the image format (e.g. "PNG", "JPG", "GIF").     Defaults to "PNG". |
+| `--width` | Optional output width in pixels; 0 or null uses PowerPoint's default. |
+| `--height` | Optional output height in pixels; 0 or null uses PowerPoint's default. |
+| `--output-directory` | Directory where slide images will be written. Created if it does not exist.     PowerPoint names the output files Slide1.{ext}, Slide2.{ext}, etc. (required for: export-all-slides-to-images) |
+
+
+### `image` — Image commands: add a picture file to a slide. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
+
+Actions: `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`, `set-recolor`, `get-recolor`, `set-crop`, `get-crop`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | (required) |
+| `--image-path` | (required for: add-picture) |
+| `--left` | (required for: add-picture) |
+| `--top` | (required for: add-picture) |
+| `--width` | (required for: add-picture) |
+| `--height` | (required for: add-picture) |
+| `--link-to-file` | Whether the picture remains linked to its source file. Defaults to false. |
+| `--save-with-document` | Whether PowerPoint stores picture data in the presentation. Defaults to true. |
+| `--shape-index` | (required for: set-brightness-contrast, get-brightness-contrast, set-recolor, get-recolor, set-crop, get-crop) |
+| `--brightness` | (required for: set-brightness-contrast) |
+| `--contrast` | (required for: set-brightness-contrast) |
+| `--color-type` | (required for: set-recolor) |
+| `--crop-left` | (required for: set-crop) |
+| `--crop-top` | (required for: set-crop) |
+| `--crop-right` | (required for: set-crop) |
+| `--crop-bottom` | (required for: set-crop) |
+
+
+### `layout` — Slide layout commands: apply/read a slide's built-in layout. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
+
+Actions: `set-layout`, `get-layout`, `list-layouts`, `delete-layout`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | (required for: set-layout, get-layout) |
+| `--layout-name` | (required for: set-layout) |
+| `--master-index` | (required for: list-layouts, delete-layout) |
+| `--layout-index` | (required for: delete-layout) |
+
+
+### `master` — Slide master commands: read theme color palettes and theme fonts, or read/edit the title and body placeholder fonts on the presentation's slide master, and read/edit the slide master's background fill color. Operates within an already-open . Changes here apply to every slide that inherits from the master (i.e. any slide that does not itself override the property), which is the practical "edit the master, not each slide" workflow PowerPoint's COM object model supports safely.
+
+Actions: `get-title-font`, `set-title-font`, `get-body-font`, `set-body-font`, `get-background-color`, `set-background-color`, `set-gradient-background`, `get-gradient-background`, `list-masters`, `get-theme-colors`, `get-theme-fonts`, `delete-master`
+
+| Flag | Description |
+|------|-------------|
+| `--font-name` |  |
+| `--font-size` |  |
+| `--bold` |  |
+| `--red` | (required for: set-background-color) |
+| `--green` | (required for: set-background-color) |
+| `--blue` | (required for: set-background-color) |
+| `--red1` | (required for: set-gradient-background) |
+| `--green1` | (required for: set-gradient-background) |
+| `--blue1` | (required for: set-gradient-background) |
+| `--red2` | (required for: set-gradient-background) |
+| `--green2` | (required for: set-gradient-background) |
+| `--blue2` | (required for: set-gradient-background) |
+| `--gradient-style` |  |
+| `--gradient-variant` |  |
+| `--master-index` | (required for: delete-master) |
+
+
+### `media` — Media commands: insert audio or video files and inspect their PowerPoint media metadata. Operates within an already-open presentation session using 1-based slide and shape indexes.
+
+Actions: `add-media`, `get-media-info`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | (required) |
+| `--media-path` | (required for: add-media) |
+| `--link-to-file` | (required for: add-media) |
+| `--save-with-document` | (required for: add-media) |
+| `--left` | (required for: add-media) |
+| `--top` | (required for: add-media) |
+| `--width` | (required for: add-media) |
+| `--height` | (required for: add-media) |
+| `--shape-index` | (required for: get-media-info) |
+
+
+### `notes` — Speaker notes commands: set/get the notes text for a slide. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
+
+Actions: `set-notes-text`, `get-notes-text`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | (required) |
+| `--text` | (required for: set-notes-text) |
+
+
+### `pagesetup` — Presentation-wide slide size, numbering, and footer settings.
+
+Actions: `get-settings`, `set-size`, `set-first-slide-number`, `get-footer`, `set-footer`
+
+| Flag | Description |
+|------|-------------|
+| `--width` | (required for: set-size) |
+| `--height` | (required for: set-size) |
+| `--first-slide-number` | (required for: set-first-slide-number) |
+| `--footer-text` |  |
+| `--show-footer` |  |
+| `--show-slide-number` |  |
+| `--show-date-time` |  |
+| `--date-time-mode` |  |
+| `--fixed-date-time-text` |  |
+| `--show-on-title-slide` |  |
+
+
+### `shape` — Shape commands: create, inspect, align, distribute, format, group, merge, link, create editable WordArt, rotate shapes in 3D, duplicate/copy, and edit native placeholders. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
+
+Actions: `add-rectangle`, `add-text-box`, `add-text-effect`, `add-auto-shape`, `add-line`, `add-connector`, `add-attached-connector`, `get-count`, `delete`, `set-position`, `set-size`, `set-fill`, `get-fill`, `set-line`, `get-line`, `copy-formatting`, `duplicate`, `copy-to-slide`, `set-rotation`, `get-rotation`, `set-3d-rotation`, `get-3d-rotation`, `flip`, `set-z-order`, `set-shadow`, `get-shadow`, `set-glow`, `get-glow`, `set-reflection`, `get-reflection`, `set-soft-edge`, `get-soft-edge`, `set-bevel`, `get-bevel`, `group`, `align`, `distribute`, `ungroup`, `merge`, `set-name`, `get-name`, `set-alt-text`, `get-alt-text`, `set-hyperlink`, `get-hyperlink`, `remove-hyperlink`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update`, `list-placeholders`, `set-placeholder-text`, `set-placeholder-image`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | (required) |
+| `--left` | (required for: add-rectangle, add-text-box, add-text-effect, add-auto-shape, set-position) |
+| `--top` | (required for: add-rectangle, add-text-box, add-text-effect, add-auto-shape, set-position) |
+| `--width` | (required for: add-rectangle, add-text-box, add-auto-shape, set-size) |
+| `--height` | (required for: add-rectangle, add-text-box, add-auto-shape, set-size) |
+| `--text` | (required for: add-text-box, add-text-effect, set-placeholder-text) |
+| `--preset-effect` | (required for: add-text-effect) |
+| `--font-name` | (required for: add-text-effect) |
+| `--font-size` | (required for: add-text-effect) |
+| `--bold` |  |
+| `--italic` |  |
+| `--shape-type` | (required for: add-auto-shape) |
+| `--begin-x` | (required for: add-line, add-connector) |
+| `--begin-y` | (required for: add-line, add-connector) |
+| `--end-x` | (required for: add-line, add-connector) |
+| `--end-y` | (required for: add-line, add-connector) |
+| `--connector-type` | (required for: add-connector, add-attached-connector) |
+| `--begin-shape-index` | (required for: add-attached-connector) |
+| `--begin-connection-site` | (required for: add-attached-connector) |
+| `--end-shape-index` | (required for: add-attached-connector) |
+| `--end-connection-site` | (required for: add-attached-connector) |
+| `--shape-index` | (required for: delete, set-position, set-size, set-fill, get-fill, set-line, get-line, duplicate, copy-to-slide, set-rotation, get-rotation, set-3d-rotation, get-3d-rotation, flip, set-z-order, set-shadow, get-shadow, set-glow, get-glow, set-reflection, get-reflection, set-soft-edge, get-soft-edge, set-bevel, get-bevel, ungroup, set-name, get-name, set-alt-text, get-alt-text, set-hyperlink, get-hyperlink, remove-hyperlink, get-link-info, update-link, break-link, set-link-auto-update, set-placeholder-text, set-placeholder-image, set-tag, get-tag, list-tags, delete-tag) |
+| `--red` | (required for: set-fill, set-glow) |
+| `--green` | (required for: set-fill, set-glow) |
+| `--blue` | (required for: set-fill, set-glow) |
+| `--weight` |  |
+| `--dash-style` |  |
+| `--visible` | (required for: set-shadow, set-reflection) |
+| `--source-shape-index` | (required for: copy-formatting) |
+| `--target-shape-index` | (required for: copy-formatting) |
+| `--target-slide-index` | (required for: copy-to-slide) |
+| `--degrees` | (required for: set-rotation) |
+| `--rotation-x` |  |
+| `--rotation-y` |  |
+| `--rotation-z` |  |
+| `--direction` | (required for: flip) |
+| `--z-order-command` | (required for: set-z-order) |
+| `--transparency` |  |
+| `--blur` |  |
+| `--offset-x` |  |
+| `--offset-y` |  |
+| `--radius` | (required for: set-glow, set-soft-edge) |
+| `--size` |  |
+| `--bevel-type` | (required for: set-bevel) |
+| `--depth` |  |
+| `--inset` |  |
+| `--shape-indexes` | (required for: group, align, distribute, merge) |
+| `--align-cmd` | (required for: align) |
+| `--relative-to-slide` |  |
+| `--distribute-cmd` | (required for: distribute) |
+| `--merge-type` | (required for: merge) |
+| `--name` | (required for: set-name) |
+| `--alt-text` | (required for: set-alt-text) |
+| `--address` | (required for: set-hyperlink) |
+| `--screen-tip` |  |
+| `--auto-update` | True for automatic refresh or false for manual refresh. (required for: set-link-auto-update) |
+| `--image-path` | (required for: set-placeholder-image) |
+| `--tag-name` | (required for: set-tag, get-tag, delete-tag) |
+| `--tag-value` | (required for: set-tag) |
+
+
+### `slide` — Slide lifecycle, visibility, background, section, legacy comment, and slide-import commands.
+
+Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-background-color`, `get-background-color`, `set-gradient-background`, `get-gradient-background`, `add-section`, `rename-section`, `delete-section`, `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`, `clear-comments`, `set-hidden`, `set-display-master-shapes`, `import-from-file`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | (required for: delete, duplicate, move-to, set-background-color, get-background-color, set-gradient-background, get-gradient-background, list-comments, add-comment, delete-comment, clear-comments, set-hidden, set-display-master-shapes, set-tag, get-tag, list-tags, delete-tag) |
+| `--to-position` | (required for: move-to) |
+| `--red` | (required for: set-background-color) |
+| `--green` | (required for: set-background-color) |
+| `--blue` | (required for: set-background-color) |
+| `--red1` | (required for: set-gradient-background) |
+| `--green1` | (required for: set-gradient-background) |
+| `--blue1` | (required for: set-gradient-background) |
+| `--red2` | (required for: set-gradient-background) |
+| `--green2` | (required for: set-gradient-background) |
+| `--blue2` | (required for: set-gradient-background) |
+| `--gradient-style` |  |
+| `--gradient-variant` |  |
+| `--section-index` | (required for: add-section, rename-section, delete-section, get-section-name) |
+| `--section-name` | (required for: rename-section) |
+| `--delete-slides` |  |
+| `--author` | (required for: add-comment) |
+| `--initials` | (required for: add-comment) |
+| `--text` | (required for: add-comment) |
+| `--left` |  |
+| `--top` |  |
+| `--comment-index` | (required for: delete-comment) |
+| `--hidden` | (required for: set-hidden) |
+| `--display` | (required for: set-display-master-shapes) |
+| `--source-file-path` | (required for: import-from-file) |
+| `--destination-slide-index` | (required for: import-from-file) |
+| `--source-start-slide` |  |
+| `--source-end-slide` |  |
+| `--tag-name` | (required for: set-tag, get-tag, delete-tag) |
+| `--tag-value` | (required for: set-tag) |
+
+
+### `smartart` — SmartArt commands: add a SmartArt diagram to a slide from PowerPoint's built-in layout gallery, and add/read/update/delete/count the diagram's nodes. Operates within an already-open , targeting a specific slide and shape by 1-based index.
+
+Actions: `add-smart-art`, `add-node`, `add-child-node`, `set-node-text`, `get-node-text`, `delete-node`, `get-node-count`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | (required) |
+| `--layout-name` | (required for: add-smart-art) |
+| `--left` | (required for: add-smart-art) |
+| `--top` | (required for: add-smart-art) |
+| `--width` | (required for: add-smart-art) |
+| `--height` | (required for: add-smart-art) |
+| `--shape-index` | (required for: add-node, add-child-node, set-node-text, get-node-text, delete-node, get-node-count) |
+| `--text` | (required for: add-node, add-child-node, set-node-text) |
+| `--parent-node-index` | (required for: add-child-node) |
+| `--node-index` | (required for: set-node-text, get-node-text, delete-node) |
+
+
+### `table` — Table commands: add a table shape, read/write cell text, insert/delete rows and columns, format cell fill and borders, and merge cells. Operates within an already-open IPresentationBatch, targeting a specific slide and table shape by their 1-based indices.
+
+Actions: `add-table`, `set-cell-text`, `get-cell-text`, `insert-row`, `delete-row`, `insert-column`, `delete-column`, `set-cell-fill`, `get-cell-fill`, `set-cell-border`, `get-cell-border`, `merge-cells`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | (required) |
+| `--rows` | (required for: add-table) |
+| `--columns` | (required for: add-table) |
+| `--left` | (required for: add-table) |
+| `--top` | (required for: add-table) |
+| `--width` | (required for: add-table) |
+| `--height` | (required for: add-table) |
+| `--shape-index` | (required for: set-cell-text, get-cell-text, insert-row, delete-row, insert-column, delete-column, set-cell-fill, get-cell-fill, set-cell-border, get-cell-border, merge-cells) |
+| `--row` | (required for: set-cell-text, get-cell-text, delete-row, set-cell-fill, get-cell-fill, set-cell-border, get-cell-border, merge-cells) |
+| `--column` | (required for: set-cell-text, get-cell-text, delete-column, set-cell-fill, get-cell-fill, set-cell-border, get-cell-border, merge-cells) |
+| `--text` | (required for: set-cell-text) |
+| `--before-row` |  |
+| `--before-column` |  |
+| `--red` | (required for: set-cell-fill) |
+| `--green` | (required for: set-cell-fill) |
+| `--blue` | (required for: set-cell-fill) |
+| `--border-type` | (required for: set-cell-border, get-cell-border) |
+| `--weight` |  |
+| `--dash-style` |  |
+| `--visible` |  |
+| `--merge-to-row` | (required for: merge-cells) |
+| `--merge-to-column` | (required for: merge-cells) |
+
+
+### `textframe` — Text frame commands: set/get/find/replace text and basic font formatting (size, bold, italic, underline, font name, color, alignment, bullets) for a shape's text range. Operates within an already-open IPresentationBatch, targeting a specific shape by its 1-based slide and shape index.
+
+Actions: `set-text`, `get-text`, `find-text`, `replace-text`, `set-font-size`, `get-font-size`, `set-bold`, `get-bold`, `set-font-color`, `get-font-color`, `set-italic`, `get-italic`, `set-underline`, `get-underline`, `set-font-name`, `get-font-name`, `set-alignment`, `get-alignment`, `set-bullet`, `get-bullet`, `set-auto-size`, `get-auto-size`
+
+| Flag | Description |
+|------|-------------|
+| `--slide-index` | (required) |
+| `--shape-index` | (required) |
+| `--text` | (required for: set-text) |
+| `--find-what` | (required for: find-text, replace-text) |
+| `--match-case` |  |
+| `--whole-words` |  |
+| `--replace-what` | (required for: replace-text) |
+| `--font-size` | (required for: set-font-size) |
+| `--bold` | (required for: set-bold) |
+| `--red` | (required for: set-font-color) |
+| `--green` | (required for: set-font-color) |
+| `--blue` | (required for: set-font-color) |
+| `--italic` | (required for: set-italic) |
+| `--underline` | (required for: set-underline) |
+| `--font-name` | (required for: set-font-name) |
+| `--alignment` | (required for: set-alignment) |
+| `--enabled` | (required for: set-bullet) |
+| `--character` |  |
+| `--auto-size` | (required for: set-auto-size) |
+
+
+
+## Common Pitfalls
+
+- `--red`/`--green`/`--blue` for `textframe set-font-color` are each 0-255 integers, not a single
+  hex string.
+- A session created with `session create` is already open — do not call `session open` on the
+  same path again; that opens a SECOND session against the same file.

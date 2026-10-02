@@ -5,10 +5,11 @@ excludeAgent: "code-review"
 
 # MCP Server Development Guide
 
-> All tool methods in this project are **synchronous** — they return `string`, not
-> `Task<string>`. There is no async/await anywhere in the `Tools/` classes; COM access via
-> `IPresentationBatch.Execute` is already synchronous from the caller's point of view (the async
-> plumbing lives inside `PresentationBatch`, not in the tool methods).
+Tool methods return the MCP SDK's `Task<CallToolResult>`. Results include both a
+text JSON block for existing clients and the same object as structured content.
+Generated tools declare an output schema derived from their Core result
+contracts. A cancellation token is injected by the SDK and forwarded through
+the service bridge; it is never advertised as a tool argument.
 
 ## LLM-Facing Content Rules
 
@@ -52,12 +53,14 @@ public static class PresentationTools
 
     [McpServerTool(Name = "presentation")]
     [Description("Presentation lifecycle, template, and document-property operations.")]
-    public static string Presentation(
+    public static Task<CallToolResult> Presentation(
         PresentationToolAction action,
         string? filePath = null,
         string? sessionId = null,
-        PresentationSessionRegistry? registry = null)
-        => PowerPointToolsBase.ExecuteToolAction("presentation", action.ToActionString(), () =>
+        PresentationSessionRegistry? registry = null,
+        CancellationToken cancellationToken = default)
+        => PowerPointToolsBase.ExecuteToolActionAsync(
+            "presentation", action.ToActionString(), () =>
         {
             return action switch
             {
@@ -65,7 +68,7 @@ public static class PresentationTools
                 PresentationToolAction.Open => HandleOpen(filePath, registry!),
                 _ => PowerPointToolsBase.ValidationError($"Unknown action: {action}")
             };
-        });
+        }, cancellationToken);
 }
 ```
 
@@ -78,8 +81,9 @@ operation still goes into Core, not here.
 **MCP tools must return JSON with `isError: true` for business errors, NOT throw exceptions.**
 This follows the MCP spec's two error mechanisms:
 
-1. **Protocol errors** — malformed requests, unknown tools → the MCP SDK handles these; tool code
-   rarely needs to throw for this.
+1. **Protocol errors** — malformed requests and unknown tools are handled before dispatch by the
+   MCP SDK and `ToolArgumentFilter`. The filter returns an MCP error result for unknown actions,
+   unknown parameters, primitive type mismatches, and parameters invalid for the selected action.
 2. **Tool execution errors** (business logic failures — unknown session, bad index, missing file)
    → return a JSON payload with `isError: true` via `PowerPointToolsBase.ValidationError(...)`, do
    NOT throw.
@@ -102,10 +106,11 @@ if (!registry.TryGet(sessionId, out var batch))
 ```
 
 **Unexpected exceptions** (COM exceptions, null refs, etc.) are allowed to propagate out of the
-tool method body — `PowerPointToolsBase.ExecuteToolAction` wraps every tool call and catches them
+tool method body — `PowerPointToolsBase.ExecuteToolActionAsync` wraps every tool call and catches them
 at that single boundary, logging the HResult to stderr and serializing a structured error via
 `SerializeToolError`. Do not add a second try-catch inside an individual tool method — let
-`ExecuteToolAction` be the only catch-all.
+`ExecuteToolActionAsync` be the only catch-all. Cancellation is rethrown to the SDK rather than
+reported as a PowerPoint failure.
 
 ## Session Injection Pattern (Hand-Written Tools)
 
@@ -116,14 +121,14 @@ takes it as the last parameter, named exactly `registry`. Generated action-dispa
 take a DI-injected `PowerPointMcpService service` parameter, which the generator wires
 automatically — you never write this by hand.
 
-## Result Serialization Pattern
+## Result and Schema Pattern
 
-Each domain tool class has a private `SerializeResult({Domain}OperationResult result)` helper
-that projects the Core result DTO into the MCP JSON payload:
+Each generated domain tool projects the Core result DTO into compact JSON, then
+`PowerPointToolsBase.CreateToolResult` returns it as both legacy text and structured content:
 
 ```csharp
-private static string SerializeResult(ShapeOperationResult result)
-    => PowerPointToolsBase.Serialize(new
+private static string SerializeResult(ShapeOperationResult result) =>
+    PowerPointToolsBase.Serialize(new
     {
         success = result.Success,
         errorMessage = result.ErrorMessage,
@@ -135,7 +140,12 @@ private static string SerializeResult(ShapeOperationResult result)
 
 `PowerPointToolsBase.JsonOptions` already applies camelCase naming, omits null properties
 (`DefaultIgnoreCondition.WhenWritingNull`), and serializes enums as strings — don't duplicate that
-configuration per tool class.
+configuration per tool class. The MCP generator also emits one output-schema class per tool from
+the public Core result properties. Keep result contracts accurate rather than hand-maintaining
+generated schema.
+
+`UseStructuredContent = true` and `OutputSchemaType` are mandatory. Preserve the text content for
+older clients; structured content is additive.
 
 ## Adding a New Tool
 
@@ -147,15 +157,16 @@ Image, Media, Chart, Export, CustomShow) — the common case:**
 2. Nothing else to write by hand — `PowerPointMcp.Generators.Mcp` picks up the new interface
    method automatically and adds it as a new `action` value on that domain's action-dispatch
    tool (e.g. `shape(action: "add-oval", ...)`) the next time the project builds.
-3. Verify the new operation appears correctly in `tools/list`'s schema (protocol test in
-   `tests/PowerPointMcp.McpServer.Tests`) and that `PowerPointMcp.Generators.Cli` emitted the
-   matching `pptcli {category} {action}` command.
+3. Verify the new operation appears correctly in `tools/list`, its output fields come from the
+   Core result contract, malformed action arguments are rejected before dispatch, and
+   `PowerPointMcp.Generators.Cli` emitted the matching `pptcli {category} {action}` command.
 4. Update `skills/shared/*.md` (and its copy under `skills/powerpoint-mcp/references/`) if the new
    operation changes recommended workflows.
 
 **For a hand-written tool (`PresentationTools.cs` only) — rare, session-lifecycle/template work:**
 1. Add the Core command first, same as above.
 2. Add the new enum value + switch arm to `PresentationTools.cs`, following the pattern above.
-3. Verify the `presentation` tool appears correctly in `tools/list` with the expected action and no
-   leaked `registry` parameter.
+3. Update `PresentationToolOutputSchema` when the action adds a new result field, then verify the
+   `presentation` tool appears in `tools/list` with structured output and no leaked `registry` or
+   `cancellationToken` parameter.
 4. Update `skills/shared/*.md` as above.

@@ -136,6 +136,9 @@ public sealed class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine("#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member");
         sb.AppendLine();
         sb.AppendLine("using System.ComponentModel;");
+        sb.AppendLine("using System.Text.Json.Serialization;");
+        sb.AppendLine("using System.Threading;");
+        sb.AppendLine("using ModelContextProtocol.Protocol;");
         sb.AppendLine("using ModelContextProtocol.Server;");
         sb.AppendLine("using Sbroenne.PowerPointMcp.Generated;");
         sb.AppendLine("using Sbroenne.PowerPointMcp.McpServer.Infrastructure;");
@@ -152,17 +155,18 @@ public sealed class McpToolGenerator : IIncrementalGenerator
         var title = info.McpToolTitle ?? $"PowerPoint {info.CategoryPascal} Operations";
         var destructive = info.McpToolDestructive ? "true" : "false";
         var category = info.McpToolCategory ?? "content";
-        sb.AppendLine($"    [McpServerTool(Name = \"{info.McpToolName}\", Title = \"{title}\", Destructive = {destructive})]");
+        sb.AppendLine($"    [McpServerTool(Name = \"{info.McpToolName}\", Title = \"{title}\", Destructive = {destructive}, UseStructuredContent = true, OutputSchemaType = typeof({GetOutputSchemaClassName(info)}))]");
         sb.AppendLine($"    [McpMeta(\"category\", \"{category}\")]");
         sb.AppendLine($"    [McpMeta(\"requiresSession\", {(!info.NoSession).ToString().ToLowerInvariant()})]");
         sb.AppendLine($"    [Description(\"{toolDescription} Actions: {actionList}.\")]");
-        sb.AppendLine($"    public static string PowerPoint{info.CategoryPascal}(");
+        sb.AppendLine($"    public static Task<CallToolResult> PowerPoint{info.CategoryPascal}(");
         sb.AppendLine($"        [Description(\"The action to perform. One of: {actionList}.\")] {info.CategoryPascal}Action action,");
         sb.AppendLine("        [Description(\"The session id returned by the presentation tool's action=open or action=create.\")] string session_id,");
 
         if (exposedParams.Count == 0)
         {
-            sb.AppendLine("        PowerPointMcpService service)");
+            sb.AppendLine("        PowerPointMcpService service,");
+            sb.AppendLine("        CancellationToken cancellationToken = default)");
         }
         else
         {
@@ -172,33 +176,94 @@ public sealed class McpToolGenerator : IIncrementalGenerator
                 var p = exposedParams[i];
                 var snakeName = StringHelper.ToSnakeCase(p.Name);
                 var description = EscapeDescription(p.DescriptionWithRequired ?? StringHelper.GetParameterDescription(p.Name));
-                var suffix = i < exposedParams.Count - 1 ? "," : ")";
-                sb.AppendLine($"        [Description(\"{description}\")] {p.TypeName} {snakeName} = null{suffix}");
+                sb.AppendLine($"        [Description(\"{description}\")] {p.TypeName} {snakeName} = null,");
             }
+            sb.AppendLine("        CancellationToken cancellationToken = default)");
         }
 
         sb.AppendLine("    {");
-        sb.AppendLine("        return PowerPointToolsBase.ExecuteToolAction(");
+        sb.AppendLine("        return PowerPointToolsBase.ExecuteToolActionAsync(");
         sb.AppendLine($"            \"{info.McpToolName}\",");
         sb.AppendLine($"            ServiceRegistry.{info.CategoryPascal}.ToActionString(action),");
         sb.AppendLine($"            () => ServiceRegistry.{info.CategoryPascal}.RouteAction(");
         sb.AppendLine("                action,");
         sb.AppendLine("                session_id,");
 
-        var forwardLine = "                (command, sid, args) => ServiceBridge.ForwardToService(service, command, sid, args)";
-        sb.AppendLine(exposedParams.Count > 0 ? forwardLine + "," : forwardLine + "));");
+        var forwardLine = "                (command, sid, args) => ServiceBridge.ForwardToServiceAsync(service, command, sid, args, cancellationToken).GetAwaiter().GetResult()";
+        sb.AppendLine(exposedParams.Count > 0
+            ? forwardLine + ","
+            : forwardLine + "), cancellationToken);");
 
         for (int i = 0; i < exposedParams.Count; i++)
         {
             var p = exposedParams[i];
             var snakeName = StringHelper.ToSnakeCase(p.Name);
-            var suffix = i < exposedParams.Count - 1 ? "," : "));";
+            var suffix = i < exposedParams.Count - 1 ? "," : "), cancellationToken);";
             sb.AppendLine($"                {p.Name}: {snakeName}{suffix}");
         }
-
         sb.AppendLine("    }");
         sb.AppendLine("}");
+        sb.AppendLine();
+        GenerateOutputSchemaClass(sb, info);
 
         return sb.ToString();
+    }
+
+    private static void GenerateOutputSchemaClass(StringBuilder sb, ServiceInfo info)
+    {
+        sb.AppendLine($"internal sealed class {GetOutputSchemaClassName(info)}");
+        sb.AppendLine("{");
+        foreach (var property in GetOutputSchemaProperties(info))
+        {
+            sb.AppendLine("    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]");
+            sb.AppendLine($"    public {property.TypeName} {property.Name} {{ get; set; }}");
+        }
+        sb.AppendLine("}");
+    }
+
+    private static string GetOutputSchemaClassName(ServiceInfo info) =>
+        $"{info.CategoryPascal}ToolOutputSchema";
+
+    private static OutputSchemaProperty[] GetOutputSchemaProperties(ServiceInfo info)
+    {
+        var properties = new Dictionary<string, OutputSchemaProperty>(StringComparer.Ordinal);
+        foreach (var method in info.Methods)
+        {
+            if (method.ReturnTypeSymbol is not INamedTypeSymbol returnType)
+                continue;
+
+            for (var type = returnType; type is not null; type = type.BaseType)
+            {
+                foreach (var property in type.GetMembers().OfType<IPropertySymbol>())
+                {
+                    if (property.IsStatic || property.IsIndexer ||
+                        property.DeclaredAccessibility != Accessibility.Public || property.GetMethod is null)
+                        continue;
+
+                    var typeName = GetOptionalSchemaTypeName(property.Type);
+                    if (properties.TryGetValue(property.Name, out var existing) && existing.TypeName != typeName)
+                        properties[property.Name] = new(property.Name, "System.Text.Json.JsonElement?");
+                    else
+                        properties[property.Name] = new(property.Name, typeName);
+                }
+            }
+        }
+
+        return properties.Values
+            .OrderBy(property => property.Name == "Success" ? 0 : 1)
+            .ThenBy(property => property.Name, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static string GetOptionalSchemaTypeName(ITypeSymbol type)
+    {
+        var typeName = TypeNameHelper.GetTypeName(type, type.NullableAnnotation);
+        return typeName.EndsWith("?", StringComparison.Ordinal) ? typeName : typeName + "?";
+    }
+
+    private sealed class OutputSchemaProperty(string name, string typeName)
+    {
+        public string Name { get; } = name;
+        public string TypeName { get; } = typeName;
     }
 }

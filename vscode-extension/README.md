@@ -1,44 +1,98 @@
-# PowerPoint MCP Server — VS Code Extension
+# PowerPointMcp - Real PowerPoint Automation for VS Code
 
-Automate Microsoft PowerPoint from AI assistants (GitHub Copilot and other MCP
-clients) directly inside VS Code. The extension registers the
-[PowerPoint MCP Server](https://powerpointmcpserver.dev) via VS Code's MCP
-server definition provider and ships the associated Agent Skills.
+<a href="https://github.com/sbroenne/mcp-server-powerpoint"><img src="https://img.shields.io/github/stars/sbroenne/mcp-server-powerpoint?style=flat&label=GitHub%20Stars" alt="GitHub stars" width="112" height="20"></a>
+<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" width="81" height="20"></a>
 
-> **Windows only.** Requires Microsoft PowerPoint (desktop) to be installed.
+**Automate real Microsoft PowerPoint with GitHub Copilot.**
 
-## What it does
+Create and edit slides, shapes, text, tables, charts, images, notes, layouts,
+animations, and speaker notes directly from Copilot Chat. Export slides to
+images so the assistant can verify the actual rendered result.
 
-- Registers the `powerpoint-mcp` MCP server so Copilot Chat can create and edit
-  PowerPoint decks — slides, shapes, text, tables, charts, images, notes,
-  layouts — and export slides to images for visual verification.
-- Bundles a **self-contained** MCP server executable (no .NET runtime needed).
-- Contributes the PowerPoint Agent Skill (`chatSkills`) for better guidance.
+**Requires Windows, desktop Microsoft PowerPoint, VS Code 1.125 or later, and
+GitHub Copilot chat with tool support.**
 
-## Getting started
+The native server and PowerPoint guidance are included. **No separate .NET,
+Node.js, CLI, or skill installation is needed.**
 
-1. Install the extension from the VS Code Marketplace.
-2. Ensure Microsoft PowerPoint is installed.
-3. Open Copilot Chat and ask it to build or edit a `.pptx` deck.
+## See It in Action
 
-## Building locally
+<a href="https://youtu.be/Q-1VGFgoSVU"><img src="https://img.youtube.com/vi/Q-1VGFgoSVU/maxresdefault.jpg" alt="Watch the PowerPoint MCP Server demonstration" width="384" height="216"></a>
 
-```pwsh
-cd vscode-extension
-npm install
-npm run compile        # quick check: compiles src/extension.ts -> out/extension.js only
-npm run package        # produce the .vsix (runs vscode:prepublish -> full bundle)
-```
+[Watch the PowerPoint MCP Server demo](https://youtu.be/Q-1VGFgoSVU)
 
-`npm run compile` is just a fast TypeScript build for local iteration — it does
-**not** bundle the MCP server or skills. The `.vsix` is produced by
-`npm run package`, which triggers `vscode:prepublish`: this publishes the
-self-contained MCP server into `bin/`, copies the skill pack and changelog, and
-then compiles the TypeScript.
+## Quick Start
 
-## Links
+1. Install the extension on your Windows desktop with PowerPoint installed.
+2. Open Copilot Chat with tool support.
+3. Ask Copilot to create a presentation or provide a full path to an existing
+   `.pptx` file.
 
-- Documentation: https://powerpointmcpserver.dev
-- Source: https://github.com/sbroenne/mcp-server-powerpoint
+With VS Code's default settings, the bundled **powerpoint-mcp** server starts
+automatically when your request needs PowerPoint tools. Approve server or tool
+use if prompted.
 
-Licensed under the MIT License.
+Try:
+
+> Create a five-slide product launch presentation on my Desktop. Use a clean
+> blue theme, add a summary chart, export each slide to an image, check the
+> result, and save the deck.
+
+## What You Can Ask Copilot
+
+| Ask Copilot | Result |
+|---|---|
+| "Create a quarterly review deck with a title slide, KPI table, and column chart." | A new presentation built and saved by desktop PowerPoint. |
+| "Open this deck, align the selected shapes, improve the slide titles, and save a copy." | Layout and text edits in the existing presentation. |
+| "Check the deck for missing alt text and export every slide to PNG." | Accessibility findings plus rendered images for visual review. |
+
+## Key Features
+
+- **Slides and layouts** - Create, duplicate, reorder, delete, and inspect slides.
+- **Shapes and text** - Add, position, align, group, format, and edit content.
+- **Tables and charts** - Build and update structured visual content.
+- **Images, media, and SmartArt** - Add and manage rich presentation elements.
+- **Animations and custom shows** - Configure sequencing and presentation flow.
+- **Visual verification** - Export slides through PowerPoint's renderer.
+- **Accessibility** - Audit presentation structure and alternative text.
+- **PowerPoint guidance included** - Copilot loads the bundled skill when needed.
+
+## Requirements
+
+- Windows x64 or Windows ARM64 with an interactive desktop.
+- Microsoft PowerPoint desktop installed, registered, and able to open normally.
+- VS Code 1.125 or later and GitHub Copilot chat with tool support.
+
+This extension is not for macOS, Linux, browser-only VS Code, Windows services,
+or unattended server-side processing. It bundles the MCP server, not `pptcli`.
+
+## Troubleshooting
+
+| Problem | What to Do |
+|---|---|
+| "PowerPoint is not registered" | Install or repair desktop PowerPoint, open it once, and retry. |
+| Copilot cannot see PowerPoint tools | Run **MCP: List Servers**, choose **powerpoint-mcp**, and start it. Enable its tools in chat and accept the trust prompt. |
+| "Bundled server is missing or unreadable" | Check security software and file permissions, or reinstall the extension. |
+| Registration check times out | Confirm Windows PowerShell and PowerPoint open normally, then repair Office if needed. |
+
+- **Server logs:** run **MCP: List Servers**, choose **powerpoint-mcp**, then
+  **Show Output**.
+- **Extension setup diagnostics:** open the Output panel and choose
+  **PowerPointMcp**, or select **Show Setup Output** in a setup error.
+
+Startup checks read PowerPoint's registration. They do not start PowerPoint or
+open a presentation.
+
+## Privacy
+
+PowerPoint runs on your Windows desktop. Presentation content requested through
+tools is returned to your AI assistant, whose privacy policy applies. The
+extension does not add a separate cloud service.
+
+## Documentation and Support
+
+[Complete documentation](https://powerpointmcpserver.dev/) |
+[Source code](https://github.com/sbroenne/mcp-server-powerpoint) |
+[Report an issue](https://github.com/sbroenne/mcp-server-powerpoint/issues)
+
+MIT License - see [LICENSE](https://github.com/sbroenne/mcp-server-powerpoint/blob/main/LICENSE).

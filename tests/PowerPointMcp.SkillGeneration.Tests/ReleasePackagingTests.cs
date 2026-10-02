@@ -300,47 +300,28 @@ public sealed class ReleasePackagingTests
     [Fact]
     public void PreCommit_SkillGenerationTestsDoNotTriggerFullMcpSuite()
     {
-        var script = File.ReadAllText(PreCommitScript);
-        var patternMatch = System.Text.RegularExpressions.Regex.Match(
-            script,
-            @"\$runtimeCodePattern\s*=\s*'(?<pattern>[^']+)'");
+        var planner = Path.Combine(RepoRoot, "scripts", "Get-ValidationPlan.ps1");
+        var command = $"""
+            . '{planner}';
+            @(
+                Get-ValidationPlan -Paths 'tests/PowerPointMcp.SkillGeneration.Tests/ReleasePackagingTests.cs';
+                Get-ValidationPlan -Paths 'tests/PowerPointMcp.McpServer.Tests/Integration/McpProtocolTests.cs';
+                Get-ValidationPlan -Paths 'src/PowerPointMcp.Core/Slide/SlideCommands.cs';
+                Get-ValidationPlan -Paths 'vscode-extension/src/extension.ts';
+                Get-ValidationPlan -Paths '.github/plugins/powerpoint-mcp/mcp.json'
+            ) | ConvertTo-Json -Compress
+            """;
+        var result = RunProcessRaw("pwsh", ["-NoProfile", "-Command", command]);
 
-        Assert.True(patternMatch.Success, "The pre-commit runtime classification pattern was not found.");
-        var pattern = patternMatch.Groups["pattern"].Value;
-        Assert.False(
-            System.Text.RegularExpressions.Regex.IsMatch(
-                "tests/PowerPointMcp.SkillGeneration.Tests/ReleasePackagingTests.cs",
-                pattern),
-            "SkillGeneration tests exercise tooling and packaging, not the MCP runtime.");
-        Assert.True(
-            System.Text.RegularExpressions.Regex.IsMatch(
-                "tests/PowerPointMcp.McpServer.Tests/Integration/McpProtocolTests.cs",
-                pattern),
-            "MCP server test changes must retain the full runtime test gate.");
-        Assert.True(
-            System.Text.RegularExpressions.Regex.IsMatch("src/PowerPointMcp.Core/Slide/SlideCommands.cs", pattern),
-            "Core runtime changes must retain the full runtime test gate.");
-        Assert.Contains(
-            "Skipping MCP Server tests (tooling-only changes do not affect MCP behavior)",
-            script,
-            StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            "Running MCP Server protocol tests only (docs/tooling change",
-            script,
-            StringComparison.Ordinal);
-
-        Assert.Contains(
-            "FullyQualifiedName~DocumentationCounts_UpdateValidateAndAllowStaleAdvertisedCounts",
-            script,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "FullyQualifiedName~DocumentationCountWorkflow_UpdatesCountsOnMainAndReleaseValidatesThem",
-            script,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "FullyQualifiedName~PreCommit_SkillGenerationTestsDoNotTriggerFullMcpSuite",
-            script,
-            StringComparison.Ordinal);
+        Assert.Equal(0, result.ExitCode);
+        using var document = JsonDocument.Parse(result.Output);
+        var plans = document.RootElement.EnumerateArray().ToArray();
+        Assert.False(plans[0].GetProperty("PowerPoint").GetBoolean());
+        Assert.True(plans[0].GetProperty("SkillTests").GetBoolean());
+        Assert.True(plans[1].GetProperty("PowerPoint").GetBoolean());
+        Assert.True(plans[2].GetProperty("PowerPoint").GetBoolean());
+        Assert.True(plans[3].GetProperty("Extension").GetBoolean());
+        Assert.True(plans[4].GetProperty("Plugins").GetBoolean());
     }
 
     [Fact]
@@ -361,10 +342,36 @@ public sealed class ReleasePackagingTests
     [Fact]
     public void ValidationGates_RunReleasePackagingTests()
     {
-        const string testProject = "PowerPointMcp.SkillGeneration.Tests";
+        const string runner = "Invoke-PowerPointFreeTests.ps1";
 
-        Assert.Contains(testProject, File.ReadAllText(CiWorkflow), StringComparison.Ordinal);
-        Assert.Contains(testProject, File.ReadAllText(PreCommitScript), StringComparison.Ordinal);
+        Assert.Contains(runner, File.ReadAllText(CiWorkflow), StringComparison.Ordinal);
+        Assert.Contains(runner, File.ReadAllText(PreCommitScript), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void VscodePackaging_BuildsAndPublishesBothNativeTargets()
+    {
+        var ci = File.ReadAllText(CiWorkflow);
+        var release = File.ReadAllText(ReleaseWorkflow);
+        var builder = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "Build-VscodeExtension.ps1"));
+        var helpers = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "PackageHelpers.ps1"));
+
+        Assert.Contains("Build-VscodeExtension.ps1", ci, StringComparison.Ordinal);
+        Assert.Contains("Build-VscodeExtension.ps1", release, StringComparison.Ordinal);
+        Assert.Contains("win32-x64", builder, StringComparison.Ordinal);
+        Assert.Contains("win32-arm64", builder, StringComparison.Ordinal);
+        Assert.Contains("Assert-PackageRuntimeArchitecture", builder, StringComparison.Ordinal);
+        Assert.Contains("0x8664", helpers, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("0xAA64", helpers, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            "powerpoint-mcp-$env:VERSION.vsix\" --skip-duplicate",
+            release,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "powerpoint-mcp-$env:VERSION-win32-arm64.vsix\" --skip-duplicate",
+            release,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("continue-on-error: true", release, StringComparison.Ordinal);
     }
 
     [Fact]

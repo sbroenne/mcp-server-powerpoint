@@ -8,7 +8,7 @@ name: Publish Plugins
 #
 # WHAT IT DOES:
 # 1. Builds both Agent Plugins 1.0 bundles (powerpoint-mcp, powerpoint-cli) from canonical source templates
-# 2. Validates that published plugins contain wrapper/bootstrap assets, not bundled runtimes
+# 2. Validates that published plugins contain npx launch metadata/wrappers, not bundled runtimes
 # 3. Updates version.txt to match the release version
 # 4. Pushes published plugin artifacts to sbroenne/mcp-server-powerpoint-plugins
 # 5. Rewrites the published repo to the canonical marketplace layout (.github/plugin/marketplace.json, no legacy root manifest)
@@ -283,7 +283,7 @@ jobs:
           skills-ref validate source\plugins\powerpoint-mcp\skills\powerpoint-mcp
           skills-ref validate source\plugins\powerpoint-cli\skills\powerpoint-cli
 
-      - name: Validate wrapper-only plugin payloads
+      - name: Validate runtime-free plugin payloads
         shell: pwsh
         run: |
           $blockedNames = @(".exe", ".dll", ".pdb")
@@ -311,7 +311,7 @@ jobs:
               throw "Published plugin '$pluginName' still contains committed runtime payload(s):`n$payloadList"
             }
 
-            Write-Host "Validated wrapper/bootstrap-only payload for $pluginName" -ForegroundColor Green
+            Write-Host "Validated runtime-free payload for $pluginName" -ForegroundColor Green
           }
 
       - name: Upload powerpoint-mcp plugin artifact
@@ -442,8 +442,8 @@ jobs:
             ."$schema" == "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
             and ((keys - ["$schema", "mcpServers"]) | length == 0)
             and (.mcpServers["powerpoint-mcp"].type == "stdio")
-            and (.mcpServers["powerpoint-mcp"].command == "powershell")
-            and (.mcpServers["powerpoint-mcp"].args | index("${PLUGIN_ROOT}/bin/start-mcp.ps1") != null)
+            and (.mcpServers["powerpoint-mcp"].command == "npx")
+            and (.mcpServers["powerpoint-mcp"].args == ["-y", "@sbroenne/mcp-server-powerpoint@latest"])
           ' built-plugins/powerpoint-mcp/mcp.json >/dev/null; then
             echo "::error::built-plugins/powerpoint-mcp/mcp.json is not Agent Plugins 1.0 conformant."
             exit 1
@@ -612,8 +612,8 @@ jobs:
             echo "**Marketplace manifest:** \`.github/plugin/marketplace.json\`" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
              echo "### Published Plugins" >> $GITHUB_STEP_SUMMARY
-             echo "- ✅ powerpoint-mcp (wrapper/bootstrap assets only)" >> $GITHUB_STEP_SUMMARY
-             echo "- ✅ powerpoint-cli (wrapper/bootstrap assets only)" >> $GITHUB_STEP_SUMMARY
+             echo "- ✅ powerpoint-mcp (npx launch metadata)" >> $GITHUB_STEP_SUMMARY
+             echo "- ✅ powerpoint-cli (argument-safe npx wrapper)" >> $GITHUB_STEP_SUMMARY
              echo "" >> $GITHUB_STEP_SUMMARY
              echo "### Copilot CLI Installation Examples" >> $GITHUB_STEP_SUMMARY
             echo '```powershell' >> $GITHUB_STEP_SUMMARY
@@ -627,7 +627,7 @@ jobs:
              echo "copilot plugin install powerpoint-cli@mcp-server-powerpoint-plugins" >> $GITHUB_STEP_SUMMARY
              echo '```' >> $GITHUB_STEP_SUMMARY
              echo "" >> $GITHUB_STEP_SUMMARY
-             echo "Both published plugins bootstrap the newest self-contained Windows runtime from the main GitHub Releases feed on first use." >> $GITHUB_STEP_SUMMARY
+             echo "Both published plugins launch the latest public npm packages through npx." >> $GITHUB_STEP_SUMMARY
              echo "" >> $GITHUB_STEP_SUMMARY
              echo "These published plugin artifacts may also be relevant to other plugin-capable clients, but their installation UX and marketplace wiring are client-specific and are not configured by this workflow." >> $GITHUB_STEP_SUMMARY
           else

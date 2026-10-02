@@ -114,8 +114,8 @@ documentation of every tool and operation
 | Platform | Installation |
 |----------|-------------|
 | **VS Code** | [Install Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.powerpoint-mcp) (one-click, recommended) |
-| **Claude Desktop** | Download `.mcpb` from [latest release](https://github.com/sbroenne/mcp-server-powerpoint/releases/latest) |
-| **Any MCP Client** | Download `mcp-powerpoint.exe` from [latest release](https://github.com/sbroenne/mcp-server-powerpoint/releases/latest) and add to PATH |
+| **Claude Desktop** | Download `.mcpb` from [latest release](https://github.com/sbroenne/mcp-server-powerpoint/releases/latest) (requires Node.js 18+) |
+| **Any MCP Client** | Run `npx -y @sbroenne/mcp-server-powerpoint@latest` |
 | **Details** | 📖 [Full Installation Guide →](https://powerpointmcpserver.dev/installation/) |
 
 **⚠️ Important:** Close any open instances of the target file before automating it — the server
@@ -132,12 +132,11 @@ This project provides both a **CLI** and an **MCP Server** interface. Choose bas
 
 **Manual installation:**
 ```powershell
-# Primary: Download standalone executables from latest release (no .NET runtime required)
-# https://github.com/sbroenne/mcp-server-powerpoint/releases/latest
-# - PowerPointMcp-MCP-Server-{version}-windows.zip → extract mcp-powerpoint.exe
-# - PowerPointMcp-CLI-{version}-windows.zip → extract powerpointcli.exe
+# Primary: npm launchers select the matching native x64 or ARM64 Windows runtime
+npx -y @sbroenne/mcp-server-powerpoint@latest
+npx -y @sbroenne/pptcli@latest --help
 
-# Secondary: Install via .NET tool (requires .NET 10 runtime)
+# Alternatives: standalone release archives or .NET tools (requires .NET 10 runtime)
 dotnet tool install --global Sbroenne.PowerPointMcp.McpServer
 dotnet tool install --global Sbroenne.PowerPointMcp.CLI
 

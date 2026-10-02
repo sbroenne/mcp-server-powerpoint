@@ -58,23 +58,11 @@ function Stop-DotNetBuildServers {
     dotnet build-server shutdown *> $null
 }
 
-# Determine whether this commit touches actual code (as opposed to docs/changeset-only
-# changes). The Release build, Core tests and MCP protocol test suite all exercise
-# compiled binaries or launch real processes and are unnecessary for pure documentation
-# changes, including edits to the gh-pages documentation website (its MkDocs config,
-# hooks, templates and image assets are all part of the docs site, not the shipped
-# product).
-$docOnlyPattern = '(\.md$)|(^\.changeset/)|(^docs/)|(^gh-pages/)|(^\.github/(ISSUE_TEMPLATE|PULL_REQUEST_TEMPLATE))'
 $allStagedFilesForGate = git diff --cached --name-only 2>&1 | Where-Object { $_ }
-$codeChangedFilesForGate = $allStagedFilesForGate | Where-Object { $_ -notmatch $docOnlyPattern }
-$hasCodeChanges = @($codeChangedFilesForGate).Count -gt 0
-
-# Distinguish compiled runtime-code changes (which can alter MCP/COM behavior and therefore
-# warrant the real-COM session-lifecycle tests) from docs/tooling changes (gh-pages, scripts,
-# workflows, .gitignore, and SkillGeneration tests) which cannot. The PowerPoint-dependent MCP
-# tests are marked with [Trait("RequiresPowerPoint","true")] and excluded unless runtime changes.
-$runtimeCodePattern = '(^src[/\\].*\.cs$)|(^tests[/\\](?!PowerPointMcp\.SkillGeneration\.Tests[/\\]).*\.cs$)|(\.csproj$)|(\.slnx$)|(^Directory\.(Build|Packages)\.)|(^global\.json$)|(^NuGet\.Config$)'
-$runtimeCodeChanged = @($allStagedFilesForGate | Where-Object { $_ -match $runtimeCodePattern }).Count -gt 0
+. (Join-Path $rootDir "scripts\Get-ValidationPlan.ps1")
+$validationPlan = Get-ValidationPlan -Paths $allStagedFilesForGate
+$hasCodeChanges = $validationPlan.Build
+$runtimeCodeChanged = $validationPlan.PowerPoint
 
 # --- 1. Branch guard (never commit directly to main) ---------------------------------------
 Write-Step "Checking current branch..."
@@ -312,17 +300,20 @@ elseif ($runtimeCodeChanged) {
     Write-Host "Release metadata and Agent Skills packaging tests passed" -ForegroundColor Green
 }
 else {
-    Write-Step "Running focused documentation count tests (tooling-only change)..."
+    Write-Step "Running selected PowerPoint-free tooling tests..."
 
-    $countTestFilter = "FullyQualifiedName~DocumentationCounts_UpdateValidateAndAllowStaleAdvertisedCounts|FullyQualifiedName~DocumentationCountWorkflow_UpdatesCountsOnMainAndReleaseValidatesThem|FullyQualifiedName~PreCommit_SkillGenerationTestsDoNotTriggerFullMcpSuite"
-    & dotnet test (Join-Path $rootDir "tests\PowerPointMcp.SkillGeneration.Tests") -c Release --no-build --filter $countTestFilter --nologo -p:PowerPointMcpSkipCleanup=true
+    & (Join-Path $rootDir "scripts\Invoke-PowerPointFreeTests.ps1") `
+        -Local `
+        -HookTests:$validationPlan.HookTests `
+        -SkillTests:$validationPlan.SkillTests `
+        -ChangedPaths $allStagedFilesForGate
     if ($LASTEXITCODE -ne 0) {
         Write-Host ""
-        Write-Host "BLOCKED: Documentation count tests failed." -ForegroundColor Red
+        Write-Host "BLOCKED: PowerPoint-free tooling tests failed." -ForegroundColor Red
         exit 1
     }
 
-    Write-Host "Documentation count tests passed" -ForegroundColor Green
+    Write-Host "PowerPoint-free tooling tests passed" -ForegroundColor Green
 }
 
 # --- 7. TODO/FIXME/HACK scan ------------------------------------------------------------------

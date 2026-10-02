@@ -1,7 +1,8 @@
 # Release Strategy
 
-PowerPointMcp releases all components together (MCP Server, CLI, VS Code Extension,
-MCPB, Agent Skills, MCP Registry entry) under a single version number, via the
+PowerPointMcp releases all components together (MCP Server, CLI, npm launchers
+and Windows runtimes, VS Code Extension, MCPB, Agent Skills, MCP Registry entry)
+under a single version number, via the
 `.github/workflows/release.yml` `workflow_dispatch` workflow.
 
 ## Cutting a release
@@ -11,9 +12,10 @@ MCPB, Agent Skills, MCP Registry entry) under a single version number, via the
 2. The workflow calculates the next version from the latest git tag and generates
    tool, operation, domain, and per-domain operation counts from the built code.
 3. It applies those generated documentation updates to every package, builds and
-   publishes every component (NuGet, standalone exe zips, VS Code Marketplace,
-   MCPB, Agent Skills zip, MCP Registry), creates the git tag, then creates the
-   GitHub Release.
+   publishes every component (npm, NuGet, standalone exe zips, VS Code
+   Marketplace, MCPB, Agent Skills zip, MCP Registry), creates the git tag,
+   then creates the GitHub Release. The npm Windows runtime packages are
+   published before their architecture-selecting launcher packages.
 
 ## Changelog generation
 
@@ -54,10 +56,19 @@ enforced by CI, and compiled deterministically at release time.
 
 ### Node/npm in a .NET repo
 
-`package.json` and `.changeset/` exist **solely** to host the `@changesets/cli`
-tool for `CHANGELOG.md` generation. Node is not used to build, version, or publish
-any PowerPointMcp component — the MCP Server, CLI, VS Code Extension, and MCPB
-all remain built by their existing pipelines (`dotnet`, `vsce`, etc.).
+The root `package.json` and `.changeset/` host `@changesets/cli` for
+`CHANGELOG.md` generation. The `npm-packages/` tree additionally contains the
+shared Node launcher and package metadata for:
+
+- `@sbroenne/mcp-server-powerpoint`
+- `@sbroenne/pptcli`
+- their Windows x64 and ARM64 runtime packages
+
+The runtime packages contain self-contained .NET executables. The small launcher
+packages select the runtime matching Node's architecture and preserve arguments,
+standard streams, signals, and exit codes. Release builds validate all archives;
+x64 packages run smoke tests on the Windows x64 runner, and ARM64 packages must
+pass a native Windows ARM64 execution gate before the release tag is created.
 
 ### Note on the `[Unreleased]` → `[0.0.1]` transition
 

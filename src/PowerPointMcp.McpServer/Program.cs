@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using Sbroenne.PowerPointMcp.Service;
 
 namespace Sbroenne.PowerPointMcp.McpServer;
@@ -165,7 +166,8 @@ public class Program
                     Always provide full Windows paths (e.g. C:\\Users\\me\\Documents\\deck.pptx).
                     """;
             })
-            .WithToolsFromAssembly();
+            .WithToolsFromAssembly()
+            .WithRequestFilters(filters => filters.AddCallToolFilter(ToolArgumentFilter.Wrap));
 
         if (testInputPipe != null && testOutputPipe != null)
         {
@@ -221,8 +223,10 @@ public class Program
         logging.ClearProviders();
         logging.AddConsole(consoleLogOptions =>
         {
+            consoleLogOptions.FormatterName = StdioConsoleFormatter.FormatterName;
             consoleLogOptions.LogToStandardErrorThreshold = LogLevel.Trace;
         });
+        logging.AddConsoleFormatter<StdioConsoleFormatter, ConsoleFormatterOptions>();
         logging.SetMinimumLevel(LogLevel.Warning);
     }
 

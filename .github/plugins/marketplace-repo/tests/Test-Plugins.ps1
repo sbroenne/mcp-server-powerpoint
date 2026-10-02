@@ -45,6 +45,9 @@ foreach ($plugin in $marketplace.plugins) {
         if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
             throw "$($plugin.name) contains a reparse point: $($item.FullName)"
         }
+        if ($item.Name -eq "install-global.ps1") {
+            throw "$($plugin.name) contains a retired global installation helper: $($item.FullName)"
+        }
     }
 }
 
@@ -55,17 +58,19 @@ if ($mcpConfig.'$schema' -ne "https://agent-plugins.org/schemas/1.0.0/mcp.schema
 }
 
 $server = $mcpConfig.mcpServers.'powerpoint-mcp'
-if ($server.type -ne "stdio" -or $server.command -match '\s') {
-    throw "powerpoint-mcp must use a stdio server with a single executable command token."
+if ($server.type -ne "stdio" -or $server.command -ne "npx") {
+    throw "powerpoint-mcp must use npx as its stdio command."
 }
 
-if ($server.args -notcontains '${PLUGIN_ROOT}/bin/start-mcp.ps1') {
-    throw "powerpoint-mcp does not resolve its wrapper through PLUGIN_ROOT."
+if (@($server.args).Count -ne 2 -or $server.args[0] -ne "-y" -or
+    $server.args[1] -ne "@sbroenne/mcp-server-powerpoint@latest") {
+    throw "powerpoint-mcp must launch the latest published npm package through npx."
 }
 
 foreach ($file in Get-ChildItem (Join-Path $repoRoot "plugins") -Recurse -File -Filter "*.md") {
     $content = Get-Content $file.FullName -Raw
     $retiredDocumentation = @(
+        @{ Pattern = [regex]::Escape("install-global.ps1"); Description = "retired global installation helper" }
         @{ Pattern = [regex]::Escape("PowerPointMcp-CLI-latest-windows.zip"); Description = "nonexistent unversioned CLI release asset" }
         @{ Pattern = [regex]::Escape("powerpoint-mcp-server.exe"); Description = "retired MCP executable name" }
         @{ Pattern = [regex]::Escape("powerpoint-mcp-bundle.mcpb"); Description = "retired MCPB asset name" }
@@ -112,44 +117,43 @@ foreach ($script in Get-ChildItem (Join-Path $repoRoot "plugins") -Recurse -File
 $tempProfile = Join-Path ([IO.Path]::GetTempPath()) ("powerpoint-plugin-test-" + [Guid]::NewGuid().ToString("N"))
 $originalUserProfile = $env:USERPROFILE
 $originalHome = $env:HOME
-$originalSessionId = $env:COPILOT_AGENT_SESSION_ID
-$originalPluginData = $env:PLUGIN_DATA
+$originalPath = $env:PATH
 
 try {
-    Remove-Item Env:PLUGIN_DATA -ErrorAction SilentlyContinue
+    $echoScript = Join-Path $tempProfile "echo-argument.js"
 
-    $runtimeRoot = Join-Path $tempProfile ".copilot\plugin-runtime\mcp-server-powerpoint\powerpoint-cli"
-    $releaseRoot = Join-Path $runtimeRoot "releases\test"
-    $fakeBinary = Join-Path $releaseRoot "powerpointcli.exe"
-    $echoScript = Join-Path $releaseRoot "echo-argument.js"
-
-    New-Item -ItemType Directory -Path $releaseRoot -Force | Out-Null
-    Copy-Item (Get-Command "cscript.exe").Source $fakeBinary
+    New-Item -ItemType Directory -Path $tempProfile -Force | Out-Null
     [IO.File]::WriteAllText(
         $echoScript,
         'WScript.StdOut.Write("pipeline-ok");',
         [Text.UTF8Encoding]::new($false))
-
-    $productVersion = ((Get-Item $fakeBinary).VersionInfo.ProductVersion -split '\+', 2)[0].Trim()
-    $state = [ordered]@{
-        checkedSessionId = "plugin-test"
-        checkedAtUtc = [DateTime]::UtcNow.ToString("o")
-        latestTag = "test"
-        latestVersion = $productVersion
-        assetName = "unused.zip"
-        assetUrl = "https://example.invalid/unused.zip"
-        expectedSha256 = "0" * 64
-        cachedReleaseTag = "test"
-        binaryPath = $fakeBinary
-    }
     [IO.File]::WriteAllText(
-        (Join-Path $runtimeRoot "bootstrap-state.json"),
-        (($state | ConvertTo-Json -Depth 4) + "`n"),
+        (Join-Path $tempProfile "npx.cmd"),
+        "@echo off`r`n",
+        [Text.Encoding]::ASCII)
+    $npmBin = Join-Path $tempProfile "node_modules\npm\bin"
+    New-Item -ItemType Directory -Path $npmBin -Force | Out-Null
+    [IO.File]::WriteAllText(
+        (Join-Path $npmBin "npx-cli.js"),
+        @'
+const { spawnSync } = require("node:child_process");
+if (process.argv[2] !== "-y" || process.argv[3] !== "@sbroenne/pptcli@latest") {
+    throw new Error(`Unexpected npx arguments: ${process.argv.slice(2).join(" ")}`);
+}
+const child = spawnSync(
+    `${process.env.SystemRoot}\\System32\\cscript.exe`,
+    process.argv.slice(4),
+    { stdio: "inherit" });
+if (child.error) {
+    throw child.error;
+}
+process.exit(child.status ?? 1);
+'@,
         [Text.UTF8Encoding]::new($false))
 
     $env:USERPROFILE = $tempProfile
     $env:HOME = $tempProfile
-    $env:COPILOT_AGENT_SESSION_ID = "plugin-test"
+    $env:PATH = "$tempProfile;$originalPath"
 
     $wrapper = Join-Path $repoRoot "plugins\powerpoint-cli\bin\start-cli.ps1"
     $captured = (& $wrapper //nologo $echoScript | Out-String).Trim()
@@ -157,43 +161,10 @@ try {
     if ($captured -ne "pipeline-ok") {
         throw "CLI wrapper pipeline capture failed. Expected 'pipeline-ok', got '$captured'."
     }
-
-    $pluginData = Join-Path $tempProfile "plugin-data"
-    $mcpRuntimeRoot = Join-Path $pluginData "runtime"
-    $mcpReleaseRoot = Join-Path $mcpRuntimeRoot "releases\test"
-    $fakeMcpBinary = Join-Path $mcpReleaseRoot "mcp-powerpoint.exe"
-    New-Item -ItemType Directory -Path $mcpReleaseRoot -Force | Out-Null
-    Copy-Item (Get-Command "cscript.exe").Source $fakeMcpBinary
-
-    $mcpProductVersion = ((Get-Item $fakeMcpBinary).VersionInfo.ProductVersion -split '\+', 2)[0].Trim()
-    $mcpState = [ordered]@{
-        checkedSessionId = "plugin-test"
-        checkedAtUtc = [DateTime]::UtcNow.ToString("o")
-        latestTag = "test"
-        latestVersion = $mcpProductVersion
-        assetName = "unused.zip"
-        assetUrl = "https://example.invalid/unused.zip"
-        expectedSha256 = "0" * 64
-        cachedReleaseTag = "test"
-        binaryPath = $fakeMcpBinary
-    }
-    [IO.File]::WriteAllText(
-        (Join-Path $mcpRuntimeRoot "bootstrap-state.json"),
-        (($mcpState | ConvertTo-Json -Depth 4) + "`n"),
-        [Text.UTF8Encoding]::new($false))
-
-    $env:PLUGIN_DATA = $pluginData
-    $downloadScript = Join-Path $repoRoot "plugins\powerpoint-mcp\bin\download.ps1"
-    $resolvedMcpBinary = & $downloadScript -PassThru -Quiet
-
-    if ($resolvedMcpBinary -ne $fakeMcpBinary) {
-        throw "MCP bootstrap did not use the Agent Plugins PLUGIN_DATA cache."
-    }
 } finally {
     $env:USERPROFILE = $originalUserProfile
     $env:HOME = $originalHome
-    $env:COPILOT_AGENT_SESSION_ID = $originalSessionId
-    $env:PLUGIN_DATA = $originalPluginData
+    $env:PATH = $originalPath
 
     if (Test-Path $tempProfile) {
         Remove-Item $tempProfile -Recurse -Force

@@ -1,0 +1,38 @@
+{
+  "name": "@sbroenne/pptcli",
+  "version": "0.0.0-development",
+  "description": "PowerPoint automation CLI for Windows, distributed through npm.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "pptcli": "bin/pptcli.js"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sbroenne/mcp-server-powerpoint",
+    "directory": "npm-packages/pptcli"
+  },
+  "homepage": "https://powerpointmcpserver.dev/",
+  "bugs": {
+    "url": "https://github.com/sbroenne/mcp-server-powerpoint/issues"
+  },
+  "keywords": ["powerpoint", "cli", "windows", "automation"],
+  "dependencies": {
+    "foreground-child": "^4.0.3"
+  },
+  "optionalDependencies": {
+    "@sbroenne/pptcli-win32-x64": "file:../pptcli-win32-x64",
+    "@sbroenne/pptcli-win32-arm64": "file:../pptcli-win32-arm64"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

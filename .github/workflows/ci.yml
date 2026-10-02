@@ -93,6 +93,11 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
       - name: Restore
         run: dotnet restore Sbroenne.PowerPointMcp.slnx
 
@@ -134,8 +139,37 @@ jobs:
           & scripts/check-core-interface-completeness.ps1
           if ($LASTEXITCODE -ne 0) { throw "A Core Commands method is implemented but not declared on its interface - it is invisible to the MCP/CLI generators." }
 
-      - name: Release metadata and Agent Skills packaging tests
-        run: dotnet test tests/PowerPointMcp.SkillGeneration.Tests --configuration Release --no-build -p:PowerPointMcpSkipCleanup=true
+      - name: Run PowerPoint-free tests
+        shell: pwsh
+        run: ./scripts/Invoke-PowerPointFreeTests.ps1
+
+      - name: Test shared npm launcher
+        shell: pwsh
+        run: |
+          npm ci --prefix npm-packages/shared
+          npm test --prefix npm-packages/shared
+
+      - name: Validate npm packages for both Windows architectures
+        shell: pwsh
+        run: |
+          $version = "0.0.0-ci"
+          foreach ($architecture in @('x64', 'arm64')) {
+            dotnet publish src/PowerPointMcp.CLI/PowerPointMcp.CLI.csproj -c Release -r "win-$architecture" --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=false -p:NuGetAudit=false -o "artifacts/ci/cli-$architecture"
+            dotnet publish src/PowerPointMcp.McpServer/PowerPointMcp.McpServer.csproj -c Release -r "win-$architecture" --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=false -p:NuGetAudit=false -o "artifacts/ci/mcp-$architecture"
+            ./scripts/Build-NpmPackages.ps1 -Component Cli -Architecture $architecture -Version $version -RuntimeExecutable "artifacts/ci/cli-$architecture/powerpointcli.exe" -OutputDirectory artifacts/ci/npm
+            ./scripts/Build-NpmPackages.ps1 -Component McpServer -Architecture $architecture -Version $version -RuntimeExecutable "artifacts/ci/mcp-$architecture/Sbroenne.PowerPointMcp.McpServer.exe" -OutputDirectory artifacts/ci/npm
+            ./scripts/Test-NpmPackages.ps1 -Component Cli -Architecture $architecture -ArchiveOnly -LauncherPackage "artifacts/ci/npm/sbroenne-pptcli-$version.tgz" -RuntimePackage "artifacts/ci/npm/sbroenne-pptcli-win32-$architecture-$version.tgz"
+            ./scripts/Test-NpmPackages.ps1 -Component McpServer -Architecture $architecture -ArchiveOnly -LauncherPackage "artifacts/ci/npm/sbroenne-mcp-server-powerpoint-$version.tgz" -RuntimePackage "artifacts/ci/npm/sbroenne-mcp-server-powerpoint-win32-$architecture-$version.tgz"
+          }
+
+      - name: Build and verify native VS Code packages
+        shell: pwsh
+        run: |
+          ./scripts/Build-VscodeExtension.ps1 `
+            -Version 0.0.0 `
+            -OutputDir artifacts/ci/vscode `
+            -X64Runtime artifacts/ci/mcp-x64/Sbroenne.PowerPointMcp.McpServer.exe `
+            -Arm64Runtime artifacts/ci/mcp-arm64/Sbroenne.PowerPointMcp.McpServer.exe
 
       # --- PowerPoint-free build smoke checks (absorbed from the old Build CLI /
       #     Build MCP Server workflows) ---

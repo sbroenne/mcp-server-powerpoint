@@ -10,7 +10,7 @@ namespace Sbroenne.PowerPointMcp.McpServer.Infrastructure;
 /// and via named-pipe/StreamJsonRpc by the separate CLI daemon process).
 /// </summary>
 /// <remarks>
-/// Generated tools (see <c>PowerPointMcp.Generators.Mcp</c>) call <see cref="ForwardToService"/>
+/// Generated tools (see <c>PowerPointMcp.Generators.Mcp</c>) call <see cref="ForwardToServiceAsync"/>
 /// as their <c>System.Func&lt;string, string, object?, string&gt;</c> "forwardToService"
 /// delegate passed into <c>ServiceRegistry.{Category}.RouteAction</c>. This keeps the Rule 1/1b
 /// error-shape consistent with the rest of the MCP surface: expected failures (bad session id,
@@ -38,8 +38,14 @@ public static class ServiceBridge
     /// <param name="command">Full "category.action" command string (e.g. "chart.add-chart").</param>
     /// <param name="sessionId">The session id supplied by the caller.</param>
     /// <param name="args">The anonymous args object built by the generated <c>RouteAction</c> method.</param>
-    public static string ForwardToService(PowerPointMcpService service, string command, string? sessionId, object? args)
+    public static async Task<string> ForwardToServiceAsync(
+        PowerPointMcpService service,
+        string command,
+        string? sessionId,
+        object? args,
+        CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var argsJson = args != null ? JsonSerializer.Serialize(args, ArgsJsonOptions) : null;
         var request = new ServiceRequest
         {
@@ -49,7 +55,8 @@ public static class ServiceBridge
             Source = "mcp"
         };
 
-        var response = service.ProcessAsync(request).GetAwaiter().GetResult();
+        var response = await service.ProcessAsync(request);
+        cancellationToken.ThrowIfCancellationRequested();
         return FormatResponse(response);
     }
 

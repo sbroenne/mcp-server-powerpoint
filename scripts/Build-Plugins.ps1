@@ -5,19 +5,18 @@
 .DESCRIPTION
     1. Copy canonical plugin templates from .github/plugins/
     2. Strip any runtime payloads from plugin bin/ roots
-    3. Update runtime-bootstrap metadata in plugin.json and version.txt
+    3. Update release metadata in plugin.json and version.txt
     4. Synchronize complete Agent Skill directories from source
     5. Validate Agent Plugins 1.0 and Agent Skills layout requirements
 
-    RUNTIME BOOTSTRAP MODEL:
-    - Published plugins ship wrapper/download logic and metadata only
-    - Self-contained Windows runtimes are downloaded from the latest GitHub release on first use
+    NPM LAUNCH MODEL:
+    - Published plugins use the public npm packages through npx
     - No committed .exe/.dll runtime payloads should survive into the published plugin repo
 
     OUTPUT:
     plugins/
-      powerpoint-mcp/     → MCP plugin (wrapper/bootstrap assets + updated version + fresh skills)
-      powerpoint-cli/     → CLI plugin (wrapper/bootstrap assets + updated version + fresh skills)
+      powerpoint-mcp/     → MCP plugin (npx config + updated version + fresh skills)
+      powerpoint-cli/     → CLI plugin (argument-safe npx wrapper + updated version + fresh skills)
 
 .PARAMETER Version
     Plugin version. Required for distributable builds.
@@ -44,17 +43,6 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
     throw "Version is required. Pass -Version <version>."
 }
 $Version = $Version.Trim()
-
-$BootstrapScriptPath = Join-Path $RepoRoot "scripts\Build-BootstrapScripts.ps1"
-if (-not (Test-Path $BootstrapScriptPath)) {
-    throw "Bootstrap generator script not found: $BootstrapScriptPath"
-}
-
-Write-Host "Rendering canonical plugin bootstrap scripts from the shared template..." -ForegroundColor Cyan
-& $BootstrapScriptPath -OutputRoot $PluginSourceDir
-if ($LASTEXITCODE -ne 0) {
-    throw "Bootstrap script generation failed."
-}
 
 function Remove-PackagedRuntimePayload {
     param(
@@ -233,9 +221,9 @@ function Assert-AgentPluginPackage {
         throw "$pluginJsonPath repository must be a string."
     }
 
-    $legacyCopilotHelper = Join-Path $PluginDir "bin\install-global.ps1"
-    if (Test-Path $legacyCopilotHelper) {
-        throw "Copilot-only files must be placed under com.github.copilot/: $legacyCopilotHelper"
+    $globalHelpers = @(Get-ChildItem -LiteralPath $PluginDir -Recurse -Force -File -Filter "install-global.ps1")
+    if ($globalHelpers.Count) {
+        throw "Global installation helpers are retired; use npx instead: $($globalHelpers.FullName -join ', ')"
     }
 
     $legacyMcpPath = Join-Path $PluginDir ".mcp.json"
@@ -373,8 +361,8 @@ Write-Host "Version: $Version"
 Write-Host "Output:  $OutputDir"
 Write-Host ""
 Write-Host "Plugins:" -ForegroundColor Cyan
-Write-Host '  [ok] powerpoint-mcp - bootstrap assets and skill' -ForegroundColor Green
-Write-Host '  [ok] powerpoint-cli - bootstrap assets and skill' -ForegroundColor Green
+Write-Host '  [ok] powerpoint-mcp - npx configuration and skill' -ForegroundColor Green
+Write-Host '  [ok] powerpoint-cli - npx wrapper and skill' -ForegroundColor Green
 Write-Host ""
 Write-Host "Test locally:" -ForegroundColor Yellow
 Write-Host "  copilot plugin install $OutputDir\powerpoint-mcp"

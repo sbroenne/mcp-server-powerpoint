@@ -226,6 +226,78 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
+    public async Task ListTools_AllToolsAdvertiseStructuredOutputSchemas()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+
+        foreach (var tool in tools)
+        {
+            var schema = Assert.IsType<JsonElement>(tool.ReturnJsonSchema);
+            var properties = schema.GetProperty("properties");
+            Assert.True(
+                properties.TryGetProperty("success", out _),
+                $"{tool.Name} output schema does not describe success.");
+            Assert.True(
+                properties.TryGetProperty("errorMessage", out _),
+                $"{tool.Name} output schema does not describe errorMessage.");
+        }
+    }
+
+    [Fact]
+    public async Task ToolResults_IncludeStructuredContentAndProtocolErrorState()
+    {
+        var result = await _client!.CallToolAsync(
+            "slide",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "get-count",
+                ["session_id"] = "missing-session"
+            },
+            cancellationToken: _cts.Token);
+
+        Assert.True(result.IsError);
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.False(structured.GetProperty("success").GetBoolean());
+        Assert.False(string.IsNullOrWhiteSpace(structured.GetProperty("errorMessage").GetString()));
+
+        var text = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
+        Assert.Equal(structured.GetRawText(), text);
+    }
+
+    [Theory]
+    [InlineData("missing_action", null, "action argument must be a string")]
+    [InlineData("unknown_parameter", "value", "Unknown parameter 'unknown_parameter'")]
+    [InlineData("slide_index", "not-an-integer", "must have type")]
+    public async Task ToolArgumentFilter_RejectsMalformedGeneratedToolCalls(
+        string parameterName,
+        object? parameterValue,
+        string expectedMessage)
+    {
+        var arguments = new Dictionary<string, object?>
+        {
+            ["action"] = "delete",
+            ["session_id"] = "missing-session"
+        };
+        if (parameterName == "missing_action")
+        {
+            arguments.Remove("action");
+        }
+        else
+        {
+            arguments[parameterName] = parameterValue;
+        }
+
+        var result = await _client!.CallToolAsync("slide", arguments, cancellationToken: _cts.Token);
+
+        Assert.True(result.IsError);
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.Contains(
+            expectedMessage,
+            structured.GetProperty("errorMessage").GetString(),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task PresentationSchema_UsesCanonicalLifecycleActions()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);

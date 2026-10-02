@@ -4,10 +4,21 @@
   "title": "MCP Server for PowerPoint",
   "description": "PowerPoint automation for AI: slides, shapes, tables, charts, images, notes. Windows only.",
   "version": "0.1.5",
+  "websiteUrl": "https://powerpointmcpserver.dev/",
   "packages": [
     {
       "registryType": "nuget",
       "identifier": "Sbroenne.PowerPointMcp.McpServer",
+      "version": "0.1.5",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [],
+      "environmentVariables": []
+    },
+    {
+      "registryType": "npm",
+      "identifier": "@sbroenne/mcp-server-powerpoint",
       "version": "0.1.5",
       "transport": {
         "type": "stdio"

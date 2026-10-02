@@ -1,62 +1,89 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
+import { join } from 'node:path';
+import { checkLaunchPrerequisites, LaunchSetupError } from './prerequisites';
 
-/**
- * PowerPoint MCP VS Code Extension
- *
- * Provides an MCP server definition for the PowerPoint MCP server, enabling AI
- * assistants like GitHub Copilot to automate Microsoft PowerPoint through native
- * COM automation.
- *
- * The extension bundles a self-contained executable for the MCP server — no .NET
- * SDK or runtime installation required.
- *
- * Agent Skills are registered via the chatSkills contribution point in package.json.
- */
+const userGuideUrl = 'https://powerpointmcpserver.dev/';
 
-export async function activate(context: vscode.ExtensionContext) {
-	console.log('PowerPoint MCP extension is now active');
+export async function activate(
+	context: Pick<vscode.ExtensionContext, 'extension' | 'extensionPath' | 'globalState' | 'subscriptions'>
+) {
+	const output = vscode.window.createOutputChannel('PowerPointMcp');
+	context.subscriptions.push(output);
 
-	// Register MCP server definition provider
+	const version: unknown = context.extension.packageJSON.version;
+	if (typeof version !== 'string' || !/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(version)) {
+		const message = 'PowerPointMcp package version is invalid. Reinstall the extension.';
+		output.appendLine(message);
+		throw new Error(message);
+	}
+
+	const executable = join(context.extensionPath, 'bin', 'Sbroenne.PowerPointMcp.McpServer.exe');
 	context.subscriptions.push(
 		vscode.lm.registerMcpServerDefinitionProvider('powerpoint-mcp', {
-			provideMcpServerDefinitions: async () => {
-				const extensionPath = context.extensionPath;
-				const mcpServerPath = path.join(extensionPath, 'bin', 'Sbroenne.PowerPointMcp.McpServer.exe');
-
-				return [
-					new vscode.McpStdioServerDefinition(
-						'powerpoint-mcp',
-						mcpServerPath,
-						[],
-						{
-							// Optional environment variables can be added here if needed
-						}
-					)
-				];
+			provideMcpServerDefinitions: async () => [
+				new vscode.McpStdioServerDefinition('powerpoint-mcp', executable, [], {}, version)
+			],
+			resolveMcpServerDefinition: async (server, token) => {
+				const controller = new AbortController();
+				const cancellation = token.onCancellationRequested(() => controller.abort());
+				if (token.isCancellationRequested) {
+					controller.abort();
+				}
+				try {
+					await checkLaunchPrerequisites(executable, controller.signal);
+					output.appendLine('Launch prerequisites verified. VS Code manages server startup and approvals.');
+					return server;
+				} catch (error) {
+					if (controller.signal.aborted) {
+						throw new vscode.CancellationError();
+					}
+					if (error instanceof LaunchSetupError) {
+						output.appendLine(error.message);
+						void showSetupError(error.message, output);
+					}
+					throw error;
+				} finally {
+					cancellation.dispose();
+				}
 			}
 		})
 	);
+	output.appendLine(
+		`Registered bundled MCP server version ${version}. Server logs: MCP: List Servers > powerpoint-mcp > Show Output.`
+	);
 
-	// Show welcome message on first activation
 	const hasShownWelcome = context.globalState.get<boolean>('powerpointmcp.hasShownWelcome', false);
 	if (!hasShownWelcome) {
-		showWelcomeMessage();
-		context.globalState.update('powerpointmcp.hasShownWelcome', true);
+		void showWelcomeMessage(output);
+		try {
+			await context.globalState.update('powerpointmcp.hasShownWelcome', true);
+		} catch (error) {
+			const detail = error instanceof Error ? error.message : String(error);
+			output.appendLine(`Could not save the welcome preference. Getting-started help may appear again. ${detail}`);
+		}
 	}
 }
 
-function showWelcomeMessage() {
-	const message = 'PowerPoint MCP extension activated! The PowerPoint MCP server is now available for AI assistants.';
-	const learnMore = 'Learn More';
-
-	vscode.window.showInformationMessage(message, learnMore).then(selection => {
-		if (selection === learnMore) {
-			vscode.env.openExternal(vscode.Uri.parse('https://github.com/sbroenne/mcp-server-powerpoint'));
+async function showWelcomeMessage(output: vscode.OutputChannel) {
+	try {
+		const selection = await vscode.window.showInformationMessage(
+			'PowerPointMcp bundles real PowerPoint automation. Send a presentation request in Copilot Chat with tool support; VS Code starts powerpoint-mcp automatically when needed. Approve server or tool use if prompted.',
+			'Getting Started'
+		);
+		if (selection === 'Getting Started' && !await vscode.env.openExternal(vscode.Uri.parse(userGuideUrl))) {
+			output.appendLine(`Could not open the user guide. Visit ${userGuideUrl}`);
 		}
-	});
+	} catch {
+		output.appendLine(`Could not display getting-started help. Visit ${userGuideUrl}`);
+	}
 }
 
-export function deactivate() {
-	console.log('PowerPoint MCP extension is now deactivated');
+async function showSetupError(message: string, output: vscode.OutputChannel) {
+	try {
+		if (await vscode.window.showErrorMessage(message, 'Show Setup Output') === 'Show Setup Output') {
+			output.show();
+		}
+	} catch {
+		output.appendLine('Could not display the setup notification. See the setup error above.');
+	}
 }

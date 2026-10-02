@@ -91,7 +91,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             context.AddSource("_SkillManifest.g.cs", SourceText.From(skillManifestCode, Encoding.UTF8));
 
             // Emit shared dispatch helper methods (DeserializeArgs, ParseEnumValue, etc.)
-            var helpersCode = GenerateDispatchHelpers();
+            var helpersCode = GenerateDispatchHelpers(allCategories);
             context.AddSource("ServiceRegistry.DispatchHelpers.g.cs", SourceText.From(helpersCode, Encoding.UTF8));
         }
     }
@@ -1238,7 +1238,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
     /// Generates the shared dispatch helper methods (DeserializeArgs, ParseEnumValue, DispatchJsonOptions).
     /// Emitted once as ServiceRegistry.DispatchHelpers.g.cs.
     /// </summary>
-    private static string GenerateDispatchHelpers()
+    private static string GenerateDispatchHelpers(IReadOnlyList<ServiceInfo> categories)
     {
         var sb = new StringBuilder();
 
@@ -1250,6 +1250,34 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("public static partial class ServiceRegistry");
         sb.AppendLine("{");
+        sb.AppendLine("    /// <summary>Validates supplied MCP names using generated action contracts.</summary>");
+        sb.AppendLine("    public static void ValidateMcpActionParameters(");
+        sb.AppendLine("        string tool,");
+        sb.AppendLine("        string action,");
+        sb.AppendLine("        System.Collections.Generic.IEnumerable<string> names)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        switch (tool)");
+        sb.AppendLine("        {");
+        foreach (var category in categories
+                     .Where(category => category.HasMcpToolAttribute)
+                     .OrderBy(category => category.McpToolName, StringComparer.Ordinal))
+        {
+            sb.AppendLine($"            case \"{category.McpToolName}\":");
+            sb.AppendLine($"                {category.CategoryPascal}.ValidateActionParameters(action, names.Select(name => name switch");
+            sb.AppendLine("                {");
+            foreach (var parameter in GetAllExposedParameters(category))
+            {
+                sb.AppendLine(
+                    $"                    \"{StringHelper.ToSnakeCase(parameter.Name)}\" => \"{parameter.Name}\",");
+            }
+            sb.AppendLine("                    _ => name");
+            sb.AppendLine("                }), allowFileParameters: true);");
+            sb.AppendLine("                return;");
+        }
+        sb.AppendLine("            default: throw new System.ArgumentException($\"Unknown tool: {tool}\");");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// JSON options for service dispatch serialization.");
         sb.AppendLine("    /// Matches ServiceProtocol.JsonOptions (CamelCase, ignore nulls, string enums).");

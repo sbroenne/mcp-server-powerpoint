@@ -1,0 +1,45 @@
+{
+  "name": "@sbroenne/mcp-server-powerpoint",
+  "version": "0.0.0-development",
+  "description": "PowerPoint automation MCP server for Windows, distributed through npm.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "mcp-powerpoint": "bin/mcp-powerpoint.js"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sbroenne/mcp-server-powerpoint",
+    "directory": "npm-packages/mcp-server-powerpoint"
+  },
+  "homepage": "https://powerpointmcpserver.dev/",
+  "bugs": {
+    "url": "https://github.com/sbroenne/mcp-server-powerpoint/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "powerpoint",
+    "windows",
+    "automation"
+  ],
+  "mcpName": "io.github.sbroenne/mcp-server-powerpoint",
+  "dependencies": {
+    "foreground-child": "^4.0.3"
+  },
+  "optionalDependencies": {
+    "@sbroenne/mcp-server-powerpoint-win32-x64": "file:../mcp-server-powerpoint-win32-x64",
+    "@sbroenne/mcp-server-powerpoint-win32-arm64": "file:../mcp-server-powerpoint-win32-arm64"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

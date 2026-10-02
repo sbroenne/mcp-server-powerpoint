@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ModelContextProtocol.Protocol;
 
 namespace Sbroenne.PowerPointMcp.McpServer.Tools;
 
@@ -47,45 +48,29 @@ public static class PowerPointToolsBase
     /// <param name="toolName">Tool name for error context (e.g. "presentation").</param>
     /// <param name="operation">The synchronous operation producing a JSON response string.</param>
     /// <returns>The operation's JSON response, or a serialized error payload on exception.</returns>
-    public static string ExecuteToolAction(string toolName, Func<string> operation)
+    public static Task<CallToolResult> ExecuteToolActionAsync(
+        string toolName,
+        Func<string> operation,
+        CancellationToken cancellationToken) =>
+        ExecuteToolActionAsync(toolName, string.Empty, operation, cancellationToken);
+
+    public static Task<CallToolResult> ExecuteToolActionAsync(
+        string toolName,
+        string actionName,
+        Func<string> operation,
+        CancellationToken cancellationToken)
     {
+        var context = string.IsNullOrEmpty(actionName) ? toolName : $"{toolName}.{actionName}";
         try
         {
-            return operation();
+            cancellationToken.ThrowIfCancellationRequested();
+            var json = operation();
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(CreateToolResult(json));
         }
-#pragma warning disable CA1031 // Top-of-tool handler: unexpected exceptions must be serialized, not crash the MCP host.
-        catch (Exception ex)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            if (ex is COMException comEx)
-            {
-                Console.Error.WriteLine(
-                    $"[PowerPointMcp] COM Exception in {toolName}: HResult=0x{comEx.HResult:X8}, Message={comEx.Message}");
-            }
-            else
-            {
-                Console.Error.WriteLine($"[PowerPointMcp] Exception in {toolName}: {ex.GetType().Name}: {ex.Message}");
-            }
-
-            return SerializeToolError(toolName, ex);
-        }
-#pragma warning restore CA1031
-    }
-
-    /// <summary>
-    /// Overload used by generated action-dispatch tools: includes the resolved action string
-    /// (e.g. "add-chart") in stderr diagnostics for easier troubleshooting, since a single
-    /// generated tool (e.g. "chart") now covers many actions.
-    /// </summary>
-    /// <param name="toolName">Tool name for error context (e.g. "chart").</param>
-    /// <param name="actionName">Kebab-case action name for error context (e.g. "add-chart").</param>
-    /// <param name="operation">The synchronous operation producing a JSON response string.</param>
-    /// <returns>The operation's JSON response, or a serialized error payload on exception.</returns>
-    public static string ExecuteToolAction(string toolName, string actionName, Func<string> operation)
-    {
-        var context = $"{toolName}.{actionName}";
-        try
-        {
-            return operation();
+            throw;
         }
 #pragma warning disable CA1031 // Top-of-tool handler: unexpected exceptions must be serialized, not crash the MCP host.
         catch (Exception ex)
@@ -100,9 +85,63 @@ public static class PowerPointToolsBase
                 Console.Error.WriteLine($"[PowerPointMcp] Exception in {context}: {ex.GetType().Name}: {ex.Message}");
             }
 
-            return SerializeToolError(context, ex);
+            return Task.FromResult(CreateToolResult(SerializeToolError(context, ex), isError: true));
         }
 #pragma warning restore CA1031
+    }
+
+    public static async Task<CallToolResult> ExecuteToolActionAsync(
+        string toolName,
+        string actionName,
+        Func<Task<string>> operation,
+        CancellationToken cancellationToken)
+    {
+        var context = $"{toolName}.{actionName}";
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var json = await operation();
+            cancellationToken.ThrowIfCancellationRequested();
+            return CreateToolResult(json);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+#pragma warning disable CA1031 // Top-of-tool handler: unexpected exceptions must be serialized, not crash the MCP host.
+        catch (Exception ex)
+        {
+            if (ex is COMException comEx)
+            {
+                Console.Error.WriteLine(
+                    $"[PowerPointMcp] COM Exception in {context}: HResult=0x{comEx.HResult:X8}, Message={comEx.Message}");
+            }
+            else
+            {
+                Console.Error.WriteLine($"[PowerPointMcp] Exception in {context}: {ex.GetType().Name}: {ex.Message}");
+            }
+
+            return CreateToolResult(SerializeToolError(context, ex), isError: true);
+        }
+#pragma warning restore CA1031
+    }
+
+    internal static CallToolResult CreateToolResult(string json, bool? isError = null)
+    {
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        var failed = root.ValueKind == JsonValueKind.Object &&
+            ((root.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.False) ||
+             (root.TryGetProperty("isError", out var error) && error.ValueKind == JsonValueKind.True));
+
+        return new CallToolResult
+        {
+            IsError = isError ?? failed,
+            Content = [new TextContentBlock { Text = json }],
+            StructuredContent = root.ValueKind == JsonValueKind.Object
+                ? root.Clone()
+                : JsonSerializer.SerializeToElement(new { result = root }, JsonOptions)
+        };
     }
 
     /// <summary>

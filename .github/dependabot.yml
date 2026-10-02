@@ -100,6 +100,72 @@ updates:
         patterns:
           - "*"
 
+  # Shared npm launcher runtime
+  - package-ecosystem: "npm"
+    directory: "/npm-packages/shared"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "chore(npm-deps)"
+      include: "scope"
+    reviewers:
+      - "sbroenne"
+    groups:
+      npm-launcher:
+        patterns:
+          - "*"
+
+  # npm CLI launcher
+  - package-ecosystem: "npm"
+    directory: "/npm-packages/pptcli"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "chore(npm-deps)"
+      include: "scope"
+    reviewers:
+      - "sbroenne"
+    groups:
+      npm-cli:
+        patterns:
+          - "*"
+
+  # npm MCP server launcher
+  - package-ecosystem: "npm"
+    directory: "/npm-packages/mcp-server-powerpoint"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "chore(npm-deps)"
+      include: "scope"
+    reviewers:
+      - "sbroenne"
+    groups:
+      npm-mcp-server:
+        patterns:
+          - "*"
+
   # VS Code extension
   - package-ecosystem: "npm"
     directory: "/vscode-extension"

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
@@ -33,9 +34,12 @@ public static class PresentationTools
     /// Presentation lifecycle, Save As/copy, template, document-property, advisory Mark as Final,
     /// and string-tag operations for an already-open or about-to-be-opened presentation.
     /// </summary>
-    [McpServerTool(Name = "presentation")]
+    [McpServerTool(
+        Name = "presentation",
+        UseStructuredContent = true,
+        OutputSchemaType = typeof(PresentationToolOutputSchema))]
     [Description("Presentation lifecycle, Save As/copy, template, document-property, advisory Mark as Final, and string-tag operations. Mark as Final is not authentication, encryption, or access control. Actions: create, open, close, list, test, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property, set-tag, get-tag, list-tags, delete-tag.")]
-    public static string Presentation(
+    public static Task<CallToolResult> Presentation(
         [Description("The action to perform. One of: create, open, close, list, test, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property, set-tag, get-tag, list-tags, delete-tag.")] PresentationToolAction action,
         [Description("Full Windows path to the presentation file. Required for: create (new .pptx/.pptm file; containing directory must already exist), open or test (existing .pptx/.pptm/.ppt file).")] string? filePath = null,
         [Description("The sessionId returned by create or open. Required for: close, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property, set-tag, get-tag, list-tags, delete-tag.")] string? sessionId = null,
@@ -50,8 +54,9 @@ public static class PresentationTools
         [Description("The new property value. Required for: set-document-property, set-custom-property.")] string? value = null,
         [Description("Case-insensitive string tag name. Letter casing is normalized to invariant uppercase; whitespace is preserved. Required for: set-tag, get-tag, delete-tag.")] string? tagName = null,
         [Description("String tag value, preserved exactly without case normalization. Required for: set-tag.")] string? tagValue = null,
-        PresentationSessionRegistry? registry = null)
-        => PowerPointToolsBase.ExecuteToolAction("presentation", action.ToActionString(), () =>
+        PresentationSessionRegistry? registry = null,
+        CancellationToken cancellationToken = default)
+        => PowerPointToolsBase.ExecuteToolActionAsync("presentation", action.ToActionString(), () =>
         {
             ValidateActionParameters(action, filePath, sessionId, save, isMacroEnabled, targetPath, format, overwrite, templatePath, isFinal, propertyName, value, tagName, tagValue);
             var reg = registry!;
@@ -79,7 +84,27 @@ public static class PresentationTools
                 PresentationToolAction.DeleteTag => HandleDeleteTag(sessionId, tagName, reg),
                 _ => PowerPointToolsBase.ValidationError($"Unknown action: {action}")
             };
-        });
+        }, cancellationToken);
+
+    internal static void ValidateActionParameterNames(
+        string action,
+        IEnumerable<string> suppliedParameters)
+    {
+        var parsedAction = Enum.GetValues<PresentationToolAction>()
+            .SingleOrDefault(value => string.Equals(value.ToActionString(), action, StringComparison.OrdinalIgnoreCase));
+        if (!Enum.IsDefined(parsedAction))
+            throw new ArgumentException($"Unknown action: {action}");
+
+        var allowed = GetAllowedParameterNames(parsedAction);
+        var invalid = suppliedParameters
+            .Where(parameter => parameter != "action" && !allowed.Contains(parameter))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(parameter => parameter, StringComparer.Ordinal)
+            .ToArray();
+        if (invalid.Length > 0)
+            throw new ArgumentException(
+                $"Parameter(s) not valid for action '{action}': {string.Join(", ", invalid)}.");
+    }
 
     private static void ValidateActionParameters(
         PresentationToolAction action,
@@ -112,6 +137,17 @@ public static class PresentationTools
         if (tagName != null) supplied.Add("tagName");
         if (tagValue != null) supplied.Add("tagValue");
 
+        var allowed = GetAllowedParameterNames(action);
+        var inapplicable = supplied.Where(parameter => !allowed.Contains(parameter)).ToArray();
+        if (inapplicable.Length > 0)
+        {
+            throw new ArgumentException(
+                $"Parameter(s) not valid for action '{action.ToActionString()}': {string.Join(", ", inapplicable)}.");
+        }
+    }
+
+    private static HashSet<string> GetAllowedParameterNames(PresentationToolAction action)
+    {
         string[] allowedParameters = action switch
         {
             PresentationToolAction.Create => ["filePath", "isMacroEnabled"],
@@ -129,13 +165,7 @@ public static class PresentationTools
             PresentationToolAction.ListTags => ["sessionId"],
             _ => []
         };
-        var allowed = new HashSet<string>(allowedParameters, StringComparer.Ordinal);
-        var inapplicable = supplied.Where(parameter => !allowed.Contains(parameter)).ToArray();
-        if (inapplicable.Length > 0)
-        {
-            throw new ArgumentException(
-                $"Parameter(s) not valid for action '{action.ToActionString()}': {string.Join(", ", inapplicable)}.");
-        }
+        return new HashSet<string>(allowedParameters, StringComparer.Ordinal);
     }
 
     /// <summary>

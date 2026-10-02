@@ -3,7 +3,7 @@
 This is the [PowerPoint MCP Server](https://powerpointmcpserver.dev) packaged as
 an **MCPB bundle** for one-click installation in **Claude Desktop**.
 
-> **Windows only.** Requires Microsoft PowerPoint (desktop) to be installed.
+> **Windows only.** Requires Microsoft PowerPoint (desktop) and Node.js 18 or later with npm/npx.
 
 ## Install
 
@@ -16,8 +16,9 @@ Claude can now create and edit PowerPoint decks directly.
 
 ## What's inside
 
-A self-contained Windows x64 build of the MCP server (no .NET runtime install
-required) plus the manifest, license, and changelog. The server exposes 17
+A metadata-only configuration that runs `npx -y @sbroenne/mcp-server-powerpoint@latest`,
+plus the manifest, license, and changelog. npm selects the native Windows x64 or ARM64 runtime.
+The server exposes 17
 tools (205 operations across 17 domains) — see the
 [documentation](https://powerpointmcpserver.dev) for the full list.
 Linked pictures are managed through the generated `shape` actions `get-link-info`, `update-link`,

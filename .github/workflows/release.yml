@@ -1,8 +1,8 @@
 name: Release All Components
 
 # Unified release workflow for all PowerPointMcp components:
-# - MCP Server (standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
-# - CLI (standalone exe ZIP — primary) + NuGet (.NET tool — secondary)
+# - MCP Server (npm + standalone exe ZIP + NuGet)
+# - CLI (npm + standalone exe ZIP + NuGet)
 # - VS Code Extension (VSIX + Marketplace)
 # - MCPB (Claude Desktop bundle)
 # - Agent Skills (ZIP package)
@@ -15,6 +15,7 @@ name: Release All Components
 #
 # Required GitHub Secrets:
 # - NUGET_USER: Your NuGet.org username (profile name, NOT email)
+# - NPM_TOKEN: npm automation token with publish access to the @sbroenne scope
 # - VSCE_TOKEN: VS Code Marketplace PAT
 #
 on:
@@ -55,10 +56,18 @@ jobs:
 
       - name: Calculate version
         id: calculate_version
+        env:
+          CUSTOM_VERSION: ${{ inputs.custom_version }}
+          VERSION_BUMP: ${{ inputs.version_bump }}
         run: |
           # If custom version is provided, use it
-          if [ -n "${{ inputs.custom_version }}" ]; then
-            VERSION="${{ inputs.custom_version }}"
+          if [[ -n "$CUSTOM_VERSION" ]]; then
+            if ! [[ "$CUSTOM_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+              echo "::error::Custom version must be three numeric parts without leading zeroes (for example, 1.2.3)."
+              exit 1
+            fi
+
+            VERSION="$CUSTOM_VERSION"
             echo "Using custom version: ${VERSION}"
           else
             # Get the latest tag
@@ -73,7 +82,7 @@ jobs:
             IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
 
             # Increment based on bump type
-            case "${{ inputs.version_bump }}" in
+            case "$VERSION_BUMP" in
               major)
                 MAJOR=$((MAJOR + 1))
                 MINOR=0
@@ -85,6 +94,10 @@ jobs:
                 ;;
               patch)
                 PATCH=$((PATCH + 1))
+                ;;
+              *)
+                echo "::error::Unsupported version bump type."
+                exit 1
                 ;;
             esac
 
@@ -177,6 +190,11 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
     - name: Set Version
       run: |
         $version = "${{ needs.version.outputs.version }}"
@@ -240,6 +258,25 @@ jobs:
         name: cli-build
         path: cli-publish/
 
+    - name: Publish ARM64 CLI runtime
+      shell: pwsh
+      run: |
+        dotnet publish src/PowerPointMcp.CLI/PowerPointMcp.CLI.csproj --configuration Release --runtime win-arm64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=false -p:NuGetAudit=false -p:Version=$env:VERSION --output ./cli-publish-arm64
+
+    - name: Build CLI npm packages
+      shell: pwsh
+      run: |
+        ./scripts/Build-NpmPackages.ps1 -Component Cli -Architecture x64 -Version $env:VERSION -RuntimeExecutable ./cli-publish/powerpointcli.exe -OutputDirectory ./cli-npm
+        ./scripts/Build-NpmPackages.ps1 -Component Cli -Architecture arm64 -Version $env:VERSION -RuntimeExecutable ./cli-publish-arm64/powerpointcli.exe -OutputDirectory ./cli-npm
+        ./scripts/Test-NpmPackages.ps1 -Component Cli -Architecture x64 -LauncherPackage "./cli-npm/sbroenne-pptcli-$env:VERSION.tgz" -RuntimePackage "./cli-npm/sbroenne-pptcli-win32-x64-$env:VERSION.tgz"
+        ./scripts/Test-NpmPackages.ps1 -Component Cli -Architecture arm64 -ArchiveOnly -LauncherPackage "./cli-npm/sbroenne-pptcli-$env:VERSION.tgz" -RuntimePackage "./cli-npm/sbroenne-pptcli-win32-arm64-$env:VERSION.tgz"
+
+    - name: Upload CLI npm packages
+      uses: actions/upload-artifact@v7
+      with:
+        name: cli-npm
+        path: cli-npm/*.tgz
+
   # =============================================================================
   # Job 2: Build MCP Server (standalone exe — primary + NuGet pack — secondary)
   # =============================================================================
@@ -263,6 +300,11 @@ jobs:
       uses: actions/setup-dotnet@v6
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ env.NODE_VERSION }}
 
     - name: Set Version
       run: |
@@ -335,6 +377,25 @@ jobs:
         name: mcp-server-nupkg
         path: nupkg/*.nupkg
 
+    - name: Publish ARM64 MCP runtime
+      shell: pwsh
+      run: |
+        dotnet publish src/PowerPointMcp.McpServer/PowerPointMcp.McpServer.csproj --configuration Release --runtime win-arm64 --self-contained true -p:PublishSingleFile=true -p:PublishReadyToRun=false -p:NuGetAudit=false -p:Version=$env:VERSION --output ./mcp-server-publish-arm64
+
+    - name: Build MCP npm packages
+      shell: pwsh
+      run: |
+        ./scripts/Build-NpmPackages.ps1 -Component McpServer -Architecture x64 -Version $env:VERSION -RuntimeExecutable ./mcp-server-publish/mcp-powerpoint.exe -OutputDirectory ./mcp-npm
+        ./scripts/Build-NpmPackages.ps1 -Component McpServer -Architecture arm64 -Version $env:VERSION -RuntimeExecutable ./mcp-server-publish-arm64/Sbroenne.PowerPointMcp.McpServer.exe -OutputDirectory ./mcp-npm
+        ./scripts/Test-NpmPackages.ps1 -Component McpServer -Architecture x64 -LauncherPackage "./mcp-npm/sbroenne-mcp-server-powerpoint-$env:VERSION.tgz" -RuntimePackage "./mcp-npm/sbroenne-mcp-server-powerpoint-win32-x64-$env:VERSION.tgz"
+        ./scripts/Test-NpmPackages.ps1 -Component McpServer -Architecture arm64 -ArchiveOnly -LauncherPackage "./mcp-npm/sbroenne-mcp-server-powerpoint-$env:VERSION.tgz" -RuntimePackage "./mcp-npm/sbroenne-mcp-server-powerpoint-win32-arm64-$env:VERSION.tgz"
+
+    - name: Upload MCP npm packages
+      uses: actions/upload-artifact@v7
+      with:
+        name: mcp-npm
+        path: mcp-npm/*.tgz
+
   # =============================================================================
   # Job 3: Build and Publish VS Code Extension
   # =============================================================================
@@ -374,37 +435,16 @@ jobs:
       run: ./scripts/Update-ReleaseVersionMetadata.ps1 -Version $env:VERSION
       shell: pwsh
 
-    - name: Sync Extension Changelog
-      run: |
-        Copy-Item "CHANGELOG.md" "vscode-extension/CHANGELOG.md" -Force
-      shell: pwsh
-
-    - name: Install Dependencies
-      run: |
-        cd vscode-extension
-        npm install
-
-    - name: Build and Package
-      run: |
-        cd vscode-extension
-        npm run package
-
-    - name: Rename VSIX
-      run: |
-        $version = $env:VERSION
-        cd vscode-extension
-        $vsix = Get-ChildItem -Filter "*.vsix" | Select-Object -First 1
-        $targetName = "powerpoint-mcp-$version.vsix"
-        if ($vsix.Name -ne $targetName) {
-          Rename-Item $vsix.FullName -NewName $targetName
-        }
+    - name: Build and verify native packages
+      run: ./scripts/Build-VscodeExtension.ps1 -Version $env:VERSION -OutputDir artifacts/vscode
       shell: pwsh
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v7
       with:
         name: vscode-vsix
-        path: vscode-extension/powerpoint-mcp-*.vsix
+        path: artifacts/vscode/powerpoint-mcp-*.vsix
+        if-no-files-found: error
 
   # =============================================================================
   # Job 4: Build MCPB (Claude Desktop Bundle)
@@ -533,11 +573,54 @@ jobs:
         path: SHA256SUMS
 
   # =============================================================================
+  # Job 6b: Execute native Windows ARM64 npm packages
+  # =============================================================================
+  verify-arm64:
+    name: Verify Native Windows ARM64 Packages
+    needs: [version, build-cli, build-mcp-server]
+    runs-on: windows-11-arm
+    permissions:
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        architecture: arm64
+        package-manager-cache: false
+
+    - name: Download npm packages
+      uses: actions/download-artifact@v8
+      with:
+        pattern: '*-npm'
+        path: npm
+        merge-multiple: true
+
+    - name: Execute ARM64 npm packages
+      shell: pwsh
+      env:
+        VERSION: ${{ needs.version.outputs.version }}
+      run: |
+        $PSNativeCommandUseErrorActionPreference = $true
+        if ((node -p process.arch) -ne 'arm64') {
+          throw 'Native ARM64 Node.js is required.'
+        }
+        ./scripts/Test-NpmPackages.ps1 -Component Cli -Architecture arm64 `
+          -LauncherPackage "./npm/sbroenne-pptcli-$env:VERSION.tgz" `
+          -RuntimePackage "./npm/sbroenne-pptcli-win32-arm64-$env:VERSION.tgz"
+        ./scripts/Test-NpmPackages.ps1 -Component McpServer -Architecture arm64 `
+          -LauncherPackage "./npm/sbroenne-mcp-server-powerpoint-$env:VERSION.tgz" `
+          -RuntimePackage "./npm/sbroenne-mcp-server-powerpoint-win32-arm64-$env:VERSION.tgz"
+
+  # =============================================================================
   # Job 7: Create Git Tag
   # =============================================================================
   create-tag:
     name: Create Git Tag
-    needs: [version, build-cli, build-mcp-server, build-vscode, build-mcpb, build-agent-skills, build-checksums]
+    needs: [version, build-cli, build-mcp-server, build-vscode, build-mcpb, build-agent-skills, build-checksums, verify-arm64]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -655,6 +738,7 @@ jobs:
       uses: actions/setup-node@v7
       with:
         node-version: ${{ env.NODE_VERSION }}
+        registry-url: https://registry.npmjs.org
 
     - name: Set Version
       run: |
@@ -680,6 +764,13 @@ jobs:
         name: vscode-vsix
         path: vscode-vsix
 
+    - name: Download npm packages
+      uses: actions/download-artifact@v8
+      with:
+        pattern: '*-npm'
+        path: npm
+        merge-multiple: true
+
     - name: NuGet Login (OIDC)
       uses: NuGet/login@v1
       id: nuget-login
@@ -702,13 +793,43 @@ jobs:
         Write-Output "Published Sbroenne.PowerPointMcp.CLI.$version to NuGet.org"
       shell: pwsh
 
-    - name: Publish to VS Code Marketplace
-      uses: HaaLeo/publish-vscode-extension@v2
-      with:
-        pat: ${{ secrets.VSCE_TOKEN }}
-        registryUrl: https://marketplace.visualstudio.com
-        extensionFile: vscode-vsix/powerpoint-mcp-${{ env.VERSION }}.vsix
-      continue-on-error: true
+    - name: Publish npm packages
+      shell: pwsh
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      run: |
+        foreach ($name in @(
+          'pptcli-win32-x64',
+          'pptcli-win32-arm64',
+          'mcp-server-powerpoint-win32-x64',
+          'mcp-server-powerpoint-win32-arm64',
+          'pptcli',
+          'mcp-server-powerpoint'
+        )) {
+          npm publish "./npm/sbroenne-$name-$env:VERSION.tgz" --access public
+        }
+
+    - name: Install VS Code publishing dependencies
+      working-directory: vscode-extension
+      run: npm ci --ignore-scripts
+
+    - name: Publish Windows x64 extension
+      working-directory: vscode-extension
+      shell: pwsh
+      env:
+        VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
+      run: |
+        $PSNativeCommandUseErrorActionPreference = $true
+        npm exec --no -- vsce publish --packagePath "../vscode-vsix/powerpoint-mcp-$env:VERSION.vsix" --skip-duplicate
+
+    - name: Publish Windows ARM64 extension
+      working-directory: vscode-extension
+      shell: pwsh
+      env:
+        VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
+      run: |
+        $PSNativeCommandUseErrorActionPreference = $true
+        npm exec --no -- vsce publish --packagePath "../vscode-vsix/powerpoint-mcp-$env:VERSION-win32-arm64.vsix" --skip-duplicate
 
   # =============================================================================
   # Job 10: Create Unified GitHub Release

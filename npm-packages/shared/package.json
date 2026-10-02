@@ -1,0 +1,11 @@
+{
+  "name": "powerpointmcp-npm-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "foreground-child": "^4.0.3"
+  }
+}

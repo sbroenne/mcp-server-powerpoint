@@ -1,0 +1,27 @@
+{
+  "name": "@sbroenne/mcp-server-powerpoint-win32-arm64",
+  "version": "0.0.0-development",
+  "description": "Windows ARM64 runtime for the PowerPointMcp MCP server.",
+  "license": "MIT",
+  "main": "mcp-powerpoint.exe",
+  "files": [
+    "mcp-powerpoint.exe"
+  ],
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "preferUnplugged": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sbroenne/mcp-server-powerpoint",
+    "directory": "npm-packages/mcp-server-powerpoint-win32-arm64"
+  },
+  "homepage": "https://powerpointmcpserver.dev/",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

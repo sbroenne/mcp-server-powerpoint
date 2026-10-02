@@ -1,228 +1,72 @@
 <#
 .SYNOPSIS
-    Creates the MCPB (MCP Bundle) package for Claude Desktop.
-
+    Packages the direct-npx Windows MCP server configuration for Claude Desktop.
 .DESCRIPTION
-    Builds the PowerPoint MCP Server as a self-contained Windows x64 executable
-    and packages it as an .mcpb file for one-click installation in Claude Desktop.
-
-.PARAMETER Version
-    The version number for the package (e.g., "0.1.0"). If not specified,
-    reads from Directory.Build.props.
-
-.PARAMETER OutputDir
-    The output directory for the MCPB package. Defaults to ./artifacts
-
-.EXAMPLE
-    .\Build-McpBundle.ps1
-    Creates MCPB package with version from Directory.Build.props
-
-.NOTES
-    Requirements:
-    - .NET 10 SDK
-    - Windows x64
-
-    Output:
-    mcpb/artifacts/powerpoint-mcp-{version}.mcpb
-
-    Contents:
-    ├── manifest.json
-    ├── icon-512.png        (optional — bundle still builds without it)
-    ├── README.md
-    ├── LICENSE
-    ├── CHANGELOG.md
-    └── server/
-        └── powerpoint-mcp-server.exe
+    Bundles metadata only. An available npx resolves the latest public
+    PowerPointMcp package at launch.
 #>
-
 [CmdletBinding()]
 param(
-    [Parameter()]
     [string]$Version,
-
-    [Parameter()]
-    [string]$OutputDir = "./artifacts"
+    [string]$OutputDir = './artifacts'
 )
 
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = 'Stop'
+$root = Split-Path $PSScriptRoot -Parent
+. (Join-Path $PSScriptRoot 'McpbPackaging.ps1')
+. (Join-Path $root 'scripts\PackageHelpers.ps1')
 
-# Get script and project directories
-$McpbDir = $PSScriptRoot
-$RootDir = Split-Path $McpbDir -Parent
-$McpServerDir = Join-Path $RootDir "src/PowerPointMcp.McpServer"
-
-Write-Host "🏗️  Building MCPB (MCP Bundle) package..." -ForegroundColor Cyan
-Write-Host ""
-
-# Determine version
 if (-not $Version) {
-    $PropsFile = Join-Path $RootDir "Directory.Build.props"
-    if (Test-Path $PropsFile) {
-        $xml = [xml](Get-Content $PropsFile)
-        $Version = $xml.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
-    }
-    if (-not $Version) {
-        $Version = "0.1.0"
-    }
+    [xml]$props = Get-Content (Join-Path $root 'Directory.Build.props')
+    $Version = $props.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
 }
-Write-Host "📋 Version: $Version" -ForegroundColor Green
-
-# Create output directory (relative to mcpb directory)
-$OutputDir = Join-Path $McpbDir $OutputDir
-if (Test-Path $OutputDir) {
-    Remove-Item -Recurse -Force $OutputDir
-}
-New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
-
-# Create temp staging directory
-$StagingDir = Join-Path $OutputDir "staging"
-New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
-
-Write-Host ""
-Write-Host "📦 Publishing self-contained executable..." -ForegroundColor Yellow
-
-# Build self-contained executable with inline publish settings.
-# ReadyToRun=false keeps exe small; NuGetAudit=false avoids network vulnerability checks.
-$PublishArgs = @(
-    "publish"
-    "$McpServerDir/PowerPointMcp.McpServer.csproj"
-    "-c", "Release"
-    "-r", "win-x64"
-    "--self-contained", "true"
-    "-p:PublishSingleFile=true"
-    "-p:IncludeNativeLibrariesForSelfExtract=true"
-    "-p:PublishTrimmed=false"
-    "-p:PublishReadyToRun=false"
-    "-p:NuGetAudit=false"
-    "-p:Version=$Version"
-    "-o", $StagingDir
-    "--verbosity", "quiet"
-)
-
-& dotnet @PublishArgs
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Publish failed!" -ForegroundColor Red
-    exit 1
+if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$') {
+    throw 'A valid package version is required.'
 }
 
-Write-Host "   ✓ Built Sbroenne.PowerPointMcp.McpServer.exe" -ForegroundColor Green
+$output = [IO.Path]::GetFullPath($OutputDir, $PSScriptRoot)
+Assert-PackageOutputPath -Path $output -RepoRoot $root
+$stage = Join-Path ([IO.Path]::GetTempPath()) "PowerPointMcpMcpb-$([Guid]::NewGuid().ToString('N'))"
+New-Item -ItemType Directory -Path $stage | Out-Null
 
-# Create server subdirectory and rename exe to match manifest
-$ServerDir = Join-Path $StagingDir "server"
-New-Item -ItemType Directory -Path $ServerDir -Force | Out-Null
-$FinalExePath = Join-Path $ServerDir "powerpoint-mcp-server.exe"
-Move-Item (Join-Path $StagingDir "Sbroenne.PowerPointMcp.McpServer.exe") $FinalExePath -Force
-Write-Host "   ✓ Renamed to server/powerpoint-mcp-server.exe" -ForegroundColor Green
-
-# Verify executable works
-$VersionOutput = & $FinalExePath --version 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Executable verification failed!" -ForegroundColor Red
-    exit 1
-}
-Write-Host "   ✓ Verified: $VersionOutput" -ForegroundColor Green
-
-# Copy manifest.json and update version
-$ManifestSrc = Join-Path $McpbDir "manifest.json"
-$ManifestDst = Join-Path $StagingDir "manifest.json"
-$ManifestContent = Get-Content $ManifestSrc -Raw
-$ManifestContent = $ManifestContent -replace '"version":\s*"[\d\.]+"', "`"version`": `"$Version`""
-Set-Content $ManifestDst $ManifestContent -NoNewline
-Write-Host "   ✓ Copied manifest.json (version: $Version)" -ForegroundColor Green
-
-# Files to include in the bundle (server/ is added below).
-$FilesToZip = [System.Collections.Generic.List[string]]::new()
-$FilesToZip.Add((Join-Path $StagingDir "manifest.json"))
-
-# Copy icon from mcpb directory (optional — the bundle is still usable without it,
-# though a real 512x512 icon is required before submitting to the Anthropic directory).
-$IconSrc = Join-Path $McpbDir "icon-512.png"
-if (Test-Path $IconSrc) {
-    $IconDst = Join-Path $StagingDir "icon-512.png"
-    Copy-Item $IconSrc $IconDst -Force
-    $FilesToZip.Add($IconDst)
-    Write-Host "   ✓ Copied icon-512.png" -ForegroundColor Green
-} else {
-    Write-Host "   ⚠ icon-512.png not found — bundling without an icon (add a real 512x512 icon before directory submission)" -ForegroundColor Yellow
-}
-
-# Copy README.md from mcpb directory (end-user documentation)
-$ReadmeSrc = Join-Path $McpbDir "README.md"
-if (Test-Path $ReadmeSrc) {
-    $ReadmeDst = Join-Path $StagingDir "README.md"
-    Copy-Item $ReadmeSrc $ReadmeDst -Force
-    $FilesToZip.Add($ReadmeDst)
-    Write-Host "   ✓ Copied README.md" -ForegroundColor Green
-}
-
-# Copy LICENSE from root directory (required for MCPB submission)
-$LicenseSrc = Join-Path $RootDir "LICENSE"
-if (Test-Path $LicenseSrc) {
-    $LicenseDst = Join-Path $StagingDir "LICENSE"
-    Copy-Item $LicenseSrc $LicenseDst -Force
-    $FilesToZip.Add($LicenseDst)
-    Write-Host "   ✓ Copied LICENSE" -ForegroundColor Green
-}
-
-# Copy CHANGELOG.md from root directory (recommended for MCPB submission)
-$ChangelogSrc = Join-Path $RootDir "CHANGELOG.md"
-if (Test-Path $ChangelogSrc) {
-    $ChangelogDst = Join-Path $StagingDir "CHANGELOG.md"
-    Copy-Item $ChangelogSrc $ChangelogDst -Force
-    $FilesToZip.Add($ChangelogDst)
-    Write-Host "   ✓ Copied CHANGELOG.md" -ForegroundColor Green
-}
-
-# server/ directory (with the exe) is always included.
-$FilesToZip.Add($ServerDir)
-
-# Create mcpb file (zip with .mcpb extension)
-$McpbFileName = "powerpoint-mcp-$Version.mcpb"
-$McpbPath = Join-Path $OutputDir $McpbFileName
-
-Write-Host ""
-Write-Host "📦 Creating MCPB bundle..." -ForegroundColor Yellow
-
-# Remove .mcp directory if it exists (MCP registry metadata not needed in MCPB bundle)
-$McpMetaDir = Join-Path $StagingDir ".mcp"
-if (Test-Path $McpMetaDir) {
-    Remove-Item -Recurse -Force $McpMetaDir
-    Write-Host "   ✓ Removed .mcp directory (not needed in MCPB)" -ForegroundColor DarkGray
-}
-
-Compress-Archive -Path $FilesToZip.ToArray() -DestinationPath $McpbPath -Force
-Write-Host "   ✓ Created $McpbFileName" -ForegroundColor Green
-
-# Copy manifest to output dir for verification
-Copy-Item $ManifestDst (Join-Path $OutputDir "manifest.json") -Force
-
-# Clean up staging
-Remove-Item -Recurse -Force $StagingDir
-
-# Show results
-$McpbSize = (Get-Item $McpbPath).Length / 1MB
-Write-Host ""
-Write-Host "✅ MCPB bundle created successfully!" -ForegroundColor Green
-Write-Host ""
-Write-Host "📁 Output:" -ForegroundColor Cyan
-Write-Host "   $McpbPath" -ForegroundColor White
-Write-Host "   Size: $([math]::Round($McpbSize, 1)) MB" -ForegroundColor White
-Write-Host ""
-Write-Host "📋 Contents:" -ForegroundColor Cyan
-
-# List mcpb contents
-$McpbContents = [System.IO.Compression.ZipFile]::OpenRead($McpbPath)
 try {
-    foreach ($entry in $McpbContents.Entries) {
-        $sizeKB = [math]::Round($entry.Length / 1KB, 1)
-        Write-Host "   - $($entry.FullName) ($sizeKB KB)" -ForegroundColor White
-    }
-} finally {
-    $McpbContents.Dispose()
-}
+    $manifest = Get-Content (Join-Path $PSScriptRoot 'manifest.json') -Raw | ConvertFrom-Json
+    $manifest.version = $Version
+    $manifest | ConvertTo-Json -Depth 20 |
+        Set-Content (Join-Path $stage 'manifest.json') -Encoding utf8
 
-Write-Host ""
-Write-Host "🚀 Installation:" -ForegroundColor Cyan
-Write-Host "   Double-click the .mcpb file to install in Claude Desktop" -ForegroundColor White
-Write-Host "   Or drag-and-drop onto the Claude Desktop window" -ForegroundColor White
-Write-Host ""
+    foreach ($name in @('icon-512.png', 'README.md')) {
+        Copy-Item (Join-Path $PSScriptRoot $name) $stage
+    }
+    foreach ($name in @('LICENSE', 'CHANGELOG.md')) {
+        Copy-Item (Join-Path $root $name) $stage
+    }
+
+    $entries = @('manifest.json', 'icon-512.png', 'README.md', 'LICENSE', 'CHANGELOG.md') |
+        ForEach-Object { Join-Path $stage $_ }
+    $archive = Join-Path $stage 'package.zip'
+    Compress-Archive -LiteralPath $entries -DestinationPath $archive -CompressionLevel Optimal
+
+    $expectedEntries = @('CHANGELOG.md', 'LICENSE', 'README.md', 'icon-512.png', 'manifest.json')
+    $zip = [IO.Compression.ZipFile]::OpenRead($archive)
+    try {
+        $actualEntries = @($zip.Entries | ForEach-Object FullName | Sort-Object)
+        if (Compare-Object $expectedEntries $actualEntries) {
+            throw "MCPB content mismatch. Expected: $($expectedEntries -join ', '). Actual: $($actualEntries -join ', ')."
+        }
+    }
+    finally {
+        $zip.Dispose()
+    }
+
+    New-Item -ItemType Directory -Path $output -Force | Out-Null
+    Install-PackageOutput `
+        -Source $archive `
+        -Destination (Join-Path $output "powerpoint-mcp-$Version.mcpb")
+    Install-PackageOutput `
+        -Source (Join-Path $stage 'manifest.json') `
+        -Destination (Join-Path $output 'manifest.json')
+}
+finally {
+    Remove-McpbStagingDirectory -Path $stage
+}

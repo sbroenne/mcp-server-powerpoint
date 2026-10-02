@@ -42,13 +42,14 @@ copilot plugin install powerpoint-mcp@mcp-server-powerpoint-plugins
 copilot plugin install powerpoint-cli@mcp-server-powerpoint-plugins
 ```
 
-Both plugins publish wrapper/bootstrap assets plus skills. On first use they fetch the newest self-contained Windows runtime from the main `sbroenne/mcp-server-powerpoint` GitHub Releases feed. The bootstrap compares the release tag and executable version once per Copilot session, stores runtime state in the host-provided `PLUGIN_DATA` directory, and reuses the verified runtime for the rest of the session. Standalone shim use checks for updates at most once every 24 hours.
+Both plugins use the public npm packages through `npx`. Node.js 18 or later is
+required.
 
 ## Notes
 
 - **Windows only** — PowerPointMcp depends on Microsoft PowerPoint COM automation.
-- **powerpoint-mcp** includes portable root `mcp.json` configuration plus plugin-local bootstrap helpers for the PowerPointMcp MCP runtime.
-- **powerpoint-cli** includes plugin-local bootstrap helpers for the PowerPoint CLI runtime; separate PATH installation is optional, not required for plugin use.
+- **powerpoint-mcp** includes portable root `mcp.json` configuration that launches `@sbroenne/mcp-server-powerpoint`.
+- **powerpoint-cli** includes an argument-safe npx wrapper for `@sbroenne/pptcli`; separate PATH installation is optional.
 - Both root `plugin.json` manifests target `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`; skills are discovered from the fixed `skills/` directory.
 
 ## Source and Support
