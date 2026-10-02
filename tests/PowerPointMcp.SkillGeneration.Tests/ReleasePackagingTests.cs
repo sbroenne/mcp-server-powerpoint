@@ -129,10 +129,12 @@ public sealed class ReleasePackagingTests
             "source_ref=$TAG",
             workflow,
             StringComparison.Ordinal);
-        Assert.Contains(
-            "ref: ${{ needs.version.outputs.source_ref }}",
-            workflow,
-            StringComparison.Ordinal);
+        Assert.Equal(
+            10,
+            System.Text.RegularExpressions.Regex.Count(
+                workflow,
+                System.Text.RegularExpressions.Regex.Escape(
+                    "ref: ${{ needs.version.outputs.source_ref }}")));
         Assert.Contains(
             "./scripts/Publish-NpmPackage.ps1",
             workflow,

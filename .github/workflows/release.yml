@@ -688,6 +688,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ needs.version.outputs.source_ref }}
 
     - name: Set Version
       run: |
