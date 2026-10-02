@@ -141,12 +141,17 @@ public sealed class ReleasePackagingTests
             "gh release upload \"$TAG\" $ARTIFACTS --clobber",
             workflow,
             StringComparison.Ordinal);
+        Assert.DoesNotContain("gh release edit", workflow, StringComparison.Ordinal);
         Assert.Contains(
-            "Release documentation PR #$EXISTING_PR already exists.",
+            "Release documentation PR #$EXISTING_PR is already merged.",
             workflow,
             StringComparison.Ordinal);
         Assert.Contains(
             "gh pr merge \"$EXISTING_PR\" --squash --delete-branch --auto",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "ref: ${{ needs.version.outputs.source_ref }}",
             workflow,
             StringComparison.Ordinal);
 

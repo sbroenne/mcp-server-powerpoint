@@ -883,6 +883,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v7
+      with:
+        ref: ${{ needs.version.outputs.source_ref }}
 
     - name: Download generated documentation
       uses: actions/download-artifact@v8
@@ -909,11 +911,37 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
 
+    - name: Inspect existing release state
+      id: release-state
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        TAG=${{ needs.version.outputs.tag }}
+        BRANCH="chore/changelog-v${VERSION}"
+
+        if gh release view "$TAG" >/dev/null 2>&1; then
+          echo "release_exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "release_exists=false" >> "$GITHUB_OUTPUT"
+        fi
+
+        PR=$(gh pr list \
+          --state all \
+          --head "$BRANCH" \
+          --limit 100 \
+          --json number,state \
+          --jq 'sort_by(.number) | last // {}')
+        echo "documentation_pr_number=$(jq -r '.number // empty' <<< "$PR")" >> "$GITHUB_OUTPUT"
+        echo "documentation_pr_state=$(jq -r '.state // empty' <<< "$PR")" >> "$GITHUB_OUTPUT"
+
     - name: Install changesets CLI
+      if: steps.release-state.outputs.release_exists != 'true' || steps.release-state.outputs.documentation_pr_number == ''
       run: npm ci
 
     - name: Compile changesets into CHANGELOG.md
       id: changelog
+      if: steps.release-state.outputs.release_exists != 'true' || steps.release-state.outputs.documentation_pr_number == ''
       shell: pwsh
       env:
         # @changesets/changelog-github needs a token to look up PR/commit info for changelog entries.
@@ -923,6 +951,7 @@ jobs:
         ./scripts/Build-Changelog.ps1 -Version "${{ env.VERSION }}" -Date $releaseDate
 
     - name: Render Release Notes
+      if: steps.release-state.outputs.release_exists != 'true'
       shell: pwsh
       run: |
         $template = Get-Content -Raw '.github/release-notes-template.md'
@@ -947,11 +976,8 @@ jobs:
         echo "Creating release with artifacts:$ARTIFACTS"
 
         if gh release view "$TAG" >/dev/null 2>&1; then
-          echo "Updating existing release $TAG"
+          echo "Uploading artifacts to existing release $TAG without changing its notes."
           gh release upload "$TAG" $ARTIFACTS --clobber
-          gh release edit "$TAG" \
-            --title "PowerPointMcp $VERSION" \
-            --notes-file release_notes.md
         else
           gh release create "$TAG" $ARTIFACTS \
             --title "PowerPointMcp $VERSION" \
@@ -967,13 +993,23 @@ jobs:
       run: |
         VERSION=${{ env.VERSION }}
         BRANCH="chore/changelog-v${VERSION}"
+        EXISTING_PR="${{ steps.release-state.outputs.documentation_pr_number }}"
+        EXISTING_PR_STATE="${{ steps.release-state.outputs.documentation_pr_state }}"
 
-        EXISTING_PR=$(gh pr list --state open --head "$BRANCH" --json number --jq '.[0].number // empty')
         if [ -n "$EXISTING_PR" ]; then
-          echo "Release documentation PR #$EXISTING_PR already exists."
-          gh pr merge "$EXISTING_PR" --squash --delete-branch --auto \
-            || gh pr merge "$EXISTING_PR" --squash --delete-branch
-          exit 0
+          if [ "$EXISTING_PR_STATE" = "MERGED" ]; then
+            echo "Release documentation PR #$EXISTING_PR is already merged."
+            exit 0
+          fi
+          if [ "$EXISTING_PR_STATE" = "OPEN" ]; then
+            echo "Release documentation PR #$EXISTING_PR already exists; retrying its merge."
+            gh pr merge "$EXISTING_PR" --squash --delete-branch --auto \
+              || gh pr merge "$EXISTING_PR" --squash --delete-branch
+            exit 0
+          fi
+
+          echo "Release documentation PR #$EXISTING_PR is closed without merging."
+          exit 1
         fi
 
         git config user.name "github-actions[bot]"
