@@ -564,7 +564,7 @@ jobs:
   # =============================================================================
   build-checksums:
     name: Standalone Checksums
-    needs: [build-cli, build-mcp-server]
+    needs: [version, build-cli, build-mcp-server]
     runs-on: ubuntu-latest
     permissions:
       contents: read

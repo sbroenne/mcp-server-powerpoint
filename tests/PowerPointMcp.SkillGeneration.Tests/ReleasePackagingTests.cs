@@ -136,6 +136,10 @@ public sealed class ReleasePackagingTests
                 System.Text.RegularExpressions.Regex.Escape(
                     "ref: ${{ needs.version.outputs.source_ref }}")));
         Assert.Contains(
+            "needs: [version, build-cli, build-mcp-server]",
+            workflow,
+            StringComparison.Ordinal);
+        Assert.Contains(
             "./scripts/Publish-NpmPackage.ps1",
             workflow,
             StringComparison.Ordinal);
