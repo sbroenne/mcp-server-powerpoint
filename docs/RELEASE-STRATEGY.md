@@ -64,11 +64,20 @@ shared Node launcher and package metadata for:
 - `@sbroenne/pptcli`
 - their Windows x64 and ARM64 runtime packages
 
-The runtime packages contain self-contained .NET executables. The small launcher
+The runtime packages contain self-contained .NET executables. They are never
+trimmed: trimming turns off the built-in COM support PowerPoint automation needs
+(#103). The small launcher
 packages select the runtime matching Node's architecture and preserve arguments,
 standard streams, signals, and exit codes. Release builds validate all archives;
 x64 packages run smoke tests on the Windows x64 runner, and ARM64 packages must
 pass a native Windows ARM64 execution gate before the release tag is created.
+CI runs the same x64 smoke tests on every pull request. The smoke tests call
+`presentation create` (MCP) and `session create` (CLI): without PowerPoint they
+must report that PowerPoint is not installed; with PowerPoint they create a
+presentation, add a blank slide, and close it. To check a downloaded release
+exe on a machine with PowerPoint, run
+`node npm-packages/mcp-server-powerpoint/scripts/verify-runtime.mjs <path>\mcp-powerpoint.exe --require-powerpoint`
+or the matching `npm-packages/pptcli/scripts/verify-runtime.mjs` with `powerpointcli.exe`.
 
 ### Note on the `[Unreleased]` → `[0.0.1]` transition
 
