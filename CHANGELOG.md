@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.1] - 2026-10-07
+
+### Patch Changes
+
+- [#104](https://github.com/sbroenne/mcp-server-powerpoint/pull/104) [`bf9a6e5`](https://github.com/sbroenne/mcp-server-powerpoint/commit/bf9a6e50205e67e7011774e129cc465ebde892d6) Thanks [@sbroenne](https://github.com/sbroenne)! - **Standalone downloads work with PowerPoint again** ([#103](https://github.com/sbroenne/mcp-server-powerpoint/issues/103)): the MCP Server and CLI `.exe` downloads, and the npm packages and Claude Desktop bundle that use them, failed every PowerPoint action with "Built-in COM has been disabled via a feature switch". They are no longer trimmed, so creating and opening presentations works again. The downloads are larger as a result. The NuGet .NET tools were not affected.
+
 ## [0.3.0] - 2026-10-02
 
 ### Minor Changes
