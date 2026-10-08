@@ -1064,16 +1064,17 @@ public sealed class ChartCommands : IChartCommands
         dynamic? openedWorkbook = null;
         try
         {
+            // SaveChanges: true writes edits back to the presentation without a modal save prompt.
             if (activatedWorkbook != null)
             {
-                activatedWorkbook.Close();
+                activatedWorkbook.Close(true);
             }
             else
             {
                 // If activation failed part-way, the grid may still be open (AddChart2 opens it too).
                 // ChartData.Workbook is only readable while the grid is open.
                 openedWorkbook = chartData.Workbook;
-                openedWorkbook.Close();
+                openedWorkbook.Close(true);
             }
         }
         catch (COMException) when (suppressErrors)
