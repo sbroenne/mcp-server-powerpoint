@@ -10,6 +10,7 @@ namespace Sbroenne.PowerPointMcp.Core.Image;
 [ServiceCategory("image", "Image")]
 [McpTool("image", Title = "Image Operations", Destructive = true, Category = "content",
     Description = "Insert embedded or linked pictures, adjust brightness/contrast and transparency, recolor and crop pictures, and compress presentation images.")]
+[McpReadOnlyActions("get-brightness-contrast", "get-recolor", "get-crop", "get-transparency-color", "get-transparent-background", "get-crop-frame")]
 public interface IImageCommands
 {
     /// <summary>

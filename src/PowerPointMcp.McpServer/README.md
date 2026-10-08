@@ -32,12 +32,12 @@ Desktop, VS Code, GitHub Copilot, etc.) at it over stdio:
 
 ## Capabilities
 
-**17 tools with 214 operations across 17 domains:**
+**32 tools with 215 operations across 17 domains:**
 
 | Tool | Ops | Coverage |
 | --- | --- | --- |
 | `presentation` | 20 | create, open, Save As, Save Copy As, close, list, templates, get/set final, document properties, string tags |
-| `slide` | 25 | slide lifecycle, visibility, backgrounds, sections, comments, import, string tags |
+| `slide` | 26 | slide lifecycle, visibility, backgrounds, sections, comments, import, string tags |
 | `shape` | 57 | shape creation, free-floating and attached connectors, editable WordArt, per-axis 3D rotation, alignment/distribution, styling, grouping, boolean merging, hyperlinks, placeholders, string tags, `copy-formatting`, `duplicate`, `copy-to-slide`, `get-link-info`, `update-link`, `break-link`, `set-link-auto-update` |
 | `textframe` | 22 | text content, find/replace, font formatting, alignment, bullets, auto-size |
 | `table` | 12 | tables, cell text, row/column edits, cell fill/border, merge |
@@ -58,15 +58,15 @@ Every domain is exposed as a single **action-dispatch tool** taking an `action`
 parameter — including `presentation`. Example MCP calls:
 
 - `presentation(action="create", filePath="C:\\Decks\\demo.pptx")`
-- `presentation(action="apply-template", sessionId="...", templatePath="C:\\Templates\\brand.potx")`
-- `chart(action="add-chart", session_id="...", slide_index=2, ...)`
+- `presentation(action="apply-template", presentation_session_id="...", templatePath="C:\\Templates\\brand.potx")`
+- `chart(action="add-chart", presentation_session_id="...", slide_index=2, ...)`
 
 ## How it works
 
 `ComInterop` (STA thread + OLE message filter) → `Core` (domain command classes) →
 `PowerPointMcp.Service` (shared service layer) → `McpServer` (stdio host, calling the service
 in-process) and `CLI` (talks to the same service via a background named-pipe daemon). Each open
-presentation is a session identified by a `sessionId`; tools operate on a session until it is
+presentation is a session identified by a `presentation_session_id`; tools operate on a session until it is
 closed.
 
 ## Links

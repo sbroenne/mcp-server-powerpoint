@@ -44,13 +44,15 @@ layout regressions that text-only automation simply cannot detect.
 
 ## 🎯 What You Can Do
 
-**17 MCP tools with 214 operations across 17 domains:**
+**32 MCP tools with 215 operations across 17 domains:**
+
+The tool total includes 15 read-only aliases; the operation total counts each unique action once.
 
 - 🗂️ **Presentation** (20 ops) — create, open, Save As, Save Copy As, close, list sessions, apply a
   `.potx`/`.pptx` template's masters/theme/layouts, read the current theme name, set/read
   PowerPoint's advisory Mark as Final flag, read/write built-in and custom document properties,
   and manage string tags
-- 📑 **Slide** (25 ops) — lifecycle, visibility, backgrounds, sections, comments, slide import, and string tags
+- 📑 **Slide** (26 ops) — lifecycle, visibility, backgrounds, sections, comments, slide import, and string tags
 - ▭ **Shape** (57 ops) — shapes, free-floating and attached connectors, WordArt, 3D rotation, alignment/distribution, styling, grouping, merging, duplication and cross-slide copying, hyperlinks, linked assets, placeholder editing,
   and string tags
 - ✏️ **TextFrame** (22 ops) — text, find/replace, font size/name/color, bold, italic, underline, alignment, bullets

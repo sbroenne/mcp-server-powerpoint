@@ -10,6 +10,7 @@ namespace Sbroenne.PowerPointMcp.Core.Layout;
 [ServiceCategory("layout", "Layout")]
 [McpTool("layout", Title = "Slide Layout Operations", Destructive = true, Category = "content",
     Description = "Apply or read a slide's built-in layout in an open presentation session.")]
+[McpReadOnlyActions("get-layout", "list-layouts")]
 public interface ILayoutCommands
 {
     /// <summary>

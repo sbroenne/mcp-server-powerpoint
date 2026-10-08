@@ -83,6 +83,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Npm lockfile portability
         shell: pwsh
@@ -139,9 +141,59 @@ jobs:
           & scripts/check-core-interface-completeness.ps1
           if ($LASTEXITCODE -ne 0) { throw "A Core Commands method is implemented but not declared on its interface - it is invisible to the MCP/CLI generators." }
 
+      - name: Select PowerPoint-free test groups
+        id: changed-paths
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PUSH_CURRENT_SHA: ${{ github.sha }}
+        run: |
+          $diffRange = $null
+          if ($env:EVENT_NAME -eq 'pull_request' -and $env:PULL_REQUEST_BASE_SHA -and $env:PULL_REQUEST_HEAD_SHA) {
+            $diffRange = "$($env:PULL_REQUEST_BASE_SHA)...$($env:PULL_REQUEST_HEAD_SHA)"
+          }
+          elseif ($env:EVENT_NAME -eq 'push' -and $env:PUSH_BEFORE_SHA -and $env:PUSH_BEFORE_SHA -notmatch '^0+$') {
+            $diffRange = "$($env:PUSH_BEFORE_SHA)..$($env:PUSH_CURRENT_SHA)"
+          }
+
+          $runAll = $true
+          $changedPaths = @()
+          if ($diffRange) {
+            $changedPaths = @(& git diff --name-only $diffRange 2>$null)
+            $runAll = $LASTEXITCODE -ne 0
+          }
+
+          if ($runAll) {
+            "run_all=true" >> $env:GITHUB_OUTPUT
+            Write-Host "No reliable change range is available; all PowerPoint-free test groups will run."
+          }
+          else {
+            $pathsJson = ConvertTo-Json -InputObject @($changedPaths) -Compress
+            "run_all=false" >> $env:GITHUB_OUTPUT
+            "paths_json=$pathsJson" >> $env:GITHUB_OUTPUT
+            Write-Host "Changed paths were captured for affected test selection."
+          }
+
       - name: Run PowerPoint-free tests
         shell: pwsh
-        run: ./scripts/Invoke-PowerPointFreeTests.ps1
+        env:
+          RUN_ALL_TESTS: ${{ steps.changed-paths.outputs.run_all }}
+          CHANGED_PATHS_JSON: ${{ steps.changed-paths.outputs.paths_json }}
+        run: |
+          if ($env:RUN_ALL_TESTS -eq 'true') {
+            ./scripts/Invoke-PowerPointFreeTests.ps1
+          }
+          else {
+            $changedPaths = @()
+            if ($env:CHANGED_PATHS_JSON) {
+              $changedPaths = @(ConvertFrom-Json -InputObject $env:CHANGED_PATHS_JSON)
+            }
+            ./scripts/Invoke-PowerPointFreeTests.ps1 -SelectChangedPaths -ChangedPaths $changedPaths
+          }
+          if ($LASTEXITCODE -ne 0) { throw "PowerPoint-free tests failed with exit code $LASTEXITCODE." }
 
       - name: Test shared npm launcher
         shell: pwsh

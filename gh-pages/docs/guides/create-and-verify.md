@@ -13,7 +13,7 @@ Use this workflow when building a new deck from scratch.
 presentation(action="create", filePath="C:\Decks\quarterly-review.pptx")
 ```
 
-Keep the returned `sessionId` for every later call. Do not open the new file again.
+Keep the returned `presentation_session_id` for every later call. Do not open the new file again.
 
 ## 2. Build slides in the intended order
 
@@ -35,7 +35,7 @@ which assistive tools will read each slide.
 ## 4. Render the real PowerPoint result
 
 ```text
-export(action="export-all-slides-to-images", session_id="...", output_directory="C:\Decks\preview")
+export(action="export-all-slides-to-images", presentation_session_id="...", output_directory="C:\Decks\preview")
 ```
 
 Review every rendered slide for overlap, clipped text, poor contrast, and inconsistent spacing.
@@ -45,7 +45,7 @@ presentation more accurately than a file parser can.
 ## 5. Save and close
 
 ```text
-presentation(action="close", sessionId="...", save=true)
+presentation(action="close", presentation_session_id="...", save=true)
 ```
 
 Saving is part of close. There is no separate save action.

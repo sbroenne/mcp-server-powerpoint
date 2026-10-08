@@ -44,34 +44,6 @@ SITE_PAGE_MAP = {
     "skills/README.md": "/skills/",
 }
 
-SKILL_SOURCES = {
-    "workflows.md": "Workflows",
-    "behavioral-rules.md": "Behavioral Rules",
-    "anti-patterns.md": "Anti-Patterns",
-    "deck-builder.md": "Deck Builder",
-    "composition-recipes.md": "Composition Recipes",
-    "slides-and-shapes.md": "Slides and Shapes",
-    "tags.md": "String Tags",
-    "text-formatting.md": "Text Formatting",
-    "tables.md": "Tables",
-    "charts.md": "Charts",
-    "images.md": "Images",
-    "media.md": "Media",
-    "smart-art.md": "SmartArt",
-    "speaker-notes.md": "Speaker Notes",
-    "layouts.md": "Layouts",
-    "master.md": "Slide Masters",
-    "animations.md": "Animations",
-    "export-and-verify.md": "Export and Verify",
-}
-
-SITE_PAGE_MAP.update(
-    {
-        f"skills/shared/{name}": f"/reference/{Path(name).stem}/"
-        for name in SKILL_SOURCES
-    }
-)
-
 _MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)\)")
 _SNIPPET = re.compile(r'^[ \t]*--8<--[ \t]+"([^"]+)"[ \t]*$', re.MULTILINE)
 _FRONTMATTER = re.compile(r"\A---\r?\n.*?\r?\n---\r?\n", re.DOTALL)
@@ -164,6 +136,43 @@ def _feature_totals() -> tuple[int, int]:
     return int(counts["tools"]), int(counts["operations"])
 
 
+def _read_only_alias_tools(primary_tools: list[dict]) -> list[dict]:
+    primary_actions = {
+        tool["name"]: {operation["name"] for operation in tool["operations"]}
+        for tool in primary_tools
+    }
+    aliases = []
+    for source in sorted((REPO_ROOT / "src" / "PowerPointMcp.Core").rglob("I*Commands.cs")):
+        content = source.read_text(encoding="utf-8")
+        match = re.search(r"\[McpReadOnlyActions\((.*?)\)\]", content, re.DOTALL)
+        if match is None:
+            continue
+
+        domain = source.stem.removeprefix("I").removesuffix("Commands").lower()
+        action_names = re.findall(r'"([^"]+)"', match.group(1))
+        if not action_names:
+            raise RuntimeError(f"{source} declares a read-only alias without actions")
+        if domain not in primary_actions:
+            raise RuntimeError(f"{source} declares a read-only alias for unknown tool '{domain}'")
+        unknown_actions = set(action_names) - primary_actions[domain]
+        if unknown_actions:
+            raise RuntimeError(
+                f"{source} declares unknown read-only actions for '{domain}': "
+                f"{', '.join(sorted(unknown_actions))}"
+            )
+
+        aliases.append(
+            {
+                "name": f"{domain}_read",
+                "description": f"Read-only subset of the {domain} tool.",
+                "operationCount": len(action_names),
+                "operations": [{"name": action} for action in action_names],
+                "readOnly": True,
+            }
+        )
+    return aliases
+
+
 def _write(name: str, source_rel: str, content: str) -> None:
     GEN_DIR.mkdir(parents=True, exist_ok=True)
     content = _rewrite_links(content, source_rel)
@@ -202,14 +211,6 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
         "skills/README.md",
         _strip_header(_read("skills/README.md"), demote_h1=True),
     )
-
-    for name in SKILL_SOURCES:
-        _write(
-            f"skills-{Path(name).stem}.md",
-            f"skills/shared/{name}",
-            _strip_header(_read(f"skills/shared/{name}"), demote_h1=True),
-        )
-
 
 DOCS_DIR = Path(__file__).resolve().parent / "docs"
 SNIPPET_BASE_PATHS = (DOCS_DIR, Path(__file__).resolve().parent)
@@ -392,6 +393,7 @@ def _write_tools_json(config) -> None:
         )
 
     actual_operations = sum(tool["operationCount"] for tool in tools)
+    tools.extend(_read_only_alias_tools(tools))
     if len(tools) != expected_tools or actual_operations != expected_operations:
         raise RuntimeError(
             "tools.json totals do not match the feature headline: "

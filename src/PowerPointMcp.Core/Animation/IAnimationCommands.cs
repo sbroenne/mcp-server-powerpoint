@@ -19,6 +19,7 @@ namespace Sbroenne.PowerPointMcp.Core.Animation;
 [ServiceCategory("animation", "Animation")]
 [McpTool("animation", Title = "Animation Operations", Destructive = true, Category = "content",
     Description = "Add or delete shape entrance/emphasis/exit animation effects and read or set slide transitions in an open presentation session.")]
+[McpReadOnlyActions("get-effect-count", "get-transition")]
 public interface IAnimationCommands
 {
     /// <summary>

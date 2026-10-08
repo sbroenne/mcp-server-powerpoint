@@ -11,6 +11,7 @@ namespace Sbroenne.PowerPointMcp.Core.Table;
 [ServiceCategory("table", "Table")]
 [McpTool("table", Title = "Table Operations", Destructive = true, Category = "content",
     Description = "Add a table shape, read/write cell text, edit rows/columns, and format cells in an open presentation session.")]
+[McpReadOnlyActions("get-cell-text", "get-cell-fill", "get-cell-border")]
 public interface ITableCommands
 {
     /// <summary>Adds a new table shape with the given number of rows/columns to a slide.</summary>

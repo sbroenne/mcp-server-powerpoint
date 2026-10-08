@@ -4,14 +4,83 @@ param(
     [switch]$HookTests,
     [switch]$Contracts,
     [switch]$SkillTests,
-    [string[]]$ChangedPaths = @()
+    [string[]]$ChangedPaths = @(),
+    [switch]$SelectChangedPaths,
+    [switch]$ListOnly
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $selections = [ordered]@{}
 
-if ($Local) {
+if ($SelectChangedPaths) {
+    if ($Local) {
+        throw '-SelectChangedPaths cannot be combined with -Local.'
+    }
+
+    if ($ChangedPaths.Count -eq 0) {
+        foreach ($project in @('CLI', 'McpServer', 'SkillGeneration')) {
+            $selections[$project] = 'RequiresPowerPoint!=true'
+        }
+    }
+    else {
+        foreach ($path in $ChangedPaths) {
+            $normalizedPath = $path.Replace('\', '/')
+            switch -Regex ($normalizedPath) {
+                '(^|/)[^/]+\.(csproj|props|targets)$' {
+                    foreach ($project in @('CLI', 'McpServer', 'SkillGeneration')) {
+                        $selections[$project] = 'RequiresPowerPoint!=true'
+                    }
+                    break
+                }
+                '^tests/PowerPointMcp\.(CLI|McpServer|SkillGeneration)\.Tests/' {
+                    $selections[$Matches[1]] = 'RequiresPowerPoint!=true'
+                    break
+                }
+                '^tests/' {
+                    foreach ($project in @('CLI', 'McpServer', 'SkillGeneration')) {
+                        $selections[$project] = 'RequiresPowerPoint!=true'
+                    }
+                    break
+                }
+                '^src/PowerPointMcp\.McpServer/|^src/PowerPointMcp\.Generators\.Mcp/' {
+                    $selections['McpServer'] = 'RequiresPowerPoint!=true'
+                    break
+                }
+                '^src/PowerPointMcp\.CLI/|^src/PowerPointMcp\.Generators\.Cli/' {
+                    $selections['CLI'] = 'RequiresPowerPoint!=true'
+                    break
+                }
+                '^src/PowerPointMcp\.(Core|ComInterop|Service|Generators\.Shared|Generators)(/|$)|^src/PowerPointMcp\.SkillGeneration/' {
+                    foreach ($project in @('CLI', 'McpServer', 'SkillGeneration')) {
+                        $selections[$project] = 'RequiresPowerPoint!=true'
+                    }
+                    break
+                }
+                '^skills/|^vscode-extension/|^mcpb/|^npm-packages/' {
+                    $selections['SkillGeneration'] = 'RequiresPowerPoint!=true'
+                    break
+                }
+                '^scripts/|^\.github/workflows/|^(Sbroenne\.PowerPointMcp\.slnx|global\.json|Directory\..*|Directory\.Packages\.props)$' {
+                    foreach ($project in @('CLI', 'McpServer', 'SkillGeneration')) {
+                        $selections[$project] = 'RequiresPowerPoint!=true'
+                    }
+                    break
+                }
+                '^(docs/|gh-pages/|\.changeset/|\.github/instructions/)|(^|/)[^/]+\.md$|^doc-counts\.json$' {
+                    break
+                }
+                default {
+                    foreach ($project in @('CLI', 'McpServer', 'SkillGeneration')) {
+                        $selections[$project] = 'RequiresPowerPoint!=true'
+                    }
+                    break
+                }
+            }
+        }
+    }
+}
+elseif ($Local) {
     if ($HookTests -or $SkillTests) {
         $selections['SkillGeneration'] = 'RequiresPowerPoint!=true'
     }
@@ -38,7 +107,23 @@ else {
 }
 
 if ($selections.Count -eq 0) {
+    if ($SelectChangedPaths) {
+        if ($ListOnly) {
+            Write-Output 'No PowerPoint-free test groups selected.'
+        }
+        else {
+            Write-Host 'No PowerPoint-free test groups are affected by the changed paths.'
+        }
+        $global:LASTEXITCODE = 0
+        return
+    }
     throw 'No PowerPoint-free test group was selected.'
+}
+
+if ($ListOnly) {
+    $selections.Keys
+    $global:LASTEXITCODE = 0
+    return
 }
 
 $results = Join-Path $root "TestResults\powerpoint-free-$([Guid]::NewGuid().ToString('N'))"

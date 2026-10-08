@@ -36,12 +36,11 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
 
     /// <summary>
     /// The MCP tool surface: one hand-written action-dispatch tool (Presentation — session
-    /// lifecycle + template + document properties) plus one generated action-dispatch tool per
-    /// remaining Core domain (Slide, Shape, TextFrame, Table, Notes, Layout, PageSetup,
-    /// Accessibility, Master, Animation, SmartArt, Image, Media, Chart, Export, CustomShow) — enumerated directly
-    /// from every <c>[McpServerTool]</c> in
+    /// lifecycle + template + document properties), one generated action-dispatch tool per
+    /// remaining Core domain, and explicitly declared read-only aliases for selected domains.
+    /// Enumerated directly from every <c>[McpServerTool]</c> in
     /// <c>src/PowerPointMcp.McpServer/Tools/*.cs</c> (hand-written) and the generated
-    /// <c>PowerPointMcp.Generators.Mcp</c> output (one action-dispatch tool per domain, matching
+    /// <c>PowerPointMcp.Generators.Mcp</c> output (matching
     /// mcp-server-excel's architecture: a single tool per domain with an action enum, instead of
     /// one tool per verb). If this set changes, update it deliberately alongside the tool surface.
     /// </summary>
@@ -52,21 +51,36 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         "presentation",
         // Generated action-dispatch tools (one per remaining Core domain)
         "slide",
+        "slide_read",
         "shape",
+        "shape_read",
         "textframe",
+        "textframe_read",
         "table",
+        "table_read",
         "notes",
+        "notes_read",
         "layout",
+        "layout_read",
         "pagesetup",
+        "pagesetup_read",
         "accessibility",
+        "accessibility_read",
         "master",
+        "master_read",
         "animation",
+        "animation_read",
         "smartart",
+        "smartart_read",
         "image",
+        "image_read",
         "media",
+        "media_read",
         "chart",
+        "chart_read",
         "export",
-        "customshow"
+        "customshow",
+        "customshow_read"
     ];
 
     public McpProtocolTests(ITestOutputHelper output)
@@ -106,6 +120,58 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
+    public async Task ExportSchema_PreservesCoreParameterDocumentation()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var export = Assert.Single(tools, tool => tool.Name == "export");
+        var properties = export.JsonSchema.GetProperty("properties");
+        Assert.Contains("pixels", properties.GetProperty("width").GetProperty("description").GetString());
+        Assert.Contains("PNG", properties.GetProperty("format").GetProperty("description").GetString());
+        Assert.Contains("Defaults", properties.GetProperty("overwrite").GetProperty("description").GetString());
+    }
+
+    [Fact]
+    public async Task GeneratedSchema_ParametersExplainMoreThanActionApplicability()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        foreach (var tool in tools.Where(tool => tool.Name != "presentation"))
+        {
+            foreach (var property in tool.JsonSchema.GetProperty("properties").EnumerateObject())
+            {
+                var description = property.Value.GetProperty("description").GetString();
+                Assert.False(string.IsNullOrWhiteSpace(description), $"{tool.Name}.{property.Name} has no description.");
+                Assert.False(description.TrimStart().StartsWith('('),
+                    $"{tool.Name}.{property.Name} only describes action applicability.");
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(null, "required")]
+    [InlineData("", "non-empty")]
+    [InlineData("   ", "non-empty")]
+    public async Task GeneratedTool_RejectsMissingOrBlankSessionBeforeDispatch(string? sessionId, string expected)
+    {
+        var arguments = new Dictionary<string, object?> { ["action"] = "get-count" };
+        if (sessionId != null)
+            arguments["presentation_session_id"] = sessionId;
+
+        var result = await _client!.CallToolAsync("slide_read", arguments, cancellationToken: _cts.Token);
+        Assert.True(result.IsError);
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.Contains(expected, structured.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ServerInstructions_ExplainDependentCallsAndUserOwnership()
+    {
+        var instructions = _client!.ServerInstructions;
+        Assert.Contains("Await", instructions);
+        Assert.Contains("leave", instructions, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not authorization", instructions);
+    }
+
+    [Fact]
     public async Task ShapeSchema_ExposesArrangementActionsAndParameters()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
@@ -119,6 +185,127 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         Assert.True(properties.TryGetProperty("align_cmd", out _));
         Assert.True(properties.TryGetProperty("distribute_cmd", out _));
         Assert.True(properties.TryGetProperty("relative_to_slide", out _));
+    }
+
+    [Fact]
+    public async Task SlideReadTool_ExposesOnlyReadActionsAndOverviewParameters()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var slideRead = Assert.Single(tools, tool => tool.Name == "slide_read");
+        var properties = slideRead.JsonSchema.GetProperty("properties");
+        var actions = properties.GetProperty("action").GetProperty("enum")
+            .EnumerateArray()
+            .Select(action => action.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("inspect", actions);
+        Assert.Contains("get-count", actions);
+        Assert.Contains("get-background-color", actions);
+        Assert.DoesNotContain("delete", actions);
+        Assert.DoesNotContain("set-background-color", actions);
+        Assert.True(properties.TryGetProperty("max_slides", out _));
+        Assert.True(properties.TryGetProperty("max_text_chars_per_slide", out _));
+
+        var slide = Assert.Single(tools, tool => tool.Name == "slide");
+        var fullActions = slide.JsonSchema.GetProperty("properties").GetProperty("action").GetProperty("enum")
+            .EnumerateArray()
+            .Select(action => action.GetString())
+            .ToHashSet(StringComparer.Ordinal);
+        Assert.Contains("delete", fullActions);
+    }
+
+    [Fact]
+    public async Task ReadOnlyTools_ExposeNonEmptySubsetsOfTheirOriginalActions()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var readTools = tools.Where(tool => tool.Name.EndsWith("_read", StringComparison.Ordinal)).ToArray();
+
+        Assert.Equal(15, readTools.Length);
+        foreach (var readTool in readTools)
+        {
+            Assert.True(readTool.ProtocolTool.Annotations?.ReadOnlyHint);
+            var originalName = readTool.Name[..^"_read".Length];
+            var originalTool = Assert.Single(tools, tool => tool.Name == originalName);
+            var readActions = readTool.JsonSchema.GetProperty("properties").GetProperty("action")
+                .GetProperty("enum").EnumerateArray()
+                .Select(action => action.GetString())
+                .ToHashSet(StringComparer.Ordinal);
+            var originalActions = originalTool.JsonSchema.GetProperty("properties").GetProperty("action")
+                .GetProperty("enum").EnumerateArray()
+                .Select(action => action.GetString())
+                .ToHashSet(StringComparer.Ordinal);
+
+            Assert.NotEmpty(readActions);
+            Assert.Subset(originalActions, readActions);
+        }
+    }
+
+    [Fact]
+    public async Task SlideReadTool_RejectsMutationActions()
+    {
+        var result = await _client!.CallToolAsync(
+            "slide_read",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "delete",
+                ["presentation_session_id"] = "missing-session",
+                ["slide_index"] = 1
+            },
+            cancellationToken: _cts.Token);
+
+        Assert.True(result.IsError);
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.Contains("action", structured.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SlideReadTool_ValidActionPassesArgumentValidation()
+    {
+        var result = await _client!.CallToolAsync(
+            "slide_read",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "get-count",
+                ["presentation_session_id"] = "missing-session"
+            },
+            cancellationToken: _cts.Token);
+
+        Assert.True(result.IsError);
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.Contains("Session 'missing-session' not found", structured.GetProperty("errorMessage").GetString());
+    }
+
+    [Fact]
+    public async Task SlideReadToolOutputSchema_DescribesOverviewItems()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var slideRead = Assert.Single(tools, tool => tool.Name == "slide_read");
+        var schema = Assert.IsType<JsonElement>(slideRead.ReturnJsonSchema);
+        var slideItems = schema.GetProperty("properties").GetProperty("slides").GetProperty("items");
+        var slideProperties = slideItems.GetProperty("properties");
+
+        foreach (var property in new[] { "slideIndex", "name", "layoutName", "shapeCount", "textPreview", "textTruncated" })
+        {
+            Assert.True(slideProperties.TryGetProperty(property, out _), $"Overview output is missing {property}.");
+        }
+
+        Assert.True(schema.GetProperty("properties").TryGetProperty("omittedSlideCount", out _));
+    }
+
+    [Fact]
+    public async Task SlideInspectSchema_DescribesOverviewParameterDefaultsAndLimits()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var slide = Assert.Single(tools, tool => tool.Name == "slide");
+        var properties = slide.JsonSchema.GetProperty("properties");
+
+        var maxSlidesDescription = properties.GetProperty("max_slides").GetProperty("description").GetString();
+        Assert.Contains("1-100", maxSlidesDescription);
+        Assert.Contains("default 20", maxSlidesDescription, StringComparison.OrdinalIgnoreCase);
+
+        var maxTextDescription = properties.GetProperty("max_text_chars_per_slide").GetProperty("description").GetString();
+        Assert.Contains("0-2000", maxTextDescription);
+        Assert.Contains("default 500", maxTextDescription, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -152,8 +339,8 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// THE core protocol proof: exactly the 17 expected tools (1 hand-written + 16 generated
-    /// action-dispatch tools) are discoverable via <c>tools/list</c> — no more, no less.
+    /// THE core protocol proof: exactly the expected hand-written, generated, and read-only
+    /// action-dispatch tools are discoverable via <c>tools/list</c> — no more, no less.
     /// </summary>
     [Fact]
     public async Task ListTools_ReturnsExactlyTheExpectedTools()
@@ -271,7 +458,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
             new Dictionary<string, object?>
             {
                 ["action"] = "get-count",
-                ["session_id"] = "missing-session"
+                ["presentation_session_id"] = "missing-session"
             },
             cancellationToken: _cts.Token);
 
@@ -296,7 +483,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         var arguments = new Dictionary<string, object?>
         {
             ["action"] = "delete",
-            ["session_id"] = "missing-session"
+            ["presentation_session_id"] = "missing-session"
         };
         if (parameterName == "missing_action")
         {
@@ -395,7 +582,8 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         Assert.Contains("set-3d-rotation", actions);
         Assert.Contains("get-3d-rotation", actions);
 
-        Assert.True(properties.TryGetProperty("session_id", out _));
+        Assert.True(properties.TryGetProperty("presentation_session_id", out _));
+        Assert.False(properties.TryGetProperty("session_id", out _));
         Assert.True(properties.TryGetProperty("slide_index", out _));
         Assert.True(properties.TryGetProperty("shape_index", out _));
         Assert.True(properties.TryGetProperty("preset_effect", out _));
@@ -573,24 +761,24 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         var unknownGet = await CallPresentationAsync(new()
         {
             ["action"] = "get-final",
-            ["sessionId"] = "missing-session"
+            ["presentation_session_id"] = "missing-session"
         });
         Assert.False(unknownGet.GetProperty("success").GetBoolean());
-        Assert.Contains("Unknown sessionId", unknownGet.GetProperty("errorMessage").GetString());
+        Assert.Contains("Unknown presentation_session_id", unknownGet.GetProperty("errorMessage").GetString());
 
         var unknownSet = await CallPresentationAsync(new()
         {
             ["action"] = "set-final",
-            ["sessionId"] = "missing-session",
+            ["presentation_session_id"] = "missing-session",
             ["isFinal"] = true
         });
         Assert.False(unknownSet.GetProperty("success").GetBoolean());
-        Assert.Contains("Unknown sessionId", unknownSet.GetProperty("errorMessage").GetString());
+        Assert.Contains("Unknown presentation_session_id", unknownSet.GetProperty("errorMessage").GetString());
 
         var missingValue = await CallPresentationAsync(new()
         {
             ["action"] = "set-final",
-            ["sessionId"] = "missing-session"
+            ["presentation_session_id"] = "missing-session"
         });
         Assert.False(missingValue.GetProperty("success").GetBoolean());
         Assert.Contains("isFinal is required", missingValue.GetProperty("errorMessage").GetString());
@@ -598,11 +786,46 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         var inapplicableValue = await CallPresentationAsync(new()
         {
             ["action"] = "get-final",
-            ["sessionId"] = "missing-session",
+            ["presentation_session_id"] = "missing-session",
             ["isFinal"] = false
         });
         Assert.False(inapplicableValue.GetProperty("success").GetBoolean());
         Assert.Contains("not valid for action 'get-final'", inapplicableValue.GetProperty("errorMessage").GetString());
+    }
+
+    [Fact]
+    public async Task PresentationSchema_UsesPresentationSessionIdAndRejectsOldField()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var presentation = Assert.Single(tools, tool => tool.Name == "presentation");
+        var inputProperties = presentation.JsonSchema.GetProperty("properties");
+        Assert.True(inputProperties.TryGetProperty("presentation_session_id", out _));
+        Assert.False(inputProperties.TryGetProperty("session_id", out _));
+        Assert.False(inputProperties.TryGetProperty("sessionId", out _));
+
+        var outputSchema = Assert.IsType<JsonElement>(presentation.ReturnJsonSchema);
+        var outputProperties = outputSchema.GetProperty("properties");
+        Assert.True(outputProperties.TryGetProperty("presentation_session_id", out _));
+        Assert.False(outputProperties.TryGetProperty("session_id", out _));
+        Assert.False(outputProperties.TryGetProperty("sessionId", out _));
+        var sessionProperties = outputProperties.GetProperty("sessions")
+            .GetProperty("items")
+            .GetProperty("properties");
+        Assert.True(sessionProperties.TryGetProperty("presentation_session_id", out _));
+        Assert.False(sessionProperties.TryGetProperty("session_id", out _));
+        Assert.False(sessionProperties.TryGetProperty("sessionId", out _));
+
+        var legacyCall = await _client.CallToolAsync(
+            "presentation",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "close",
+                ["session_id"] = "missing-session"
+            },
+            cancellationToken: _cts.Token);
+        Assert.True(legacyCall.IsError);
+        var structured = Assert.IsType<JsonElement>(legacyCall.StructuredContent);
+        Assert.Contains("Unknown parameter 'session_id'", structured.GetProperty("errorMessage").GetString());
     }
 
     private async Task<JsonElement> CallPresentationAsync(Dictionary<string, object?> arguments)
@@ -621,19 +844,19 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         var presentation = Assert.Single(tools, tool => tool.Name == "presentation");
         AssertTagSchema(
             presentation.JsonSchema,
-            expectedProperties: ["action", "sessionId", "tagName", "tagValue"],
+            expectedProperties: ["action", "presentation_session_id", "tagName", "tagValue"],
             forbiddenProperties: ["slide_index", "shape_index", "binary_value"]);
 
         var slide = Assert.Single(tools, tool => tool.Name == "slide");
         AssertTagSchema(
             slide.JsonSchema,
-            expectedProperties: ["action", "session_id", "slide_index", "tag_name", "tag_value"],
+            expectedProperties: ["action", "presentation_session_id", "slide_index", "tag_name", "tag_value"],
             forbiddenProperties: ["shape_index", "binary_value"]);
 
         var shape = Assert.Single(tools, tool => tool.Name == "shape");
         AssertTagSchema(
             shape.JsonSchema,
-            expectedProperties: ["action", "session_id", "slide_index", "shape_index", "tag_name", "tag_value"],
+            expectedProperties: ["action", "presentation_session_id", "slide_index", "shape_index", "tag_name", "tag_value"],
             forbiddenProperties: ["binary_value"]);
     }
 

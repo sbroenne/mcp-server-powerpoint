@@ -11,8 +11,8 @@ namespace Sbroenne.PowerPointMcp.McpServer.Infrastructure;
 /// </summary>
 /// <remarks>
 /// Generated tools (see <c>PowerPointMcp.Generators.Mcp</c>) call <see cref="ForwardToServiceAsync"/>
-/// as their <c>System.Func&lt;string, string, object?, string&gt;</c> "forwardToService"
-/// delegate passed into <c>ServiceRegistry.{Category}.RouteAction</c>. This keeps the Rule 1/1b
+/// as their <c>System.Func&lt;string, string, object?, Task&lt;string&gt;&gt;</c> "forwardToService"
+/// delegate passed into the generic <c>ServiceRegistry.{Category}.RouteAction</c>. This keeps the Rule 1/1b
 /// error-shape consistent with the rest of the MCP surface: expected failures (bad session id,
 /// validation errors surfaced by Core) come back as <c>Success=false</c> on the
 /// <see cref="ServiceResponse"/> and are serialized here into the same error JSON shape used by
@@ -32,7 +32,7 @@ public static class ServiceBridge
 
     /// <summary>
     /// Forwards a generated action-dispatch call to the in-process <see cref="PowerPointMcpService"/>
-    /// and returns the JSON result string (or a structured error payload) synchronously.
+    /// and returns the JSON result string (or a structured error payload).
     /// </summary>
     /// <param name="service">The shared, DI-injected service instance.</param>
     /// <param name="command">Full "category.action" command string (e.g. "chart.add-chart").</param>

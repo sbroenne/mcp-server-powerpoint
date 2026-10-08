@@ -53,7 +53,7 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
     private static readonly HashSet<string> ExpectedMcpParameters = new(StringComparer.Ordinal)
     {
         "action",       // generated: ImageAction enum, one entry per IImageCommands method
-        "session_id",   // generator fixed: added for all session-aware tools
+        "presentation_session_id",   // generator fixed: added for all session-aware tools
         "slide_index",  // slideIndex  → snake_case (optional only for whole-presentation compression)
         "image_path",   // imagePath   → snake_case (required for: add-picture)
         "left",         // left        → unchanged  (required for: add-picture)
@@ -636,10 +636,14 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
 
     private static bool DescriptionRequiresAction(string description, string action)
     {
-        int validActionsStart = description.IndexOf("(valid for:", StringComparison.Ordinal);
-        string requiredActions = validActionsStart < 0
-            ? description
-            : description[..validActionsStart];
+        const string marker = "(required for:";
+        int start = description.IndexOf(marker, StringComparison.Ordinal);
+        if (start < 0)
+            return false;
+        start += marker.Length;
+        int end = description.IndexOf(')', start);
+        Assert.True(end >= start, $"Required-action list is not closed: '{description}'");
+        string requiredActions = description[start..end];
         return DescriptionMentionsAction(requiredActions, action);
     }
 

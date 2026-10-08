@@ -87,9 +87,12 @@ internal static class PresentationShutdownService
         afterPresentationClose?.Invoke();
         ComUtilities.Release(ref presentation);
 
+        bool canWaitForProcessExit = true;
         if (app != null)
         {
-            QuitApplication(app, fileName, logger);
+            canWaitForProcessExit = CanQuitApplication(app, logger);
+            if (canWaitForProcessExit)
+                QuitApplication(app, fileName, logger);
             ComUtilities.Release(ref app);
         }
 
@@ -100,9 +103,36 @@ internal static class PresentationShutdownService
         GC.WaitForPendingFinalizers();
         GC.Collect();
 
-        if (processIdentity.HasValue)
+        if (processIdentity.HasValue && canWaitForProcessExit)
         {
             WaitForProcessExitOrEscalate(processIdentity.Value, fileName, logger);
+        }
+        else if (processIdentity.HasValue)
+        {
+            // Keep the crash backstop while another managed batch still owns this process.
+            PresentationSessionRegistry.ReleasePowerPointProcessOwnership(processIdentity.Value);
+        }
+    }
+
+    private static bool CanQuitApplication(PowerPoint.Application app, ILogger logger)
+    {
+        PowerPoint.Presentations? presentations = null;
+        try
+        {
+            presentations = app.Presentations;
+            if (presentations.Count == 0)
+                return true;
+            LogDebugSafe(logger, "Leaving the shared PowerPoint application running because other presentations are still open.");
+            return false;
+        }
+        catch (COMException ex)
+        {
+            logger.LogWarning(ex, "Cannot confirm that PowerPoint has no other presentations; refusing to quit or terminate the shared application.");
+            return false;
+        }
+        finally
+        {
+            ComUtilities.Release(ref presentations);
         }
     }
 

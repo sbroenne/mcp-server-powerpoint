@@ -9,6 +9,8 @@ namespace Sbroenne.PowerPointMcp.Core.Chart;
 [ServiceCategory("chart", "Chart")]
 [McpTool("chart", Title = "Chart Operations", Destructive = true, Category = "content",
     Description = "Add a native chart shape, edit data, titles, legend, built-in style, color style, and data-table visibility in an open presentation session.")]
+[McpReadOnlyActions("get-chart-data", "get-chart-title", "get-axis-title", "get-legend-visibility",
+    "get-style", "get-color-style", "get-data-table")]
 public interface IChartCommands
 {
     /// <summary>

@@ -10,6 +10,32 @@ namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
 public sealed class PowerPointToolsBaseTests
 {
     [Fact]
+    public async Task ExecuteToolActionAsync_CancelsWhileAsyncOperationIsStillRunning()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var call = PowerPointToolsBase.ExecuteToolActionAsync("slide", "get-count", () =>
+        {
+            started.SetResult();
+            return completion.Task;
+        }, cancellation.Token);
+
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => call.WaitAsync(TimeSpan.FromSeconds(2)));
+            Assert.False(completion.Task.IsCompleted);
+        }
+        finally
+        {
+            completion.TrySetResult("""{"success":true}""");
+        }
+    }
+
+    [Fact]
     public async Task ExecuteToolActionAsync_PropagatesRequestedCancellation()
     {
         using var cancellation = new CancellationTokenSource();

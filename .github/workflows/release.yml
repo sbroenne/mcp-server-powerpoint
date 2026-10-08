@@ -160,7 +160,6 @@ jobs:
       shell: pwsh
       run: |
         ./scripts/check-doc-counts.ps1 -SkipBuild
-        ./scripts/Build-AgentSkills.ps1 -PopulateReferences -SkipCliReference
 
     - name: Upload generated documentation
       uses: actions/upload-artifact@v7
@@ -175,12 +174,9 @@ jobs:
           gh-pages/docs/installation.md
           gh-pages/docs/features.md
           gh-pages/docs/mcp-server.md
-          skills/CLAUDE.md
-          skills/shared/*.md
           skills/powerpoint-mcp/SKILL.md
-          skills/powerpoint-mcp/references/*.md
           skills/powerpoint-cli/SKILL.md
-          skills/powerpoint-cli/references/*.md
+          skills/powerpoint-deck-design/SKILL.md
 
   # =============================================================================
   # Job 1: Build CLI (standalone exe — primary + NuGet pack — secondary)
@@ -550,7 +546,7 @@ jobs:
         path: cli-runtime
 
     - name: Build Skills Package
-      run: ./scripts/Build-AgentSkills.ps1 -Version $env:VERSION -CliPath "cli-runtime\powerpointcli.exe"
+      run: ./scripts/Build-AgentSkills.ps1 -Version $env:VERSION
       shell: pwsh
 
     - name: Upload Skills Artifact

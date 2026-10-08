@@ -52,12 +52,12 @@ each other.
 
 ## Sessions
 
-Every open presentation is a session identified by a `session_id`, obtained
+Every open presentation is a session identified by a `presentation_session_id`, obtained
 from `presentation(action="open", filePath=...)` /
 `presentation(action="create", filePath=...)` (MCP Server) or
 `pptcli session open <path>` / `pptcli session create <path>` (CLI). Tools and
 commands operate on a session until it is explicitly closed, and nothing is
-written to disk until `presentation(action="close", sessionId=..., save=true)` /
+written to disk until `presentation(action="close", presentation_session_id=..., save=true)` /
 `pptcli session close <id> --save` is called.
 
 Ready to install? See the [installation guide](installation.md), or dive into

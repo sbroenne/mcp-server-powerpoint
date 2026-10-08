@@ -4,10 +4,11 @@
     Updates or validates advertised tool and operation counts against generated code metadata.
 
 .DESCRIPTION
-    Counts are derived from the generated skill manifest plus the hand-written
-    PresentationToolAction enum. The result is cross-checked against the expected MCP
-    protocol tool names, then written once to doc-counts.json and managed documentation
-    claims. CI validates structure on pull requests; the main-branch workflow runs -Update.
+    Counts are derived from the generated skill manifest, read-only MCP action declarations,
+    and the hand-written PresentationToolAction enum. The result is cross-checked against the
+    expected MCP protocol tool names, then written once to doc-counts.json and managed
+    documentation claims. CI validates structure on pull requests; the main-branch workflow
+    runs -Update.
 
 .PARAMETER RepoRoot
     Repository root containing source code and generated build output.
@@ -109,12 +110,33 @@ foreach ($command in $manifest.commands) {
     [void]$canonicalToolNames.Add([string]$command.name)
 }
 
-$canonicalTools = $manifestTools + 1
-$canonicalOperations = $manifestOps + $presentationOps
-$canonicalDomains = $canonicalTools
+$readOnlyAliasCount = 0
+$coreInterfacesPath = Join-Path $RepoRoot 'src\PowerPointMcp.Core'
+foreach ($interfaceFile in Get-ChildItem -LiteralPath $coreInterfacesPath -Recurse -Filter 'I*Commands.cs') {
+    $interfaceContent = Get-Content -LiteralPath $interfaceFile.FullName -Raw
+    if ($interfaceContent -notmatch '\[McpReadOnlyActions\s*\(') {
+        continue
+    }
 
-# The generated manifest supplies every generated tool name; presentation is the
-# hand-written tool. The protocol test verifies that this expected set is the live tools/list surface.
+    $toolNameMatch = [regex]::Match($interfaceContent, '\[McpTool\s*\(\s*"(?<name>[a-z]+)"')
+    if (-not $toolNameMatch.Success) {
+        throw "Read-only MCP actions are declared without an MCP tool name in $($interfaceFile.FullName)."
+    }
+
+    $readOnlyToolName = $toolNameMatch.Groups['name'].Value + '_read'
+    if (-not $canonicalToolNames.Add($readOnlyToolName)) {
+        throw "Duplicate generated read-only MCP tool name '$readOnlyToolName'."
+    }
+    $readOnlyAliasCount++
+}
+
+$canonicalTools = $canonicalToolNames.Count
+$canonicalOperations = $manifestOps + $presentationOps
+$canonicalDomains = $manifestTools + 1
+
+# The generated manifest supplies the original generated tools; read-only aliases are declared
+# on their Core interfaces, and presentation is hand-written. The protocol test verifies that
+# this expected set is the live tools/list surface.
 $protocolTestsPath = Join-Path $RepoRoot 'tests\PowerPointMcp.McpServer.Tests\Integration\McpProtocolTests.cs'
 $protocolTestsContent = Get-Content -LiteralPath $protocolTestsPath -Raw
 $expectedToolsMatch = [regex]::Match(
@@ -125,7 +147,7 @@ if (-not $expectedToolsMatch.Success) {
 }
 $expectedToolNames = [System.Collections.Generic.HashSet[string]]::new(
     [System.StringComparer]::Ordinal)
-foreach ($match in [regex]::Matches($expectedToolsMatch.Groups['body'].Value, '"(?<name>[a-z]+)"')) {
+foreach ($match in [regex]::Matches($expectedToolsMatch.Groups['body'].Value, '"(?<name>[a-z_]+)"')) {
     [void]$expectedToolNames.Add($match.Groups['name'].Value)
 }
 if (-not $canonicalToolNames.SetEquals($expectedToolNames)) {
@@ -143,13 +165,15 @@ if (@($handWrittenToolNames).Count -ne 1 -or $handWrittenToolNames[0] -cne 'pres
 }
 
 Write-Host "Canonical (from code): $canonicalTools tools, $canonicalOperations operations, $canonicalDomains domains" -ForegroundColor Cyan
-Write-Host "  generated manifest: $manifestTools tools / $manifestOps operations; hand-written presentation: $presentationOps operations; protocol surface: $($expectedToolNames.Count) tools" -ForegroundColor DarkGray
+Write-Host "  generated manifest: $manifestTools tools / $manifestOps operations; read-only MCP aliases: $readOnlyAliasCount; hand-written presentation: $presentationOps operations; protocol surface: $($expectedToolNames.Count) tools" -ForegroundColor DarkGray
 
 $script:counts = @{
     t = $canonicalTools
     o = $canonicalOperations
     d = $canonicalDomains
     m = $manifestTools
+    r = $readOnlyAliasCount
+    q = $canonicalTools - 1
 }
 
 function Get-DocumentPath([string]$RelativePath) {
@@ -253,12 +277,10 @@ $headlineChecks = @(
     @{ File = 'gh-pages\docs\installation.md'; Pattern = 'all (?<t>\d+) tools \((?<o>\d+) operations\) across (?<d>\d+) domains'; Groups = @('t', 'o', 'd') }
     @{ File = 'gh-pages\docs\features.md'; Pattern = '(?<t>\d+) MCP tools with (?<o>\d+) operations across (?<d>\d+) domains'; Groups = @('t', 'o', 'd') }
     @{ File = 'gh-pages\docs\mcp-server.md'; Pattern = '(?<t>\d+) tools with (?<o>\d+) operations across (?<d>\d+) domains'; Groups = @('t', 'o', 'd') }
-    @{ File = 'skills\CLAUDE.md'; Pattern = '(?<t>\d+) MCP tools across (?<d>\d+) domains'; Groups = @('t', 'd') }
-    @{ File = 'skills\powerpoint-mcp\SKILL.md'; Pattern = 'Provides (?<t>\d+) PowerPoint MCP tools \(one presentation tool \+ (?<m>\d+) domain action-dispatch tools\)'; Groups = @('t', 'm') }
-    @{ File = 'skills\shared\behavioral-rules.md'; Pattern = '(?<t>\d+) PowerPoint MCP tools across (?<d>\d+) domains'; Groups = @('t', 'd') }
-    @{ File = 'skills\shared\behavioral-rules.md'; Pattern = 'All (?<t>\d+) MCP tools are action-dispatch tools'; Groups = @('t') }
-    @{ File = 'skills\shared\behavioral-rules.md'; Pattern = 'The other (?<m>\d+) domain tools'; Groups = @('m') }
-    @{ File = 'skills\shared\workflows.md'; Pattern = 'All (?<t>\d+) tools and (?<o>\d+) operations'; Groups = @('t', 'o') }
+    @{ File = 'gh-pages\docs\reference\behavioral-rules.md'; Pattern = '(?<t>\d+) PowerPoint MCP tools across (?<d>\d+) domains'; Groups = @('t', 'd') }
+    @{ File = 'gh-pages\docs\reference\behavioral-rules.md'; Pattern = 'All (?<t>\d+) MCP tools are action-dispatch tools'; Groups = @('t') }
+    @{ File = 'gh-pages\docs\reference\behavioral-rules.md'; Pattern = 'The other (?<q>\d+) tools use'; Groups = @('q') }
+    @{ File = 'gh-pages\docs\reference\workflows.md'; Pattern = 'All (?<t>\d+) tools and (?<o>\d+) operations'; Groups = @('t', 'o') }
 )
 foreach ($check in $headlineChecks) {
     Update-CountPattern $check.File $check.Pattern $check.Groups

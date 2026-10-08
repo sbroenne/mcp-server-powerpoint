@@ -18,9 +18,10 @@ excludeAgent: "code-review"
   permission to bypass hooks or disable test cleanup.
 - `release.yml` owns versions, changelog generation, and publication. Never
   dispatch it as a test.
-- Skill guidance belongs in `skills/shared/`. `scripts/Build-AgentSkills.ps1`
-  synchronizes references into both skill packages; follow `skills/README.md`.
-  Do not edit copies alone or assume an ordinary solution build packages skills.
+- Skills are concise entry points in `skills/`; detailed guidance is maintained
+  on the documentation site. `scripts/Build-AgentSkills.ps1` packages the
+  skills, while `scripts/Build-Plugins.ps1` copies the relevant skills into
+  plugins. See `skills/README.md`; a solution build does not package skills.
 
 Procedures: [release strategy](../../docs/RELEASE-STRATEGY.md),
 [plugin publication](../workflows/docs/publish-plugins-setup.md), and

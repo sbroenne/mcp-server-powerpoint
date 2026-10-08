@@ -15,9 +15,9 @@ namespace Sbroenne.PowerPointMcp.McpServer.Tools;
 /// <remarks>
 /// Mirrors mcp-server-excel's <c>ExcelFileTool</c> shape (one hand-written tool named
 /// "presentation" with an <see cref="PresentationToolAction"/> enum parameter and an OPTIONAL
-/// <c>sessionId</c>, since <c>create</c>/<c>open</c> establish a session rather than requiring
+/// <c>presentation_session_id</c>, since <c>create</c>/<c>open</c> establish a session rather than requiring
 /// one) instead of exposing one MCP tool per verb. PowerPoint's per-domain generator always
-/// requires a non-nullable sessionId, which doesn't fit
+/// requires a non-nullable presentation_session_id, which doesn't fit
 /// session-establishing actions, so this domain stays hand-written like Excel's file tool.
 ///
 /// The <see cref="PresentationSessionRegistry"/> singleton is resolved from DI and injected into
@@ -42,7 +42,7 @@ public static class PresentationTools
     public static Task<CallToolResult> Presentation(
         [Description("The action to perform. One of: create, open, close, list, test, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property, set-tag, get-tag, list-tags, delete-tag.")] PresentationToolAction action,
         [Description("Full Windows path to the presentation file. Required for: create (new .pptx/.pptm file; containing directory must already exist), open or test (existing .pptx/.pptm/.ppt file).")] string? filePath = null,
-        [Description("The sessionId returned by create or open. Required for: close, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property, set-tag, get-tag, list-tags, delete-tag.")] string? sessionId = null,
+        [Description("The presentation_session_id returned by create or open. Required for: close, save-as, save-copy-as, apply-template, get-theme-name, get-final, set-final, set-document-property, get-document-property, set-custom-property, get-custom-property, remove-custom-property, set-tag, get-tag, list-tags, delete-tag.")] string? presentation_session_id = null,
         [Description("Save the presentation before closing. Used for: close. Default: false.")] bool? save = null,
         [Description("Set true only when creating a macro-enabled .pptm file. Default: false. Used for: create.")] bool? isMacroEnabled = null,
         [Description("Full Windows destination path. Required for: save-as, save-copy-as. The containing directory must already exist.")] string? targetPath = null,
@@ -58,33 +58,33 @@ public static class PresentationTools
         CancellationToken cancellationToken = default)
         => PowerPointToolsBase.ExecuteToolActionAsync("presentation", action.ToActionString(), () =>
         {
-            ValidateActionParameters(action, filePath, sessionId, save, isMacroEnabled, targetPath, format, overwrite, templatePath, isFinal, propertyName, value, tagName, tagValue);
+            ValidateActionParameters(action, filePath, presentation_session_id, save, isMacroEnabled, targetPath, format, overwrite, templatePath, isFinal, propertyName, value, tagName, tagValue);
             var reg = registry!;
             return action switch
             {
-                PresentationToolAction.Create => HandleCreate(filePath, isMacroEnabled == true, reg),
-                PresentationToolAction.Open => HandleOpen(filePath, reg),
-                PresentationToolAction.Close => HandleClose(sessionId, save == true, reg),
+                PresentationToolAction.Create => HandleCreate(filePath, isMacroEnabled == true, reg, cancellationToken),
+                PresentationToolAction.Open => HandleOpen(filePath, reg, cancellationToken),
+                PresentationToolAction.Close => HandleClose(presentation_session_id, save == true, reg),
                 PresentationToolAction.List => HandleList(reg),
                 PresentationToolAction.Test => HandleTest(filePath),
-                PresentationToolAction.SaveAs => HandleSaveAs(sessionId, targetPath, format, overwrite == true, reg),
-                PresentationToolAction.SaveCopyAs => HandleSaveCopyAs(sessionId, targetPath, overwrite == true, reg),
-                PresentationToolAction.ApplyTemplate => HandleApplyTemplate(sessionId, templatePath, reg),
-                PresentationToolAction.GetThemeName => HandleGetThemeName(sessionId, reg),
-                PresentationToolAction.GetFinal => HandleGetFinal(sessionId, reg),
-                PresentationToolAction.SetFinal => HandleSetFinal(sessionId, isFinal, reg),
-                PresentationToolAction.SetDocumentProperty => HandleSetDocumentProperty(sessionId, propertyName, value, reg),
-                PresentationToolAction.GetDocumentProperty => HandleGetDocumentProperty(sessionId, propertyName, reg),
-                PresentationToolAction.SetCustomProperty => HandleSetCustomProperty(sessionId, propertyName, value, reg),
-                PresentationToolAction.GetCustomProperty => HandleGetCustomProperty(sessionId, propertyName, reg),
-                PresentationToolAction.RemoveCustomProperty => HandleRemoveCustomProperty(sessionId, propertyName, reg),
-                PresentationToolAction.SetTag => HandleSetTag(sessionId, tagName, tagValue, reg),
-                PresentationToolAction.GetTag => HandleGetTag(sessionId, tagName, reg),
-                PresentationToolAction.ListTags => HandleListTags(sessionId, reg),
-                PresentationToolAction.DeleteTag => HandleDeleteTag(sessionId, tagName, reg),
+                PresentationToolAction.SaveAs => HandleSaveAs(presentation_session_id, targetPath, format, overwrite == true, reg),
+                PresentationToolAction.SaveCopyAs => HandleSaveCopyAs(presentation_session_id, targetPath, overwrite == true, reg),
+                PresentationToolAction.ApplyTemplate => HandleApplyTemplate(presentation_session_id, templatePath, reg),
+                PresentationToolAction.GetThemeName => HandleGetThemeName(presentation_session_id, reg),
+                PresentationToolAction.GetFinal => HandleGetFinal(presentation_session_id, reg),
+                PresentationToolAction.SetFinal => HandleSetFinal(presentation_session_id, isFinal, reg),
+                PresentationToolAction.SetDocumentProperty => HandleSetDocumentProperty(presentation_session_id, propertyName, value, reg),
+                PresentationToolAction.GetDocumentProperty => HandleGetDocumentProperty(presentation_session_id, propertyName, reg),
+                PresentationToolAction.SetCustomProperty => HandleSetCustomProperty(presentation_session_id, propertyName, value, reg),
+                PresentationToolAction.GetCustomProperty => HandleGetCustomProperty(presentation_session_id, propertyName, reg),
+                PresentationToolAction.RemoveCustomProperty => HandleRemoveCustomProperty(presentation_session_id, propertyName, reg),
+                PresentationToolAction.SetTag => HandleSetTag(presentation_session_id, tagName, tagValue, reg),
+                PresentationToolAction.GetTag => HandleGetTag(presentation_session_id, tagName, reg),
+                PresentationToolAction.ListTags => HandleListTags(presentation_session_id, reg),
+                PresentationToolAction.DeleteTag => HandleDeleteTag(presentation_session_id, tagName, reg),
                 _ => PowerPointToolsBase.ValidationError($"Unknown action: {action}")
             };
-        }, cancellationToken);
+        }, cancellationToken, registry, presentation_session_id);
 
     internal static void ValidateActionParameterNames(
         string action,
@@ -124,7 +124,7 @@ public static class PresentationTools
     {
         var supplied = new List<string>();
         if (filePath != null) supplied.Add("filePath");
-        if (sessionId != null) supplied.Add("sessionId");
+        if (sessionId != null) supplied.Add("presentation_session_id");
         if (save != null) supplied.Add("save");
         if (isMacroEnabled != null) supplied.Add("isMacroEnabled");
         if (targetPath != null) supplied.Add("targetPath");
@@ -152,17 +152,17 @@ public static class PresentationTools
         {
             PresentationToolAction.Create => ["filePath", "isMacroEnabled"],
             PresentationToolAction.Open or PresentationToolAction.Test => ["filePath"],
-            PresentationToolAction.Close => ["sessionId", "save"],
-            PresentationToolAction.SaveAs => ["sessionId", "targetPath", "format", "overwrite"],
-            PresentationToolAction.SaveCopyAs => ["sessionId", "targetPath", "overwrite"],
-            PresentationToolAction.ApplyTemplate => ["sessionId", "templatePath"],
-            PresentationToolAction.GetThemeName or PresentationToolAction.GetFinal => ["sessionId"],
-            PresentationToolAction.SetFinal => ["sessionId", "isFinal"],
-            PresentationToolAction.SetDocumentProperty or PresentationToolAction.SetCustomProperty => ["sessionId", "propertyName", "value"],
-            PresentationToolAction.GetDocumentProperty or PresentationToolAction.GetCustomProperty or PresentationToolAction.RemoveCustomProperty => ["sessionId", "propertyName"],
-            PresentationToolAction.SetTag => ["sessionId", "tagName", "tagValue"],
-            PresentationToolAction.GetTag or PresentationToolAction.DeleteTag => ["sessionId", "tagName"],
-            PresentationToolAction.ListTags => ["sessionId"],
+            PresentationToolAction.Close => ["presentation_session_id", "save"],
+            PresentationToolAction.SaveAs => ["presentation_session_id", "targetPath", "format", "overwrite"],
+            PresentationToolAction.SaveCopyAs => ["presentation_session_id", "targetPath", "overwrite"],
+            PresentationToolAction.ApplyTemplate => ["presentation_session_id", "templatePath"],
+            PresentationToolAction.GetThemeName or PresentationToolAction.GetFinal => ["presentation_session_id"],
+            PresentationToolAction.SetFinal => ["presentation_session_id", "isFinal"],
+            PresentationToolAction.SetDocumentProperty or PresentationToolAction.SetCustomProperty => ["presentation_session_id", "propertyName", "value"],
+            PresentationToolAction.GetDocumentProperty or PresentationToolAction.GetCustomProperty or PresentationToolAction.RemoveCustomProperty => ["presentation_session_id", "propertyName"],
+            PresentationToolAction.SetTag => ["presentation_session_id", "tagName", "tagValue"],
+            PresentationToolAction.GetTag or PresentationToolAction.DeleteTag => ["presentation_session_id", "tagName"],
+            PresentationToolAction.ListTags => ["presentation_session_id"],
             _ => []
         };
         return new HashSet<string>(allowedParameters, StringComparer.Ordinal);
@@ -170,10 +170,11 @@ public static class PresentationTools
 
     /// <summary>
     /// Creates a new, empty PowerPoint presentation, saves it to disk, and leaves the session
-    /// OPEN — returns a sessionId immediately. No synchronous dispose happens here, so the call
+    /// OPEN — returns a presentation_session_id immediately. No synchronous dispose happens here, so the call
     /// cannot block on PowerPoint's slow shutdown sequence.
     /// </summary>
-    private static string HandleCreate(string? filePath, bool isMacroEnabled, PresentationSessionRegistry registry)
+    private static string HandleCreate(
+        string? filePath, bool isMacroEnabled, PresentationSessionRegistry registry, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(filePath))
         {
@@ -186,33 +187,42 @@ public static class PresentationTools
         }
 
         var sessionId = registry.Create(filePath);
-
-        // Persist the new file to disk immediately through the still-open batch — no
-        // Dispose(), so this cannot block on PowerPoint's shutdown/grace-period sequence.
-        if (!registry.TryGet(sessionId, out var batch))
+        try
         {
-            return PowerPointToolsBase.ValidationError($"Session {sessionId} was created but could not be resolved.");
+            cancellationToken.ThrowIfCancellationRequested();
+            // Persist the new file to disk immediately through the still-open batch — no
+            // Dispose(), so this cannot block on PowerPoint's shutdown/grace-period sequence.
+            if (!registry.TryGet(sessionId, out var batch))
+            {
+                return PowerPointToolsBase.ValidationError($"Session {sessionId} was created but could not be resolved.");
+            }
+
+            var result = Commands.Save(batch);
+            if (!result.Success)
+            {
+                return SerializeResult(result);
+            }
+
+            return PowerPointToolsBase.Serialize(new
+            {
+                success = true,
+                presentation_session_id = sessionId,
+                presentationPath = result.PresentationPath,
+                message = "Presentation created and saved; session left open. Use the returned presentation_session_id with other actions, then action=close when finished."
+            });
         }
-
-        var result = Commands.Save(batch);
-        if (!result.Success)
+        finally
         {
-            return SerializeResult(result);
+            if (cancellationToken.IsCancellationRequested)
+                registry.Close(sessionId);
         }
-
-        return PowerPointToolsBase.Serialize(new
-        {
-            success = true,
-            sessionId,
-            presentationPath = result.PresentationPath,
-            message = "Presentation created and saved; session left open. Use the returned sessionId with other actions, then action=close when finished."
-        });
     }
 
     /// <summary>
     /// Opens an existing presentation and returns a session id used by all subsequent actions.
     /// </summary>
-    private static string HandleOpen(string? filePath, PresentationSessionRegistry registry)
+    private static string HandleOpen(
+        string? filePath, PresentationSessionRegistry registry, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(filePath))
         {
@@ -225,10 +235,15 @@ public static class PresentationTools
         }
 
         var sessionId = registry.Open(filePath);
+        if (cancellationToken.IsCancellationRequested)
+        {
+            registry.Close(sessionId);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
         return PowerPointToolsBase.Serialize(new
         {
             success = true,
-            sessionId,
+            presentation_session_id = sessionId,
             presentationPath = filePath
         });
     }
@@ -249,14 +264,14 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
-            return PowerPointToolsBase.ValidationError("sessionId is required for action=close.");
+            return PowerPointToolsBase.ValidationError("presentation_session_id is required for action=close.");
         }
 
         if (save)
         {
             if (!registry.TryGet(sessionId, out var batch))
             {
-                return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+                return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
             }
 
             var saveResult = Commands.Save(batch);
@@ -269,13 +284,13 @@ public static class PresentationTools
         var closed = registry.Close(sessionId);
         if (!closed)
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         return PowerPointToolsBase.Serialize(new
         {
             success = true,
-            sessionId,
+            presentation_session_id = sessionId,
             closed = true,
             message = "Session closed; PowerPoint is shutting down in the background."
         });
@@ -300,7 +315,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         if (string.IsNullOrWhiteSpace(targetPath))
@@ -323,7 +338,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         if (string.IsNullOrWhiteSpace(targetPath))
@@ -342,7 +357,7 @@ public static class PresentationTools
         var sessions = registry.List()
             .Select(s => new
             {
-                sessionId = s.SessionId,
+                presentation_session_id = s.SessionId,
                 presentationPath = s.PresentationPath,
                 isPowerPointProcessAlive = s.IsPowerPointProcessAlive
             })
@@ -364,7 +379,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         if (string.IsNullOrWhiteSpace(templatePath))
@@ -382,7 +397,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         return SerializeResult(Commands.GetThemeName(batch));
@@ -392,7 +407,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         return SerializeResult(Commands.GetFinal(batch));
@@ -407,7 +422,7 @@ public static class PresentationTools
 
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         return SerializeResult(Commands.SetFinal(batch, isFinal.Value));
@@ -421,7 +436,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         if (string.IsNullOrWhiteSpace(propertyName))
@@ -439,7 +454,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         if (string.IsNullOrWhiteSpace(propertyName))
@@ -458,7 +473,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         if (string.IsNullOrWhiteSpace(propertyName))
@@ -476,7 +491,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         if (string.IsNullOrWhiteSpace(propertyName))
@@ -494,7 +509,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         if (string.IsNullOrWhiteSpace(propertyName))
@@ -513,7 +528,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         if (string.IsNullOrWhiteSpace(tagName))
@@ -533,7 +548,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         if (string.IsNullOrWhiteSpace(tagName))
@@ -548,7 +563,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         return SerializeResult(Commands.ListTags(batch));
@@ -558,7 +573,7 @@ public static class PresentationTools
     {
         if (string.IsNullOrWhiteSpace(sessionId) || !registry.TryGet(sessionId, out var batch))
         {
-            return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+            return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 
         if (string.IsNullOrWhiteSpace(tagName))

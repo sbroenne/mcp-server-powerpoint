@@ -10,6 +10,7 @@ namespace Sbroenne.PowerPointMcp.Core.Notes;
 [ServiceCategory("notes", "Notes")]
 [McpTool("notes", Title = "Speaker Notes Operations", Destructive = true, Category = "content",
     Description = "Set or get the speaker notes text for a slide in an open presentation session.")]
+[McpReadOnlyActions("get-notes-text")]
 public interface INotesCommands
 {
     /// <summary>Sets the speaker notes text for a slide.</summary>

@@ -272,10 +272,10 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("        /// <summary>");
         sb.AppendLine("        /// Routes an action to the appropriate forward method.");
         sb.AppendLine("        /// </summary>");
-        sb.AppendLine($"        public static string RouteAction(");
+        sb.AppendLine($"        public static TResult RouteAction<TResult>(");
         sb.AppendLine($"            {info.CategoryPascal}Action action,");
         sb.AppendLine($"            string sessionId,");
-        sb.AppendLine($"            System.Func<string, string, object?, string> forwardToService,");
+        sb.AppendLine($"            System.Func<string, string, object?, TResult> forwardToService,");
 
         // Collect all unique exposed parameters across all methods
         for (int i = 0; i < allExposedParams.Count; i++)
@@ -593,7 +593,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine($"        /// <summary>Forward method for {method.ActionName} action</summary>");
 
         // Build parameter list - Core params might need transforms
-        var methodParams = new List<string> { "string sessionId", "System.Func<string, string, object?, string> forwardToService" };
+        var methodParams = new List<string> { "string sessionId", "System.Func<string, string, object?, TResult> forwardToService" };
 
         foreach (var p in method.Parameters)
         {
@@ -619,7 +619,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             }
         }
 
-        sb.AppendLine($"        public static string Forward{method.MethodName}({string.Join(", ", methodParams)})");
+        sb.AppendLine($"        public static TResult Forward{method.MethodName}<TResult>({string.Join(", ", methodParams)})");
         sb.AppendLine("        {");
 
         // Generate validation for required string parameters (skip FileOrValue - they validate after resolution)

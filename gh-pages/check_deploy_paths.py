@@ -15,13 +15,12 @@ REPO_ROOT = GH_PAGES.parent
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "deploy-gh-pages.yml"
 READ_CALL = re.compile(r'_read\(\s*"([^"]+)"')
 
-sys.path.insert(0, str(GH_PAGES))
-from hooks import SKILL_SOURCES  # noqa: E402
-
-
 def main() -> int:
     sources = set(READ_CALL.findall((GH_PAGES / "hooks.py").read_text(encoding="utf-8")))
-    sources.update(f"skills/shared/{name}" for name in SKILL_SOURCES)
+    sources.update(
+        path.relative_to(REPO_ROOT).as_posix()
+        for path in (GH_PAGES / "docs" / "reference").glob("*.md")
+    )
     config = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
     triggers = config.get("on", config.get(True, {})) or {}
     patterns = list((triggers.get("push") or {}).get("paths") or [])

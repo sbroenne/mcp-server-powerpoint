@@ -77,7 +77,7 @@ public sealed class McpShutdownRobustnessTests
             var seedFile = Path.Join(tempDir, "Seed.pptx");
             var seedCreateJson = await Call("presentation", new() { ["action"] = "create", ["filePath"] = seedFile });
             AssertSuccess(seedCreateJson, "create_presentation");
-            var seedSessionId = GetString(seedCreateJson, "sessionId");
+            var seedSessionId = GetString(seedCreateJson, "presentation_session_id");
             Assert.True(File.Exists(seedFile));
             _output.WriteLine("✓ create_presentation (seed file)");
 
@@ -93,7 +93,7 @@ public sealed class McpShutdownRobustnessTests
             // Close the seed session now that its file has been copied — the test only needs the
             // file on disk, not a live seed session. Its background disposal is tracked and awaited
             // by DisposeAll on host shutdown like any other session.
-            AssertSuccess(await Call("presentation", new() { ["action"] = "close", ["sessionId"] = seedSessionId }), "close_presentation (seed)");
+            AssertSuccess(await Call("presentation", new() { ["action"] = "close", ["presentation_session_id"] = seedSessionId }), "close_presentation (seed)");
             _output.WriteLine("✓ close_presentation (seed session)");
 
             // Open sessions sequentially — concurrent PowerPoint COM activation is transiently
@@ -117,16 +117,16 @@ public sealed class McpShutdownRobustnessTests
                     $"Second close of an already-closed session should return success=false, not throw or hang: {secondClose.Json}");
                 Assert.True(
                     secondCloseJson.RootElement.TryGetProperty("errorMessage", out var errProp)
-                        && (errProp.GetString()?.Contains("Unknown sessionId", StringComparison.OrdinalIgnoreCase) ?? false),
-                    $"Expected a graceful 'unknown sessionId' error on double-close: {secondClose.Json}");
+                        && (errProp.GetString()?.Contains("Unknown presentation_session_id", StringComparison.OrdinalIgnoreCase) ?? false),
+                    $"Expected a graceful 'unknown presentation_session_id' error on double-close: {secondClose.Json}");
             }
             Assert.True(secondClose.Elapsed < TimeSpan.FromSeconds(15), $"2nd close of A should be fast, not hang; took {secondClose.Elapsed}.");
             _output.WriteLine($"✓ Double-close: 1st close={firstClose.Elapsed.TotalMilliseconds:N0}ms (closed=true), 2nd close={secondClose.Elapsed.TotalMilliseconds:N0}ms (graceful not-found)");
 
             // --- Concurrent close: closing two independent sessions at the same time. ---
             var concurrentStopwatch = Stopwatch.StartNew();
-            var closeBTask = Call("presentation", new() { ["action"] = "close", ["sessionId"] = sessionB });
-            var closeCTask = Call("presentation", new() { ["action"] = "close", ["sessionId"] = sessionC });
+            var closeBTask = Call("presentation", new() { ["action"] = "close", ["presentation_session_id"] = sessionB });
+            var closeCTask = Call("presentation", new() { ["action"] = "close", ["presentation_session_id"] = sessionC });
             var closeResults = await Task.WhenAll(closeBTask, closeCTask);
             concurrentStopwatch.Stop();
 
@@ -198,7 +198,7 @@ public sealed class McpShutdownRobustnessTests
     {
         var result = await call("presentation", new Dictionary<string, object?> { ["action"] = "open", ["filePath"] = filePath });
         AssertSuccess(result, $"open_presentation ({label})");
-        var sessionId = GetString(result, "sessionId");
+        var sessionId = GetString(result, "presentation_session_id");
         Assert.False(string.IsNullOrEmpty(sessionId), $"Expected a sessionId for session {label}: {result}");
         return sessionId!;
     }
@@ -208,7 +208,7 @@ public sealed class McpShutdownRobustnessTests
         string sessionId)
     {
         var stopwatch = Stopwatch.StartNew();
-        var result = await call("presentation", new Dictionary<string, object?> { ["action"] = "close", ["sessionId"] = sessionId });
+        var result = await call("presentation", new Dictionary<string, object?> { ["action"] = "close", ["presentation_session_id"] = sessionId });
         stopwatch.Stop();
         return (result, stopwatch.Elapsed);
     }

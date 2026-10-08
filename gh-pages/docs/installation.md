@@ -105,9 +105,9 @@ Ask your AI assistant something like:
 > as an image so I can see it."
 
 If the assistant can call `presentation(action="create", filePath=...)`,
-`slide(action="add-blank", session_id=...)`,
-`textframe(action="set-text", session_id=..., slide_index=..., shape_index=..., text=...)`, and
-`export(action="export-slide-to-image", session_id=..., slide_index=..., output_path=...)` and
+`slide(action="add-blank", presentation_session_id=...)`,
+`textframe(action="set-text", presentation_session_id=..., slide_index=..., shape_index=..., text=...)`, and
+`export(action="export-slide-to-image", presentation_session_id=..., slide_index=..., output_path=...)` and
 you get back a rendered PNG of a real PowerPoint slide, you're set up correctly.
 
 ## Troubleshooting
@@ -117,14 +117,14 @@ you get back a rendered PNG of a real PowerPoint slide, you're set up correctly.
   installed and activated on the same Windows machine running the MCP
   server.
 - **Lingering `POWERPNT.EXE` processes** — sessions are cleaned up on
-  `presentation(action="close", sessionId=...)` and on MCP server shutdown; if a process lingers
+  `presentation(action="close", presentation_session_id=...)` and on MCP server shutdown; if a process lingers
   after a crash, close it from Task Manager.
 - **.NET tool not found on PATH** — restart your terminal after
   `dotnet tool install --global` so the updated `PATH` is picked up.
 
 ## More information
 
-- [Complete Feature Reference](features.md) — all 17 tools (214 operations) across 17 domains
+- [Complete Feature Reference](features.md) — all 32 tools (215 operations) across 17 domains
 - [MCP Server Documentation](mcp-server.md) — MCP tool reference
 - [CLI Documentation](cli.md) — CLI command reference
 - [Agent Skills](skills.md) — AI guidance for Claude Code, Cursor, Windsurf and more

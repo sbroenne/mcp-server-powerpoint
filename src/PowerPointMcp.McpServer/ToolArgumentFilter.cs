@@ -35,6 +35,16 @@ internal static class ToolArgumentFilter
                     if (!properties.TryGetProperty(name, out var schema))
                         throw new ArgumentException($"Unknown parameter '{name}'.");
                     ValidateValueKind(name, value, schema);
+                    if (name == "presentation_session_id" && value.ValueKind == JsonValueKind.String &&
+                        string.IsNullOrWhiteSpace(value.GetString()))
+                        throw new ArgumentException("presentation_session_id must be a non-empty string.");
+                }
+
+                foreach (var required in tool.ProtocolTool.InputSchema.GetProperty("required").EnumerateArray())
+                {
+                    var name = required.GetString()!;
+                    if (!arguments.ContainsKey(name))
+                        throw new ArgumentException($"Parameter '{name}' is required.");
                 }
 
                 var suppliedNames = arguments.Keys
@@ -46,10 +56,14 @@ internal static class ToolArgumentFilter
                 }
                 else
                 {
+                    var toolName = tool.ProtocolTool.Name;
+                    if (toolName.EndsWith("_read", StringComparison.Ordinal))
+                        toolName = toolName[..^"_read".Length];
+
                     ServiceRegistry.ValidateMcpActionParameters(
-                        tool.ProtocolTool.Name,
+                        toolName,
                         canonicalAction,
-                        suppliedNames.Where(name => name != "session_id"));
+                        suppliedNames.Where(name => name != "presentation_session_id"));
                 }
             }
             catch (ArgumentException ex)

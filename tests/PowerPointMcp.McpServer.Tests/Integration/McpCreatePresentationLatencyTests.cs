@@ -118,7 +118,7 @@ public sealed class McpCreatePresentationLatencyTests : IAsyncLifetime, IAsyncDi
 
         McpToolCallHelper.AssertSuccess(createResult, "create_presentation");
 
-        var sessionId = McpToolCallHelper.GetString(createResult, "sessionId");
+        var sessionId = McpToolCallHelper.GetString(createResult, "presentation_session_id");
         Assert.False(string.IsNullOrEmpty(sessionId), $"Expected a non-empty sessionId in response: {createResult}");
         Assert.True(File.Exists(_testPresentationFile), $"Expected file to exist: {_testPresentationFile}");
         Assert.Equal(_testPresentationFile, McpToolCallHelper.GetString(createResult, "presentationPath"));
@@ -136,7 +136,7 @@ public sealed class McpCreatePresentationLatencyTests : IAsyncLifetime, IAsyncDi
         var closeResult = await McpToolCallHelper.CallToolAsync(
             _client!,
             "presentation",
-            new Dictionary<string, object?> { ["action"] = "close", ["sessionId"] = sessionId },
+            new Dictionary<string, object?> { ["action"] = "close", ["presentation_session_id"] = sessionId },
             _cts.Token);
         McpToolCallHelper.AssertSuccess(closeResult, "close_presentation");
         _output.WriteLine("✓ close_presentation succeeded (background dispose started)");

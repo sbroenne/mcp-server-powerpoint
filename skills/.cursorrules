@@ -6,8 +6,8 @@ repo's C# source), follow these rules:
 
 ## Session Rules
 
-- Call `presentation(action: "open", filePath: ...)` before any editing tool; use the returned `sessionId` for
-  every subsequent call.
+- Call `presentation(action: "open", filePath: ...)` before any editing tool; use the returned
+  `presentation_session_id` for every subsequent call.
 - `presentation(action: "create", ...)` creates a file and leaves its session open.
 - Close with `save: true` to persist changes.
 - `presentation(action: "close", ...)` returns immediately; it does not wait for the PowerPoint process to fully
@@ -16,10 +16,10 @@ repo's C# source), follow these rules:
 ## Tool Shapes
 
 - Session lifecycle, templates, and document properties use the `presentation` action-dispatch tool
-  with camelCase arguments.
+  with `presentation_session_id` for its session identifier and camelCase for its other arguments.
 - Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`, `notes`, `layout`,
   `master`, `animation`, `export`) are action-dispatch: call as `tool(action: "kebab-action",
-  session_id: ..., snake_case_param: ...)`.
+  presentation_session_id: ..., snake_case_param: ...)`.
 
 ## Indexing Rules
 
@@ -29,7 +29,7 @@ repo's C# source), follow these rules:
 ## Verification Rules
 
 - After adding or repositioning any shape, table, chart, or image, call
-  `export(action: "export-slide-to-image", session_id: ..., slide_index: ..., output_path: ...)`
+  `export(action: "export-slide-to-image", presentation_session_id: ..., slide_index: ..., output_path: ...)`
   and inspect the result before moving on or saving. Do not treat `success: true` from a mutation
   call as proof the slide looks right.
 - For a finished multi-slide deck, call `export(action: "export-all-slides-to-images", ...)` once
@@ -54,7 +54,5 @@ repo's C# source), follow these rules:
 
 ## Full Reference
 
-See `skills/shared/*.md` (also mirrored at `skills/powerpoint-mcp/references/*.md`) for complete
-guidance: `behavioral-rules.md`, `workflows.md`, `deck-builder.md`, `slides-and-shapes.md`,
-`text-formatting.md`, `tables.md`, `charts.md`, `images.md`, `speaker-notes.md`, `layouts.md`,
-`master.md`, `animations.md`, `export-and-verify.md`, `anti-patterns.md`.
+See the full [PowerPoint documentation](https://powerpointmcpserver.dev/reference/) for detailed
+guidance on workflows, slide editing, and verification.

@@ -5,8 +5,9 @@ description: Canonical workflow and domain guidance shared by the PowerPoint MCP
 
 # Agent Guidance Reference
 
-These pages are generated from the same `skills/shared` files packaged with the MCP and CLI Agent
-Skills. The website and installed guidance therefore describe the same behavior.
+These pages are the full operational and domain guides for the PowerPoint MCP server and CLI.
+The compact Agent Skills link here when detailed guidance is useful; the guides are not copied
+into every skill package.
 
 ## Start here
 

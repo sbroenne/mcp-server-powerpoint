@@ -42,27 +42,12 @@ npx skills add sbroenne/mcp-server-powerpoint --skill powerpoint-mcp
 
 ```
 powerpoint-mcp/
-├── SKILL.md           # Main skill definition with MCP tool guidance
-├── VERSION            # Version tracking
-├── README.md          # This file
-└── references/        # Detailed domain-specific guidance
-    ├── anti-patterns.md
-    ├── behavioral-rules.md
-    ├── charts.md
-    ├── deck-builder.md
-    ├── export-and-verify.md
-    ├── images.md
-    ├── layouts.md
-    ├── slides-and-shapes.md
-    ├── speaker-notes.md
-    ├── tables.md
-    ├── text-formatting.md
-    └── workflows.md
+└── SKILL.md           # Compact MCP entry skill
 ```
 
-`references/` is a copy of `skills/shared/*.md` — the single source of truth for authoring
-guidance, shared with any future MCP-embedded prompts. Do not edit `references/*.md` directly;
-edit `skills/shared/*.md` and re-sync.
+Detailed operational guidance is available on the
+[documentation site](https://powerpointmcpserver.dev/reference/). The live MCP tool schemas are
+the source of truth for available actions and arguments.
 
 ## MCP Server Setup
 

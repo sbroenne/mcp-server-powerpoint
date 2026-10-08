@@ -87,11 +87,11 @@ MCP and CLI share code, not live sessions or PowerPoint instances.
 The MCP lifecycle is:
 
 ```text
-presentation(action="create", filePath) -> saved file and open sessionId
-presentation(action="open", filePath)   -> open sessionId
-domain(action=..., session_id=...)     -> operate on the existing session
+presentation(action="create", filePath) -> saved file and open presentation_session_id
+presentation(action="open", filePath)   -> open presentation_session_id
+domain(action=..., presentation_session_id=...)     -> operate on the existing session
 presentation(action="test", filePath)  -> validate opening; retain no session
-presentation(action="close", sessionId, save=true)
+presentation(action="close", presentation_session_id, save=true)
                                       -> save, remove session, dispose in background
 ```
 
@@ -120,9 +120,9 @@ known preconditions before the failing COM call and return an error result.
 Unknown-session validation at the MCP boundary, for example, follows this shape:
 
 ```csharp
-if (!registry.TryGet(sessionId, out var batch))
+if (!registry.TryGet(presentation_session_id, out var batch))
 {
-    return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+    return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {presentation_session_id}");
 }
 ```
 
@@ -205,12 +205,13 @@ The [skills README](../skills/README.md) describes both `powerpoint-mcp` and
 uses rich MCP schemas; the latter provides a compact command surface for agents
 and scripts.
 
-`skills/shared/` is the authoring source of truth. `Build-AgentSkills.ps1`
-synchronizes shared references into both skill packages and generates the CLI
-command reference from live help. Edit the source, not only a copied reference.
-Read [skills/CLAUDE.md](../skills/CLAUDE.md) before changing that area.
-An ordinary solution build is not a substitute for the skill packaging procedure.
-The old statement that no synchronization tooling exists is obsolete.
+The canonical skill content is in `skills/powerpoint-mcp/`,
+`skills/powerpoint-cli/`, and `skills/powerpoint-deck-design/`. Full operational
+guidance lives on the documentation site under `gh-pages/docs/reference/`.
+`Build-AgentSkills.ps1` packages the three entry skills; `Build-Plugins.ps1`
+copies the relevant entry skill and optional design skill into each plugin.
+Read [skills/CLAUDE.md](../skills/CLAUDE.md) before changing that area. A
+solution build does not package skills.
 
 ## Where the former root guidance went
 

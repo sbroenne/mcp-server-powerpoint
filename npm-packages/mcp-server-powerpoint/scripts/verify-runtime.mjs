@@ -107,12 +107,12 @@ try {
     filePath: join(workDir, 'runtime-smoke.pptx')
   });
   if (created.success) {
-    assert.ok(created.sessionId, `presentation create returned no sessionId: ${JSON.stringify(created)}`);
-    const slide = await callTool('slide', { action: 'add-blank', session_id: created.sessionId });
+    assert.ok(created.presentation_session_id, `presentation create returned no presentation_session_id: ${JSON.stringify(created)}`);
+    const slide = await callTool('slide', { action: 'add-blank', presentation_session_id: created.presentation_session_id });
     assert.equal(slide.success, true, `slide add-blank failed: ${JSON.stringify(slide)}`);
     const closed = await callTool('presentation', {
       action: 'close',
-      sessionId: created.sessionId,
+      presentation_session_id: created.presentation_session_id,
       save: false
     });
     assert.equal(closed.success, true, `presentation close failed: ${JSON.stringify(closed)}`);

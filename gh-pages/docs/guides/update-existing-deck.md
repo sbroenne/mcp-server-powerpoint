@@ -42,5 +42,5 @@ accessibility audit when content or reading order changed.
 Close with `save=true` to keep the changes or `save=false` to discard them:
 
 ```text
-presentation(action="close", sessionId="...", save=true)
+presentation(action="close", presentation_session_id="...", save=true)
 ```

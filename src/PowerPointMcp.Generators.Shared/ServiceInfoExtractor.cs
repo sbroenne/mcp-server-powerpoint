@@ -22,6 +22,7 @@ public static class ServiceInfoExtractor
         bool mcpToolDestructive = true;
         string? mcpToolCategory = null;
         string? mcpToolDescription = null;
+        var mcpReadOnlyActions = new List<string>();
 
         foreach (var attr in interfaceSymbol.GetAttributes())
         {
@@ -69,6 +70,16 @@ public static class ServiceInfoExtractor
             else if (attrName == "NoSessionAttribute")
             {
                 noSession = true;
+            }
+            else if (attrName == "McpReadOnlyActionsAttribute" &&
+                attr.ConstructorArguments.Length > 0 &&
+                attr.ConstructorArguments[0].Kind == TypedConstantKind.Array)
+            {
+                mcpReadOnlyActions.AddRange(
+                    attr.ConstructorArguments[0].Values
+                        .Select(value => value.Value?.ToString())
+                        .OfType<string>()
+                        .Where(value => !string.IsNullOrWhiteSpace(value)));
             }
         }
 
@@ -122,7 +133,8 @@ public static class ServiceInfoExtractor
             mcpToolDestructive,
             mcpToolCategory,
             mcpToolDescription,
-            hasMcpToolAttribute: mcpTool != null);
+            hasMcpToolAttribute: mcpTool != null,
+            mcpReadOnlyActions: mcpReadOnlyActions);
     }
 
     private static string? ExtractInterfaceSummary(INamedTypeSymbol interfaceSymbol)
@@ -262,6 +274,12 @@ public static class ServiceInfoExtractor
         {
             paramDescription = desc;
         }
+        if (paramDescription is null)
+        {
+            var descriptionAttribute = param.GetAttributes().FirstOrDefault(attribute =>
+                attribute.AttributeClass?.ToDisplayString() == "System.ComponentModel.DescriptionAttribute");
+            paramDescription = descriptionAttribute?.ConstructorArguments.FirstOrDefault().Value as string;
+        }
 
         return new ParameterInfo(
             param.Name,
@@ -322,10 +340,18 @@ public static class ServiceInfoExtractor
     /// Tracks which actions require each parameter for description enrichment.
     /// </summary>
     public static List<ExposedParameter> GetAllExposedParameters(ServiceInfo info)
+        => GetAllExposedParameters(info, info.Methods);
+
+    /// <summary>
+    /// Gets unique exposed parameters across the selected methods, tracking action requirements.
+    /// </summary>
+    public static List<ExposedParameter> GetAllExposedParameters(
+        ServiceInfo info,
+        IReadOnlyList<MethodInfo> methods)
     {
         var paramMap = new Dictionary<string, ExposedParameter>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var method in info.Methods)
+        foreach (var method in methods)
         {
             foreach (var p in method.Parameters)
             {
@@ -376,7 +402,7 @@ public static class ServiceInfoExtractor
         }
 
         // Set total action count on all params
-        var totalActions = info.Methods.Count;
+        var totalActions = methods.Count;
         foreach (var ep in paramMap.Values)
         {
             ep.TotalActionCount = totalActions;

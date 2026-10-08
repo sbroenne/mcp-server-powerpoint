@@ -7,6 +7,7 @@ namespace Sbroenne.PowerPointMcp.Core.Accessibility;
 [ServiceCategory("accessibility", "Accessibility")]
 [McpTool("accessibility", Title = "Accessibility Operations", Destructive = true, Category = "content",
     Description = "Audit presentation accessibility and read or change a slide's shape reading order.")]
+[McpReadOnlyActions("audit", "get-reading-order")]
 public interface IAccessibilityCommands
 {
     /// <summary>Audits the presentation for deterministic accessibility issues.</summary>

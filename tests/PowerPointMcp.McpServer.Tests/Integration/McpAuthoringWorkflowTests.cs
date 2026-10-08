@@ -117,19 +117,19 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var createResult = await Call("presentation", new() { ["action"] = "create", ["filePath"] = _presentationFile });
         AssertSuccess(createResult, "create_presentation");
         Assert.True(File.Exists(_presentationFile));
-        var sessionId = GetString(createResult, "sessionId");
+        var sessionId = GetString(createResult, "presentation_session_id");
         Assert.False(string.IsNullOrEmpty(sessionId));
         _output.WriteLine($"✓ create_presentation → open sessionId={sessionId}");
 
         // 2. slide.add-blank (x2), slide.get-count asserts the count grew by exactly 2.
-        var baselineCountResult = await Call("slide", new() { ["action"] = "get-count", ["session_id"] = sessionId });
+        var baselineCountResult = await Call("slide", new() { ["action"] = "get-count", ["presentation_session_id"] = sessionId });
         AssertSuccess(baselineCountResult, "slide.get-count (baseline)");
         var baselineCount = GetInt(baselineCountResult, "slideCount")!.Value;
 
-        AssertSuccess(await Call("slide", new() { ["action"] = "add-blank", ["session_id"] = sessionId }), "slide.add-blank #1");
-        AssertSuccess(await Call("slide", new() { ["action"] = "add-blank", ["session_id"] = sessionId }), "slide.add-blank #2");
+        AssertSuccess(await Call("slide", new() { ["action"] = "add-blank", ["presentation_session_id"] = sessionId }), "slide.add-blank #1");
+        AssertSuccess(await Call("slide", new() { ["action"] = "add-blank", ["presentation_session_id"] = sessionId }), "slide.add-blank #2");
 
-        var afterAddCountResult = await Call("slide", new() { ["action"] = "get-count", ["session_id"] = sessionId });
+        var afterAddCountResult = await Call("slide", new() { ["action"] = "get-count", ["presentation_session_id"] = sessionId });
         AssertSuccess(afterAddCountResult, "slide.get-count (after add)");
         var afterAddCount = GetInt(afterAddCountResult, "slideCount")!.Value;
         Assert.Equal(baselineCount + 2, afterAddCount);
@@ -139,7 +139,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var duplicateResult = await Call("slide", new()
         {
             ["action"] = "duplicate",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = afterAddCount
         });
         AssertSuccess(duplicateResult, "slide.duplicate");
@@ -150,7 +150,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var moveToResult = await Call("slide", new()
         {
             ["action"] = "move-to",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = duplicatedSlideIndex,
             ["to_position"] = 1
         });
@@ -161,7 +161,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("slide", new()
         {
             ["action"] = "move-to",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = 1,
             ["to_position"] = afterDuplicateCount
         }), "slide.move-to (restore)");
@@ -169,7 +169,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var setBackgroundResult = await Call("slide", new()
         {
             ["action"] = "set-background-color",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = afterDuplicateCount,
             ["red"] = 0,
             ["green"] = 0,
@@ -181,7 +181,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var getSlideBackgroundResult = await Call("slide", new()
         {
             ["action"] = "get-background-color",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = afterDuplicateCount
         });
         AssertSuccess(getSlideBackgroundResult, "slide.get-background-color");
@@ -190,7 +190,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var setHiddenResult = await Call("slide", new()
         {
             ["action"] = "set-hidden",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = afterDuplicateCount,
             ["hidden"] = true
         });
@@ -200,7 +200,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var setDisplayMasterShapesResult = await Call("slide", new()
         {
             ["action"] = "set-display-master-shapes",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = afterDuplicateCount,
             ["display"] = false
         });
@@ -210,7 +210,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var invalidVisibilityResult = await Call("slide", new()
         {
             ["action"] = "set-hidden",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = afterDuplicateCount + 1,
             ["hidden"] = true
         });
@@ -223,7 +223,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var addSectionResult = await Call("slide", new()
         {
             ["action"] = "add-section",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["section_index"] = 1,
             ["section_name"] = "Intro"
         });
@@ -235,7 +235,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("slide", new()
         {
             ["action"] = "add-section",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["section_index"] = 2,
             ["section_name"] = "Body"
         }), "slide.add-section (second)");
@@ -243,7 +243,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("slide", new()
         {
             ["action"] = "rename-section",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["section_index"] = 1,
             ["section_name"] = "Introduction"
         }), "slide.rename-section");
@@ -251,7 +251,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var getSectionNameResult = await Call("slide", new()
         {
             ["action"] = "get-section-name",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["section_index"] = 1
         });
         AssertSuccess(getSectionNameResult, "slide.get-section-name");
@@ -260,7 +260,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var getSectionCountResult = await Call("slide", new()
         {
             ["action"] = "get-section-count",
-            ["session_id"] = sessionId
+            ["presentation_session_id"] = sessionId
         });
         AssertSuccess(getSectionCountResult, "slide.get-section-count");
         Assert.Equal(2, GetInt(getSectionCountResult, "sectionCount"));
@@ -268,7 +268,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var deleteSectionResult = await Call("slide", new()
         {
             ["action"] = "delete-section",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["section_index"] = 2,
             ["delete_slides"] = false
         });
@@ -282,7 +282,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var addTextBoxResult = await Call("shape", new()
         {
             ["action"] = "add-text-box",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["left"] = 10f,
             ["top"] = 10f,
@@ -297,7 +297,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("textframe", new()
         {
             ["action"] = "set-text",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = textBoxShapeIndex,
             ["text"] = "Updated Text"
@@ -306,7 +306,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("textframe", new()
         {
             ["action"] = "set-font-size",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = textBoxShapeIndex,
             ["font_size"] = 24f
@@ -315,7 +315,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("textframe", new()
         {
             ["action"] = "set-bold",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = textBoxShapeIndex,
             ["bold"] = true
@@ -324,7 +324,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("textframe", new()
         {
             ["action"] = "set-font-color",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = textBoxShapeIndex,
             ["red"] = (byte)255,
@@ -335,7 +335,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var getTextResult = await Call("textframe", new()
         {
             ["action"] = "get-text",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = textBoxShapeIndex
         });
@@ -348,61 +348,61 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("textframe", new()
         {
             ["action"] = "set-italic",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = textBoxShapeIndex,
             ["italic"] = true
         }), "textframe.set-italic");
-        var getItalicResult = await Call("textframe", new() { ["action"] = "get-italic", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
+        var getItalicResult = await Call("textframe", new() { ["action"] = "get-italic", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
         AssertSuccess(getItalicResult, "textframe.get-italic");
         Assert.True(GetBool(getItalicResult, "italic"));
 
         AssertSuccess(await Call("textframe", new()
         {
             ["action"] = "set-underline",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = textBoxShapeIndex,
             ["underline"] = true
         }), "textframe.set-underline");
-        var getUnderlineResult = await Call("textframe", new() { ["action"] = "get-underline", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
+        var getUnderlineResult = await Call("textframe", new() { ["action"] = "get-underline", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
         AssertSuccess(getUnderlineResult, "textframe.get-underline");
         Assert.True(GetBool(getUnderlineResult, "underline"));
 
         AssertSuccess(await Call("textframe", new()
         {
             ["action"] = "set-font-name",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = textBoxShapeIndex,
             ["font_name"] = "Georgia"
         }), "textframe.set-font-name");
-        var getFontNameResult = await Call("textframe", new() { ["action"] = "get-font-name", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
+        var getFontNameResult = await Call("textframe", new() { ["action"] = "get-font-name", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
         AssertSuccess(getFontNameResult, "textframe.get-font-name");
         Assert.Equal("Georgia", GetString(getFontNameResult, "fontName"));
 
         AssertSuccess(await Call("textframe", new()
         {
             ["action"] = "set-alignment",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = textBoxShapeIndex,
             ["alignment"] = "ppAlignCenter"
         }), "textframe.set-alignment");
-        var getAlignmentResult = await Call("textframe", new() { ["action"] = "get-alignment", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
+        var getAlignmentResult = await Call("textframe", new() { ["action"] = "get-alignment", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
         AssertSuccess(getAlignmentResult, "textframe.get-alignment");
         Assert.Equal("ppAlignCenter", GetString(getAlignmentResult, "alignment"));
 
         AssertSuccess(await Call("textframe", new()
         {
             ["action"] = "set-bullet",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = textBoxShapeIndex,
             ["enabled"] = true,
             ["character"] = "-"
         }), "textframe.set-bullet");
-        var getBulletResult = await Call("textframe", new() { ["action"] = "get-bullet", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
+        var getBulletResult = await Call("textframe", new() { ["action"] = "get-bullet", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = textBoxShapeIndex });
         AssertSuccess(getBulletResult, "textframe.get-bullet");
         Assert.True(GetBool(getBulletResult, "bulletEnabled"));
         Assert.Equal("-", GetString(getBulletResult, "bulletCharacter"));
@@ -412,7 +412,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var addRectResult = await Call("shape", new()
         {
             ["action"] = "add-rectangle",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["left"] = 50f,
             ["top"] = 80f,
@@ -425,7 +425,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("shape", new()
         {
             ["action"] = "set-position",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = rectShapeIndex,
             ["left"] = 75f,
@@ -435,26 +435,26 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("shape", new()
         {
             ["action"] = "set-size",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = rectShapeIndex,
             ["width"] = 120f,
             ["height"] = 70f
         }), "shape.set-size");
 
-        var shapeCountBeforeDeleteResult = await Call("shape", new() { ["action"] = "get-count", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        var shapeCountBeforeDeleteResult = await Call("shape", new() { ["action"] = "get-count", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex });
         AssertSuccess(shapeCountBeforeDeleteResult, "shape.get-count (before delete)");
         var shapeCountBeforeDelete = GetInt(shapeCountBeforeDeleteResult, "shapeCount")!.Value;
 
         AssertSuccess(await Call("shape", new()
         {
             ["action"] = "delete",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = rectShapeIndex
         }), "shape.delete");
 
-        var shapeCountAfterDeleteResult = await Call("shape", new() { ["action"] = "get-count", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        var shapeCountAfterDeleteResult = await Call("shape", new() { ["action"] = "get-count", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex });
         AssertSuccess(shapeCountAfterDeleteResult, "shape.get-count (after delete)");
         var shapeCountAfterDelete = GetInt(shapeCountAfterDeleteResult, "shapeCount")!.Value;
         Assert.Equal(shapeCountBeforeDelete - 1, shapeCountAfterDelete);
@@ -464,7 +464,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var addAutoShapeResult = await Call("shape", new()
         {
             ["action"] = "add-auto-shape",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_type"] = "msoShapeOval",
             ["left"] = 10f,
@@ -479,7 +479,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var addLineResult = await Call("shape", new()
         {
             ["action"] = "add-line",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["begin_x"] = 0f,
             ["begin_y"] = 0f,
@@ -492,7 +492,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var addConnectorResult = await Call("shape", new()
         {
             ["action"] = "add-connector",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["connector_type"] = "msoConnectorElbow",
             ["begin_x"] = 0f,
@@ -510,14 +510,14 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("shape", new()
         {
             ["action"] = "set-fill",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = formattingShapeIndex,
             ["red"] = (byte)255,
             ["green"] = (byte)0,
             ["blue"] = (byte)0
         }), "shape.set-fill");
-        var getFillResult = await Call("shape", new() { ["action"] = "get-fill", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
+        var getFillResult = await Call("shape", new() { ["action"] = "get-fill", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
         AssertSuccess(getFillResult, "shape.get-fill");
         Assert.Equal(255, GetInt(getFillResult, "colorRgb"));
         _output.WriteLine("✓ shape.set-fill/get-fill");
@@ -525,13 +525,13 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("shape", new()
         {
             ["action"] = "set-line",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = formattingShapeIndex,
             ["weight"] = 2f,
             ["dash_style"] = "msoLineDash"
         }), "shape.set-line");
-        var getLineResult = await Call("shape", new() { ["action"] = "get-line", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
+        var getLineResult = await Call("shape", new() { ["action"] = "get-line", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
         AssertSuccess(getLineResult, "shape.get-line");
         Assert.Equal("msoLineDash", GetString(getLineResult, "dashStyleName"));
         _output.WriteLine("✓ shape.set-line/get-line");
@@ -539,19 +539,19 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("shape", new()
         {
             ["action"] = "set-rotation",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = formattingShapeIndex,
             ["degrees"] = 30f
         }), "shape.set-rotation");
-        var getRotationResult = await Call("shape", new() { ["action"] = "get-rotation", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
+        var getRotationResult = await Call("shape", new() { ["action"] = "get-rotation", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
         AssertSuccess(getRotationResult, "shape.get-rotation");
         _output.WriteLine("✓ shape.set-rotation/get-rotation");
 
         AssertSuccess(await Call("shape", new()
         {
             ["action"] = "flip",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = formattingShapeIndex,
             ["direction"] = "horizontal"
@@ -561,7 +561,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("shape", new()
         {
             ["action"] = "set-z-order",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = formattingShapeIndex,
             ["z_order_command"] = "bring-to-front"
@@ -571,12 +571,12 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("shape", new()
         {
             ["action"] = "set-shadow",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = formattingShapeIndex,
             ["visible"] = true
         }), "shape.set-shadow");
-        var getShadowResult = await Call("shape", new() { ["action"] = "get-shadow", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
+        var getShadowResult = await Call("shape", new() { ["action"] = "get-shadow", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
         AssertSuccess(getShadowResult, "shape.get-shadow");
         Assert.True(GetBool(getShadowResult, "visible"));
         _output.WriteLine("✓ shape.set-shadow/get-shadow");
@@ -584,12 +584,12 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("shape", new()
         {
             ["action"] = "set-name",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = formattingShapeIndex,
             ["name"] = "FormattingDemoShape"
         }), "shape.set-name");
-        var getNameResult = await Call("shape", new() { ["action"] = "get-name", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
+        var getNameResult = await Call("shape", new() { ["action"] = "get-name", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
         AssertSuccess(getNameResult, "shape.get-name");
         Assert.Equal("FormattingDemoShape", GetString(getNameResult, "name"));
         _output.WriteLine("✓ shape.set-name/get-name");
@@ -597,12 +597,12 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("shape", new()
         {
             ["action"] = "set-alt-text",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = formattingShapeIndex,
             ["alt_text"] = "An oval used in the MCP authoring workflow test"
         }), "shape.set-alt-text");
-        var getAltTextResult = await Call("shape", new() { ["action"] = "get-alt-text", ["session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
+        var getAltTextResult = await Call("shape", new() { ["action"] = "get-alt-text", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex, ["shape_index"] = formattingShapeIndex });
         AssertSuccess(getAltTextResult, "shape.get-alt-text");
         Assert.Equal("An oval used in the MCP authoring workflow test", GetString(getAltTextResult, "altText"));
         _output.WriteLine("✓ shape.set-alt-text/get-alt-text");
@@ -613,7 +613,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var groupRectAResult = await Call("shape", new()
         {
             ["action"] = "add-rectangle",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["left"] = 200f,
             ["top"] = 200f,
@@ -626,7 +626,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var groupRectBResult = await Call("shape", new()
         {
             ["action"] = "add-rectangle",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["left"] = 250f,
             ["top"] = 200f,
@@ -639,7 +639,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var groupResult = await Call("shape", new()
         {
             ["action"] = "group",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_indexes"] = new[] { groupRectA, groupRectB }
         });
@@ -652,7 +652,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var ungroupResult = await Call("shape", new()
         {
             ["action"] = "ungroup",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = groupedShapeCount
         });
@@ -664,7 +664,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var addTableResult = await Call("table", new()
         {
             ["action"] = "add-table",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["rows"] = 2,
             ["columns"] = 2,
@@ -679,7 +679,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("table", new()
         {
             ["action"] = "set-cell-text",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = tableShapeIndex,
             ["row"] = 1,
@@ -690,7 +690,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var getCellTextResult = await Call("table", new()
         {
             ["action"] = "get-cell-text",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = tableShapeIndex,
             ["row"] = 1,
@@ -704,7 +704,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var insertRowResult = await Call("table", new()
         {
             ["action"] = "insert-row",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = tableShapeIndex
         });
@@ -714,7 +714,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var deleteRowResult = await Call("table", new()
         {
             ["action"] = "delete-row",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = tableShapeIndex,
             ["row"] = 3
@@ -725,7 +725,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var insertColumnResult = await Call("table", new()
         {
             ["action"] = "insert-column",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = tableShapeIndex
         });
@@ -735,7 +735,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var deleteColumnResult = await Call("table", new()
         {
             ["action"] = "delete-column",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = tableShapeIndex,
             ["column"] = 3
@@ -746,7 +746,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var setCellFillResult = await Call("table", new()
         {
             ["action"] = "set-cell-fill",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = tableShapeIndex,
             ["row"] = 1,
@@ -761,7 +761,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var getCellFillResult = await Call("table", new()
         {
             ["action"] = "get-cell-fill",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = tableShapeIndex,
             ["row"] = 1,
@@ -773,7 +773,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var setCellBorderResult = await Call("table", new()
         {
             ["action"] = "set-cell-border",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = tableShapeIndex,
             ["row"] = 1,
@@ -792,7 +792,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var getCellBorderResult = await Call("table", new()
         {
             ["action"] = "get-cell-border",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = tableShapeIndex,
             ["row"] = 1,
@@ -805,7 +805,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var mergeCellsResult = await Call("table", new()
         {
             ["action"] = "merge-cells",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = tableShapeIndex,
             ["row"] = 2,
@@ -822,7 +822,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var addChartResult = await Call("chart", new()
         {
             ["action"] = "add-chart",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["chart_type"] = "bar",
             ["left"] = 20f,
@@ -839,7 +839,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var getChartDataResult = await Call("chart", new()
         {
             ["action"] = "get-chart-data",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = chartShapeIndex
         });
@@ -852,7 +852,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var addSeriesResult = await Call("chart", new()
         {
             ["action"] = "add-series",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = chartShapeIndex,
             ["series_name"] = "Costs",
@@ -864,7 +864,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var setChartTitleResult = await Call("chart", new()
         {
             ["action"] = "set-chart-title",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = chartShapeIndex,
             ["title"] = "Quarterly Overview"
@@ -874,7 +874,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var getChartTitleResult = await Call("chart", new()
         {
             ["action"] = "get-chart-title",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = chartShapeIndex
         });
@@ -884,7 +884,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var setCategoryAxisTitleResult = await Call("chart", new()
         {
             ["action"] = "set-axis-title",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = chartShapeIndex,
             ["axis_type"] = "category",
@@ -895,7 +895,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var getCategoryAxisTitleResult = await Call("chart", new()
         {
             ["action"] = "get-axis-title",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = chartShapeIndex,
             ["axis_type"] = "category"
@@ -906,7 +906,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var setValueAxisTitleResult = await Call("chart", new()
         {
             ["action"] = "set-axis-title",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = chartShapeIndex,
             ["axis_type"] = "value",
@@ -917,7 +917,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var getValueAxisTitleResult = await Call("chart", new()
         {
             ["action"] = "get-axis-title",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = chartShapeIndex,
             ["axis_type"] = "value"
@@ -928,7 +928,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var setLegendVisibilityResult = await Call("chart", new()
         {
             ["action"] = "set-legend-visibility",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = chartShapeIndex,
             ["visible"] = true
@@ -938,7 +938,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var getLegendVisibilityResult = await Call("chart", new()
         {
             ["action"] = "get-legend-visibility",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = chartShapeIndex
         });
@@ -947,14 +947,14 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         _output.WriteLine("✓ chart.add-series, set/get-chart-title, set/get-axis-title, set/get-legend-visibility");
 
         // 7. image.add-picture (small local PNG generated at test setup).
-        var shapeCountBeforePictureResult = await Call("shape", new() { ["action"] = "get-count", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        var shapeCountBeforePictureResult = await Call("shape", new() { ["action"] = "get-count", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex });
         AssertSuccess(shapeCountBeforePictureResult, "shape.get-count (before picture)");
         var shapeCountBeforePicture = GetInt(shapeCountBeforePictureResult, "shapeCount")!.Value;
 
         var addPictureResult = await Call("image", new()
         {
             ["action"] = "add-picture",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["image_path"] = _imageFile,
             ["left"] = 350f,
@@ -970,12 +970,12 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("notes", new()
         {
             ["action"] = "set-notes-text",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["text"] = "Speaker notes for slide 1."
         }), "notes.set-notes-text");
 
-        var getNotesResult = await Call("notes", new() { ["action"] = "get-notes-text", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        var getNotesResult = await Call("notes", new() { ["action"] = "get-notes-text", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex });
         AssertSuccess(getNotesResult, "notes.get-notes-text");
         Assert.Equal("Speaker notes for slide 1.", GetString(getNotesResult, "notesText"));
         _output.WriteLine("✓ notes.set-notes-text/get-notes-text round-trip");
@@ -984,12 +984,12 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("layout", new()
         {
             ["action"] = "set-layout",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["layout_name"] = "ppLayoutTitleOnly"
         }), "layout.set-layout");
 
-        var getLayoutResult = await Call("layout", new() { ["action"] = "get-layout", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        var getLayoutResult = await Call("layout", new() { ["action"] = "get-layout", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex });
         AssertSuccess(getLayoutResult, "layout.get-layout");
         Assert.Equal("ppLayoutTitleOnly", GetString(getLayoutResult, "layoutName"));
         _output.WriteLine("✓ layout.set-layout/get-layout round-trip");
@@ -998,13 +998,13 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("master", new()
         {
             ["action"] = "set-title-font",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["font_name"] = "Georgia",
             ["font_size"] = 36.0,
             ["bold"] = true
         }), "master.set-title-font");
 
-        var getTitleFontResult = await Call("master", new() { ["action"] = "get-title-font", ["session_id"] = sessionId });
+        var getTitleFontResult = await Call("master", new() { ["action"] = "get-title-font", ["presentation_session_id"] = sessionId });
         AssertSuccess(getTitleFontResult, "master.get-title-font");
         Assert.Equal("Georgia", GetString(getTitleFontResult, "fontName"));
         Assert.True(GetBool(getTitleFontResult, "bold"));
@@ -1013,13 +1013,13 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("master", new()
         {
             ["action"] = "set-background-color",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["red"] = 240,
             ["green"] = 240,
             ["blue"] = 240
         }), "master.set-background-color");
 
-        var getBackgroundResult = await Call("master", new() { ["action"] = "get-background-color", ["session_id"] = sessionId });
+        var getBackgroundResult = await Call("master", new() { ["action"] = "get-background-color", ["presentation_session_id"] = sessionId });
         AssertSuccess(getBackgroundResult, "master.get-background-color");
         _output.WriteLine("✓ master.set-background-color/get-background-color round-trip");
 
@@ -1028,7 +1028,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var addEffectResult = await Call("animation", new()
         {
             ["action"] = "add-effect",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = textBoxShapeIndex,
             ["effect_name"] = "msoAnimEffectFade",
@@ -1041,7 +1041,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var addExitEffectResult = await Call("animation", new()
         {
             ["action"] = "add-effect",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["shape_index"] = textBoxShapeIndex,
             ["effect_name"] = "msoAnimEffectFly",
@@ -1052,19 +1052,19 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         Assert.True(GetBool(addExitEffectResult, "isExit"));
         var exitEffectIndex = GetInt(addExitEffectResult, "effectIndex")!.Value;
 
-        var effectCountResult = await Call("animation", new() { ["action"] = "get-effect-count", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        var effectCountResult = await Call("animation", new() { ["action"] = "get-effect-count", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex });
         AssertSuccess(effectCountResult, "animation.get-effect-count");
         Assert.Equal(2, GetInt(effectCountResult, "effectCount"));
 
         AssertSuccess(await Call("animation", new()
         {
             ["action"] = "delete-effect",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["effect_index"] = exitEffectIndex
         }), "animation.delete-effect");
 
-        var effectCountAfterDeleteResult = await Call("animation", new() { ["action"] = "get-effect-count", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        var effectCountAfterDeleteResult = await Call("animation", new() { ["action"] = "get-effect-count", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex });
         AssertSuccess(effectCountAfterDeleteResult, "animation.get-effect-count (after delete)");
         Assert.Equal(1, GetInt(effectCountAfterDeleteResult, "effectCount"));
         _output.WriteLine("✓ animation.add-effect (entrance+exit)/get-effect-count/delete-effect");
@@ -1072,13 +1072,13 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await Call("animation", new()
         {
             ["action"] = "set-transition",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["transition_name"] = "ppEffectFade",
             ["duration_seconds"] = 1.25
         }), "animation.set-transition");
 
-        var getTransitionResult = await Call("animation", new() { ["action"] = "get-transition", ["session_id"] = sessionId, ["slide_index"] = slideIndex });
+        var getTransitionResult = await Call("animation", new() { ["action"] = "get-transition", ["presentation_session_id"] = sessionId, ["slide_index"] = slideIndex });
         AssertSuccess(getTransitionResult, "animation.get-transition");
         Assert.Equal("ppEffectFade", GetString(getTransitionResult, "transitionName"));
         _output.WriteLine("✓ animation.set-transition/get-transition round-trip");
@@ -1088,7 +1088,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var exportSlideResult = await Call("export", new()
         {
             ["action"] = "export-slide-to-image",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["slide_index"] = slideIndex,
             ["output_path"] = singleExportPath
         });
@@ -1101,7 +1101,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var exportAllResult = await Call("export", new()
         {
             ["action"] = "export-all-slides-to-images",
-            ["session_id"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["output_directory"] = exportAllDir
         });
         AssertSuccess(exportAllResult, "export.export-all-slides-to-images");
@@ -1120,7 +1120,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         var closeResult = await Call("presentation", new()
         {
             ["action"] = "close",
-            ["sessionId"] = sessionId,
+            ["presentation_session_id"] = sessionId,
             ["save"] = true
         });
         closeStopwatch.Stop();
@@ -1136,7 +1136,7 @@ public sealed class McpAuthoringWorkflowTests : IAsyncLifetime, IAsyncDisposable
         using (var listJson = System.Text.Json.JsonDocument.Parse(listSessionsResult))
         {
             var stillFound = listJson.RootElement.GetProperty("sessions").EnumerateArray()
-                .Any(s => string.Equals(s.GetProperty("sessionId").GetString(), sessionId, StringComparison.Ordinal));
+                .Any(s => string.Equals(s.GetProperty("presentation_session_id").GetString(), sessionId, StringComparison.Ordinal));
             Assert.False(stillFound, $"Session {sessionId} should be gone after close_presentation: {listSessionsResult}");
         }
         _output.WriteLine("✓ list_sessions confirms the session is gone");
