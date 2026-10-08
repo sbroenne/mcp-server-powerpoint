@@ -8,13 +8,13 @@ The image domain provides 7 total actions: 1 insertion action (`add-picture`) pl
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
-| `image` | `add-picture` | `session_id`, `slide_index`, `image_path`, `left`, `top`, `width`, `height`, optional `link_to_file`, `save_with_document` | Embeds by default. Set `link_to_file=true` for a linked picture. |
-| `image` | `set-brightness-contrast` | `session_id`, `slide_index`, `shape_index`, `brightness`, `contrast` | `brightness`/`contrast` are floats in `[0, 1]` (PowerPoint default is `0.5` for both). |
-| `image` | `get-brightness-contrast` | `session_id`, `slide_index`, `shape_index` | Returns current `brightness`/`contrast`. |
-| `image` | `set-recolor` | `session_id`, `slide_index`, `shape_index`, `color_type` | `color_type` is one of `msoPictureAutomatic` (default/no recolor), `msoPictureGrayscale`, `msoPictureBlackAndWhite`, `msoPictureWatermark`. Unrecognized names fail with `Success=false`. |
-| `image` | `get-recolor` | `session_id`, `slide_index`, `shape_index` | Returns current `color_type`. |
-| `image` | `set-crop` | `session_id`, `slide_index`, `shape_index`, `crop_left`, `crop_top`, `crop_right`, `crop_bottom` | Crop edges in points from the picture's edges (L-T-R-B order). Negative values expand the displayed image. Requires a properly sized source image for meaningful geometry. |
-| `image` | `get-crop` | `session_id`, `slide_index`, `shape_index` | Returns current crop offsets in points (L-T-R-B). A fresh picture with no crop applied returns 0.0 for all four values. |
+| `image` | `add-picture` | `presentation_session_id`, `slide_index`, `image_path`, `left`, `top`, `width`, `height`, optional `link_to_file`, `save_with_document` | Embeds by default. Set `link_to_file=true` for a linked picture. |
+| `image` | `set-brightness-contrast` | `presentation_session_id`, `slide_index`, `shape_index`, `brightness`, `contrast` | `brightness`/`contrast` are floats in `[0, 1]` (PowerPoint default is `0.5` for both). |
+| `image` | `get-brightness-contrast` | `presentation_session_id`, `slide_index`, `shape_index` | Returns current `brightness`/`contrast`. |
+| `image` | `set-recolor` | `presentation_session_id`, `slide_index`, `shape_index`, `color_type` | `color_type` is one of `msoPictureAutomatic` (default/no recolor), `msoPictureGrayscale`, `msoPictureBlackAndWhite`, `msoPictureWatermark`. Unrecognized names fail with `Success=false`. |
+| `image` | `get-recolor` | `presentation_session_id`, `slide_index`, `shape_index` | Returns current `color_type`. |
+| `image` | `set-crop` | `presentation_session_id`, `slide_index`, `shape_index`, `crop_left`, `crop_top`, `crop_right`, `crop_bottom` | Crop edges in points from the picture's edges (L-T-R-B order). Negative values expand the displayed image. Requires a properly sized source image for meaningful geometry. |
+| `image` | `get-crop` | `presentation_session_id`, `slide_index`, `shape_index` | Returns current crop offsets in points (L-T-R-B). A fresh picture with no crop applied returns 0.0 for all four values. |
 
 ## Crop Behavior
 

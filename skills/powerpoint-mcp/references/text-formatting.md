@@ -10,28 +10,28 @@ operate on a shape's text frame.
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
-| `textframe` | `set-text` | `session_id`, `slide_index`, `shape_index`, `text` | Replaces the shape's entire text content. |
-| `textframe` | `get-text` | `session_id`, `slide_index`, `shape_index` | Reads current text (`text`) — use before editing to avoid clobbering unrelated content. |
-| `textframe` | `find-text` | `session_id`, `slide_index`, `shape_index`, `find_what`, optional `match_case`, `whole_words` | Returns `matchCount` and `matches` containing `start`, `length`, `text`. Does not edit. |
-| `textframe` | `replace-text` | `session_id`, `slide_index`, `shape_index`, `find_what`, `replace_what`, optional `match_case`, `whole_words` | Replaces all original non-overlapping matches and returns `replacementCount`. An explicit empty replacement deletes matches. |
-| `textframe` | `set-font-size` | `session_id`, `slide_index`, `shape_index`, `font_size` (points) | Applies to the shape's **entire** text range, not a substring. |
-| `textframe` | `get-font-size` | `session_id`, `slide_index`, `shape_index` | Returns `fontSize`. Fails if the value is mixed across the text range. |
-| `textframe` | `set-bold` | `session_id`, `slide_index`, `shape_index`, `bold` (bool) | Applies to the entire text range. |
-| `textframe` | `get-bold` | `session_id`, `slide_index`, `shape_index` | Returns `bold`. Fails if the value is mixed across the text range. |
-| `textframe` | `set-font-color` | `session_id`, `slide_index`, `shape_index`, `red`, `green`, `blue` (each 0-255) | RGB triplet, applies to the entire text range. |
-| `textframe` | `get-font-color` | `session_id`, `slide_index`, `shape_index` | Returns `red`, `green`, `blue`. Fails if the color is mixed across the text range. |
-| `textframe` | `set-italic` | `session_id`, `slide_index`, `shape_index`, `italic` (bool) | Applies to the entire text range. |
-| `textframe` | `get-italic` | `session_id`, `slide_index`, `shape_index` | Returns `italic`. |
-| `textframe` | `set-underline` | `session_id`, `slide_index`, `shape_index`, `underline` (bool) | Applies to the entire text range. |
-| `textframe` | `get-underline` | `session_id`, `slide_index`, `shape_index` | Returns `underline`. |
-| `textframe` | `set-font-name` | `session_id`, `slide_index`, `shape_index`, `font_name` | Sets the typeface (e.g. `"Calibri"`, `"Georgia"`). No validation against installed fonts — an unrecognized name silently falls back to a substitute font in PowerPoint. |
-| `textframe` | `get-font-name` | `session_id`, `slide_index`, `shape_index` | Returns `fontName`. |
-| `textframe` | `set-alignment` | `session_id`, `slide_index`, `shape_index`, `alignment` | Sets paragraph alignment. `alignment` is a `PpParagraphAlignment` name (see below). |
-| `textframe` | `get-alignment` | `session_id`, `slide_index`, `shape_index` | Returns `alignment`. Fails if paragraphs within the text range have mixed alignment. |
-| `textframe` | `set-bullet` | `session_id`, `slide_index`, `shape_index`, `enabled` (bool), optional `character` (single character) | Turns bullets on/off for every paragraph in the text range. When enabling, `character` sets the bullet glyph (e.g. `"-"`, `"•"`); omit to keep the theme's default bullet. |
-| `textframe` | `get-bullet` | `session_id`, `slide_index`, `shape_index` | Returns `bulletEnabled` and `bulletCharacter` (null when bullets are off). |
-| `textframe` | `set-autosize` | `session_id`, `slide_index`, `shape_index`, `auto_size` | Sets the text frame's auto-fit behavior. `auto_size` is a `PpAutoSize` name (see below). |
-| `textframe` | `get-autosize` | `session_id`, `slide_index`, `shape_index` | Returns `autoSize`. Fails if the value is mixed across multiple shapes. |
+| `textframe` | `set-text` | `presentation_session_id`, `slide_index`, `shape_index`, `text` | Replaces the shape's entire text content. |
+| `textframe` | `get-text` | `presentation_session_id`, `slide_index`, `shape_index` | Reads current text (`text`) — use before editing to avoid clobbering unrelated content. |
+| `textframe` | `find-text` | `presentation_session_id`, `slide_index`, `shape_index`, `find_what`, optional `match_case`, `whole_words` | Returns `matchCount` and `matches` containing `start`, `length`, `text`. Does not edit. |
+| `textframe` | `replace-text` | `presentation_session_id`, `slide_index`, `shape_index`, `find_what`, `replace_what`, optional `match_case`, `whole_words` | Replaces all original non-overlapping matches and returns `replacementCount`. An explicit empty replacement deletes matches. |
+| `textframe` | `set-font-size` | `presentation_session_id`, `slide_index`, `shape_index`, `font_size` (points) | Applies to the shape's **entire** text range, not a substring. |
+| `textframe` | `get-font-size` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `fontSize`. Fails if the value is mixed across the text range. |
+| `textframe` | `set-bold` | `presentation_session_id`, `slide_index`, `shape_index`, `bold` (bool) | Applies to the entire text range. |
+| `textframe` | `get-bold` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `bold`. Fails if the value is mixed across the text range. |
+| `textframe` | `set-font-color` | `presentation_session_id`, `slide_index`, `shape_index`, `red`, `green`, `blue` (each 0-255) | RGB triplet, applies to the entire text range. |
+| `textframe` | `get-font-color` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `red`, `green`, `blue`. Fails if the color is mixed across the text range. |
+| `textframe` | `set-italic` | `presentation_session_id`, `slide_index`, `shape_index`, `italic` (bool) | Applies to the entire text range. |
+| `textframe` | `get-italic` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `italic`. |
+| `textframe` | `set-underline` | `presentation_session_id`, `slide_index`, `shape_index`, `underline` (bool) | Applies to the entire text range. |
+| `textframe` | `get-underline` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `underline`. |
+| `textframe` | `set-font-name` | `presentation_session_id`, `slide_index`, `shape_index`, `font_name` | Sets the typeface (e.g. `"Calibri"`, `"Georgia"`). No validation against installed fonts — an unrecognized name silently falls back to a substitute font in PowerPoint. |
+| `textframe` | `get-font-name` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `fontName`. |
+| `textframe` | `set-alignment` | `presentation_session_id`, `slide_index`, `shape_index`, `alignment` | Sets paragraph alignment. `alignment` is a `PpParagraphAlignment` name (see below). |
+| `textframe` | `get-alignment` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `alignment`. Fails if paragraphs within the text range have mixed alignment. |
+| `textframe` | `set-bullet` | `presentation_session_id`, `slide_index`, `shape_index`, `enabled` (bool), optional `character` (single character) | Turns bullets on/off for every paragraph in the text range. When enabling, `character` sets the bullet glyph (e.g. `"-"`, `"•"`); omit to keep the theme's default bullet. |
+| `textframe` | `get-bullet` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `bulletEnabled` and `bulletCharacter` (null when bullets are off). |
+| `textframe` | `set-autosize` | `presentation_session_id`, `slide_index`, `shape_index`, `auto_size` | Sets the text frame's auto-fit behavior. `auto_size` is a `PpAutoSize` name (see below). |
+| `textframe` | `get-autosize` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `autoSize`. Fails if the value is mixed across multiple shapes. |
 
 ## Find and Replace Within One Shape
 
@@ -57,8 +57,8 @@ A shape without a text frame returns an error. Unexpected COM failures can leave
 partial edits; no transactional rollback is promised. Save explicitly when done.
 
 ```text
-textframe(action: "find-text", session_id: ..., slide_index: 1, shape_index: 2, find_what: "Draft", whole_words: true)
-textframe(action: "replace-text", session_id: ..., slide_index: 1, shape_index: 2, find_what: "Draft", replace_what: "Final", whole_words: true)
+textframe(action: "find-text", presentation_session_id: ..., slide_index: 1, shape_index: 2, find_what: "Draft", whole_words: true)
+textframe(action: "replace-text", presentation_session_id: ..., slide_index: 1, shape_index: 2, find_what: "Draft", replace_what: "Final", whole_words: true)
 ```
 
 CLI equivalents use `pptcli textframe find-text` / `replace-text`, `--session`,
@@ -87,8 +87,8 @@ font-size changes — `ppAutoSizeTextToFitShape` computes the shrink factor from
 the frame at the moment PowerPoint next reflows it.
 
 ```
-textframe(action: "set-text", session_id: ..., slide_index: ..., shape_index: ..., text: "A long paragraph that might overflow the box...")
-textframe(action: "set-autosize", session_id: ..., slide_index: ..., shape_index: ..., auto_size: "ppAutoSizeTextToFitShape")
+textframe(action: "set-text", presentation_session_id: ..., slide_index: ..., shape_index: ..., text: "A long paragraph that might overflow the box...")
+textframe(action: "set-autosize", presentation_session_id: ..., slide_index: ..., shape_index: ..., auto_size: "ppAutoSizeTextToFitShape")
 ```
 
 ## Whole-Range Formatting Only
@@ -100,9 +100,9 @@ positioned next to each other rather than trying to mix runs inside one shape:
 
 ```
 CORRECT — two text boxes for mixed emphasis
-shape(action: "add-text-box", session_id: ..., slide_index: ..., left: 50, top: 100, width: 150, height: 30, text: "Revenue:")
-textframe(action: "set-bold", session_id: ..., slide_index: ..., shape_index: <label shapeIndex>, bold: true)
-shape(action: "add-text-box", session_id: ..., slide_index: ..., left: 210, top: 100, width: 300, height: 30, text: "$2.4M, up 12%")
+shape(action: "add-text-box", presentation_session_id: ..., slide_index: ..., left: 50, top: 100, width: 150, height: 30, text: "Revenue:")
+textframe(action: "set-bold", presentation_session_id: ..., slide_index: ..., shape_index: <label shapeIndex>, bold: true)
+shape(action: "add-text-box", presentation_session_id: ..., slide_index: ..., left: 210, top: 100, width: 300, height: 30, text: "$2.4M, up 12%")
 ```
 
 ## Bullet Lists
@@ -113,9 +113,9 @@ text. Put each bullet item on its own line (`\n`-separated) in the `text` parame
 turn bullets on for the whole text range:
 
 ```
-textframe(action: "set-text", session_id: ..., slide_index: ..., shape_index: ...,
+textframe(action: "set-text", presentation_session_id: ..., slide_index: ..., shape_index: ...,
   text: "Revenue grew 24% year over year\nAPAC now the fastest-growing region\nRetention held steady at 91%")
-textframe(action: "set-bullet", session_id: ..., slide_index: ..., shape_index: ..., enabled: true)
+textframe(action: "set-bullet", presentation_session_id: ..., slide_index: ..., shape_index: ..., enabled: true)
 ```
 
 If a specific bullet glyph is required (e.g. a dash instead of the theme's default), pass
@@ -140,7 +140,7 @@ Keep to 2-3 distinct font sizes per slide; titles are typically bold, body text 
 
 ```
 Hex "4472C4" → red=68, green=114, blue=196
-textframe(action: "set-font-color", session_id: ..., slide_index: ..., shape_index: ..., red: 68, green: 114, blue: 196)
+textframe(action: "set-font-color", presentation_session_id: ..., slide_index: ..., shape_index: ..., red: 68, green: 114, blue: 196)
 ```
 
 ## Read Before You Overwrite
@@ -151,8 +151,8 @@ To append text, call `get-text` first, compose the full new string yourself, and
 complete result to `set-text`; there is no append/insert operation.
 
 ```
-textframe(action: "get-text", session_id: ..., slide_index: ..., shape_index: ...) → "Q3 Results"
-textframe(action: "set-text", session_id: ..., slide_index: ..., shape_index: ..., text: "Q3 Results (Final)")
+textframe(action: "get-text", presentation_session_id: ..., slide_index: ..., shape_index: ...) → "Q3 Results"
+textframe(action: "set-text", presentation_session_id: ..., slide_index: ..., shape_index: ..., text: "Q3 Results (Final)")
 ```
 
 ## Verify Text Fit

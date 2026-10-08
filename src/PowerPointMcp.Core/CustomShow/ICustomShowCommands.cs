@@ -11,6 +11,7 @@ namespace Sbroenne.PowerPointMcp.Core.CustomShow;
     Description = "Create, list, and delete named custom slide shows: curated, ordered subsets of a "
     + "presentation's slides used to reuse one deck for different audiences. A custom show may repeat "
     + "a slide and does not need to include every slide.")]
+[McpReadOnlyActions("list")]
 public interface ICustomShowCommands
 {
     /// <summary>Lists all custom shows in the presentation, in collection order.</summary>

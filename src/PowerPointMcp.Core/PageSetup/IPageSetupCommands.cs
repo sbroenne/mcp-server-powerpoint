@@ -9,6 +9,7 @@ namespace Sbroenne.PowerPointMcp.Core.PageSetup;
 [ServiceCategory("pagesetup", "PageSetup")]
 [McpTool("pagesetup", Title = "Page Setup Operations", Destructive = true, Category = "content",
     Description = "Read or change presentation-wide slide size, numbering, and footer settings.")]
+[McpReadOnlyActions("get-settings", "get-footer")]
 public interface IPageSetupCommands
 {
     /// <summary>Gets slide dimensions, orientation, and the first slide number.</summary>

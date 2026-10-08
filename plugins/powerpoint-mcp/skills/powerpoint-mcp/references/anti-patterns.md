@@ -7,11 +7,11 @@ turns — avoid them.
 
 ### The Problem
 
-Calling a domain tool without a valid `session_id`:
+Calling a domain tool without a valid `presentation_session_id`:
 
 ```
 WRONG:
-slide(action: "add-blank", session_id: "made-up-id")  → success: false, "Unknown sessionId"
+slide(action: "add-blank", presentation_session_id: "made-up-id")  → success: false, "Unknown sessionId"
 ```
 
 ### The Solution
@@ -22,7 +22,7 @@ Always start a session first and reuse the exact `sessionId` string it returns:
 CORRECT:
 result = presentation(action: "open", filePath: "C:\Decks\q4.pptx")
 sessionId = result.sessionId
-slide(action: "add-blank", session_id: sessionId)
+slide(action: "add-blank", presentation_session_id: sessionId)
 ```
 
 ## Creating Then Re-Opening the Same File
@@ -46,7 +46,7 @@ presentation(action: "open", filePath: "C:\Decks\q4.pptx")   → sessionId B
 CORRECT:
 result = presentation(action: "create", filePath: "C:\Decks\q4.pptx")
 sessionId = result.sessionId
-slide(action: "add-blank", session_id: sessionId)
+slide(action: "add-blank", presentation_session_id: sessionId)
 ```
 
 ## Wrong Index Base (0-Based Instead of 1-Based)
@@ -58,7 +58,7 @@ languages:
 
 ```
 WRONG: assuming the first slide is index 0
-shape(action: "get-count", session_id: ..., slide_index: 0)  → success: false (out of range)
+shape(action: "get-count", presentation_session_id: ..., slide_index: 0)  → success: false (out of range)
 ```
 
 ### The Solution
@@ -67,7 +67,7 @@ Every index in this tool surface is 1-based, matching PowerPoint's own object mo
 
 ```
 CORRECT:
-shape(action: "get-count", session_id: ..., slide_index: 1)  → the first slide
+shape(action: "get-count", presentation_session_id: ..., slide_index: 1)  → the first slide
 ```
 
 See `behavioral-rules.md` for the full indexing rule.
@@ -80,8 +80,8 @@ Making changes, then closing without saving:
 
 ```
 WRONG:
-slide(action: "add-blank", session_id: ...)
-textframe(action: "set-text", session_id: ..., ...)
+slide(action: "add-blank", presentation_session_id: ...)
+textframe(action: "set-text", presentation_session_id: ..., ...)
 presentation(action: "close", sessionId: ...)   → changes since last save are LOST
 ```
 
@@ -91,8 +91,8 @@ Close with save enabled when changes were made:
 
 ```
 CORRECT:
-slide(action: "add-blank", session_id: ...)
-textframe(action: "set-text", session_id: ..., ...)
+slide(action: "add-blank", presentation_session_id: ...)
+textframe(action: "set-text", presentation_session_id: ..., ...)
 presentation(action: "close", sessionId: ..., save: true)
 ```
 
@@ -123,7 +123,7 @@ Trusting `success: true` from a shape/chart/table/image call as proof the slide 
 
 ```
 WRONG:
-chart(action: "add-chart", session_id: ..., slide_index: ..., ...)  → success: true
+chart(action: "add-chart", presentation_session_id: ..., slide_index: ..., ...)  → success: true
 presentation(action: "close", sessionId: ..., save: true)
 # Never looked at the rendered slide — chart could be mis-sized, overlapping, or have wrong data
 ```
@@ -134,8 +134,8 @@ Export and inspect the result before saving/closing when visual content was adde
 
 ```
 CORRECT:
-chart(action: "add-chart", session_id: ..., slide_index: ..., ...)
-export(action: "export-slide-to-image", session_id: ..., slide_index: ..., output_path: ...)
+chart(action: "add-chart", presentation_session_id: ..., slide_index: ..., ...)
+export(action: "export-slide-to-image", presentation_session_id: ..., slide_index: ..., output_path: ...)
 # Inspect the image, fix issues found
 presentation(action: "close", sessionId: ..., save: true)
 ```
@@ -148,8 +148,8 @@ Deleting and re-creating a shape/table/chart to make a small change:
 
 ```
 WRONG: fixing one table cell
-shape(action: "delete", session_id: ..., slide_index: ..., shape_index: ...)
-table(action: "add-table", session_id: ..., slide_index: ..., rows: 4, columns: 3, ...)
+shape(action: "delete", presentation_session_id: ..., slide_index: ..., shape_index: ...)
+table(action: "add-table", presentation_session_id: ..., slide_index: ..., rows: 4, columns: 3, ...)
 # ... re-populate every cell from scratch ...
 ```
 
@@ -159,7 +159,7 @@ Use the targeted update action for the specific thing that changed:
 
 ```
 CORRECT:
-table(action: "set-cell-text", session_id: ..., slide_index: ..., shape_index: ..., row: 3, column: 2, text: "$1.8M")
+table(action: "set-cell-text", presentation_session_id: ..., slide_index: ..., shape_index: ..., row: 3, column: 2, text: "$1.8M")
 ```
 
 Same principle for shapes: prefer `shape(action: "set-position", ...)`/`shape(action: "set-size",
@@ -219,7 +219,7 @@ example, `"Blank"`, `"TitleSlide"`):
 
 ```
 WRONG:
-layout(action: "set-layout", session_id: ..., slide_index: ..., layout_name: "TitleSlide")  → success: false
+layout(action: "set-layout", presentation_session_id: ..., slide_index: ..., layout_name: "TitleSlide")  → success: false
 ```
 
 ### The Solution

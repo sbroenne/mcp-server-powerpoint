@@ -116,7 +116,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         Assert.True(File.Exists(_testPresentationFile), $"Expected file to exist: {_testPresentationFile}");
         Assert.Equal(_testPresentationFile, GetJsonProperty(result, "presentationPath"));
 
-        var sessionId = GetJsonProperty(result, "sessionId");
+        var sessionId = GetJsonProperty(result, "presentation_session_id");
         Assert.False(string.IsNullOrEmpty(sessionId), $"Expected create_presentation to return an open sessionId: {result}");
 
         // create-and-keep-open: close the returned session so no PowerPoint instance leaks.
@@ -125,7 +125,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             new Dictionary<string, object?>
             {
                 ["action"] = "close",
-                ["sessionId"] = sessionId
+                ["presentation_session_id"] = sessionId
             });
         AssertSuccess(closeResult, "close_presentation");
 
@@ -149,7 +149,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             });
         AssertSuccess(createResult, "create_presentation");
         Assert.True(File.Exists(_testPresentationFile));
-        var sessionId = GetJsonProperty(createResult, "sessionId");
+        var sessionId = GetJsonProperty(createResult, "presentation_session_id");
         Assert.False(string.IsNullOrEmpty(sessionId), $"Expected a sessionId in create response: {createResult}");
         _output.WriteLine($"✓ Step 1: create_presentation returned open sessionId={sessionId}");
 
@@ -160,7 +160,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         {
             var sessions = listJson.RootElement.GetProperty("sessions");
             var found = sessions.EnumerateArray()
-                .Any(s => string.Equals(s.GetProperty("sessionId").GetString(), sessionId, StringComparison.Ordinal));
+                .Any(s => string.Equals(s.GetProperty("presentation_session_id").GetString(), sessionId, StringComparison.Ordinal));
             Assert.True(found, $"Expected sessionId {sessionId} in list_sessions response: {listResult}");
         }
         _output.WriteLine("✓ Step 2: list_sessions shows the open session");
@@ -171,7 +171,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             new Dictionary<string, object?>
             {
                 ["action"] = "close",
-                ["sessionId"] = sessionId,
+                ["presentation_session_id"] = sessionId,
                 ["save"] = true
             });
         AssertSuccess(closeResult, "close_presentation with save");
@@ -188,7 +188,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
         {
             var sessions = listJson.RootElement.GetProperty("sessions");
             var stillFound = sessions.EnumerateArray()
-                .Any(s => string.Equals(s.GetProperty("sessionId").GetString(), sessionId, StringComparison.Ordinal));
+                .Any(s => string.Equals(s.GetProperty("presentation_session_id").GetString(), sessionId, StringComparison.Ordinal));
             Assert.False(stillFound, $"Session {sessionId} should be gone after close_presentation: {listAfterCloseResult}");
         }
         _output.WriteLine("✓ Step 4: list_sessions confirms the session is closed");
@@ -205,7 +205,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
                 ["filePath"] = _testPresentationFile
             });
         AssertSuccess(createResult, "create_presentation");
-        var sessionId = GetJsonProperty(createResult, "sessionId");
+        var sessionId = GetJsonProperty(createResult, "presentation_session_id");
         Assert.False(string.IsNullOrEmpty(sessionId), $"Expected a sessionId in create response: {createResult}");
 
         var result = await CallToolAsync(
@@ -213,7 +213,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             new Dictionary<string, object?>
             {
                 ["action"] = "get-theme-fonts",
-                ["session_id"] = sessionId
+                ["presentation_session_id"] = sessionId
             });
         AssertSuccess(result, "get-theme-fonts");
 
@@ -237,7 +237,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             new Dictionary<string, object?>
             {
                 ["action"] = "close",
-                ["sessionId"] = sessionId
+                ["presentation_session_id"] = sessionId
             });
         AssertSuccess(closeResult, "close_presentation");
     }
@@ -251,7 +251,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             ["filePath"] = _testPresentationFile
         });
         AssertSuccess(created, "create");
-        string sessionId = GetJsonProperty(created, "sessionId")!;
+        string sessionId = GetJsonProperty(created, "presentation_session_id")!;
         try
         {
             for (int index = 0; index < 3; index++)
@@ -259,7 +259,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
                 AssertSuccess(await CallToolAsync("shape", new()
                 {
                     ["action"] = "add-rectangle",
-                    ["session_id"] = sessionId,
+                    ["presentation_session_id"] = sessionId,
                     ["slide_index"] = 1,
                     ["left"] = 10 + (index * 100),
                     ["top"] = 20,
@@ -271,7 +271,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             AssertSuccess(await CallToolAsync("shape", new()
             {
                 ["action"] = "align",
-                ["session_id"] = sessionId,
+                ["presentation_session_id"] = sessionId,
                 ["slide_index"] = 1,
                 ["shape_indexes"] = SingleArrangementIndex,
                 ["align_cmd"] = "msoAlignRights",
@@ -281,7 +281,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             AssertSuccess(await CallToolAsync("shape", new()
             {
                 ["action"] = "distribute",
-                ["session_id"] = sessionId,
+                ["presentation_session_id"] = sessionId,
                 ["slide_index"] = 1,
                 ["shape_indexes"] = ArrangementIndexes,
                 ["distribute_cmd"] = "msoDistributeHorizontally"
@@ -290,7 +290,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             string invalid = await CallToolAsync("shape", new()
             {
                 ["action"] = "align",
-                ["session_id"] = sessionId,
+                ["presentation_session_id"] = sessionId,
                 ["slide_index"] = 1,
                 ["shape_indexes"] = SingleArrangementIndex,
                 ["align_cmd"] = "msoAlignRights"
@@ -304,7 +304,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             AssertSuccess(await CallToolAsync("presentation", new()
             {
                 ["action"] = "close",
-                ["sessionId"] = sessionId
+                ["presentation_session_id"] = sessionId
             }), "close");
         }
     }
@@ -318,14 +318,14 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             ["filePath"] = _testPresentationFile
         });
         AssertSuccess(created, "create");
-        var sessionId = GetJsonProperty(created, "sessionId");
+        var sessionId = GetJsonProperty(created, "presentation_session_id");
         Assert.False(string.IsNullOrEmpty(sessionId));
         try
         {
             AssertSuccess(await CallToolAsync("shape", new()
             {
                 ["action"] = "add-rectangle",
-                ["session_id"] = sessionId,
+                ["presentation_session_id"] = sessionId,
                 ["slide_index"] = 1,
                 ["left"] = 0,
                 ["top"] = 0,
@@ -335,7 +335,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             AssertSuccess(await CallToolAsync("textframe", new()
             {
                 ["action"] = "set-text",
-                ["session_id"] = sessionId,
+                ["presentation_session_id"] = sessionId,
                 ["slide_index"] = 1,
                 ["shape_index"] = 1,
                 ["text"] = "cat cat"
@@ -344,7 +344,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             var arguments = new Dictionary<string, object?>
             {
                 ["action"] = "find-text",
-                ["session_id"] = sessionId,
+                ["presentation_session_id"] = sessionId,
                 ["slide_index"] = 1,
                 ["shape_index"] = 1,
                 ["find_what"] = "cat"
@@ -396,7 +396,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             AssertSuccess(await CallToolAsync("presentation", new()
             {
                 ["action"] = "close",
-                ["sessionId"] = sessionId,
+                ["presentation_session_id"] = sessionId,
                 ["save"] = false
             }), "close");
         }
@@ -420,7 +420,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
                 ["filePath"] = _testPresentationFile
             });
         AssertSuccess(createResult, "create_presentation");
-        var sessionId = GetJsonProperty(createResult, "sessionId");
+        var sessionId = GetJsonProperty(createResult, "presentation_session_id");
         Assert.False(string.IsNullOrEmpty(sessionId), $"Expected a sessionId in create response: {createResult}");
 
         var addSlideResult = await CallToolAsync(
@@ -428,7 +428,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             new Dictionary<string, object?>
             {
                 ["action"] = "add-blank",
-                ["session_id"] = sessionId
+                ["presentation_session_id"] = sessionId
             });
         AssertSuccess(addSlideResult, "slide add-blank");
         _output.WriteLine("✓ Step 1: added a second slide via the slide tool");
@@ -438,7 +438,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             new Dictionary<string, object?>
             {
                 ["action"] = "create",
-                ["session_id"] = sessionId,
+                ["presentation_session_id"] = sessionId,
                 ["name"] = "Round Trip Show",
                 ["slide_indices"] = new List<int> { 1, 2 }
             });
@@ -447,7 +447,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
 
         var listResult = await CallToolAsync(
             "customshow",
-            new Dictionary<string, object?> { ["action"] = "list", ["session_id"] = sessionId });
+            new Dictionary<string, object?> { ["action"] = "list", ["presentation_session_id"] = sessionId });
         AssertSuccess(listResult, "customshow list");
         using (var listJson = JsonDocument.Parse(listResult))
         {
@@ -463,7 +463,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
             new Dictionary<string, object?>
             {
                 ["action"] = "delete",
-                ["session_id"] = sessionId,
+                ["presentation_session_id"] = sessionId,
                 ["name"] = "Round Trip Show"
             });
         AssertSuccess(deleteResult, "customshow delete");
@@ -471,7 +471,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
 
         var listAfterDeleteResult = await CallToolAsync(
             "customshow",
-            new Dictionary<string, object?> { ["action"] = "list", ["session_id"] = sessionId });
+            new Dictionary<string, object?> { ["action"] = "list", ["presentation_session_id"] = sessionId });
         AssertSuccess(listAfterDeleteResult, "customshow list (after delete)");
         using (var listAfterDeleteJson = JsonDocument.Parse(listAfterDeleteResult))
         {
@@ -484,7 +484,7 @@ public sealed class McpRoundTripTests : IAsyncLifetime, IAsyncDisposable
 
         var closeResult = await CallToolAsync(
             "presentation",
-            new Dictionary<string, object?> { ["action"] = "close", ["sessionId"] = sessionId });
+            new Dictionary<string, object?> { ["action"] = "close", ["presentation_session_id"] = sessionId });
         AssertSuccess(closeResult, "close_presentation");
     }
 

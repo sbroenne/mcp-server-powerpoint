@@ -17,7 +17,7 @@ session without this step when the task involves visual output.
 
 ```
 1. chart(action: "add-chart", ...) / table(action: "add-table", ...) / image(action: "add-picture", ...) / shape(action: "set-position", ...)
-2. export(action: "export-slide-to-image", session_id: ..., slide_index: ..., output_path: ...)  ← REQUIRED — never skip
+2. export(action: "export-slide-to-image", presentation_session_id: ..., slide_index: ..., output_path: ...)  ← REQUIRED — never skip
 3. Inspect the returned image for overlap, overflow, or wrong placement
 4. If issues found → fix → export again → repeat until it looks right
 5. presentation(action: "close", sessionId: ..., save: true)
@@ -30,9 +30,9 @@ confirms the API accepted the parameters, not that the result looks correct.
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
-| `export` | `export-to-pdf` | `session_id`, `output_path`, `overwrite` (default `false`) | Creates a PDF without changing the open presentation's file path. Refuses to replace an existing file unless `overwrite` is explicitly true. |
-| `export` | `export-slide-to-image` | `session_id`, `slide_index`, `output_path`, `format` (default `"PNG"`), `width`, `height` (optional pixels) | Renders exactly one slide to a single image file. |
-| `export` | `export-all-slides-to-images` | `session_id`, `output_directory`, `format` (default `"PNG"`) | Renders every slide; PowerPoint names files `Slide1.PNG`, `Slide2.PNG`, etc. in the given directory. |
+| `export` | `export-to-pdf` | `presentation_session_id`, `output_path`, `overwrite` (default `false`) | Creates a PDF without changing the open presentation's file path. Refuses to replace an existing file unless `overwrite` is explicitly true. |
+| `export` | `export-slide-to-image` | `presentation_session_id`, `slide_index`, `output_path`, `format` (default `"PNG"`), `width`, `height` (optional pixels) | Renders exactly one slide to a single image file. |
+| `export` | `export-all-slides-to-images` | `presentation_session_id`, `output_directory`, `format` (default `"PNG"`) | Renders every slide; PowerPoint names files `Slide1.PNG`, `Slide2.PNG`, etc. in the given directory. |
 
 - `format` accepts any PowerPoint export filter name: `"PNG"`, `"JPG"`, `"GIF"`, `"BMP"`, `"TIF"`,
   `"WMF"`, `"EMF"`. Default to `"PNG"` unless the user needs a specific format.

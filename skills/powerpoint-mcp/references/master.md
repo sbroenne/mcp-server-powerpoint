@@ -10,17 +10,17 @@ formatting via `textframe`/`layout`.
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
-| `master` | `list-masters` | `session_id` | Lists masters and layouts; use its 1-based master index to select a palette. |
-| `master` | `get-theme-colors` | `session_id`, `master_index?` | Reads all twelve theme color roles as `#RRGGBB`; defaults to master 1. Does not modify the presentation. |
-| `master` | `get-theme-fonts` | `session_id`, `master_index?` | Reads major/minor theme fonts for Latin, complex-script, and East Asian text; defaults to master 1. Does not modify the presentation. |
-| `master` | `get-title-font` | `session_id` | Returns `font_name`, `font_size`, `bold`, `color_rgb` for the master's title placeholder. |
-| `master` | `set-title-font` | `session_id`, `font_name?`, `font_size?`, `bold?`, `red?`, `green?`, `blue?` | Every field is optional — omit any you do not want to change. Pass `red`/`green`/`blue` together to set color. |
-| `master` | `get-body-font` | `session_id` | Same shape as `get-title-font`, for the body placeholder. |
-| `master` | `set-body-font` | `session_id`, `font_name?`, `font_size?`, `bold?`, `red?`, `green?`, `blue?` | Same shape as `set-title-font`, for the body placeholder. |
-| `master` | `get-background-color` | `session_id` | Returns `color_rgb` for the master's background fill. |
-| `master` | `set-background-color` | `session_id`, `red`, `green`, `blue` | All three color channels are required (0-255 each); sets a solid background fill. |
-| `master` | `get-gradient-background` | `session_id` | Returns `color_rgb`, `color_rgb2`, `gradient_style_name`, `gradient_variant`. Fails if the master's current background fill is solid. |
-| `master` | `set-gradient-background` | `session_id`, `red1`, `green1`, `blue1`, `red2`, `green2`, `blue2`, `gradient_style?`, `gradient_variant?` | Sets a two-color gradient fill. `gradient_style` is one of `msoGradientHorizontal` (default), `msoGradientVertical`, `msoGradientDiagonalUp`, `msoGradientDiagonalDown`, `msoGradientFromCorner`, `msoGradientFromTitle`, `msoGradientFromCenter`. `gradient_variant` is `1`-`4` (default `1`). |
+| `master` | `list-masters` | `presentation_session_id` | Lists masters and layouts; use its 1-based master index to select a palette. |
+| `master` | `get-theme-colors` | `presentation_session_id`, `master_index?` | Reads all twelve theme color roles as `#RRGGBB`; defaults to master 1. Does not modify the presentation. |
+| `master` | `get-theme-fonts` | `presentation_session_id`, `master_index?` | Reads major/minor theme fonts for Latin, complex-script, and East Asian text; defaults to master 1. Does not modify the presentation. |
+| `master` | `get-title-font` | `presentation_session_id` | Returns `font_name`, `font_size`, `bold`, `color_rgb` for the master's title placeholder. |
+| `master` | `set-title-font` | `presentation_session_id`, `font_name?`, `font_size?`, `bold?`, `red?`, `green?`, `blue?` | Every field is optional — omit any you do not want to change. Pass `red`/`green`/`blue` together to set color. |
+| `master` | `get-body-font` | `presentation_session_id` | Same shape as `get-title-font`, for the body placeholder. |
+| `master` | `set-body-font` | `presentation_session_id`, `font_name?`, `font_size?`, `bold?`, `red?`, `green?`, `blue?` | Same shape as `set-title-font`, for the body placeholder. |
+| `master` | `get-background-color` | `presentation_session_id` | Returns `color_rgb` for the master's background fill. |
+| `master` | `set-background-color` | `presentation_session_id`, `red`, `green`, `blue` | All three color channels are required (0-255 each); sets a solid background fill. |
+| `master` | `get-gradient-background` | `presentation_session_id` | Returns `color_rgb`, `color_rgb2`, `gradient_style_name`, `gradient_variant`. Fails if the master's current background fill is solid. |
+| `master` | `set-gradient-background` | `presentation_session_id`, `red1`, `green1`, `blue1`, `red2`, `green2`, `blue2`, `gradient_style?`, `gradient_variant?` | Sets a two-color gradient fill. `gradient_style` is one of `msoGradientHorizontal` (default), `msoGradientVertical`, `msoGradientDiagonalUp`, `msoGradientDiagonalDown`, `msoGradientFromCorner`, `msoGradientFromTitle`, `msoGradientFromCenter`. `gradient_variant` is `1`-`4` (default `1`). |
 
 ## What This Does — and Does Not — Cover
 
@@ -36,7 +36,7 @@ formatting via `textframe`/`layout`.
 It does **not** cover:
 
 - Applying an entirely different theme/design — use
-  `presentation(action: "apply-template", sessionId: ..., templatePath: ...)` to swap the whole
+  `presentation(action: "apply-template", presentation_session_id: ..., templatePath: ...)` to swap the whole
   masters/theme/layouts set in one call from a `.potx`/`.pptx` template file.
 - Authoring or editing **custom layouts** (the individual named layouts under a master, e.g.
   "Title and Content") or adding additional slide masters — not exposed by this tool surface.
@@ -48,8 +48,8 @@ It does **not** cover:
 Read the palette before choosing colors for new shapes and charts:
 
 ```text
-master(action: "list-masters", session_id: sessionId)
-master(action: "get-theme-colors", session_id: sessionId, master_index: 1)
+master(action: "list-masters", presentation_session_id: sessionId)
+master(action: "get-theme-colors", presentation_session_id: sessionId, master_index: 1)
 ```
 
 CLI equivalent:
@@ -74,8 +74,8 @@ An out-of-range index returns a validation failure rather than a partial palette
 Read the theme font roles before adding text that should match the selected template:
 
 ```text
-master(action: "list-masters", session_id: sessionId)
-master(action: "get-theme-fonts", session_id: sessionId, master_index: 1)
+master(action: "list-masters", presentation_session_id: sessionId)
+master(action: "get-theme-fonts", presentation_session_id: sessionId, master_index: 1)
 ```
 
 CLI equivalent:
@@ -96,9 +96,9 @@ Set the deck-wide look once, early, before building individual slides:
 
 ```
 1. presentation(action: "open", filePath: "C:\Decks\q4.pptx") → sessionId
-2. master(action: "set-title-font", session_id: sessionId, font_name: "Segoe UI", font_size: 40, bold: true, red: 20, green: 20, blue: 20)
-3. master(action: "set-body-font", session_id: sessionId, font_name: "Segoe UI", font_size: 20)
-4. master(action: "set-background-color", session_id: sessionId, red: 255, green: 255, blue: 255)
+2. master(action: "set-title-font", presentation_session_id: sessionId, font_name: "Segoe UI", font_size: 40, bold: true, red: 20, green: 20, blue: 20)
+3. master(action: "set-body-font", presentation_session_id: sessionId, font_name: "Segoe UI", font_size: 20)
+4. master(action: "set-background-color", presentation_session_id: sessionId, red: 255, green: 255, blue: 255)
 5. ... build slides (see deck-builder.md) — inherit these fonts/background automatically ...
 ```
 

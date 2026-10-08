@@ -53,7 +53,7 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
     private static readonly HashSet<string> ExpectedMcpParameters = new(StringComparer.Ordinal)
     {
         "action",       // generated: ImageAction enum, one entry per IImageCommands method
-        "session_id",   // generator fixed: added for all session-aware tools
+        "presentation_session_id",   // generator fixed: added for all session-aware tools
         "slide_index",  // slideIndex  → snake_case (required for all 7 actions)
         "image_path",   // imagePath   → snake_case (required for: add-picture)
         "left",         // left        → unchanged  (required for: add-picture)

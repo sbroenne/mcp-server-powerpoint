@@ -1,15 +1,16 @@
 ---
 title: Complete Feature Reference
-description: 17 MCP tools with 205 operations across 17 domains for live PowerPoint automation through single action-dispatch tools.
+description: 32 MCP tools with 206 operations across 17 domains for live PowerPoint automation through single action-dispatch tools.
 keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, media tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **17 MCP tools with 205 operations across 17 domains**.
+PowerPoint MCP Server exposes **32 MCP tools with 206 operations across 17 domains**.
+The tool total includes 15 read-only aliases; the operation total counts each unique action once.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
-`chart(action="add-chart", session_id="...", slide_index=2, ...)`.
+`chart(action="add-chart", presentation_session_id="...", slide_index=2, ...)`.
 
 The CLI mirrors the same domain model:
 
@@ -21,30 +22,30 @@ The CLI mirrors the same domain model:
 | Tool | Ops | What it covers | MCP call shape | CLI shape |
 |------|-----|----------------|----------------|-----------|
 | `presentation` | 20 | Session lifecycle, Save As/copy, templates, advisory Mark as Final, document properties, string tags | `presentation(action="...", ...)` | `pptcli session <action> ...` |
-| `slide` | 25 | Slide lifecycle, visibility, backgrounds, sections, comments, import, string tags | `slide(action="...", session_id=..., ...)` | `pptcli slide <action> -s <SESSION_ID> ...` |
-| `shape` | 57 | Shapes, free-floating and attached connectors, WordArt, 3D rotation, alignment/distribution, styling, grouping, boolean merging, hyperlinks, linked pictures, placeholders, duplication and cross-slide copying, string tags | `shape(action="...", session_id=..., ...)` | `pptcli shape <action> -s <SESSION_ID> ...` |
-| `textframe` | 22 | Text content, find/replace, and text formatting | `textframe(action="...", session_id=..., ...)` | `pptcli textframe <action> -s <SESSION_ID> ...` |
-| `table` | 12 | Table creation and cell editing/formatting | `table(action="...", session_id=..., ...)` | `pptcli table <action> -s <SESSION_ID> ...` |
-| `notes` | 2 | Speaker notes | `notes(action="...", session_id=..., ...)` | `pptcli notes <action> -s <SESSION_ID> ...` |
-| `layout` | 4 | Slide layouts | `layout(action="...", session_id=..., ...)` | `pptcli layout <action> -s <SESSION_ID> ...` |
-| `pagesetup` | 5 | Slide size, numbering, footer, date/time | `pagesetup(action="...", session_id=..., ...)` | `pptcli pagesetup <action> -s <SESSION_ID> ...` |
-| `accessibility` | 3 | Deterministic audit and reading order | `accessibility(action="...", session_id=..., ...)` | `pptcli accessibility <action> -s <SESSION_ID> ...` |
-| `master` | 12 | Theme color/font inspection, slide master fonts and backgrounds | `master(action="...", session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
-| `animation` | 5 | Shape effects and slide transitions | `animation(action="...", session_id=..., ...)` | `pptcli animation <action> -s <SESSION_ID> ...` |
-| `image` | 7 | Picture insertion and picture adjustments (brightness/contrast, recolor, crop) | `image(action="...", session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
-| `media` | 2 | Embedded or linked audio/video insertion and native media metadata | `media(action="...", session_id=..., ...)` | `pptcli media <action> -s <SESSION_ID> ...` |
-| `chart` | 16 | Native charts, titles, legend, data replacement, styles, colors, data tables | `chart(action="...", session_id=..., ...)` | `pptcli chart <action> -s <SESSION_ID> ...` |
-| `smartart` | 7 | SmartArt diagrams and node editing | `smartart(action="...", session_id=..., ...)` | `pptcli smartart <action> -s <SESSION_ID> ...` |
-| `export` | 3 | PDF delivery and export-to-verify image rendering | `export(action="...", session_id=..., ...)` | `pptcli export <action> -s <SESSION_ID> ...` |
-| `customshow` | 3 | Named custom shows: curated, ordered subsets of a presentation's slides | `customshow(action="...", session_id=..., ...)` | `pptcli customshow <action> -s <SESSION_ID> ...` |
+| `slide` | 26 | Slide lifecycle, visibility, backgrounds, sections, comments, import, string tags | `slide(action="...", presentation_session_id=..., ...)` | `pptcli slide <action> -s <SESSION_ID> ...` |
+| `shape` | 57 | Shapes, free-floating and attached connectors, WordArt, 3D rotation, alignment/distribution, styling, grouping, boolean merging, hyperlinks, linked pictures, placeholders, duplication and cross-slide copying, string tags | `shape(action="...", presentation_session_id=..., ...)` | `pptcli shape <action> -s <SESSION_ID> ...` |
+| `textframe` | 22 | Text content, find/replace, and text formatting | `textframe(action="...", presentation_session_id=..., ...)` | `pptcli textframe <action> -s <SESSION_ID> ...` |
+| `table` | 12 | Table creation and cell editing/formatting | `table(action="...", presentation_session_id=..., ...)` | `pptcli table <action> -s <SESSION_ID> ...` |
+| `notes` | 2 | Speaker notes | `notes(action="...", presentation_session_id=..., ...)` | `pptcli notes <action> -s <SESSION_ID> ...` |
+| `layout` | 4 | Slide layouts | `layout(action="...", presentation_session_id=..., ...)` | `pptcli layout <action> -s <SESSION_ID> ...` |
+| `pagesetup` | 5 | Slide size, numbering, footer, date/time | `pagesetup(action="...", presentation_session_id=..., ...)` | `pptcli pagesetup <action> -s <SESSION_ID> ...` |
+| `accessibility` | 3 | Deterministic audit and reading order | `accessibility(action="...", presentation_session_id=..., ...)` | `pptcli accessibility <action> -s <SESSION_ID> ...` |
+| `master` | 12 | Theme color/font inspection, slide master fonts and backgrounds | `master(action="...", presentation_session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
+| `animation` | 5 | Shape effects and slide transitions | `animation(action="...", presentation_session_id=..., ...)` | `pptcli animation <action> -s <SESSION_ID> ...` |
+| `image` | 7 | Picture insertion and picture adjustments (brightness/contrast, recolor, crop) | `image(action="...", presentation_session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
+| `media` | 2 | Embedded or linked audio/video insertion and native media metadata | `media(action="...", presentation_session_id=..., ...)` | `pptcli media <action> -s <SESSION_ID> ...` |
+| `chart` | 16 | Native charts, titles, legend, data replacement, styles, colors, data tables | `chart(action="...", presentation_session_id=..., ...)` | `pptcli chart <action> -s <SESSION_ID> ...` |
+| `smartart` | 7 | SmartArt diagrams and node editing | `smartart(action="...", presentation_session_id=..., ...)` | `pptcli smartart <action> -s <SESSION_ID> ...` |
+| `export` | 3 | PDF delivery and export-to-verify image rendering | `export(action="...", presentation_session_id=..., ...)` | `pptcli export <action> -s <SESSION_ID> ...` |
+| `customshow` | 3 | Named custom shows: curated, ordered subsets of a presentation's slides | `customshow(action="...", presentation_session_id=..., ...)` | `pptcli customshow <action> -s <SESSION_ID> ...` |
 
 ## Domain reference
 
 ### `presentation` tool (20 operations)
 
 Use `presentation` for session lifecycle, Save As/copy, templates/themes, Mark as Final, and
-document properties. `create` and `open` establish a session and return a `sessionId`; the
-remaining edit/read actions use that `sessionId`.
+document properties. `create` and `open` establish a session and return a `presentation_session_id`; the
+remaining edit/read actions use that `presentation_session_id`.
 
 | Action | What it does |
 |--------|---------------|
@@ -74,12 +75,13 @@ remaining edit/read actions use that `sessionId`.
 `get-document-property`, `set-custom-property`, `get-custom-property`, `remove-custom-property`,
 `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
-### `slide` tool (25 operations)
+### `slide` tool (26 operations)
 
 | Action | What it does |
 |--------|---------------|
 | `add-blank` | Add a blank slide. |
 | `get-count` | Return the slide count. |
+| `inspect` | Return bounded slide metadata and text previews. |
 | `delete` | Delete a slide by 1-based index. |
 | `duplicate` | Duplicate a slide. |
 | `move-to` | Move a slide to a new 1-based position. |
@@ -100,7 +102,7 @@ remaining edit/read actions use that `sessionId`.
 | `clear-comments` | Remove all legacy comments from a slide. |
 | `import-from-file` | Insert a 1-based source slide range after a destination slide. |
 
-**Exact action order:** `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`,
+**Exact action order:** `add-blank`, `get-count`, `inspect`, `delete`, `duplicate`, `move-to`,
 `set-background-color`, `get-background-color`, `set-gradient-background`,
 `get-gradient-background`, `add-section`, `rename-section`, `delete-section`,
 `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`,

@@ -25,6 +25,7 @@ namespace Sbroenne.PowerPointMcp.Core.SmartArt;
 [ServiceCategory("smartart", "SmartArt")]
 [McpTool("smartart", Title = "SmartArt Operations", Destructive = true, Category = "content",
     Description = "Add a SmartArt diagram to a slide and add, read, update, delete, or count its nodes in an open presentation session.")]
+[McpReadOnlyActions("get-node-text", "get-node-count")]
 public interface ISmartArtCommands
 {
     /// <summary>

@@ -10,11 +10,11 @@ plays when advancing *to* that slide during a slide show).
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
-| `animation` | `add-effect` | `session_id`, `slide_index`, `shape_index`, `effect_name`, `is_exit?`, `trigger?` | Adds an effect to the shape's slide, appended to the slide's animation timeline. `is_exit` (default `false`) makes it play as the shape leaving rather than entering/emphasizing. `trigger` is `"on-click"` (default), `"with-previous"`, or `"after-previous"`. Returns `effect_index` (1-based, position in the timeline) and `effect_count`. |
-| `animation` | `get-effect-count` | `session_id`, `slide_index` | Returns `effect_count` — the number of animation effects on the slide's timeline. |
-| `animation` | `delete-effect` | `session_id`, `slide_index`, `effect_index` | Removes the effect at the given 1-based timeline position. |
-| `animation` | `get-transition` | `session_id`, `slide_index` | Returns `transition_name`, `duration_seconds`, `advance_on_click`, `advance_on_time`, `advance_time_seconds` for the slide. |
-| `animation` | `set-transition` | `session_id`, `slide_index`, `transition_name`, `duration_seconds?`, `advance_on_click?`, `advance_on_time?`, `advance_time_seconds?` | Sets the slide's transition effect and (optionally) its timing/advance behavior. Every parameter besides `transition_name` is optional — omit any you don't want to change. |
+| `animation` | `add-effect` | `presentation_session_id`, `slide_index`, `shape_index`, `effect_name`, `is_exit?`, `trigger?` | Adds an effect to the shape's slide, appended to the slide's animation timeline. `is_exit` (default `false`) makes it play as the shape leaving rather than entering/emphasizing. `trigger` is `"on-click"` (default), `"with-previous"`, or `"after-previous"`. Returns `effect_index` (1-based, position in the timeline) and `effect_count`. |
+| `animation` | `get-effect-count` | `presentation_session_id`, `slide_index` | Returns `effect_count` — the number of animation effects on the slide's timeline. |
+| `animation` | `delete-effect` | `presentation_session_id`, `slide_index`, `effect_index` | Removes the effect at the given 1-based timeline position. |
+| `animation` | `get-transition` | `presentation_session_id`, `slide_index` | Returns `transition_name`, `duration_seconds`, `advance_on_click`, `advance_on_time`, `advance_time_seconds` for the slide. |
+| `animation` | `set-transition` | `presentation_session_id`, `slide_index`, `transition_name`, `duration_seconds?`, `advance_on_click?`, `advance_on_time?`, `advance_time_seconds?` | Sets the slide's transition effect and (optionally) its timing/advance behavior. Every parameter besides `transition_name` is optional — omit any you don't want to change. |
 
 ## Entrance/Emphasis/Exit Effect Names (`effect_name`)
 
@@ -83,9 +83,9 @@ A curated subset of the full `PpEntryEffect` enum:
 ## Typical Use
 
 ```
-1. shape.add-text-box(session_id, slide_index, ...) → shape_index
-2. animation(action: "add-effect", session_id, slide_index, shape_index, effect_name: "msoAnimEffectFade", trigger: "on-click")
-3. animation(action: "set-transition", session_id, slide_index, transition_name: "ppEffectFade", duration_seconds: 0.75)
+1. shape.add-text-box(presentation_session_id, slide_index, ...) → shape_index
+2. animation(action: "add-effect", presentation_session_id, slide_index, shape_index, effect_name: "msoAnimEffectFade", trigger: "on-click")
+3. animation(action: "set-transition", presentation_session_id, slide_index, transition_name: "ppEffectFade", duration_seconds: 0.75)
 ```
 
 Entrance effects are added per-shape via `add-effect`; transitions are set per-slide via

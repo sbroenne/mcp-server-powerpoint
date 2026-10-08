@@ -112,7 +112,7 @@ after every small edit.
 
 ## Benign Office Shutdown Latency (Not a Bug)
 
-After a session's `presentation(action: "close", sessionId: ...)` / batch disposal, the underlying
+After a session's `presentation(action: "close", presentation_session_id: ...)` / batch disposal, the underlying
 `POWERPNT.exe` process can
 take anywhere from ~90 to 200+ seconds to actually exit the OS process list — this is documented
 Office post-Quit cleanup/telemetry behavior, not a leak. It self-resolves with no manual

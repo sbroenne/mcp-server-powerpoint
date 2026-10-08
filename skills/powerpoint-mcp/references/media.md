@@ -7,8 +7,8 @@ a file link, then reads PowerPoint's native media type from the resulting shape.
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
-| `media` | `add-media` | `session_id`, `slide_index`, `media_path`, `link_to_file`, `save_with_document`, `left`, `top`, `width`, `height` | Adds audio or video through PowerPoint's native media insertion API. |
-| `media` | `get-media-info` | `session_id`, `slide_index`, `shape_index` | Returns `mediaTypeName` as `ppMediaTypeSound` or `ppMediaTypeMovie`, plus shape count/index and geometry. |
+| `media` | `add-media` | `presentation_session_id`, `slide_index`, `media_path`, `link_to_file`, `save_with_document`, `left`, `top`, `width`, `height` | Adds audio or video through PowerPoint's native media insertion API. |
+| `media` | `get-media-info` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `mediaTypeName` as `ppMediaTypeSound` or `ppMediaTypeMovie`, plus shape count/index and geometry. |
 
 ## Storage Modes
 

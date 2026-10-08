@@ -11,6 +11,9 @@ namespace Sbroenne.PowerPointMcp.Core.Shape;
 [ServiceCategory("shape", "Shape")]
 [McpTool("shape", Title = "Shape Operations", Destructive = true, Category = "content",
     Description = "Create, inspect, align, distribute, format, group, merge, link, create editable WordArt, rotate shapes in 3D, duplicate/copy, and edit native placeholders on a slide.")]
+[McpReadOnlyActions("get-count", "get-fill", "get-line", "get-rotation", "get-3d-rotation",
+    "get-shadow", "get-glow", "get-reflection", "get-soft-edge", "get-bevel", "get-name",
+    "get-alt-text", "get-hyperlink", "get-link-info", "list-placeholders", "get-tag", "list-tags")]
 public interface IShapeCommands
 {
     /// <summary>Adds a rectangle shape to the given slide.</summary>

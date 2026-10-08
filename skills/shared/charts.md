@@ -7,22 +7,22 @@ embedded chart data sheet.
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
-| `chart` | `add-chart` | `session_id`, `slide_index`, `chart_type`, `left`, `top`, `width`, `height`, `categories` (string array), `series_name` (string), `values` (double array) | Creates a native chart shape with **one** data series. |
-| `chart` | `get-chart-data` | `session_id`, `slide_index`, `shape_index` | Returns `categoryCount` and `seriesCount` of an existing chart — dimensions only, not the raw values. |
-| `chart` | `add-series` | `session_id`, `slide_index`, `shape_index`, `series_name`, `values` (double array) | Adds one more data series to an existing chart. `values` length must match the chart's existing category count. Call repeatedly to build an N-series chart. |
-| `chart` | `replace-chart-data` | `session_id`, `slide_index`, `shape_index`, `categories` (string array), `series_names` (string array), `series_values` (double array, **series-major flat**) | Replaces ALL of an existing chart's categories/series/values in one call — including changing the category count. See "Replacing Chart Data" below for the flat layout. |
-| `chart` | `set-chart-title` | `session_id`, `slide_index`, `shape_index`, `title` | Sets/shows the chart's title text. |
-| `chart` | `get-chart-title` | `session_id`, `slide_index`, `shape_index` | Returns `hasTitle` and, if present, `title`. |
-| `chart` | `set-axis-title` | `session_id`, `slide_index`, `shape_index`, `axis_type` (`"category"` or `"value"`), `title` | Sets the title of the category (X) or value (Y) axis. |
-| `chart` | `get-axis-title` | `session_id`, `slide_index`, `shape_index`, `axis_type` (`"category"` or `"value"`) | Returns the axis title text. |
-| `chart` | `set-legend-visibility` | `session_id`, `slide_index`, `shape_index`, `visible` (bool) | Shows/hides the chart's legend. |
-| `chart` | `get-legend-visibility` | `session_id`, `slide_index`, `shape_index` | Returns `legendVisible`. |
-| `chart` | `set-style` | `session_id`, `slide_index`, `shape_index`, `style` (integer, 1-48) | Applies a built-in chart layout/style and returns `chartStyle`. |
-| `chart` | `get-style` | `session_id`, `slide_index`, `shape_index` | Returns the current `chartStyle`. |
-| `chart` | `set-color-style` | `session_id`, `slide_index`, `shape_index`, `color_style` (integer, 1-26) | Applies a built-in chart color palette and returns `colorStyle`. |
-| `chart` | `get-color-style` | `session_id`, `slide_index`, `shape_index` | Returns the current `colorStyle`. |
-| `chart` | `set-data-table` | `session_id`, `slide_index`, `shape_index`, `visible` (bool) | Shows or hides the chart's data table and returns `hasDataTable`. |
-| `chart` | `get-data-table` | `session_id`, `slide_index`, `shape_index` | Returns `hasDataTable`. |
+| `chart` | `add-chart` | `presentation_session_id`, `slide_index`, `chart_type`, `left`, `top`, `width`, `height`, `categories` (string array), `series_name` (string), `values` (double array) | Creates a native chart shape with **one** data series. |
+| `chart` | `get-chart-data` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `categoryCount` and `seriesCount` of an existing chart — dimensions only, not the raw values. |
+| `chart` | `add-series` | `presentation_session_id`, `slide_index`, `shape_index`, `series_name`, `values` (double array) | Adds one more data series to an existing chart. `values` length must match the chart's existing category count. Call repeatedly to build an N-series chart. |
+| `chart` | `replace-chart-data` | `presentation_session_id`, `slide_index`, `shape_index`, `categories` (string array), `series_names` (string array), `series_values` (double array, **series-major flat**) | Replaces ALL of an existing chart's categories/series/values in one call — including changing the category count. See "Replacing Chart Data" below for the flat layout. |
+| `chart` | `set-chart-title` | `presentation_session_id`, `slide_index`, `shape_index`, `title` | Sets/shows the chart's title text. |
+| `chart` | `get-chart-title` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `hasTitle` and, if present, `title`. |
+| `chart` | `set-axis-title` | `presentation_session_id`, `slide_index`, `shape_index`, `axis_type` (`"category"` or `"value"`), `title` | Sets the title of the category (X) or value (Y) axis. |
+| `chart` | `get-axis-title` | `presentation_session_id`, `slide_index`, `shape_index`, `axis_type` (`"category"` or `"value"`) | Returns the axis title text. |
+| `chart` | `set-legend-visibility` | `presentation_session_id`, `slide_index`, `shape_index`, `visible` (bool) | Shows/hides the chart's legend. |
+| `chart` | `get-legend-visibility` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `legendVisible`. |
+| `chart` | `set-style` | `presentation_session_id`, `slide_index`, `shape_index`, `style` (integer, 1-48) | Applies a built-in chart layout/style and returns `chartStyle`. |
+| `chart` | `get-style` | `presentation_session_id`, `slide_index`, `shape_index` | Returns the current `chartStyle`. |
+| `chart` | `set-color-style` | `presentation_session_id`, `slide_index`, `shape_index`, `color_style` (integer, 1-26) | Applies a built-in chart color palette and returns `colorStyle`. |
+| `chart` | `get-color-style` | `presentation_session_id`, `slide_index`, `shape_index` | Returns the current `colorStyle`. |
+| `chart` | `set-data-table` | `presentation_session_id`, `slide_index`, `shape_index`, `visible` (bool) | Shows or hides the chart's data table and returns `hasDataTable`. |
+| `chart` | `get-data-table` | `presentation_session_id`, `slide_index`, `shape_index` | Returns `hasDataTable`. |
 
 ## Supported Chart Types
 
@@ -42,14 +42,14 @@ series (e.g., "Revenue" and "Cost" side by side), call `chart(action: "add-serie
 additional series against the shape returned by `add-chart`:
 
 ```
-chart(action: "add-chart", session_id: ..., slide_index: ..., chart_type: "bar",
+chart(action: "add-chart", presentation_session_id: ..., slide_index: ..., chart_type: "bar",
   left: 60, top: 120, width: 500, height: 300,
   categories: ["Q1", "Q2", "Q3", "Q4"],
   series_name: "Revenue",
   values: [120.0, 150.0, 170.0, 210.0])
 # → shapeIndex from the result above
 
-chart(action: "add-series", session_id: ..., slide_index: ..., shape_index: <shapeIndex>,
+chart(action: "add-series", presentation_session_id: ..., slide_index: ..., shape_index: <shapeIndex>,
   series_name: "Cost", values: [80.0, 95.0, 110.0, 130.0])
 ```
 
@@ -67,7 +67,7 @@ delete-shape-and-recreate workaround mentioned above.
 values for `series_names[1]`, etc. Its length must equal `categories.length * series_names.length`.
 
 ```
-chart(action: "replace-chart-data", session_id: ..., slide_index: ..., shape_index: <shapeIndex>,
+chart(action: "replace-chart-data", presentation_session_id: ..., slide_index: ..., shape_index: <shapeIndex>,
   categories: ["Jan", "Feb", "Mar", "Apr"],
   series_names: ["Revenue", "Cost"],
   # Revenue: 100, 200, 300, 400 — then Cost: 50, 60, 70, 80
@@ -89,10 +89,10 @@ Use `set-chart-title`/`set-axis-title` to label the chart and its axes directly,
 addition to) a nearby text-box callout:
 
 ```
-chart(action: "set-chart-title", session_id: ..., slide_index: ..., shape_index: ..., title: "Quarterly Revenue")
-chart(action: "set-axis-title", session_id: ..., slide_index: ..., shape_index: ..., axis_type: "category", title: "Quarter")
-chart(action: "set-axis-title", session_id: ..., slide_index: ..., shape_index: ..., axis_type: "value", title: "USD (thousands)")
-chart(action: "set-legend-visibility", session_id: ..., slide_index: ..., shape_index: ..., visible: true)
+chart(action: "set-chart-title", presentation_session_id: ..., slide_index: ..., shape_index: ..., title: "Quarterly Revenue")
+chart(action: "set-axis-title", presentation_session_id: ..., slide_index: ..., shape_index: ..., axis_type: "category", title: "Quarter")
+chart(action: "set-axis-title", presentation_session_id: ..., slide_index: ..., shape_index: ..., axis_type: "value", title: "USD (thousands)")
+chart(action: "set-legend-visibility", presentation_session_id: ..., slide_index: ..., shape_index: ..., visible: true)
 ```
 
 `set-legend-visibility` with `visible: true` is recommended whenever a chart has more than one
@@ -104,12 +104,12 @@ Use the paired style, color-style, and data-table actions to make a chart visual
 then verify the saved state:
 
 ```
-chart(action: "set-style", session_id: ..., slide_index: ..., shape_index: ..., style: 10)
-chart(action: "get-style", session_id: ..., slide_index: ..., shape_index: ...)
-chart(action: "set-color-style", session_id: ..., slide_index: ..., shape_index: ..., color_style: 4)
-chart(action: "get-color-style", session_id: ..., slide_index: ..., shape_index: ...)
-chart(action: "set-data-table", session_id: ..., slide_index: ..., shape_index: ..., visible: true)
-chart(action: "get-data-table", session_id: ..., slide_index: ..., shape_index: ...)
+chart(action: "set-style", presentation_session_id: ..., slide_index: ..., shape_index: ..., style: 10)
+chart(action: "get-style", presentation_session_id: ..., slide_index: ..., shape_index: ...)
+chart(action: "set-color-style", presentation_session_id: ..., slide_index: ..., shape_index: ..., color_style: 4)
+chart(action: "get-color-style", presentation_session_id: ..., slide_index: ..., shape_index: ...)
+chart(action: "set-data-table", presentation_session_id: ..., slide_index: ..., shape_index: ..., visible: true)
+chart(action: "get-data-table", presentation_session_id: ..., slide_index: ..., shape_index: ...)
 ```
 
 Direct PIA characterization tests verify that installed PowerPoint accepts style 48 and color style

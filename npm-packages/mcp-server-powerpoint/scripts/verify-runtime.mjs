@@ -108,7 +108,7 @@ try {
   });
   if (created.success) {
     assert.ok(created.sessionId, `presentation create returned no sessionId: ${JSON.stringify(created)}`);
-    const slide = await callTool('slide', { action: 'add-blank', session_id: created.sessionId });
+    const slide = await callTool('slide', { action: 'add-blank', presentation_session_id: created.sessionId });
     assert.equal(slide.success, true, `slide add-blank failed: ${JSON.stringify(slide)}`);
     const closed = await callTool('presentation', {
       action: 'close',

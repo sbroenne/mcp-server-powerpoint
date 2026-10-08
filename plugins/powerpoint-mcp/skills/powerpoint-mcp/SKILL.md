@@ -22,7 +22,7 @@ and presentation tags use the `presentation` action-dispatch tool with camelCase
 Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`, `media`,
 `notes`, `layout`, `master`, `smartart`, `animation`, `export`, `pagesetup`, `accessibility`, `customshow`) are
 action-dispatch: one tool per domain, called as `tool(action:
-"kebab-action", session_id: ..., snake_case_param: ...)`.
+"kebab-action", presentation_session_id: ..., snake_case_param: ...)`.
 
 ## Workflow Checklist
 
@@ -81,8 +81,8 @@ Discover state yourself instead of asking the user:
 | Bad (Asking) | Good (Discovering) |
 |---------------|---------------------|
 | "Which presentation is open?" | `presentation(action: "list")` |
-| "How many slides are there?" | `slide(action: "get-count", session_id: sessionId)` |
-| "What shapes are already on this slide?" | `shape(action: "get-count", session_id: sessionId, slide_index: slideIndex)` |
+| "How many slides are there?" | `slide(action: "get-count", presentation_session_id: sessionId)` |
+| "What shapes are already on this slide?" | `shape(action: "get-count", presentation_session_id: sessionId, slide_index: slideIndex)` |
 
 ### Rule 7: Always End With a Text Summary
 

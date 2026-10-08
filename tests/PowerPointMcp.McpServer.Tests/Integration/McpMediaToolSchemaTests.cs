@@ -20,7 +20,7 @@ public sealed class McpMediaToolSchemaTests : IAsyncLifetime, IAsyncDisposable
     private static readonly HashSet<string> ExpectedParameters = new(StringComparer.Ordinal)
     {
         "action",
-        "session_id",
+        "presentation_session_id",
         "slide_index",
         "media_path",
         "link_to_file",

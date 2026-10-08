@@ -6,7 +6,7 @@ These are constrained examples, not automatic layout or overflow correction.
 
 ## Shared Geometry
 
-Read `pagesetup(action: "get-settings", session_id: ...)` first. Let `W` and `H`
+Read `pagesetup(action: "get-settings", presentation_session_id: ...)` first. Let `W` and `H`
 be the slide dimensions in points. The examples use `H=540` and `W=960` (16:9)
 or `W=720` (4:3). Horizontal coordinates below are fractions of `W`; vertical
 coordinates and font sizes are points at `H=540`. For a different height, multiply

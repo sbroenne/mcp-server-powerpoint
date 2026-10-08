@@ -11,6 +11,7 @@ internal sealed class PresentationToolOutputSchema
     public string? ErrorMessage { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("presentation_session_id")]
     public string? SessionId { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -58,6 +59,7 @@ internal sealed class PresentationToolOutputSchema
 
 internal sealed class PresentationSessionOutputSchema
 {
+    [JsonPropertyName("presentation_session_id")]
     public string SessionId { get; set; } = string.Empty;
     public string PresentationPath { get; set; } = string.Empty;
     public bool IsPowerPointProcessAlive { get; set; }

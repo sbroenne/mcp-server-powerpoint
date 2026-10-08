@@ -10,6 +10,7 @@ namespace Sbroenne.PowerPointMcp.Core.Media;
 [ServiceCategory("media", "Media")]
 [McpTool("media", Title = "Media Operations", Destructive = true, Category = "content",
     Description = "Insert embedded or linked audio and video, and inspect media metadata on a slide.")]
+[McpReadOnlyActions("get-media-info")]
 public interface IMediaCommands
 {
     /// <summary>

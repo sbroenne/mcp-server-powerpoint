@@ -8,8 +8,8 @@ Reference for `notes(action: "set-notes-text", ...)` and `notes(action: "get-not
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
-| `notes` | `set-notes-text` | `session_id`, `slide_index`, `text` | Replaces the slide's entire notes content. |
-| `notes` | `get-notes-text` | `session_id`, `slide_index` | Reads current notes (`notesText`) — use before editing to avoid discarding existing content. |
+| `notes` | `set-notes-text` | `presentation_session_id`, `slide_index`, `text` | Replaces the slide's entire notes content. |
+| `notes` | `get-notes-text` | `presentation_session_id`, `slide_index` | Reads current notes (`notesText`) — use before editing to avoid discarding existing content. |
 
 ## When to Add Notes
 
@@ -40,7 +40,7 @@ Keep each note focused and short (well under 150 words):
 ## Example
 
 ```
-notes(action: "set-notes-text", session_id: ..., slide_index: 2,
+notes(action: "set-notes-text", presentation_session_id: ..., slide_index: 2,
   text: "Revenue accelerated through the year, with Q4 the strongest quarter on record.\n" +
         "- Growth was broad-based across all three regions, not one outlier.\n" +
         "- Source: Finance close, Q4 2025.\n" +

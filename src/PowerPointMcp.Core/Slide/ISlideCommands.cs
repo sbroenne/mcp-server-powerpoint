@@ -9,6 +9,8 @@ namespace Sbroenne.PowerPointMcp.Core.Slide;
 [ServiceCategory("slide", "Slide")]
 [McpTool("slide", Title = "Slide Operations", Destructive = true, Category = "content",
     Description = "Manage slides, visibility, backgrounds, sections, legacy comments, and slide import in an open presentation session.")]
+[McpReadOnlyActions("inspect", "get-count", "get-background-color", "get-gradient-background",
+    "get-section-count", "get-section-name", "list-comments", "get-tag", "list-tags")]
 public interface ISlideCommands
 {
     /// <summary>
@@ -21,6 +23,16 @@ public interface ISlideCommands
     /// Gets the current number of slides in the presentation.
     /// </summary>
     SlideOperationResult GetCount(IPresentationBatch batch);
+
+    /// <summary>
+    /// Returns a bounded overview of slide names, layouts, shape counts, and text previews.
+    /// Results are limited to 100 slides, 2,000 preview characters, and 200 scanned shapes
+    /// per slide.
+    /// </summary>
+    SlideOperationResult Inspect(
+        IPresentationBatch batch,
+        int maxSlides = 20,
+        int maxTextCharsPerSlide = 500);
 
     /// <summary>
     /// Deletes the slide at the given 1-based index.

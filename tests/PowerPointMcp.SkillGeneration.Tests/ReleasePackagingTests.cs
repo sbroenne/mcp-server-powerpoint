@@ -304,12 +304,12 @@ public sealed class ReleasePackagingTests
             "1 tools (2 operations across 3 domains");
         CorruptOnce(
             Path.Combine(temp.Path, "skills", "powerpoint-mcp", "SKILL.md"),
-            @"Provides \d+ PowerPoint MCP tools \(one presentation tool \+ \d+ domain action-dispatch tools\)",
-            "Provides 1 PowerPoint MCP tools (one presentation tool + 2 domain action-dispatch tools)");
+            @"Provides \d+ PowerPoint MCP tools \(one presentation tool \+ \d+ domain action-dispatch tools(?: \+ \d+ read-only aliases)?\)",
+            "Provides 1 PowerPoint MCP tools (one presentation tool + 2 domain action-dispatch tools + 3 read-only aliases)");
         CorruptOnce(
             Path.Combine(temp.Path, "skills", "shared", "behavioral-rules.md"),
-            @"The other \d+ domain tools",
-            "The other 1 domain tools");
+            @"The other \d+ tools use",
+            "The other 1 tools use");
 
         var arguments = new[]
         {
@@ -465,6 +465,44 @@ public sealed class ReleasePackagingTests
         Assert.True(plans[2].GetProperty("PowerPoint").GetBoolean());
         Assert.True(plans[3].GetProperty("Extension").GetBoolean());
         Assert.True(plans[4].GetProperty("Plugins").GetBoolean());
+    }
+
+    [Fact]
+    public void PowerPointFreeTestSelection_ChoosesAffectedGroupsAndFallsBackSafely()
+    {
+        AssertSelectedPowerPointFreeTests(
+            ["tests/PowerPointMcp.McpServer.Tests/Integration/McpProtocolTests.cs"],
+            ["McpServer"]);
+        AssertSelectedPowerPointFreeTests(
+            ["tests/PowerPointMcp.CLI.Tests/CommandTests.cs"],
+            ["CLI"]);
+        AssertSelectedPowerPointFreeTests(
+            ["src/PowerPointMcp.Core/Slide/SlideCommands.cs"],
+            ["CLI", "McpServer", "SkillGeneration"]);
+        AssertSelectedPowerPointFreeTests(
+            ["skills/shared/behavioral-rules.md"],
+            ["SkillGeneration"]);
+        AssertSelectedPowerPointFreeTests(
+            ["docs/usage.md", "README.md", ".changeset/session-id.md"],
+            []);
+        AssertSelectedPowerPointFreeTests(
+            ["new-root-config.bin"],
+            ["CLI", "McpServer", "SkillGeneration"]);
+        AssertSelectedPowerPointFreeTests(
+            [],
+            ["CLI", "McpServer", "SkillGeneration"]);
+    }
+
+    [Fact]
+    public void CiWorkflow_SelectsPowerPointFreeTestsFromCompleteDiffOrRunsAll()
+    {
+        var workflow = File.ReadAllText(CiWorkflow);
+
+        Assert.Contains("fetch-depth: 0", workflow, StringComparison.Ordinal);
+        Assert.Contains("PULL_REQUEST_BASE_SHA", workflow, StringComparison.Ordinal);
+        Assert.Contains("PUSH_BEFORE_SHA", workflow, StringComparison.Ordinal);
+        Assert.Contains("No reliable change range is available; all PowerPoint-free test groups will run.", workflow, StringComparison.Ordinal);
+        Assert.Contains("-SelectChangedPaths -ChangedPaths $changedPaths", workflow, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -822,6 +860,26 @@ public sealed class ReleasePackagingTests
 
     private static ProcessResult RunPowerShellRaw(string script, params string[] arguments)
         => RunProcessRaw("pwsh", ["-NoProfile", "-File", script, .. arguments]);
+
+    private static void AssertSelectedPowerPointFreeTests(
+        string[] changedPaths,
+        string[] expectedGroups)
+    {
+        var script = Path.Combine(RepoRoot, "scripts", "Invoke-PowerPointFreeTests.ps1");
+        var quotedPaths = string.Join(
+            ", ",
+            changedPaths.Select(path => $"'{path.Replace("'", "''", StringComparison.Ordinal)}'"));
+        var command = $"& '{script}' -SelectChangedPaths -ListOnly -ChangedPaths @({quotedPaths})";
+        var result = RunProcessRaw("pwsh", ["-NoProfile", "-Command", command]);
+        Assert.Equal(0, result.ExitCode);
+
+        var output = result.Output.Trim();
+        var actualGroups = output.Length == 0
+            || output == "No PowerPoint-free test groups selected."
+            ? []
+            : output.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        Assert.Equal(expectedGroups.Order(StringComparer.Ordinal), actualGroups.Order(StringComparer.Ordinal));
+    }
 
     private static ProcessResult RunProcessRaw(string executable, params string[] arguments)
     {

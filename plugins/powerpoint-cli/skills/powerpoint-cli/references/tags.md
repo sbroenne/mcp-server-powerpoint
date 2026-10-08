@@ -35,11 +35,11 @@ presentation(action: "delete-tag", sessionId: ..., tagName: "REVIEWSTATE")
 Slide tags require a 1-based `slide_index`:
 
 ```
-slide(action: "set-tag", session_id: ..., slide_index: 2,
+slide(action: "set-tag", presentation_session_id: ..., slide_index: 2,
   tag_name: "Section", tag_value: "Financials")
-slide(action: "get-tag", session_id: ..., slide_index: 2, tag_name: "section")
-slide(action: "list-tags", session_id: ..., slide_index: 2)
-slide(action: "delete-tag", session_id: ..., slide_index: 2, tag_name: "SECTION")
+slide(action: "get-tag", presentation_session_id: ..., slide_index: 2, tag_name: "section")
+slide(action: "list-tags", presentation_session_id: ..., slide_index: 2)
+slide(action: "delete-tag", presentation_session_id: ..., slide_index: 2, tag_name: "SECTION")
 ```
 
 ## Shape Tags
@@ -47,11 +47,11 @@ slide(action: "delete-tag", session_id: ..., slide_index: 2, tag_name: "SECTION"
 Shape tags require 1-based `slide_index` and `shape_index` values:
 
 ```
-shape(action: "set-tag", session_id: ..., slide_index: 2, shape_index: 3,
+shape(action: "set-tag", presentation_session_id: ..., slide_index: 2, shape_index: 3,
   tag_name: "DataSource", tag_value: "Quarterly Results")
-shape(action: "get-tag", session_id: ..., slide_index: 2, shape_index: 3,
+shape(action: "get-tag", presentation_session_id: ..., slide_index: 2, shape_index: 3,
   tag_name: "datasource")
-shape(action: "list-tags", session_id: ..., slide_index: 2, shape_index: 3)
-shape(action: "delete-tag", session_id: ..., slide_index: 2, shape_index: 3,
+shape(action: "list-tags", presentation_session_id: ..., slide_index: 2, shape_index: 3)
+shape(action: "delete-tag", presentation_session_id: ..., slide_index: 2, shape_index: 3,
   tag_name: "DATASOURCE")
 ```

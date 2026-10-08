@@ -7,15 +7,15 @@ slide layouts; `pagesetup` controls slide dimensions, numbering, and footer elem
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
-| `layout` | `set-layout` | `session_id`, `slide_index`, `layout_name` | `layout_name` is a `PpSlideLayout` enum member name string, e.g. `"ppLayoutBlank"`. |
-| `layout` | `get-layout` | `session_id`, `slide_index` | Returns the slide's current layout name. |
-| `layout` | `list-layouts` | `session_id`, `master_index` | Lists custom layouts for a 1-based slide master. |
-| `layout` | `delete-layout` | `session_id`, `master_index`, `layout_index` | Deletes an unused custom layout; PowerPoint refuses layouts still used by slides. |
-| `pagesetup` | `get-settings` | `session_id` | Returns slide width/height in points, orientation, and first slide number. |
-| `pagesetup` | `set-size` | `session_id`, `width`, `height` | Sets custom slide dimensions in points. |
-| `pagesetup` | `set-first-slide-number` | `session_id`, `first_slide_number` | Sets the number displayed on the first slide. |
-| `pagesetup` | `get-footer` | `session_id` | Reads footer text, slide-number visibility, and date/time settings. |
-| `pagesetup` | `set-footer` | `session_id` plus optional footer fields | Changes only the supplied footer fields, including `show_footer`, slide numbers, date/time, and title-slide display. `date_time_mode` is `automatic` or `fixed`. |
+| `layout` | `set-layout` | `presentation_session_id`, `slide_index`, `layout_name` | `layout_name` is a `PpSlideLayout` enum member name string, e.g. `"ppLayoutBlank"`. |
+| `layout` | `get-layout` | `presentation_session_id`, `slide_index` | Returns the slide's current layout name. |
+| `layout` | `list-layouts` | `presentation_session_id`, `master_index` | Lists custom layouts for a 1-based slide master. |
+| `layout` | `delete-layout` | `presentation_session_id`, `master_index`, `layout_index` | Deletes an unused custom layout; PowerPoint refuses layouts still used by slides. |
+| `pagesetup` | `get-settings` | `presentation_session_id` | Returns slide width/height in points, orientation, and first slide number. |
+| `pagesetup` | `set-size` | `presentation_session_id`, `width`, `height` | Sets custom slide dimensions in points. |
+| `pagesetup` | `set-first-slide-number` | `presentation_session_id`, `first_slide_number` | Sets the number displayed on the first slide. |
+| `pagesetup` | `get-footer` | `presentation_session_id` | Reads footer text, slide-number visibility, and date/time settings. |
+| `pagesetup` | `set-footer` | `presentation_session_id` plus optional footer fields | Changes only the supplied footer fields, including `show_footer`, slide numbers, date/time, and title-slide display. `date_time_mode` is `automatic` or `fixed`. |
 
 ## Common Layout Names
 

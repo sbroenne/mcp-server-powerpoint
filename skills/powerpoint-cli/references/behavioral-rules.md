@@ -3,15 +3,15 @@
 # Behavioral Rules for PowerPoint MCP Operations
 
 These rules ensure efficient, reliable PowerPoint automation via a live PowerPoint desktop
-instance (COM). AI assistants should follow these guidelines when using the **17 PowerPoint MCP tools across 17 domains**.
+instance (COM). AI assistants should follow these guidelines when using the **32 PowerPoint MCP tools across 17 domains**.
 
 ## Core Execution Rules
 
 - **Execute tasks immediately without asking for confirmation.** Make reasonable assumptions
   (slide count, positions, colors) and proceed.
 - **Never ask clarifying questions for standard operations.** Use `presentation(action: "list")`
-  to discover open sessions, `slide(action: "get-count", session_id: ...)` to discover slide
-  range, `shape(action: "get-count", session_id: ..., slide_index: ...)` to discover shapes on a
+  to discover open sessions, `slide(action: "get-count", presentation_session_id: ...)` to discover slide
+  range, `shape(action: "get-count", presentation_session_id: ..., slide_index: ...)` to discover shapes on a
   slide — do not ask the user for information you can look up yourself.
 - **Always end with a text summary.** Never end a turn with only a tool call. After finishing,
   state what was created/changed, the file path, and the slide count.
@@ -21,29 +21,31 @@ instance (COM). AI assistants should follow these guidelines when using the **17
 Every editing workflow starts by establishing a session:
 
 ```
-1. presentation(action: "create", filePath: ...) OR presentation(action: "open", filePath: ...) → returns sessionId
-2. ... all other domain tools take session_id; presentation lifecycle/property actions take sessionId ...
-3. presentation(action: "close", sessionId: ..., save: true) → persists changes and releases the session
+1. presentation(action: "create", filePath: ...) OR presentation(action: "open", filePath: ...) → returns presentation_session_id
+2. ... all tools use presentation_session_id to identify the presentation ...
+3. presentation(action: "close", presentation_session_id: ..., save: true) → persists changes and releases the session
 ```
 
 - `presentation(action: "create", ...)` creates a new file **and leaves the session open**. Do
   **not** follow it with a second open call on the same file unless you intentionally want another
   session.
-- `sessionId` is opaque — do not try to construct or guess one. Always use the value returned by
+- `presentation_session_id` is opaque — do not try to construct or guess one. Always use the value returned by
   `presentation(action: "create"/"open", ...)`.
-- Unknown/expired `sessionId` values return `success: false` with `errorMessage: "Unknown
-  sessionId: ..."` — reopen the file to get a fresh session, do not retry the same id.
-- `presentation(action: "list")` shows every open session (`sessionId`, `presentationPath`,
+- Unknown/expired `presentation_session_id` values return `success: false` with `errorMessage: "Unknown
+  presentation_session_id: ..."` — reopen the file to get a fresh session, do not retry the same id.
+- `presentation(action: "list")` shows every open session (`presentation_session_id`, `presentationPath`,
   `isPowerPointProcessAlive`) — use it to check state instead of asking the user which
   presentation is open.
 
 ## Tool Conventions
 
-- **All 17 MCP tools are action-dispatch tools.** Every call includes an `action` parameter.
-- **`presentation` uses camelCase lifecycle/property parameters** — `filePath`, `sessionId`,
+- **All 32 MCP tools are action-dispatch tools.** Every call includes an `action` parameter.
+- **Use `{domain}_read` for read-only actions when available.** These tools expose only explicitly
+  reviewed inspection actions; the original domain tools remain available for compatibility.
+- **`presentation` uses `presentation_session_id` plus camelCase lifecycle/property parameters** — `filePath`,
   `targetPath`, `format`, `overwrite`, `templatePath`, `propertyName`, `value`.
-- **The other 16 domain tools use `session_id` plus snake_case action parameters**, e.g.
-  `shape(action: "add-rectangle", session_id: ..., slide_index: 1, left: 50, top: 80, width: 100,
+- **The other 31 tools use `presentation_session_id` as well**, with snake_case action parameters, e.g.
+  `shape(action: "add-rectangle", presentation_session_id: ..., slide_index: 1, left: 50, top: 80, width: 100,
   height: 60)`.
 
 ## 1-Based Indexing (CRITICAL — the #1 source of bugs)
@@ -67,9 +69,9 @@ written to disk unless you close with `save: true`. Closing with the default `sa
 all changes since the last save.
 
 ```
-1. slide(action: "add-blank", session_id: ...)                                      → slide added in memory
-2. textframe(action: "set-text", session_id: ..., slide_index: ..., shape_index: ...) → text set in memory
-3. presentation(action: "close", sessionId: ..., save: true)                         → persisted and closed
+1. slide(action: "add-blank", presentation_session_id: ...)                                      → slide added in memory
+2. textframe(action: "set-text", presentation_session_id: ..., slide_index: ..., shape_index: ...) → text set in memory
+3. presentation(action: "close", presentation_session_id: ..., save: true)                         → persisted and closed
 ```
 
 `save-as` and `save-copy-as` are explicit delivery operations, not a generic save action:
@@ -82,20 +84,20 @@ all changes since the last save.
 
 ## Mark as Final Is Advisory, Not Security
 
-Use `presentation(action: "get-final", sessionId: ...)` to read PowerPoint's Mark as Final state
-and `presentation(action: "set-final", sessionId: ..., isFinal: true/false)` to set or clear it.
+Use `presentation(action: "get-final", presentation_session_id: ...)` to read PowerPoint's Mark as Final state
+and `presentation(action: "set-final", presentation_session_id: ..., isFinal: true/false)` to set or clear it.
 This flag only communicates that editing is discouraged. It is not authentication, encryption, or
 access control, and anyone can clear it.
 
 Setting the flag to `true` first saves all current changes, then PowerPoint persists the flag and
 makes the presentation read-only. Calling
-`presentation(action: "close", sessionId: ..., save: true)` remains valid and closes the session
+`presentation(action: "close", presentation_session_id: ..., save: true)` remains valid and closes the session
 without attempting a forbidden second save, so edits made before `set-final` are not lost. After
 clearing the flag with `isFinal: false`, close with `save: true` to persist the cleared state.
 
 ## Close Is Asynchronous (Do NOT Wait For It)
 
-`presentation(action: "close", sessionId: ...)` returns as soon as the session is removed from the
+`presentation(action: "close", presentation_session_id: ...)` returns as soon as the session is removed from the
 registry — it **does not** wait for the underlying PowerPoint process to fully exit. Office's own
 post-Quit cleanup can legitimately take up to a few minutes; this is normal COM/Office behavior,
 not a hung call or a leaked process.
@@ -113,7 +115,7 @@ After creating or changing visual content, export and look at the result:
 
 ```
 1. shape(action: "add-rectangle", ...) / textframe(action: "set-text", ...) / chart(action: "add-chart", ...)  → make the change
-2. export(action: "export-slide-to-image", session_id: ..., slide_index: ..., output_path: ...)                → render it
+2. export(action: "export-slide-to-image", presentation_session_id: ..., slide_index: ..., output_path: ...)                → render it
 3. Look at the returned image → confirm it matches intent, fix if not
 ```
 
@@ -121,7 +123,7 @@ See `export-and-verify.md` for the full loop and when it is required.
 
 ## Run the Deterministic Accessibility Audit
 
-Before final delivery, call `accessibility(action: "audit", session_id: ...)`. Fix missing
+Before final delivery, call `accessibility(action: "audit", presentation_session_id: ...)`. Fix missing
 alternative text and empty title placeholders, then rerun the audit. This is a deterministic
 PowerPoint structure check, not an AI review of writing quality.
 

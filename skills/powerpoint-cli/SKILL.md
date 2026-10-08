@@ -128,7 +128,7 @@ pptcli service stop --force   # Stop only PID + start-time identities owned by t
 ## CLI Command Reference
 
 **Syntax rule:** CLI commands use `pptcli <command> <action> -s <SESSION_ID> --kebab-case-flags ...`.
-Do not use MCP call syntax such as `shape(action: "add-rectangle", session_id: ..., slide_index: ...)` or
+Do not use MCP call syntax such as `shape(action: "add-rectangle", presentation_session_id: ..., slide_index: ...)` or
 snake_case parameters — the CLI uses kebab-case flags and a `<command> <action>` shape instead
 of one flat tool per verb.
 
@@ -393,10 +393,12 @@ Actions: `add-rectangle`, `add-text-box`, `add-text-effect`, `add-auto-shape`, `
 
 ### `slide` — Slide lifecycle, visibility, background, section, legacy comment, and slide-import commands.
 
-Actions: `add-blank`, `get-count`, `delete`, `duplicate`, `move-to`, `set-background-color`, `get-background-color`, `set-gradient-background`, `get-gradient-background`, `add-section`, `rename-section`, `delete-section`, `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`, `clear-comments`, `set-hidden`, `set-display-master-shapes`, `import-from-file`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
+Actions: `add-blank`, `get-count`, `inspect`, `delete`, `duplicate`, `move-to`, `set-background-color`, `get-background-color`, `set-gradient-background`, `get-gradient-background`, `add-section`, `rename-section`, `delete-section`, `get-section-count`, `get-section-name`, `list-comments`, `add-comment`, `delete-comment`, `clear-comments`, `set-hidden`, `set-display-master-shapes`, `import-from-file`, `set-tag`, `get-tag`, `list-tags`, `delete-tag`
 
 | Flag | Description |
 |------|-------------|
+| `--max-slides` |  |
+| `--max-text-chars-per-slide` |  |
 | `--slide-index` | (required for: delete, duplicate, move-to, set-background-color, get-background-color, set-gradient-background, get-gradient-background, list-comments, add-comment, delete-comment, clear-comments, set-hidden, set-display-master-shapes, set-tag, get-tag, list-tags, delete-tag) |
 | `--to-position` | (required for: move-to) |
 | `--red` | (required for: set-background-color) |

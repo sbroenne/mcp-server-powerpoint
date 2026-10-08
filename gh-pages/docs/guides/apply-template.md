@@ -18,7 +18,7 @@ the change so you have a visual baseline.
 ```text
 presentation(
   action="apply-template",
-  sessionId="...",
+  presentation_session_id="...",
   templatePath="C:\Templates\brand.potx"
 )
 ```

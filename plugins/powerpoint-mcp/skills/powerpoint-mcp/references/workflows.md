@@ -16,7 +16,7 @@ to support this loop for one of two starting points: a brand-new deck or an exis
 
 ```
 1. presentation(action: "open", filePath: "C:\Decks\q4.pptx") → sessionId
-2. slide(action: "get-count", session_id: sessionId)           → know the current range
+2. slide(action: "get-count", presentation_session_id: sessionId)           → know the current range
 3. ... read/modify slides ...
 4. export(action: "export-slide-to-image"/"export-all-slides-to-images", ...) → verify visually
 5. presentation(action: "close", sessionId: ..., save: true)
@@ -77,30 +77,30 @@ Use these instead of asking the user for information you can look up yourself (s
 presentation(action: "create", filePath: "C:\Decks\q4.pptx") → sessionId
 
 # Slide 1: title
-slide(action: "add-blank", session_id: sessionId) → slideIndex=1
-layout(action: "set-layout", session_id: sessionId, slide_index: 1, layout_name: "ppLayoutTitle")
-shape(action: "add-text-box", session_id: sessionId, slide_index: 1, left: 50, top: 50, width: 600, height: 80, text: "Q4 Results")
-textframe(action: "set-font-size", session_id: sessionId, slide_index: 1, shape_index: 1, font_size: 36)
-textframe(action: "set-bold", session_id: sessionId, slide_index: 1, shape_index: 1, bold: true)
-notes(action: "set-notes-text", session_id: sessionId, slide_index: 1, text: "Welcome the audience and set the scope for Q4 review.")
+slide(action: "add-blank", presentation_session_id: sessionId) → slideIndex=1
+layout(action: "set-layout", presentation_session_id: sessionId, slide_index: 1, layout_name: "ppLayoutTitle")
+shape(action: "add-text-box", presentation_session_id: sessionId, slide_index: 1, left: 50, top: 50, width: 600, height: 80, text: "Q4 Results")
+textframe(action: "set-font-size", presentation_session_id: sessionId, slide_index: 1, shape_index: 1, font_size: 36)
+textframe(action: "set-bold", presentation_session_id: sessionId, slide_index: 1, shape_index: 1, bold: true)
+notes(action: "set-notes-text", presentation_session_id: sessionId, slide_index: 1, text: "Welcome the audience and set the scope for Q4 review.")
 
 # Slide 2: chart
-slide(action: "add-blank", session_id: sessionId) → slideIndex=2
-chart(action: "add-chart", session_id: sessionId, slide_index: 2, chart_type: "bar", left: 50, top: 100, width: 500, height: 300,
+slide(action: "add-blank", presentation_session_id: sessionId) → slideIndex=2
+chart(action: "add-chart", presentation_session_id: sessionId, slide_index: 2, chart_type: "bar", left: 50, top: 100, width: 500, height: 300,
       categories: ["Q1","Q2","Q3","Q4"], series_name: "Revenue", values: [120,150,170,210])
-notes(action: "set-notes-text", session_id: sessionId, slide_index: 2, text: "Revenue grew steadily each quarter, accelerating in Q4.")
+notes(action: "set-notes-text", presentation_session_id: sessionId, slide_index: 2, text: "Revenue grew steadily each quarter, accelerating in Q4.")
 
 # Slide 3: table
-slide(action: "add-blank", session_id: sessionId) → slideIndex=3
-table(action: "add-table", session_id: sessionId, slide_index: 3, rows: 3, columns: 2, left: 50, top: 100, width: 400, height: 200)
-table(action: "set-cell-text", session_id: sessionId, slide_index: 3, shape_index: 1, row: 1, column: 1, text: "Region")
-table(action: "set-cell-text", session_id: sessionId, slide_index: 3, shape_index: 1, row: 1, column: 2, text: "Growth")
+slide(action: "add-blank", presentation_session_id: sessionId) → slideIndex=3
+table(action: "add-table", presentation_session_id: sessionId, slide_index: 3, rows: 3, columns: 2, left: 50, top: 100, width: 400, height: 200)
+table(action: "set-cell-text", presentation_session_id: sessionId, slide_index: 3, shape_index: 1, row: 1, column: 1, text: "Region")
+table(action: "set-cell-text", presentation_session_id: sessionId, slide_index: 3, shape_index: 1, row: 1, column: 2, text: "Growth")
 # ... remaining cells ...
 
 # Verify
-export(action: "export-all-slides-to-images", session_id: sessionId, output_directory: "C:\Decks\preview")
-accessibility(action: "audit", session_id: sessionId)
+export(action: "export-all-slides-to-images", presentation_session_id: sessionId, output_directory: "C:\Decks\preview")
+accessibility(action: "audit", presentation_session_id: sessionId)
 
-export(action: "export-to-pdf", session_id: sessionId, output_path: "C:\Decks\q4.pdf")
+export(action: "export-to-pdf", presentation_session_id: sessionId, output_path: "C:\Decks\q4.pdf")
 presentation(action: "close", sessionId: sessionId, save: true)
 ```

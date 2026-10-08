@@ -23,6 +23,12 @@ public sealed class SlideOperationResult
     /// <summary>Total slide count in the presentation after the operation.</summary>
     public int? SlideCount { get; init; }
 
+    /// <summary>Bounded slide details returned by the presentation overview action.</summary>
+    public IReadOnlyList<SlideOverviewInfo>? Slides { get; init; }
+
+    /// <summary>Number of slides omitted because the requested overview limit was reached.</summary>
+    public int? OmittedSlideCount { get; init; }
+
     /// <summary>Background solid fill color, packed as 0x00BBGGRR (matches VBA's RGB()).</summary>
     public int? ColorRgb { get; init; }
 

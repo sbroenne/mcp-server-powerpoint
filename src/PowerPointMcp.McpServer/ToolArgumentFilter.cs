@@ -49,7 +49,7 @@ internal static class ToolArgumentFilter
                     ServiceRegistry.ValidateMcpActionParameters(
                         tool.ProtocolTool.Name,
                         canonicalAction,
-                        suppliedNames.Where(name => name != "session_id"));
+                        suppliedNames.Where(name => name != "presentation_session_id"));
                 }
             }
             catch (ArgumentException ex)

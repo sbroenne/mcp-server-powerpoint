@@ -47,8 +47,8 @@ public sealed class McpToolAttribute : Attribute
     /// tool for this category, even though its CLI/service registry code is still generated
     /// normally. Use this for categories whose MCP surface is intentionally hand-written instead
     /// (e.g. the session-lifecycle actions for Presentation — create, open, etc. — which need an
-    /// OPTIONAL session_id since create/open establish a session rather than requiring one,
-    /// unlike this generator's fixed non-nullable session_id shape). Default: false.
+    /// OPTIONAL presentation_session_id since create/open establish a session rather than requiring one,
+    /// unlike this generator's fixed non-nullable presentation_session_id shape). Default: false.
     /// </summary>
     public bool SkipMcpToolGeneration { get; set; }
 

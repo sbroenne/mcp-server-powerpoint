@@ -13,7 +13,7 @@ namespace Sbroenne.PowerPointMcp.Core.Presentation;
 /// Deliberately carries NO <c>[ServiceCategory]</c>/<c>[McpTool]</c> attribute, unlike every
 /// other Core command domain — this mirrors mcp-server-excel's <c>IFileCommands</c> exactly.
 /// Session-establishing operations (<see cref="Create"/>, <see cref="Open"/>) can't fit the
-/// generic generators' fixed, non-nullable <c>session_id</c>/action-dispatch shape, so this
+/// generic generators' fixed, non-nullable <c>presentation_session_id</c>/action-dispatch shape, so this
 /// whole domain is exposed via hand-written surfaces instead: the MCP <c>presentation</c> tool
 /// (<c>PresentationTools.cs</c>) and the CLI's hand-written <c>session</c> branch
 /// (<c>SessionCommands.cs</c> + <c>PowerPointMcpService.HandleSessionCommand</c>) — zero

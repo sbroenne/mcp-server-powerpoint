@@ -21,6 +21,7 @@ public class SlideCommandsTests : IClassFixture<SharedPresentationFixture>
     private readonly SharedPresentationFixture _fixture;
     private readonly PresentationCommands _presentationCommands = new();
     private readonly SlideCommands _commands = new();
+    private readonly ShapeCommands _shapeCommands = new();
 
     public SlideCommandsTests(SharedPresentationFixture fixture)
     {
@@ -147,6 +148,49 @@ public class SlideCommandsTests : IClassFixture<SharedPresentationFixture>
         Assert.True(result.Success);
         Assert.Null(result.ErrorMessage);
         Assert.Equal(1, result.SlideCount);
+    }
+
+    [Fact]
+    public void Inspect_ReturnsBoundedSlideMetadataAndTextPreviews()
+    {
+        _fixture.CreateFreshPresentation();
+        Assert.True(_commands.AddBlank(_fixture.Batch).Success);
+        Assert.True(_shapeCommands.AddTextBox(_fixture.Batch, 2, 10, 10, 200, 40, "Overview text").Success);
+
+        var result = _commands.Inspect(_fixture.Batch, maxSlides: 2, maxTextCharsPerSlide: 8);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(2, result.SlideCount);
+        Assert.Equal(0, result.OmittedSlideCount);
+        Assert.Equal(2, result.Slides!.Count);
+        Assert.Equal(1, result.Slides[0].SlideIndex);
+        Assert.Equal(2, result.Slides[1].SlideIndex);
+        Assert.Equal(1, result.Slides[1].ShapeCount);
+        Assert.Equal("Overview", result.Slides[1].TextPreview);
+        Assert.True(result.Slides[1].TextTruncated);
+        Assert.Equal(2, _commands.GetCount(_fixture.Batch).SlideCount);
+
+        var limited = _commands.Inspect(_fixture.Batch, maxSlides: 1);
+        Assert.True(limited.Success, limited.ErrorMessage);
+        Assert.Single(limited.Slides!);
+        Assert.Equal(1, limited.OmittedSlideCount);
+    }
+
+    [Theory]
+    [InlineData(0, 500)]
+    [InlineData(101, 500)]
+    [InlineData(20, -1)]
+    [InlineData(20, 2001)]
+    public void Inspect_RejectsOutOfRangeLimits(int maxSlides, int maxTextCharsPerSlide)
+    {
+        _fixture.CreateFreshPresentation();
+
+        var result = _commands.Inspect(_fixture.Batch, maxSlides, maxTextCharsPerSlide);
+
+        Assert.False(result.Success);
+        Assert.NotEmpty(result.ErrorMessage!);
+        Assert.Null(result.Slides);
+        Assert.Equal(1, _commands.GetCount(_fixture.Batch).SlideCount);
     }
 
     [Fact]

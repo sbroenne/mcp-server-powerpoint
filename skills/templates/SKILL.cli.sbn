@@ -128,7 +128,7 @@ pptcli service stop --force   # Stop only PID + start-time identities owned by t
 ## CLI Command Reference
 
 **Syntax rule:** CLI commands use `pptcli <command> <action> -s <SESSION_ID> --kebab-case-flags ...`.
-Do not use MCP call syntax such as `shape(action: "add-rectangle", session_id: ..., slide_index: ...)` or
+Do not use MCP call syntax such as `shape(action: "add-rectangle", presentation_session_id: ..., slide_index: ...)` or
 snake_case parameters — the CLI uses kebab-case flags and a `<command> <action>` shape instead
 of one flat tool per verb.
 

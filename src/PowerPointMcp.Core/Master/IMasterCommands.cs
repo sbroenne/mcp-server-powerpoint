@@ -20,6 +20,8 @@ namespace Sbroenne.PowerPointMcp.Core.Master;
 [ServiceCategory("master", "Master")]
 [McpTool("master", Title = "Slide Master Operations", Destructive = true, Category = "content",
     Description = "Read theme colors/fonts or read/edit the slide master's title/body placeholder fonts and background color. Use list-masters to select a master for theme inspection. Edits apply to every slide inheriting from the master.")]
+[McpReadOnlyActions("get-title-font", "get-body-font", "get-background-color",
+    "get-gradient-background", "list-masters", "get-theme-colors", "get-theme-fonts")]
 public interface IMasterCommands
 {
     /// <summary>Gets the font name, size, bold, and color of the master's title placeholder.</summary>

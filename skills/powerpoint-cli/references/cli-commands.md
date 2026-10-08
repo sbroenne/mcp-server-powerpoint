@@ -1187,6 +1187,10 @@ OPTIONS:
     -s, --session <SESSION>                                  Session ID from
                                                              'session open'
                                                              command
+        --max-slides <MAXSLIDES>                             (valid for:
+                                                             inspect)
+        --max-text-chars-per-slide <MAXTEXTCHARSPERSLIDE>    (valid for:
+                                                             inspect)
         --slide-index <SLIDEINDEX>                           (required for:
                                                              delete, duplicate,
                                                              move-to,

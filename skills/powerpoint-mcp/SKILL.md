@@ -11,24 +11,26 @@ compatibility: Windows with Microsoft PowerPoint desktop installed.
 
 # PowerPoint MCP Server Skill
 
-Provides 17 PowerPoint MCP tools (one presentation tool + 16 domain action-dispatch tools)
+Provides 32 PowerPoint MCP tools (one presentation tool + 16 domain action-dispatch tools + 15 read-only aliases)
 via the Model Context Protocol, driving a live PowerPoint desktop instance through the official
 `Microsoft.Office.Interop.PowerPoint` PIA. Tools are auto-discovered via MCP `tools/list` — this
 skill documents session lifecycle, indexing conventions, workflows, and gotchas that aren't
 obvious from tool schemas alone.
 
 Session lifecycle, Save As/copy, templates, the advisory Mark as Final flag, document properties,
-and presentation tags use the `presentation` action-dispatch tool with camelCase arguments.
+and presentation tags use the `presentation` action-dispatch tool. The session identifier is
+`presentation_session_id`; the other lifecycle/property arguments remain camelCase.
 Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`, `media`,
 `notes`, `layout`, `master`, `smartart`, `animation`, `export`, `pagesetup`, `accessibility`, `customshow`) are
-action-dispatch: one tool per domain, called as `tool(action:
-"kebab-action", session_id: ..., snake_case_param: ...)`.
+action-dispatch. Read-only aliases such as `slide_read` expose only explicitly declared
+inspection actions; original tools remain available for compatibility. Calls use
+`tool(action: "kebab-action", presentation_session_id: ..., snake_case_param: ...)`.
 
 ## Workflow Checklist
 
 | Step | Tool | Action | When |
 |------|------|--------|------|
-| 1. Create or open | `presentation(action: "create"/"open")` | Start a session, get `sessionId` | Always, before any edit |
+| 1. Create or open | `presentation(action: "create"/"open")` | Start a session, get `presentation_session_id` | Always, before any edit |
 | 3. Build | `slide(action: "add-blank")`, `shape(action: "add-rectangle"/"add-text-box"/"add-auto-shape"/"add-line"/"add-connector"/"add-attached-connector")`, `table(action: "add-table")`, `chart(action: "add-chart")`, `image(action: "add-picture")`, `media(action: "add-media")` | Add structure and content | As needed |
 | 4. Format | `textframe(action: "set-font-size"/"set-bold"/"set-font-color")`, `layout(action: "set-layout")` | Apply formatting | After adding content |
 | 5. Animate (optional) | `animation(action: "add-effect"/"set-transition")` | Add entrance/emphasis/exit effects or slide transitions | After content/layout are final |
@@ -46,7 +48,7 @@ action-dispatch: one tool per domain, called as `tool(action:
 
 ### Rule 1: Sessions Are Required for Every Edit
 
-Every editing action requires the `sessionId` returned by `presentation(action: "create"/"open")`.
+Every editing action requires the `presentation_session_id` returned by `presentation(action: "create"/"open")`.
 See [Behavioral Rules](./references/behavioral-rules.md) for the full session lifecycle.
 
 ### Rule 2: Everything Is 1-Based
@@ -57,7 +59,7 @@ object model — not 0-based like most languages. See
 
 ### Rule 3: Save-on-Close Is Explicit
 
-Nothing is written to disk unless `presentation(action: "close", sessionId: ..., save: true)` is
+Nothing is written to disk unless `presentation(action: "close", presentation_session_id: ..., save: true)` is
 used. Closing with the default `save: false` discards all changes since the last save.
 
 ### Rule 4: Close Does Not Block
@@ -81,8 +83,8 @@ Discover state yourself instead of asking the user:
 | Bad (Asking) | Good (Discovering) |
 |---------------|---------------------|
 | "Which presentation is open?" | `presentation(action: "list")` |
-| "How many slides are there?" | `slide(action: "get-count", session_id: sessionId)` |
-| "What shapes are already on this slide?" | `shape(action: "get-count", session_id: sessionId, slide_index: slideIndex)` |
+| "How many slides are there?" | `slide(action: "get-count", presentation_session_id: sessionId)` |
+| "What shapes are already on this slide?" | `shape(action: "get-count", presentation_session_id: sessionId, slide_index: slideIndex)` |
 
 ### Rule 7: Always End With a Text Summary
 

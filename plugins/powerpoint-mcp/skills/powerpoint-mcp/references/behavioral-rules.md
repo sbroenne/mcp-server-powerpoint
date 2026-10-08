@@ -8,8 +8,8 @@ instance (COM). AI assistants should follow these guidelines when using the **17
 - **Execute tasks immediately without asking for confirmation.** Make reasonable assumptions
   (slide count, positions, colors) and proceed.
 - **Never ask clarifying questions for standard operations.** Use `presentation(action: "list")`
-  to discover open sessions, `slide(action: "get-count", session_id: ...)` to discover slide
-  range, `shape(action: "get-count", session_id: ..., slide_index: ...)` to discover shapes on a
+  to discover open sessions, `slide(action: "get-count", presentation_session_id: ...)` to discover slide
+  range, `shape(action: "get-count", presentation_session_id: ..., slide_index: ...)` to discover shapes on a
   slide — do not ask the user for information you can look up yourself.
 - **Always end with a text summary.** Never end a turn with only a tool call. After finishing,
   state what was created/changed, the file path, and the slide count.
@@ -20,7 +20,7 @@ Every editing workflow starts by establishing a session:
 
 ```
 1. presentation(action: "create", filePath: ...) OR presentation(action: "open", filePath: ...) → returns sessionId
-2. ... all other domain tools take session_id; presentation lifecycle/property actions take sessionId ...
+2. ... all other domain tools take presentation_session_id; presentation lifecycle/property actions take sessionId ...
 3. presentation(action: "close", sessionId: ..., save: true) → persists changes and releases the session
 ```
 
@@ -40,8 +40,8 @@ Every editing workflow starts by establishing a session:
 - **All 17 MCP tools are action-dispatch tools.** Every call includes an `action` parameter.
 - **`presentation` uses camelCase lifecycle/property parameters** — `filePath`, `sessionId`,
   `targetPath`, `format`, `overwrite`, `templatePath`, `propertyName`, `value`.
-- **The other 16 domain tools use `session_id` plus snake_case action parameters**, e.g.
-  `shape(action: "add-rectangle", session_id: ..., slide_index: 1, left: 50, top: 80, width: 100,
+- **The other 16 domain tools use `presentation_session_id` plus snake_case action parameters**, e.g.
+  `shape(action: "add-rectangle", presentation_session_id: ..., slide_index: 1, left: 50, top: 80, width: 100,
   height: 60)`.
 
 ## 1-Based Indexing (CRITICAL — the #1 source of bugs)
@@ -65,8 +65,8 @@ written to disk unless you close with `save: true`. Closing with the default `sa
 all changes since the last save.
 
 ```
-1. slide(action: "add-blank", session_id: ...)                                      → slide added in memory
-2. textframe(action: "set-text", session_id: ..., slide_index: ..., shape_index: ...) → text set in memory
+1. slide(action: "add-blank", presentation_session_id: ...)                                      → slide added in memory
+2. textframe(action: "set-text", presentation_session_id: ..., slide_index: ..., shape_index: ...) → text set in memory
 3. presentation(action: "close", sessionId: ..., save: true)                         → persisted and closed
 ```
 
@@ -111,7 +111,7 @@ After creating or changing visual content, export and look at the result:
 
 ```
 1. shape(action: "add-rectangle", ...) / textframe(action: "set-text", ...) / chart(action: "add-chart", ...)  → make the change
-2. export(action: "export-slide-to-image", session_id: ..., slide_index: ..., output_path: ...)                → render it
+2. export(action: "export-slide-to-image", presentation_session_id: ..., slide_index: ..., output_path: ...)                → render it
 3. Look at the returned image → confirm it matches intent, fix if not
 ```
 
@@ -119,7 +119,7 @@ See `export-and-verify.md` for the full loop and when it is required.
 
 ## Run the Deterministic Accessibility Audit
 
-Before final delivery, call `accessibility(action: "audit", session_id: ...)`. Fix missing
+Before final delivery, call `accessibility(action: "audit", presentation_session_id: ...)`. Fix missing
 alternative text and empty title placeholders, then rerun the audit. This is a deterministic
 PowerPoint structure check, not an AI review of writing quality.
 

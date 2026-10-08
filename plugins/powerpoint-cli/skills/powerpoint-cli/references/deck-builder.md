@@ -11,7 +11,7 @@ content tools. Activate this when the user asks to "create a deck", "build a pre
 New slides append at the end. Plan the order up front when possible, and use
 `slide(action: "move-to", ...)` when an existing slide needs a different 1-based position.
 
-1. `slide(action: "get-count", session_id: ...)` (or start from 0 for a new file) → know where
+1. `slide(action: "get-count", presentation_session_id: ...)` (or start from 0 for a new file) → know where
    you're starting from.
 2. Outline every slide's purpose and layout type before creating any of them.
 3. Build slides **in final order**, one at a time: `add-blank` → set layout → add content →
@@ -22,12 +22,12 @@ New slides append at the end. Plan the order up front when possible, and use
 Run this for every slide:
 
 ```
-1. slide(action: "add-blank", session_id: ...)                                  → new blank slide appended at the end
-2. layout(action: "set-layout", session_id: ..., slide_index: ..., layout_name: ...) → apply a built-in layout (see layouts.md)
+1. slide(action: "add-blank", presentation_session_id: ...)                                  → new blank slide appended at the end
+2. layout(action: "set-layout", presentation_session_id: ..., slide_index: ..., layout_name: ...) → apply a built-in layout (see layouts.md)
 3. add content: shape(action: "add-text-box"/"add-rectangle") / table(action: "add-table") / chart(action: "add-chart") / image(action: "add-picture")
 4. textframe(action: "set-font-size"/"set-bold"/"set-font-color", ...) as needed (see text-formatting.md)
-5. notes(action: "set-notes-text", session_id: ..., slide_index: ..., text: ...) → always add speaker notes (see speaker-notes.md)
-6. export(action: "export-slide-to-image", session_id: ..., slide_index: ..., output_path: ...)  → verify (see export-and-verify.md)
+5. notes(action: "set-notes-text", presentation_session_id: ..., slide_index: ..., text: ...) → always add speaker notes (see speaker-notes.md)
+6. export(action: "export-slide-to-image", presentation_session_id: ..., slide_index: ..., output_path: ...)  → verify (see export-and-verify.md)
 7. Fix any issues found, re-verify, then move to the next slide
 ```
 
@@ -81,7 +81,7 @@ than guessing blind.
 
 ## After the Deck Is Built
 
-1. `export(action: "export-all-slides-to-images", session_id: ..., output_directory: ...)` — one
+1. `export(action: "export-all-slides-to-images", presentation_session_id: ..., output_directory: ...)` — one
    call renders every slide.
 2. Review each exported image; fix any slide with overlapping shapes, empty placeholders, or text
    overflow (reduce `text` length or increase shape height / reduce font size).

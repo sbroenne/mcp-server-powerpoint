@@ -61,12 +61,14 @@ Core/Shape/
 ### MCP Tool Routing (generated action-dispatch, one tool per domain)
 
 Matching `mcp-server-excel`'s pattern, each `[ServiceCategory]` Core domain is exposed as a
-**single generated action-dispatch MCP tool** (e.g. `shape`) taking an `action` parameter (e.g.
+**generated action-dispatch MCP tool** (e.g. `shape`) taking an `action` parameter (e.g.
 `"add-rectangle"`) rather than one hand-written `[McpServerTool]` method per verb. Do not
 hand-write a new per-verb tool class for a Core domain — add the domain's
 `[ServiceCategory]`/`[McpTool]` attributes and the generators emit the dispatch tool and its
-`pptcli` commands automatically. `Presentation` remains hand-written in `PresentationTools.cs`,
-but now follows the same single-tool action-dispatch shape.
+`pptcli` commands automatically. Interfaces may also mark an explicit subset of read-only MCP
+actions with `[McpReadOnlyActions]`; this adds a non-destructive `{tool}_read` MCP alias without
+changing the original MCP tool or the CLI command surface. `Presentation` remains hand-written in
+`PresentationTools.cs`, but now follows the same single-tool action-dispatch shape.
 
 ```csharp
 // Core: attribute-driven, discovered by the generators — no hand-written tool class needed.
@@ -127,7 +129,7 @@ The two entry points run as **separate processes** with **separate PowerPoint in
 an open session. Reuse that `sessionId`, rather than opening the file again.
 `presentation(action="test", filePath)` validates that PowerPoint can open the
 file without retaining a session. Presentation actions take `sessionId`;
-generated domain tools take `session_id`.
+generated domain tools take `presentation_session_id`.
 
 For all-slide image export, prefer PowerPoint's single `Presentation.Export`
 call over a loop of `Slide.Export` calls.

@@ -31,15 +31,17 @@ Most of the MCP tool surface is **generated**, not hand-written. Before editing 
 
 - **Hand-written** (`PresentationTools.cs` only): the single `presentation` MCP tool. It is
   action-dispatch like Excel's file tool, but stays hand-written because create/open/list/close
-  need custom session-registry behavior and optional `sessionId`.
+  need custom session-registry behavior and optional `presentation_session_id`.
 - **Generated** (everything else — `slide`, `shape`, `textframe`, `table`, `notes`, `layout`,
   `master`, `animation`, `image`, `media`, `chart`, `smartart`, `export`, `pagesetup`,
   `accessibility`, `customshow`): one action-dispatch tool per
   `[ServiceCategory]` Core domain, emitted by `PowerPointMcp.Generators.Mcp` from the Core
   interface's `[ServiceCategory]`/`[McpTool]` attributes and XML doc comments. **Never hand-write a
   new tool class for one of these domains** — add the operation to the Core interface (with XML
-  docs) and the generator picks it up. See `architecture-patterns.instructions.md`'s Command
-  Pattern section for the Core-side attribute shape.
+  docs) and the generator picks it up. Interfaces that declare `[McpReadOnlyActions(...)]` also
+  get a `{tool}_read` MCP alias containing only those actions. The original tool remains intact,
+  and the CLI keeps its existing command surface. See `architecture-patterns.instructions.md`'s
+  Command Pattern section for the Core-side attribute shape.
 
 The rest of this guide applies to the hand-written `presentation` tool only.
 
@@ -56,7 +58,7 @@ public static class PresentationTools
     public static Task<CallToolResult> Presentation(
         PresentationToolAction action,
         string? filePath = null,
-        string? sessionId = null,
+        string? presentation_session_id = null,
         PresentationSessionRegistry? registry = null,
         CancellationToken cancellationToken = default)
         => PowerPointToolsBase.ExecuteToolActionAsync(
@@ -90,18 +92,18 @@ This follows the MCP spec's two error mechanisms:
 
 ```csharp
 // CORRECT — expected bad input: return a validation error payload
-if (!registry.TryGet(sessionId, out var batch))
+if (!registry.TryGet(presentation_session_id, out var batch))
 {
-    return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+    return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {presentation_session_id}");
 }
 
 // CORRECT — Core Success=false result: serialize as-is (already has errorMessage + isError)
 return SerializeResult(Commands.Delete(batch, slideIndex));
 
 // WRONG — throwing for an expected, caller-correctable condition
-if (!registry.TryGet(sessionId, out var batch))
+if (!registry.TryGet(presentation_session_id, out var batch))
 {
-    throw new InvalidOperationException($"Unknown sessionId: {sessionId}");
+    throw new InvalidOperationException($"Unknown presentation_session_id: {presentation_session_id}");
 }
 ```
 

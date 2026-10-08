@@ -164,6 +164,43 @@ def _feature_totals() -> tuple[int, int]:
     return int(counts["tools"]), int(counts["operations"])
 
 
+def _read_only_alias_tools(primary_tools: list[dict]) -> list[dict]:
+    primary_actions = {
+        tool["name"]: {operation["name"] for operation in tool["operations"]}
+        for tool in primary_tools
+    }
+    aliases = []
+    for source in sorted((REPO_ROOT / "src" / "PowerPointMcp.Core").rglob("I*Commands.cs")):
+        content = source.read_text(encoding="utf-8")
+        match = re.search(r"\[McpReadOnlyActions\((.*?)\)\]", content, re.DOTALL)
+        if match is None:
+            continue
+
+        domain = source.stem.removeprefix("I").removesuffix("Commands").lower()
+        action_names = re.findall(r'"([^"]+)"', match.group(1))
+        if not action_names:
+            raise RuntimeError(f"{source} declares a read-only alias without actions")
+        if domain not in primary_actions:
+            raise RuntimeError(f"{source} declares a read-only alias for unknown tool '{domain}'")
+        unknown_actions = set(action_names) - primary_actions[domain]
+        if unknown_actions:
+            raise RuntimeError(
+                f"{source} declares unknown read-only actions for '{domain}': "
+                f"{', '.join(sorted(unknown_actions))}"
+            )
+
+        aliases.append(
+            {
+                "name": f"{domain}_read",
+                "description": f"Read-only subset of the {domain} tool.",
+                "operationCount": len(action_names),
+                "operations": [{"name": action} for action in action_names],
+                "readOnly": True,
+            }
+        )
+    return aliases
+
+
 def _write(name: str, source_rel: str, content: str) -> None:
     GEN_DIR.mkdir(parents=True, exist_ok=True)
     content = _rewrite_links(content, source_rel)
@@ -392,6 +429,7 @@ def _write_tools_json(config) -> None:
         )
 
     actual_operations = sum(tool["operationCount"] for tool in tools)
+    tools.extend(_read_only_alias_tools(tools))
     if len(tools) != expected_tools or actual_operations != expected_operations:
         raise RuntimeError(
             "tools.json totals do not match the feature headline: "

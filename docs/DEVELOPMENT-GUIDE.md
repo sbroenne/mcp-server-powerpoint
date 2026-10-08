@@ -87,11 +87,11 @@ MCP and CLI share code, not live sessions or PowerPoint instances.
 The MCP lifecycle is:
 
 ```text
-presentation(action="create", filePath) -> saved file and open sessionId
-presentation(action="open", filePath)   -> open sessionId
-domain(action=..., session_id=...)     -> operate on the existing session
+presentation(action="create", filePath) -> saved file and open presentation_session_id
+presentation(action="open", filePath)   -> open presentation_session_id
+domain(action=..., presentation_session_id=...)     -> operate on the existing session
 presentation(action="test", filePath)  -> validate opening; retain no session
-presentation(action="close", sessionId, save=true)
+presentation(action="close", presentation_session_id, save=true)
                                       -> save, remove session, dispose in background
 ```
 
@@ -120,9 +120,9 @@ known preconditions before the failing COM call and return an error result.
 Unknown-session validation at the MCP boundary, for example, follows this shape:
 
 ```csharp
-if (!registry.TryGet(sessionId, out var batch))
+if (!registry.TryGet(presentation_session_id, out var batch))
 {
-    return PowerPointToolsBase.ValidationError($"Unknown sessionId: {sessionId}");
+    return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {presentation_session_id}");
 }
 ```
 

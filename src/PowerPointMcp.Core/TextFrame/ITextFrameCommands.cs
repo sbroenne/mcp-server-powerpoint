@@ -12,6 +12,8 @@ namespace Sbroenne.PowerPointMcp.Core.TextFrame;
 [ServiceCategory("textframe", "TextFrame")]
 [McpTool("textframe", Title = "Text Frame Operations", Destructive = true, Category = "content",
     Description = "Set, get, find, or replace text and font/paragraph formatting in one shape's text frame. Find/replace use literal PowerPoint matching, with optional case and whole-word matching; they do not search other shapes or slides.")]
+[McpReadOnlyActions("get-text", "find-text", "get-font-size", "get-bold", "get-font-color",
+    "get-italic", "get-underline", "get-font-name", "get-alignment", "get-bullet", "get-auto-size")]
 public interface ITextFrameCommands
 {
     /// <summary>Sets the text content of a shape's text frame.</summary>

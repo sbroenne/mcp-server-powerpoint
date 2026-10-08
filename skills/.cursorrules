@@ -19,7 +19,7 @@ repo's C# source), follow these rules:
   with camelCase arguments.
 - Domain tools (`slide`, `shape`, `textframe`, `table`, `chart`, `image`, `notes`, `layout`,
   `master`, `animation`, `export`) are action-dispatch: call as `tool(action: "kebab-action",
-  session_id: ..., snake_case_param: ...)`.
+  presentation_session_id: ..., snake_case_param: ...)`.
 
 ## Indexing Rules
 
@@ -29,7 +29,7 @@ repo's C# source), follow these rules:
 ## Verification Rules
 
 - After adding or repositioning any shape, table, chart, or image, call
-  `export(action: "export-slide-to-image", session_id: ..., slide_index: ..., output_path: ...)`
+  `export(action: "export-slide-to-image", presentation_session_id: ..., slide_index: ..., output_path: ...)`
   and inspect the result before moving on or saving. Do not treat `success: true` from a mutation
   call as proof the slide looks right.
 - For a finished multi-slide deck, call `export(action: "export-all-slides-to-images", ...)` once
