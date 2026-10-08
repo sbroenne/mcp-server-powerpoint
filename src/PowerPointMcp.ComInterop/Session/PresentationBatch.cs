@@ -1,9 +1,12 @@
+extern alias OfficeInterop;
+
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Win32;
+using Office = OfficeInterop::Microsoft.Office.Core;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.ComInterop.Session;
@@ -592,6 +595,180 @@ internal sealed class PresentationBatch : IPresentationBatch
             ctx.Presentation.Save();
             return 0;
         }, cancellationToken);
+    }
+
+    public T TransformPresentationCopy<T>(
+        Func<string, CancellationToken, T> transform,
+        CancellationToken cancellationToken = default)
+        => TransformPresentationCopyWithTimeout(transform, _operationTimeout, cancellationToken);
+
+    internal T TransformPresentationCopyWithTimeout<T>(
+        Func<string, CancellationToken, T> transform,
+        TimeSpan operationTimeout,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(transform);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(operationTimeout, TimeSpan.Zero);
+        string currentPath = PresentationPath;
+        string extension = Path.GetExtension(currentPath).ToLowerInvariant();
+        if (extension is not (".pptx" or ".pptm"))
+        {
+            throw new ArgumentException(
+                $"Open XML package transformations require a .pptx or .pptm presentation, not '{extension}'.",
+                nameof(transform));
+        }
+
+        string directory = Path.GetDirectoryName(currentPath)!;
+        string fileName = Path.GetFileNameWithoutExtension(currentPath);
+        string temporaryPath = Path.Combine(directory, $".{fileName}-{Guid.NewGuid():N}{extension}");
+        string backupPath = Path.Combine(directory, $".{fileName}-{Guid.NewGuid():N}.backup");
+        using var timeoutCts = new CancellationTokenSource(operationTimeout);
+        using var operationCts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken,
+            timeoutCts.Token);
+
+        try
+        {
+            return Execute((ctx, ct) =>
+            {
+                bool presentationClosed = false;
+                bool replacedOriginal = false;
+                bool preserveBackup = false;
+                try
+                {
+                    ct.ThrowIfCancellationRequested();
+                    ctx.Presentation.Save();
+                    PowerPoint.PpSaveAsFileType saveType = extension == ".pptm"
+                        ? ComInteropConstants.PpSaveAsOpenXmlPresentationMacroEnabled
+                        : ComInteropConstants.PpSaveAsOpenXmlPresentation;
+                    ctx.Presentation.SaveCopyAs(
+                        temporaryPath,
+                        saveType,
+                        Office.MsoTriState.msoFalse);
+
+                    ct.ThrowIfCancellationRequested();
+                    T result = transform(temporaryPath, ct);
+                    ct.ThrowIfCancellationRequested();
+
+                    ClosePresentationForReplacement(ctx);
+                    presentationClosed = true;
+
+                    ct.ThrowIfCancellationRequested();
+                    File.Replace(temporaryPath, currentPath, backupPath);
+                    replacedOriginal = true;
+
+                    try
+                    {
+                        OpenTrackedPresentation(currentPath);
+                        presentationClosed = false;
+                    }
+                    catch (Exception openFailure)
+                    {
+                        try
+                        {
+                            File.Replace(backupPath, currentPath, temporaryPath);
+                            replacedOriginal = false;
+                            OpenTrackedPresentation(currentPath);
+                            presentationClosed = false;
+                        }
+                        catch (Exception restoreFailure)
+                        {
+                            preserveBackup = true;
+                            throw new AggregateException(
+                                "The transformed presentation could not be reopened and the original could not be restored.",
+                                openFailure,
+                                restoreFailure);
+                        }
+
+                        throw new InvalidOperationException(
+                            "The transformed presentation could not be reopened. The original file was restored.",
+                            openFailure);
+                    }
+
+                    File.Delete(backupPath);
+                    return result;
+                }
+                catch (Exception operationFailure)
+                {
+                    if (presentationClosed)
+                    {
+                        try
+                        {
+                            if (replacedOriginal && File.Exists(backupPath))
+                            {
+                                File.Replace(backupPath, currentPath, temporaryPath);
+                                replacedOriginal = false;
+                            }
+
+                            OpenTrackedPresentation(currentPath);
+                            presentationClosed = false;
+                        }
+                        catch (Exception reopenFailure)
+                        {
+                            throw new AggregateException(
+                                "Presentation transformation failed and the original presentation could not be reopened.",
+                                operationFailure,
+                                reopenFailure);
+                        }
+                    }
+
+                    throw;
+                }
+                finally
+                {
+                    if (File.Exists(temporaryPath))
+                    {
+                        File.Delete(temporaryPath);
+                    }
+                    if (!preserveBackup && File.Exists(backupPath))
+                    {
+                        File.Delete(backupPath);
+                    }
+                }
+            }, operationCts.Token);
+        }
+        catch (OperationCanceledException) when (
+            timeoutCts.IsCancellationRequested &&
+            !cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Presentation transformation timed out after {operationTimeout.TotalSeconds} seconds " +
+                $"for '{Path.GetFileName(currentPath)}'.");
+        }
+    }
+
+    private void ClosePresentationForReplacement(PresentationContext context)
+    {
+        PowerPoint.Presentation? oldPresentation = _presentation;
+        if (oldPresentation is null)
+        {
+            throw new InvalidOperationException("There is no open presentation to replace.");
+        }
+
+        context.ReleaseOwnedComResources();
+        _context = null;
+        try
+        {
+            oldPresentation.Close();
+        }
+        catch
+        {
+            context.ReleaseOwnedComOwners();
+            _context = new PresentationContext(_presentationPath, _app!, oldPresentation);
+            throw;
+        }
+
+        context.ReleaseOwnedComOwners();
+        _presentation = null;
+        ComUtilities.Release(ref oldPresentation);
+    }
+
+    private void OpenTrackedPresentation(string path)
+    {
+        PowerPoint.Presentation openedPresentation = OpenOrCreatePresentationCom(_app!, path, createNewFile: false);
+        _presentation = openedPresentation;
+        _context = new PresentationContext(path, _app!, openedPresentation);
+        Volatile.Write(ref _presentationPath, path);
     }
 
     public void UpdatePresentationPath(string presentationPath)

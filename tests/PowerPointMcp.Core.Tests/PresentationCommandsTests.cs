@@ -171,6 +171,14 @@ public class PresentationCommandsTests
         public void Save(CancellationToken cancellationToken = default) =>
             inner.Save(cancellationToken);
 
+        public T TransformPresentationCopy<T>(
+            Func<string, CancellationToken, T> transform,
+            CancellationToken cancellationToken = default)
+        {
+            RunBeforeExecute();
+            return inner.TransformPresentationCopy(transform, cancellationToken);
+        }
+
         public void UpdatePresentationPath(string presentationPath) =>
             inner.UpdatePresentationPath(presentationPath);
 

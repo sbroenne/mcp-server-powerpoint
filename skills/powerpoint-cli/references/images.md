@@ -3,20 +3,29 @@
 # Images
 
 Reference for the image domain: `image(action: "add-picture", ...)` inserts a picture into a slide.
-The image domain provides 7 total actions: 1 insertion action (`add-picture`) plus 6 appearance actions: `set-brightness-contrast`, `get-brightness-contrast`,
-`set-recolor`, `get-recolor`, `set-crop`, and `get-crop`.
+The image domain provides 16 actions: picture insertion, appearance controls, scalar and crop-frame
+cropping, transparency, and image compression.
 
 ## Actions
 
 | Tool | Action | Parameters | Notes |
 |------|--------|------------|-------|
-| `image` | `add-picture` | `session_id`, `slide_index`, `image_path`, `left`, `top`, `width`, `height`, optional `link_to_file`, `save_with_document` | Embeds by default. Set `link_to_file=true` for a linked picture. |
+| `image` | `add-picture` | `session_id`, `slide_index`, `image_path`, `left`, `top`, `width`, `height`, optional `link_to_file`, `save_with_document`, `compression` | Embeds by default. Set `link_to_file=true` for a linked picture. Compression is `default`, `compress`, or `preserve`. |
 | `image` | `set-brightness-contrast` | `session_id`, `slide_index`, `shape_index`, `brightness`, `contrast` | `brightness`/`contrast` are floats in `[0, 1]` (PowerPoint default is `0.5` for both). |
 | `image` | `get-brightness-contrast` | `session_id`, `slide_index`, `shape_index` | Returns current `brightness`/`contrast`. |
 | `image` | `set-recolor` | `session_id`, `slide_index`, `shape_index`, `color_type` | `color_type` is one of `msoPictureAutomatic` (default/no recolor), `msoPictureGrayscale`, `msoPictureBlackAndWhite`, `msoPictureWatermark`. Unrecognized names fail with `Success=false`. |
 | `image` | `get-recolor` | `session_id`, `slide_index`, `shape_index` | Returns current `color_type`. |
 | `image` | `set-crop` | `session_id`, `slide_index`, `shape_index`, `crop_left`, `crop_top`, `crop_right`, `crop_bottom` | Crop edges in points from the picture's edges (L-T-R-B order). Negative values expand the displayed image. Requires a properly sized source image for meaningful geometry. |
 | `image` | `get-crop` | `session_id`, `slide_index`, `shape_index` | Returns current crop offsets in points (L-T-R-B). A fresh picture with no crop applied returns 0.0 for all four values. |
+| `image` | `increment-brightness` | `session_id`, `slide_index`, `shape_index`, `increment` | Changes brightness by a relative amount; PowerPoint clamps the result to `[0, 1]`. |
+| `image` | `increment-contrast` | `session_id`, `slide_index`, `shape_index`, `increment` | Changes contrast by a relative amount; PowerPoint clamps the result to `[0, 1]`. |
+| `image` | `set-transparency-color` | `session_id`, `slide_index`, `shape_index`, `color_rgb` | Sets the color key using PowerPoint's RGB integer order (`0xBBGGRR`). |
+| `image` | `get-transparency-color` | `session_id`, `slide_index`, `shape_index` | Reads the picture's color key. |
+| `image` | `set-transparent-background` | `session_id`, `slide_index`, `shape_index`, `enabled` | Enables or disables color-key transparency; behavior depends on the image format. |
+| `image` | `get-transparent-background` | `session_id`, `slide_index`, `shape_index` | Reads whether color-key transparency is enabled. |
+| `image` | `set-crop-frame` | `session_id`, `slide_index`, `shape_index`, `picture_width`, `picture_height`, `picture_offset_x`, `picture_offset_y`, `frame_left`, `frame_top`, `frame_width`, `frame_height` | Sets the full source-picture and visible-frame geometry in points. |
+| `image` | `get-crop-frame` | `session_id`, `slide_index`, `shape_index` | Reads source-picture size/offsets and visible-frame position/size in points. |
+| `image` | `compress-pictures` | optional `slide_index`, `shape_index`, `resolution`, `delete_cropped_areas` | Compresses one picture, a slide, or the presentation. |
 
 ## Crop Behavior
 
@@ -48,14 +57,28 @@ The image domain exposes these `Microsoft.Office.Interop.PowerPoint.PictureForma
 | `CropTop` | Property | ✓ Exposed | `set-crop`, `get-crop` | Direct scalar property, in points from top edge. |
 | `CropRight` | Property | ✓ Exposed | `set-crop`, `get-crop` | Direct scalar property, in points from right edge. |
 | `CropBottom` | Property | ✓ Exposed | `set-crop`, `get-crop` | Direct scalar property, in points from bottom edge. |
-| `Crop` | Object | ⊘ Not exposed | — | Separate Office.Core Crop subobject with natural-image/display scaling semantics. Deliberately unexposed; direct scalar crop properties subsume its interface. |
-| `IncrementBrightness` | Method | ⊘ Not exposed | — | Already covered by idempotent absolute setter; live COM confirms increments clamp to [0, 1]. |
-| `IncrementContrast` | Method | ⊘ Not exposed | — | Already covered by idempotent absolute setter; live COM confirms increments clamp to [0, 1]. |
-| `TransparencyColor` | Property | ⊘ Not exposed | — | Live COM proved set/read/persistence on BMP, but deliberately unexposed: BMP defaults to msoTrue, no-key uses int.MinValue sentinel, exact color-key knowledge required, JPEG unsuitable, PNG supports alpha natively. |
-| `TransparentBackground` | Property | ⊘ Not exposed | — | Live COM proved set/read/persistence on BMP, but deliberately unexposed: defaults are format-dependent (BMP: msoTrue), exact behavior requires format-specific tuning. |
+| `Crop` | Object | ✓ Exposed | `set-crop-frame`, `get-crop-frame` | Exposes the source picture dimensions, offsets, and visible frame geometry in points. |
+| `IncrementBrightness` | Method | ✓ Exposed | `increment-brightness` | Relative adjustment; PowerPoint clamps brightness to `[0, 1]`. |
+| `IncrementContrast` | Method | ✓ Exposed | `increment-contrast` | Relative adjustment; PowerPoint clamps contrast to `[0, 1]`. |
+| `TransparencyColor` | Property | ✓ Exposed | `set/get-transparency-color` | Uses PowerPoint's RGB integer order (`0xBBGGRR`); results depend on image format and color-key mode. |
+| `TransparentBackground` | Property | ✓ Exposed | `set/get-transparent-background` | Enables or disables color-key transparency; defaults vary by image format. |
 | `Application` | Property | ⊘ Not exposed | — | Read-only, non-actionable object reference. |
 | `Creator` | Property | ⊘ Not exposed | — | Read-only, non-actionable object reference. |
 | `Parent` | Property | ⊘ Not exposed | — | Read-only, non-actionable object reference. |
+
+## Picture Compression
+
+`compress-pictures` can target one picture by supplying both indexes, every picture on one slide by
+supplying only `slide_index`, or all slides by omitting both. `shape_index` without `slide_index`
+is invalid. The resolution presets are `high-fidelity` (do not reduce pixel dimensions), `hd`
+(330 PPI), `print` (220 PPI), `web` (150 PPI), and `email` (96 PPI). Set
+`delete_cropped_areas=true` to permanently remove pixels hidden by crop settings.
+
+Compression requires a saved `.pptx` or `.pptm` file and Windows. Embedded PNG, JPEG, BMP, GIF,
+and TIFF pictures are processed automatically. Linked, vector, animated, and unsupported pictures
+are left unchanged and listed in `skipped_pictures`. The operation saves and reopens the active
+presentation as part of the update; verify important slides visually afterward. Counts and byte
+totals in the result describe pictures actually changed, not every selected picture.
 
 ## Requirements
 
@@ -91,8 +114,8 @@ doesn't overlap other shapes on the slide (see `export-and-verify.md`).
 ## Limited Editing After Insert
 
 Post-insert adjustments available: `shape(action: "set-position", ...)`, `shape(action:
-"set-size", ...)` (see `slides-and-shapes.md`), and `set-brightness-contrast`, `set-recolor`,
-and `set-crop` actions (see above).
+"set-size", ...)` (see `slides-and-shapes.md`), and the appearance, transparency, crop-frame, and
+compression actions described above.
 
 ## Linked Picture Lifecycle
 

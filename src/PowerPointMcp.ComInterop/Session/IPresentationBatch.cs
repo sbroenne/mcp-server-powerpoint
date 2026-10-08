@@ -42,6 +42,15 @@ public interface IPresentationBatch : IDisposable
     void Save(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Saves a temporary copy of the current Open XML presentation, lets a non-COM transformation
+    /// update that copy, then safely replaces and reopens the active file. The transformation runs
+    /// while the original presentation remains open and must not access PowerPoint COM objects.
+    /// </summary>
+    T TransformPresentationCopy<T>(
+        Func<string, CancellationToken, T> transform,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Updates the tracked presentation path after PowerPoint Save As changes the active file
     /// identity. Must be called from inside this batch's serialized <see cref="Execute(Action{PresentationContext, CancellationToken}, CancellationToken)"/>
     /// or <see cref="Execute{T}(Func{PresentationContext, CancellationToken, T}, CancellationToken)"/>

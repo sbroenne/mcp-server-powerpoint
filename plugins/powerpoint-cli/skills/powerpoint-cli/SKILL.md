@@ -220,13 +220,13 @@ Actions: `export-to-pdf`, `export-slide-to-image`, `export-all-slides-to-images`
 | `--output-directory` | Directory where slide images will be written. Created if it does not exist.     PowerPoint names the output files Slide1.{ext}, Slide2.{ext}, etc. (required for: export-all-slides-to-images) |
 
 
-### `image` — Image commands: add a picture file to a slide. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
+### `image` — Image commands: add, adjust, crop, and compress pictures. Operates within an already-open IPresentationBatch, targeting specific slides and shapes by their 1-based indexes.
 
-Actions: `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`, `set-recolor`, `get-recolor`, `set-crop`, `get-crop`
+Actions: `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`, `increment-brightness`, `increment-contrast`, `set-recolor`, `get-recolor`, `set-transparency-color`, `get-transparency-color`, `set-transparent-background`, `get-transparent-background`, `set-crop`, `get-crop`, `set-crop-frame`, `get-crop-frame`, `compress-pictures`
 
 | Flag | Description |
 |------|-------------|
-| `--slide-index` | (required) |
+| `--slide-index` | (required for: add-picture, set-brightness-contrast, get-brightness-contrast, increment-brightness, increment-contrast, set-recolor, get-recolor, set-transparency-color, get-transparency-color, set-transparent-background, get-transparent-background, set-crop, get-crop, set-crop-frame, get-crop-frame) |
 | `--image-path` | (required for: add-picture) |
 | `--left` | (required for: add-picture) |
 | `--top` | (required for: add-picture) |
@@ -234,14 +234,28 @@ Actions: `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`, `s
 | `--height` | (required for: add-picture) |
 | `--link-to-file` | Whether the picture remains linked to its source file. Defaults to false. |
 | `--save-with-document` | Whether PowerPoint stores picture data in the presentation. Defaults to true. |
-| `--shape-index` | (required for: set-brightness-contrast, get-brightness-contrast, set-recolor, get-recolor, set-crop, get-crop) |
+| `--compression` |  |
+| `--shape-index` | (required for: set-brightness-contrast, get-brightness-contrast, increment-brightness, increment-contrast, set-recolor, get-recolor, set-transparency-color, get-transparency-color, set-transparent-background, get-transparent-background, set-crop, get-crop, set-crop-frame, get-crop-frame) |
 | `--brightness` | (required for: set-brightness-contrast) |
 | `--contrast` | (required for: set-brightness-contrast) |
+| `--increment` | (required for: increment-brightness, increment-contrast) |
 | `--color-type` | (required for: set-recolor) |
+| `--color-rgb` | (required for: set-transparency-color) |
+| `--enabled` | (required for: set-transparent-background) |
 | `--crop-left` | (required for: set-crop) |
 | `--crop-top` | (required for: set-crop) |
 | `--crop-right` | (required for: set-crop) |
 | `--crop-bottom` | (required for: set-crop) |
+| `--picture-width` | (required for: set-crop-frame) |
+| `--picture-height` | (required for: set-crop-frame) |
+| `--picture-offset-x` | (required for: set-crop-frame) |
+| `--picture-offset-y` | (required for: set-crop-frame) |
+| `--frame-left` | (required for: set-crop-frame) |
+| `--frame-top` | (required for: set-crop-frame) |
+| `--frame-width` | (required for: set-crop-frame) |
+| `--frame-height` | (required for: set-crop-frame) |
+| `--resolution` |  |
+| `--delete-cropped-areas` |  |
 
 
 ### `layout` — Slide layout commands: apply/read a slide's built-in layout. Operates within an already-open IPresentationBatch, targeting a specific slide by its 1-based index.
