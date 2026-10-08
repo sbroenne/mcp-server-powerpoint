@@ -525,6 +525,20 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
+    public void PowerPointFreeTestSelection_ProjectFilesRunAllGroups()
+    {
+        foreach (var project in new[] { "CLI", "McpServer", "Generators.Cli", "Generators.Mcp" })
+        {
+            AssertSelectedPowerPointFreeTests(
+                [$"src/PowerPointMcp.{project}/PowerPointMcp.{project}.csproj"],
+                ["CLI", "McpServer", "SkillGeneration"]);
+        }
+        AssertSelectedPowerPointFreeTests(
+            ["tests/PowerPointMcp.CLI.Tests/PowerPointMcp.CLI.Tests.csproj"],
+            ["CLI", "McpServer", "SkillGeneration"]);
+    }
+
+    [Fact]
     public void PowerPointFreeTestSelection_ChoosesAffectedGroupsAndFallsBackSafely()
     {
         AssertSelectedPowerPointFreeTests(

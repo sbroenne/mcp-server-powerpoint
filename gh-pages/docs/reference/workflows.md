@@ -1,3 +1,7 @@
+---
+description: Follow the PowerPoint automation workflow from opening one session through editing, visual verification, saving, and closing.
+---
+
 # Canonical Workflow: Start Session → Build → Verify → Save and Close
 
 The standard end-to-end loop for every PowerPoint MCP task. All 32 tools and 215 operations exist

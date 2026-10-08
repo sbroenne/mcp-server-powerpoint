@@ -1,3 +1,7 @@
+---
+description: Avoid common PowerPoint automation mistakes involving sessions, slide indexes, saving, discovery, and visual verification.
+---
+
 # Anti-Patterns to Avoid
 
 Common mistakes when using the PowerPoint MCP tools. These cause errors, data loss, or wasted

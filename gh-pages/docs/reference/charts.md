@@ -1,3 +1,7 @@
+---
+description: Create and edit native PowerPoint charts, replace series data, set titles and legends, and inspect chart appearance.
+---
+
 # Charts
 
 Reference for the `chart` tool — native PowerPoint charts (not images of charts), backed by an

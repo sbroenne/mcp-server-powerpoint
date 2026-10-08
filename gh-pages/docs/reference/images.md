@@ -1,3 +1,7 @@
+---
+description: Insert and adjust PowerPoint pictures, manage linked images, set crop frames and transparency, and compress images.
+---
+
 # Images
 
 Reference for the image domain: `image(action: "add-picture", ...)` inserts a picture into a slide.

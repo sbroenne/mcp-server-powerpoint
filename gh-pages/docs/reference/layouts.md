@@ -1,3 +1,7 @@
+---
+description: Discover PowerPoint slide layouts, apply suitable layouts, and understand how layout changes affect existing content.
+---
+
 # Layouts
 
 Reference for slide layouts and presentation-wide page setup. `layout` applies PowerPoint's native

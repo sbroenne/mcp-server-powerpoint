@@ -1,3 +1,7 @@
+---
+description: Read and write PowerPoint speaker notes that explain each slide clearly without repeating every visible bullet.
+---
+
 # Speaker Notes
 
 Reference for `notes(action: "set-notes-text", ...)` and `notes(action: "get-notes-text", ...)`.

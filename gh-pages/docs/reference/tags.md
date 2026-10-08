@@ -1,3 +1,7 @@
+---
+description: Read and manage string tags on PowerPoint presentations, slides, and shapes using safe names and value conventions.
+---
+
 # String Tags
 
 PowerPoint string tags attach small text metadata to a presentation, slide, or shape without

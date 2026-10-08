@@ -1,3 +1,7 @@
+---
+description: Add embedded or linked audio and video to PowerPoint slides and inspect native media metadata and playback appearance.
+---
+
 # Audio and Video
 
 Reference for the `media` domain. It inserts playable audio or video as either embedded content or

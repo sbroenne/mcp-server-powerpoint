@@ -1,3 +1,7 @@
+---
+description: Export PowerPoint slides to images or PDF, inspect their appearance, and correct layout problems before saving.
+---
+
 # Export & Visual Verification
 
 Reference for PowerPoint's native PDF delivery and image rendering actions. The image actions

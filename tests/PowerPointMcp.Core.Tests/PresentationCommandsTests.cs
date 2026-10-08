@@ -396,6 +396,33 @@ public class PresentationCommandsTests
     }
 
     [Fact]
+    public void Dispose_SharedApplicationRetainsTrackingUntilLastManagedOwnerCloses()
+    {
+        string firstPath = CoreTestHelper.CreateUniqueTestFilePath();
+        string secondPath = CoreTestHelper.CreateUniqueTestFilePath();
+        try
+        {
+            using var first = PresentationSession.CreateNew(firstPath);
+            using var second = PresentationSession.CreateNew(secondPath);
+            var identity = Assert.IsType<PowerPointProcessIdentity>(first.PowerPointProcessIdentity);
+            Assert.Equal(identity, second.PowerPointProcessIdentity);
+            Assert.Contains(identity, PresentationSessionRegistry.GetTrackedPowerPointProcesses());
+
+            first.Dispose();
+
+            Assert.Contains(identity, PresentationSessionRegistry.GetTrackedPowerPointProcesses());
+            Assert.Equal(1, second.Execute((ctx, ct) => GetSlideCount(ctx)));
+            second.Dispose();
+            Assert.DoesNotContain(identity, PresentationSessionRegistry.GetTrackedPowerPointProcesses());
+        }
+        finally
+        {
+            File.Delete(firstPath);
+            File.Delete(secondPath);
+        }
+    }
+
+    [Fact]
     public void Dispose_ClosesPresentation_AndQuitsOnlyWhenApplicationIsExclusive()
     {
         // Exercises PresentationShutdownService's resilient close/quit + process-exit polling

@@ -1,3 +1,7 @@
+---
+description: Insert native PowerPoint SmartArt diagrams, discover layouts, edit nodes, and build clear process or hierarchy graphics.
+---
+
 # SmartArt
 
 Reference for the `smartart` tool — SmartArt diagrams (process, cycle, hierarchy, list, etc.)

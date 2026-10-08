@@ -1,3 +1,7 @@
+---
+description: Add PowerPoint shape animation effects and slide transitions, discover supported names, and verify the results.
+---
+
 # Animations
 
 Reference for `animation(action: "...", ...)` — adds/removes shape entrance/emphasis/exit

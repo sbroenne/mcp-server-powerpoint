@@ -1,3 +1,7 @@
+---
+description: Edit and format PowerPoint text, find and replace content, adjust font and paragraph settings, and verify text fit.
+---
+
 # Text Formatting: TextFrame Tools
 
 Reference for the `textframe` tool's actions — `set-text`, `get-text`, `find-text`, `replace-text`,

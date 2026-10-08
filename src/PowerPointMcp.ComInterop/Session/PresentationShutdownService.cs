@@ -109,8 +109,8 @@ internal static class PresentationShutdownService
         }
         else if (processIdentity.HasValue)
         {
-            // A shared application is not exclusively owned by this batch.
-            PresentationSessionRegistry.UntrackPowerPointProcess(processIdentity.Value);
+            // Keep the crash backstop while another managed batch still owns this process.
+            PresentationSessionRegistry.ReleasePowerPointProcessOwnership(processIdentity.Value);
         }
     }
 

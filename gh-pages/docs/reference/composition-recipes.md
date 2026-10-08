@@ -1,3 +1,7 @@
+---
+description: Build clear PowerPoint comparison slides, charts with insights, timelines, and metric callouts using reusable geometry.
+---
+
 # Composition Recipes
 
 Four editable slide patterns built with existing shape, textframe, chart, and notes

@@ -1,3 +1,7 @@
+---
+description: Follow safe PowerPoint automation rules for session ownership, explicit saving, one-based indexes, and visual review.
+---
+
 # Behavioral Rules for PowerPoint MCP Operations
 
 These rules ensure efficient, reliable PowerPoint automation via a live PowerPoint desktop

@@ -1,3 +1,7 @@
+---
+description: Inspect and set PowerPoint theme fonts, slide master styling, colors, and backgrounds using MCP tools or the CLI.
+---
+
 # Slide Master
 
 Reference for `master(action: "...", ...)` — reads/edits the presentation's **slide master**:
@@ -95,7 +99,7 @@ text, but local text formatting can override either role.
 Set the deck-wide look once, early, before building individual slides:
 
 ```
-1. presentation(action: "open", filePath: "C:\Decks\q4.pptx") → sessionId
+1. presentation(action: "open", filePath: "C:\Decks\q4.pptx") → presentation_session_id
 2. master(action: "set-title-font", presentation_session_id: sessionId, font_name: "Segoe UI", font_size: 40, bold: true, red: 20, green: 20, blue: 20)
 3. master(action: "set-body-font", presentation_session_id: sessionId, font_name: "Segoe UI", font_size: 20)
 4. master(action: "set-background-color", presentation_session_id: sessionId, red: 255, green: 255, blue: 255)

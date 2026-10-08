@@ -1,3 +1,7 @@
+---
+description: Plan and assemble a PowerPoint deck with varied layouts, consistent geometry, speaker notes, and visual verification.
+---
+
 # Deck Builder: Assembling a Multi-Slide Deck
 
 Guidance for building a complete presentation from `slide(action: "add-blank", ...)` + layout +

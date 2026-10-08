@@ -1,3 +1,7 @@
+---
+description: Create and edit PowerPoint slides and shapes, manage sections and links, position content, and verify slide layouts.
+---
+
 # Slides and Shapes
 
 Reference for the `slide` tool (`add-blank`, `get-count`, `delete`, `duplicate`, `move-to`,

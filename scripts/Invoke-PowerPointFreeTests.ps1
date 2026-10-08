@@ -27,6 +27,12 @@ if ($SelectChangedPaths) {
         foreach ($path in $ChangedPaths) {
             $normalizedPath = $path.Replace('\', '/')
             switch -Regex ($normalizedPath) {
+                '(^|/)[^/]+\.(csproj|props|targets)$' {
+                    foreach ($project in @('CLI', 'McpServer', 'SkillGeneration')) {
+                        $selections[$project] = 'RequiresPowerPoint!=true'
+                    }
+                    break
+                }
                 '^tests/PowerPointMcp\.(CLI|McpServer|SkillGeneration)\.Tests/' {
                     $selections[$Matches[1]] = 'RequiresPowerPoint!=true'
                     break
@@ -55,7 +61,7 @@ if ($SelectChangedPaths) {
                     $selections['SkillGeneration'] = 'RequiresPowerPoint!=true'
                     break
                 }
-                '^scripts/|^\.github/workflows/|^(Sbroenne\.PowerPointMcp\.slnx|global\.json|Directory\..*|Directory\.Packages\.props)$|(^|/)[^/]+\.csproj$|(^|/)[^/]+\.(props|targets)$' {
+                '^scripts/|^\.github/workflows/|^(Sbroenne\.PowerPointMcp\.slnx|global\.json|Directory\..*|Directory\.Packages\.props)$' {
                     foreach ($project in @('CLI', 'McpServer', 'SkillGeneration')) {
                         $selections[$project] = 'RequiresPowerPoint!=true'
                     }

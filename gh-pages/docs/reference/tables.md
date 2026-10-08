@@ -1,3 +1,7 @@
+---
+description: Create and edit native PowerPoint tables, populate cells, style borders and text, and check readability and sizing.
+---
+
 # Tables
 
 Reference for `table` actions: creating tables, reading/writing cell text, inserting/deleting rows
