@@ -397,8 +397,8 @@ Actions: `add-blank`, `get-count`, `inspect`, `delete`, `duplicate`, `move-to`, 
 
 | Flag | Description |
 |------|-------------|
-| `--max-slides` |  |
-| `--max-text-chars-per-slide` |  |
+| `--max-slides` | Maximum slides to include (1-100; default 20). |
+| `--max-text-chars-per-slide` | Maximum preview characters per slide (0-2000; default 500). Use 0 to omit text previews. |
 | `--slide-index` | (required for: delete, duplicate, move-to, set-background-color, get-background-color, set-gradient-background, get-gradient-background, list-comments, add-comment, delete-comment, clear-comments, set-hidden, set-display-master-shapes, set-tag, get-tag, list-tags, delete-tag) |
 | `--to-position` | (required for: move-to) |
 | `--red` | (required for: set-background-color) |

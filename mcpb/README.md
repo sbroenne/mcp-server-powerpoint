@@ -18,7 +18,7 @@ Claude can now create and edit PowerPoint decks directly.
 
 A metadata-only configuration that runs `npx -y @sbroenne/mcp-server-powerpoint@latest`,
 plus the manifest, license, and changelog. npm selects the native Windows x64 or ARM64 runtime.
-The server exposes 17
+The server exposes 32
 tools (206 operations across 17 domains) — see the
 [documentation](https://powerpointmcpserver.dev) for the full list.
 Linked pictures are managed through the generated `shape` actions `get-link-info`, `update-link`,

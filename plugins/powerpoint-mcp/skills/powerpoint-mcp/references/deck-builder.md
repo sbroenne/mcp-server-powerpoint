@@ -83,5 +83,5 @@ than guessing blind.
    call renders every slide.
 2. Review each exported image; fix any slide with overlapping shapes, empty placeholders, or text
    overflow (reduce `text` length or increase shape height / reduce font size).
-3. `presentation(action: "close", sessionId: sessionId, save: true)`.
+3. `presentation(action: "close", presentation_session_id: sessionId, save: true)`.
 4. Summarize: slide count, layouts used, and the output path.

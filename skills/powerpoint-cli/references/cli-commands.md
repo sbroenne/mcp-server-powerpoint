@@ -1187,10 +1187,17 @@ OPTIONS:
     -s, --session <SESSION>                                  Session ID from
                                                              'session open'
                                                              command
-        --max-slides <MAXSLIDES>                             (valid for:
-                                                             inspect)
-        --max-text-chars-per-slide <MAXTEXTCHARSPERSLIDE>    (valid for:
-                                                             inspect)
+        --max-slides <MAXSLIDES>                             Maximum slides to
+                                                             include (1-100;
+                                                             default 20). (valid
+                                                             for: inspect)
+        --max-text-chars-per-slide <MAXTEXTCHARSPERSLIDE>    Maximum preview
+                                                             characters per
+                                                             slide (0-2000;
+                                                             default 500). Use 0
+                                                             to omit text
+                                                             previews. (valid
+                                                             for: inspect)
         --slide-index <SLIDEINDEX>                           (required for:
                                                              delete, duplicate,
                                                              move-to,

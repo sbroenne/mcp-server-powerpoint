@@ -21,13 +21,13 @@ changing visible slide content. Each owner supports `set-tag`, `get-tag`, `list-
 
 ## Presentation Tags
 
-Presentation tags use camelCase arguments on the hand-written `presentation` tool:
+Presentation tags use `presentation_session_id` plus camelCase tag arguments on the hand-written `presentation` tool:
 
 ```
-presentation(action: "set-tag", sessionId: ..., tagName: "ReviewState", tagValue: "Needs Review")
-presentation(action: "get-tag", sessionId: ..., tagName: "reviewstate")
-presentation(action: "list-tags", sessionId: ...)
-presentation(action: "delete-tag", sessionId: ..., tagName: "REVIEWSTATE")
+presentation(action: "set-tag", presentation_session_id: ..., tagName: "ReviewState", tagValue: "Needs Review")
+presentation(action: "get-tag", presentation_session_id: ..., tagName: "reviewstate")
+presentation(action: "list-tags", presentation_session_id: ...)
+presentation(action: "delete-tag", presentation_session_id: ..., tagName: "REVIEWSTATE")
 ```
 
 ## Slide Tags

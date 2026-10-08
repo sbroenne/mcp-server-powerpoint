@@ -171,6 +171,7 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         Assert.Equal(15, readTools.Length);
         foreach (var readTool in readTools)
         {
+            Assert.True(readTool.ProtocolTool.Annotations?.ReadOnlyHint);
             var originalName = readTool.Name[..^"_read".Length];
             var originalTool = Assert.Single(tools, tool => tool.Name == originalName);
             var readActions = readTool.JsonSchema.GetProperty("properties").GetProperty("action")
@@ -206,6 +207,23 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
+    public async Task SlideReadTool_ValidActionPassesArgumentValidation()
+    {
+        var result = await _client!.CallToolAsync(
+            "slide_read",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "get-count",
+                ["presentation_session_id"] = "missing-session"
+            },
+            cancellationToken: _cts.Token);
+
+        Assert.True(result.IsError);
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.Contains("Session 'missing-session' not found", structured.GetProperty("errorMessage").GetString());
+    }
+
+    [Fact]
     public async Task SlideReadToolOutputSchema_DescribesOverviewItems()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
@@ -218,7 +236,24 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
         {
             Assert.True(slideProperties.TryGetProperty(property, out _), $"Overview output is missing {property}.");
         }
+
         Assert.True(schema.GetProperty("properties").TryGetProperty("omittedSlideCount", out _));
+    }
+
+    [Fact]
+    public async Task SlideInspectSchema_DescribesOverviewParameterDefaultsAndLimits()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var slide = Assert.Single(tools, tool => tool.Name == "slide");
+        var properties = slide.JsonSchema.GetProperty("properties");
+
+        var maxSlidesDescription = properties.GetProperty("max_slides").GetProperty("description").GetString();
+        Assert.Contains("1-100", maxSlidesDescription);
+        Assert.Contains("default 20", maxSlidesDescription, StringComparison.OrdinalIgnoreCase);
+
+        var maxTextDescription = properties.GetProperty("max_text_chars_per_slide").GetProperty("description").GetString();
+        Assert.Contains("0-2000", maxTextDescription);
+        Assert.Contains("default 500", maxTextDescription, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

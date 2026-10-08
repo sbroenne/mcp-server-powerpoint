@@ -46,8 +46,12 @@ internal static class ToolArgumentFilter
                 }
                 else
                 {
+                    var toolName = tool.ProtocolTool.Name;
+                    if (toolName.EndsWith("_read", StringComparison.Ordinal))
+                        toolName = toolName[..^"_read".Length];
+
                     ServiceRegistry.ValidateMcpActionParameters(
-                        tool.ProtocolTool.Name,
+                        toolName,
                         canonicalAction,
                         suppliedNames.Where(name => name != "presentation_session_id"));
                 }

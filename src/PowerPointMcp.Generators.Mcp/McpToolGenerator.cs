@@ -176,6 +176,7 @@ public sealed class McpToolGenerator : IIncrementalGenerator
             ? $"{info.McpToolTitle ?? $"PowerPoint {info.CategoryPascal} Operations"} (Read Only)"
             : info.McpToolTitle ?? $"PowerPoint {info.CategoryPascal} Operations";
         var destructive = readOnly ? "false" : info.McpToolDestructive ? "true" : "false";
+        var readOnlyAnnotation = readOnly ? ", ReadOnly = true" : string.Empty;
         var category = info.McpToolCategory ?? "content";
         var actionExpression = readOnly
             ? $"ServiceRegistry.{info.CategoryPascal}.ToActionString(System.Enum.Parse<{info.CategoryPascal}Action>(action.ToString()))"
@@ -207,7 +208,7 @@ public sealed class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine("[McpServerToolType]");
         sb.AppendLine($"public static class {toolClassName}");
         sb.AppendLine("{");
-        sb.AppendLine($"    [McpServerTool(Name = \"{toolName}\", Title = \"{title}\", Destructive = {destructive}, UseStructuredContent = true, OutputSchemaType = typeof({outputSchemaName}))]");
+        sb.AppendLine($"    [McpServerTool(Name = \"{toolName}\", Title = \"{title}\", Destructive = {destructive}{readOnlyAnnotation}, UseStructuredContent = true, OutputSchemaType = typeof({outputSchemaName}))]");
         sb.AppendLine($"    [McpMeta(\"category\", \"{category}\")]");
         sb.AppendLine($"    [McpMeta(\"requiresSession\", {(!info.NoSession).ToString().ToLowerInvariant()})]");
         sb.AppendLine($"    [Description(\"{toolDescription} Actions: {actionList}.\")]");

@@ -11,18 +11,18 @@ Calling a domain tool without a valid `presentation_session_id`:
 
 ```
 WRONG:
-slide(action: "add-blank", presentation_session_id: "made-up-id")  → success: false, "Unknown sessionId"
+slide(action: "add-blank", presentation_session_id: "made-up-id")  → success: false, "Unknown presentation_session_id"
 ```
 
 ### The Solution
 
-Always start a session first and reuse the exact `sessionId` string it returns:
+Always start a session first and reuse the exact `presentation_session_id` string it returns:
 
 ```
 CORRECT:
 result = presentation(action: "open", filePath: "C:\Decks\q4.pptx")
-sessionId = result.sessionId
-slide(action: "add-blank", presentation_session_id: sessionId)
+presentation_session_id = result.presentation_session_id
+slide(action: "add-blank", presentation_session_id: presentation_session_id)
 ```
 
 ## Creating Then Re-Opening the Same File
@@ -34,8 +34,8 @@ the same file again:
 
 ```
 WRONG:
-presentation(action: "create", filePath: "C:\Decks\q4.pptx") → sessionId A
-presentation(action: "open", filePath: "C:\Decks\q4.pptx")   → sessionId B
+presentation(action: "create", filePath: "C:\Decks\q4.pptx") → presentation_session_id A
+presentation(action: "open", filePath: "C:\Decks\q4.pptx")   → presentation_session_id B
 ```
 
 ### The Solution
@@ -45,8 +45,8 @@ presentation(action: "open", filePath: "C:\Decks\q4.pptx")   → sessionId B
 ```
 CORRECT:
 result = presentation(action: "create", filePath: "C:\Decks\q4.pptx")
-sessionId = result.sessionId
-slide(action: "add-blank", presentation_session_id: sessionId)
+presentation_session_id = result.presentation_session_id
+slide(action: "add-blank", presentation_session_id: presentation_session_id)
 ```
 
 ## Wrong Index Base (0-Based Instead of 1-Based)
@@ -82,7 +82,7 @@ Making changes, then closing without saving:
 WRONG:
 slide(action: "add-blank", presentation_session_id: ...)
 textframe(action: "set-text", presentation_session_id: ..., ...)
-presentation(action: "close", sessionId: ...)   → changes since last save are LOST
+presentation(action: "close", presentation_session_id: ...)   → changes since last save are LOST
 ```
 
 ### The Solution
@@ -93,7 +93,7 @@ Close with save enabled when changes were made:
 CORRECT:
 slide(action: "add-blank", presentation_session_id: ...)
 textframe(action: "set-text", presentation_session_id: ..., ...)
-presentation(action: "close", sessionId: ..., save: true)
+presentation(action: "close", presentation_session_id: ..., save: true)
 ```
 
 ## Expecting Close to Block
@@ -105,7 +105,7 @@ until PowerPoint's process has fully exited:
 
 ```
 WRONG:
-presentation(action: "close", sessionId: ...)
+presentation(action: "close", presentation_session_id: ...)
 presentation(action: "list")  → repeatedly poll, waiting for POWERPNT.exe to disappear from Task Manager
 ```
 
@@ -124,7 +124,7 @@ Trusting `success: true` from a shape/chart/table/image call as proof the slide 
 ```
 WRONG:
 chart(action: "add-chart", presentation_session_id: ..., slide_index: ..., ...)  → success: true
-presentation(action: "close", sessionId: ..., save: true)
+presentation(action: "close", presentation_session_id: ..., save: true)
 # Never looked at the rendered slide — chart could be mis-sized, overlapping, or have wrong data
 ```
 
@@ -137,7 +137,7 @@ CORRECT:
 chart(action: "add-chart", presentation_session_id: ..., slide_index: ..., ...)
 export(action: "export-slide-to-image", presentation_session_id: ..., slide_index: ..., output_path: ...)
 # Inspect the image, fix issues found
-presentation(action: "close", sessionId: ..., save: true)
+presentation(action: "close", presentation_session_id: ..., save: true)
 ```
 
 ## Delete-and-Rebuild for Small Changes
@@ -190,11 +190,11 @@ Close each session when its work is done, saving first if changes were made:
 CORRECT:
 s1 = presentation(action: "open", filePath: "file1.pptx")
 # ... work ...
-presentation(action: "close", sessionId: s1, save: true)
+presentation(action: "close", presentation_session_id: s1, save: true)
 
 s2 = presentation(action: "open", filePath: "file2.pptx")
 # ... work ...
-presentation(action: "close", sessionId: s2, save: true)
+presentation(action: "close", presentation_session_id: s2, save: true)
 ```
 
 ## Assuming Multi-Series Charts in a Single Create Call

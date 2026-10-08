@@ -29,9 +29,13 @@ public interface ISlideCommands
     /// Results are limited to 100 slides, 2,000 preview characters, and 200 scanned shapes
     /// per slide.
     /// </summary>
+    /// <param name="maxSlides">Maximum slides to include (1-100; default 20).</param>
+    /// <param name="maxTextCharsPerSlide">Maximum preview characters per slide (0-2000; default 500). Use 0 to omit text previews.</param>
     SlideOperationResult Inspect(
         IPresentationBatch batch,
+        [System.ComponentModel.Description("Maximum slides to include (1-100; default 20).")]
         int maxSlides = 20,
+        [System.ComponentModel.Description("Maximum preview characters per slide (0-2000; default 500). Use 0 to omit text previews.")]
         int maxTextCharsPerSlide = 500);
 
     /// <summary>

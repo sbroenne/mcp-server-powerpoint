@@ -274,6 +274,12 @@ public static class ServiceInfoExtractor
         {
             paramDescription = desc;
         }
+        if (paramDescription is null)
+        {
+            var descriptionAttribute = param.GetAttributes().FirstOrDefault(attribute =>
+                attribute.AttributeClass?.ToDisplayString() == "System.ComponentModel.DescriptionAttribute");
+            paramDescription = descriptionAttribute?.ConstructorArguments.FirstOrDefault().Value as string;
+        }
 
         return new ParameterInfo(
             param.Name,

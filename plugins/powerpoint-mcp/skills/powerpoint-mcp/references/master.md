@@ -36,7 +36,7 @@ formatting via `textframe`/`layout`.
 It does **not** cover:
 
 - Applying an entirely different theme/design — use
-  `presentation(action: "apply-template", sessionId: ..., templatePath: ...)` to swap the whole
+  `presentation(action: "apply-template", presentation_session_id: ..., templatePath: ...)` to swap the whole
   masters/theme/layouts set in one call from a `.potx`/`.pptx` template file.
 - Authoring or editing **custom layouts** (the individual named layouts under a master, e.g.
   "Title and Content") or adding additional slide masters — not exposed by this tool surface.

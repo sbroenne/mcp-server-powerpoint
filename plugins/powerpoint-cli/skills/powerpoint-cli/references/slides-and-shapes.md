@@ -15,6 +15,7 @@ reflection/soft-edge/bevel/group/name/alt-text/hyperlink formatting actions belo
 |------|--------|------------|-------|
 | `slide` | `add-blank` | `presentation_session_id` | Adds a **blank** slide at the end. No insert-at-index. |
 | `slide` | `get-count` | `presentation_session_id` | Returns current slide count (`slideCount`). Call before/after mutations to confirm state. |
+| `slide` | `inspect` | `presentation_session_id`, optional `max_slides` (default `20`, max `100`), optional `max_text_chars_per_slide` (default `500`, max `2000`) | Returns a bounded overview of slide names, layouts, shape counts, and text previews. It scans at most 200 shapes per slide; each preview reports whether text was truncated by its character or scan limit. `omittedSlideCount` reports slides beyond the limit. Set the text limit to `0` for metadata only. |
 | `slide` | `delete` | `presentation_session_id`, `slide_index` (1-based) | Removes the slide; later slides shift down by one index. |
 | `slide` | `duplicate` | `presentation_session_id`, `slide_index` | Inserts a copy of the slide immediately after the source. Returns the duplicate's new `slideIndex` and total `slideCount`. |
 | `slide` | `move-to` | `presentation_session_id`, `slide_index`, `to_position` | Moves a slide to a new 1-based position, renumbering the rest. Returns the slide's new `slideIndex`. |
@@ -38,6 +39,10 @@ reflection/soft-edge/bevel/group/name/alt-text/hyperlink formatting actions belo
 Slides always append at the end via `add-blank` — there is no "insert blank at position N" action;
 use `add-blank` then `move-to` if you need a blank slide inserted mid-deck. See `deck-builder.md`
 for planning multi-slide order.
+
+MCP clients can use `slide_read` for the explicitly read-only slide actions, including `inspect`,
+`get-count`, and background, section, comment, and tag queries. The original `slide` tool remains
+available unchanged. `pptcli` continues to use `pptcli slide <action>`.
 
 ## Sections
 
