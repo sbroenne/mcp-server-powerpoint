@@ -77,6 +77,20 @@ powerpointmcpserver.dev.
 
 </details>
 
+## See what AI can build
+
+<div class="grid cards" markdown>
+
+-   [![Watch one AI agent turn World Bank data into an editable seven-slide PowerPoint briefing](assets/images/world-bank-briefing-poster.jpg){ width="1280" height="720" loading="lazy" }](samples/world-bank-briefing.md)
+
+    __[From one request to Excel and PowerPoint](samples/world-bank-briefing.md)__ · 2:41
+
+    One agent builds a checked Excel analysis, then uses PowerPoint MCP Server
+    to create a seven-slide executive briefing with editable charts, speaker
+    notes, and visual checks. Watch the run and download the files.
+
+</div>
+
 ## Key features
 
 <div class="grid cards" markdown>
