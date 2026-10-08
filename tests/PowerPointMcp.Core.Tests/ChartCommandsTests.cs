@@ -626,7 +626,18 @@ public class ChartCommandsTests : IClassFixture<SharedPresentationFixture>
     /// </summary>
     private void AssertChartDataGridClosed(IPresentationBatch batch)
     {
-        int scratchSlideIndex = batch.Execute((ctx, ct) => ctx.Presentation.Slides.Count) + 1;
+        int scratchSlideIndex = batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Slides? slides = ctx.Presentation.Slides;
+            try
+            {
+                return slides.Count;
+            }
+            finally
+            {
+                ComUtilities.Release(ref slides);
+            }
+        }) + 1;
         AddBlankSlides(batch, 1);
 
         ChartOperationResult? probe = null;

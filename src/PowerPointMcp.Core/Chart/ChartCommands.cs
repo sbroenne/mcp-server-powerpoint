@@ -975,10 +975,24 @@ public sealed class ChartCommands : IChartCommands
         }
         finally
         {
-            if (chartData != null)
+            try
             {
-                CloseChartDataWorkbook(chartData, workbook, suppressErrors: !completed);
-                ComUtilities.Release(ref chartData);
+                if (chartData != null)
+                {
+                    CloseChartDataWorkbook(chartData, workbook, suppressErrors: !completed);
+                }
+            }
+            finally
+            {
+                if (workbook != null)
+                {
+                    ComUtilities.Release(ref workbook!);
+                }
+
+                if (chartData != null)
+                {
+                    ComUtilities.Release(ref chartData);
+                }
             }
         }
     }
@@ -1041,14 +1055,26 @@ public sealed class ChartCommands : IChartCommands
         }
     }
 
-    private static void CloseChartDataWorkbook(PowerPoint.ChartData chartData, dynamic? workbook, bool suppressErrors)
+    /// <summary>
+    /// Closes the chart data workbook. The caller keeps ownership of
+    /// <paramref name="activatedWorkbook"/>; a workbook acquired here is released here.
+    /// </summary>
+    private static void CloseChartDataWorkbook(PowerPoint.ChartData chartData, dynamic? activatedWorkbook, bool suppressErrors)
     {
+        dynamic? openedWorkbook = null;
         try
         {
-            // If activation failed part-way, the grid may still be open (AddChart2 opens it too).
-            // ChartData.Workbook is only readable while the grid is open.
-            workbook ??= chartData.Workbook;
-            workbook.Close();
+            if (activatedWorkbook != null)
+            {
+                activatedWorkbook.Close();
+            }
+            else
+            {
+                // If activation failed part-way, the grid may still be open (AddChart2 opens it too).
+                // ChartData.Workbook is only readable while the grid is open.
+                openedWorkbook = chartData.Workbook;
+                openedWorkbook.Close();
+            }
         }
         catch (COMException) when (suppressErrors)
         {
@@ -1056,9 +1082,9 @@ public sealed class ChartCommands : IChartCommands
         }
         finally
         {
-            if (workbook != null)
+            if (openedWorkbook != null)
             {
-                ComUtilities.Release(ref workbook!);
+                ComUtilities.Release(ref openedWorkbook!);
             }
         }
     }
