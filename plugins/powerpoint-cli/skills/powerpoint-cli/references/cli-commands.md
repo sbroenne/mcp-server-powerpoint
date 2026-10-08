@@ -257,8 +257,9 @@ OPTIONS:
 
 ```text
 DESCRIPTION:
-Image commands: add a picture file to a slide. Operates within an already-open
-IPresentationBatch, targeting a specific slide by its 1-based index
+Image commands: add, adjust, crop, and compress pictures. Operates within an
+already-open IPresentationBatch, targeting specific slides and shapes by their
+1-based indexes
 
 USAGE:
     pptcli image <ACTION> [OPTIONS]
@@ -267,60 +268,145 @@ ARGUMENTS:
     <ACTION>    The action to perform
 
 OPTIONS:
-    -h, --help                                     Prints help information
-    -s, --session <SESSION>                        Session ID from 'session
-                                                   open' command
-        --slide-index <SLIDEINDEX>                 (required)
-        --image-path <IMAGEPATH>                   (required for: add-picture)
-                                                   (valid for: add-picture)
-        --left <LEFT>                              (required for: add-picture)
-                                                   (valid for: add-picture)
-        --top <TOP>                                (required for: add-picture)
-                                                   (valid for: add-picture)
-        --width <WIDTH>                            (required for: add-picture)
-                                                   (valid for: add-picture)
-        --height <HEIGHT>                          (required for: add-picture)
-                                                   (valid for: add-picture)
-        --link-to-file <LINKTOFILE>                Whether the picture remains
-                                                   linked to its source file.
-                                                   Defaults to false. (valid
-                                                   for: add-picture)
-        --save-with-document <SAVEWITHDOCUMENT>    Whether PowerPoint stores
-                                                   picture data in the
-                                                   presentation. Defaults to
-                                                   true. (valid for:
-                                                   add-picture)
-        --shape-index <SHAPEINDEX>                 (required for:
-                                                   set-brightness-contrast,
-                                                   get-brightness-contrast,
-                                                   set-recolor, get-recolor,
-                                                   set-crop, get-crop) (valid
-                                                   for: set-brightness-contrast,
-                                                   get-brightness-contrast,
-                                                   set-recolor, get-recolor,
-                                                   set-crop, get-crop)
-        --brightness <BRIGHTNESS>                  (required for:
-                                                   set-brightness-contrast)
-                                                   (valid for:
-                                                   set-brightness-contrast)
-        --contrast <CONTRAST>                      (required for:
-                                                   set-brightness-contrast)
-                                                   (valid for:
-                                                   set-brightness-contrast)
-        --color-type <COLORTYPE>                   (required for: set-recolor)
-                                                   (valid for: set-recolor)
-        --crop-left <CROPLEFT>                     (required for: set-crop)
-                                                   (valid for: set-crop)
-        --crop-top <CROPTOP>                       (required for: set-crop)
-                                                   (valid for: set-crop)
-        --crop-right <CROPRIGHT>                   (required for: set-crop)
-                                                   (valid for: set-crop)
-        --crop-bottom <CROPBOTTOM>                 (required for: set-crop)
-                                                   (valid for: set-crop)
-    -o, --output <PATH>                            Write output to file instead
-                                                   of stdout. For image results,
-                                                   decodes and saves as binary
-                                                   file
+    -h, --help                                         Prints help information
+    -s, --session <SESSION>                            Session ID from 'session
+                                                       open' command
+        --slide-index <SLIDEINDEX>                     (required for:
+                                                       add-picture,
+                                                       set-brightness-contrast,
+                                                       get-brightness-contrast,
+                                                       increment-brightness,
+                                                       increment-contrast,
+                                                       set-recolor, get-recolor,
+                                                       set-transparency-color,
+                                                       get-transparency-color,
+                                                       set-transparent-backgroun
+                                                       d,
+                                                       get-transparent-backgroun
+                                                       d, set-crop, get-crop,
+                                                       set-crop-frame,
+                                                       get-crop-frame)
+        --image-path <IMAGEPATH>                       (required for:
+                                                       add-picture) (valid for:
+                                                       add-picture)
+        --left <LEFT>                                  (required for:
+                                                       add-picture) (valid for:
+                                                       add-picture)
+        --top <TOP>                                    (required for:
+                                                       add-picture) (valid for:
+                                                       add-picture)
+        --width <WIDTH>                                (required for:
+                                                       add-picture) (valid for:
+                                                       add-picture)
+        --height <HEIGHT>                              (required for:
+                                                       add-picture) (valid for:
+                                                       add-picture)
+        --link-to-file <LINKTOFILE>                    Whether the picture
+                                                       remains linked to its
+                                                       source file. Defaults to
+                                                       false. (valid for:
+                                                       add-picture)
+        --save-with-document <SAVEWITHDOCUMENT>        Whether PowerPoint stores
+                                                       picture data in the
+                                                       presentation. Defaults to
+                                                       true. (valid for:
+                                                       add-picture)
+        --compression <COMPRESSION>                    (valid for: add-picture)
+        --shape-index <SHAPEINDEX>                     (required for:
+                                                       set-brightness-contrast,
+                                                       get-brightness-contrast,
+                                                       increment-brightness,
+                                                       increment-contrast,
+                                                       set-recolor, get-recolor,
+                                                       set-transparency-color,
+                                                       get-transparency-color,
+                                                       set-transparent-backgroun
+                                                       d,
+                                                       get-transparent-backgroun
+                                                       d, set-crop, get-crop,
+                                                       set-crop-frame,
+                                                       get-crop-frame) (valid
+                                                       for:
+                                                       set-brightness-contrast,
+                                                       get-brightness-contrast,
+                                                       increment-brightness,
+                                                       increment-contrast,
+                                                       set-recolor, get-recolor,
+                                                       set-transparency-color,
+                                                       get-transparency-color,
+                                                       set-transparent-backgroun
+                                                       d,
+                                                       get-transparent-backgroun
+                                                       d, set-crop, get-crop,
+                                                       set-crop-frame,
+                                                       get-crop-frame,
+                                                       compress-pictures)
+        --brightness <BRIGHTNESS>                      (required for:
+                                                       set-brightness-contrast)
+                                                       (valid for:
+                                                       set-brightness-contrast)
+        --contrast <CONTRAST>                          (required for:
+                                                       set-brightness-contrast)
+                                                       (valid for:
+                                                       set-brightness-contrast)
+        --increment <INCREMENT>                        (required for:
+                                                       increment-brightness,
+                                                       increment-contrast)
+                                                       (valid for:
+                                                       increment-brightness,
+                                                       increment-contrast)
+        --color-type <COLORTYPE>                       (required for:
+                                                       set-recolor) (valid for:
+                                                       set-recolor)
+        --color-rgb <COLORRGB>                         (required for:
+                                                       set-transparency-color)
+                                                       (valid for:
+                                                       set-transparency-color)
+        --enabled <ENABLED>                            (required for:
+                                                       set-transparent-backgroun
+                                                       d) (valid for:
+                                                       set-transparent-backgroun
+                                                       d)
+        --crop-left <CROPLEFT>                         (required for: set-crop)
+                                                       (valid for: set-crop)
+        --crop-top <CROPTOP>                           (required for: set-crop)
+                                                       (valid for: set-crop)
+        --crop-right <CROPRIGHT>                       (required for: set-crop)
+                                                       (valid for: set-crop)
+        --crop-bottom <CROPBOTTOM>                     (required for: set-crop)
+                                                       (valid for: set-crop)
+        --picture-width <PICTUREWIDTH>                 (required for:
+                                                       set-crop-frame) (valid
+                                                       for: set-crop-frame)
+        --picture-height <PICTUREHEIGHT>               (required for:
+                                                       set-crop-frame) (valid
+                                                       for: set-crop-frame)
+        --picture-offset-x <PICTUREOFFSETX>            (required for:
+                                                       set-crop-frame) (valid
+                                                       for: set-crop-frame)
+        --picture-offset-y <PICTUREOFFSETY>            (required for:
+                                                       set-crop-frame) (valid
+                                                       for: set-crop-frame)
+        --frame-left <FRAMELEFT>                       (required for:
+                                                       set-crop-frame) (valid
+                                                       for: set-crop-frame)
+        --frame-top <FRAMETOP>                         (required for:
+                                                       set-crop-frame) (valid
+                                                       for: set-crop-frame)
+        --frame-width <FRAMEWIDTH>                     (required for:
+                                                       set-crop-frame) (valid
+                                                       for: set-crop-frame)
+        --frame-height <FRAMEHEIGHT>                   (required for:
+                                                       set-crop-frame) (valid
+                                                       for: set-crop-frame)
+        --resolution <RESOLUTION>                      (valid for:
+                                                       compress-pictures)
+        --delete-cropped-areas <DELETECROPPEDAREAS>    (valid for:
+                                                       compress-pictures)
+    -o, --output <PATH>                                Write output to file
+                                                       instead of stdout. For
+                                                       image results, decodes
+                                                       and saves as binary file
 ```
 
 ## `pptcli layout`

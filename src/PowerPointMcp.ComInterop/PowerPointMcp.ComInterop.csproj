@@ -49,6 +49,9 @@
       <ExcludeAssets>runtime</ExcludeAssets>
       <NoWarn>NU1701</NoWarn>
     </PackageReference>
+    <PackageReference Include="MSOfficeCore.Interop" Aliases="OfficeInterop">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Resilience" />
   </ItemGroup>

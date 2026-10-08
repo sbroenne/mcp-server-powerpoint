@@ -1,5 +1,8 @@
+extern alias OfficeInterop;
+
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Office = OfficeInterop::Microsoft.Office.Core;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Presentation;
@@ -117,12 +120,10 @@ public sealed partial class PresentationCommands : IPresentationCommands
 
         var result = batch.Execute((ctx, ct) =>
         {
-            // PIA gap: the restored typed SaveAs method exposes an optional Office.MsoTriState
-            // parameter, but this project intentionally does not reference office.dll. Keep late
-            // binding limited to this invocation while still passing typed PpSaveAsFileType.
-            ((dynamic)ctx.Presentation).SaveAs(
+            ctx.Presentation.SaveAs(
                 normalizedPath,
-                ToPowerPointFileType(resolvedFormat.Value));
+                ToPowerPointFileType(resolvedFormat.Value),
+                Office.MsoTriState.msoFalse);
 
             batch.UpdatePresentationPath(normalizedPath);
             return new PresentationOperationResult
@@ -174,13 +175,10 @@ public sealed partial class PresentationCommands : IPresentationCommands
                         $"Save Copy As preserves the current presentation format. Output extension must be '{currentExtension}'.");
                 }
 
-                // PIA gap: the restored typed SaveCopyAs method exposes an optional
-                // Office.MsoTriState parameter, but this project intentionally does not reference
-                // office.dll. Keep late binding limited to this invocation while still passing
-                // typed PpSaveAsFileType.
-                ((dynamic)ctx.Presentation).SaveCopyAs(
+                ctx.Presentation.SaveCopyAs(
                     writePath,
-                    ToPowerPointFileType(format.Value));
+                    ToPowerPointFileType(format.Value),
+                    Office.MsoTriState.msoFalse);
 
                 return new PresentationOperationResult
                 {

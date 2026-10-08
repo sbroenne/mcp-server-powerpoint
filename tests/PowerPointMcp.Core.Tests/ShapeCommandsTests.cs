@@ -1027,6 +1027,11 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
 
         public void Save(CancellationToken cancellationToken = default) => inner.Save(cancellationToken);
 
+        public T TransformPresentationCopy<T>(
+            Func<string, CancellationToken, T> transform,
+            CancellationToken cancellationToken = default) =>
+            throw new TimeoutException("A previous operation timed out for this presentation.");
+
         public void UpdatePresentationPath(string presentationPath) =>
             inner.UpdatePresentationPath(presentationPath);
 
@@ -1065,6 +1070,11 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
             inner.Execute(operation, cancellationToken);
 
         public void Save(CancellationToken cancellationToken = default) => inner.Save(cancellationToken);
+
+        public T TransformPresentationCopy<T>(
+            Func<string, CancellationToken, T> transform,
+            CancellationToken cancellationToken = default) =>
+            inner.TransformPresentationCopy(transform, cancellationToken);
 
         public void UpdatePresentationPath(string presentationPath) =>
             inner.UpdatePresentationPath(presentationPath);

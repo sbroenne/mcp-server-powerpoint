@@ -1,4 +1,7 @@
+extern alias OfficeInterop;
+
 using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Office = OfficeInterop::Microsoft.Office.Core;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Export;
@@ -88,10 +91,10 @@ public sealed class ExportCommands : IExportCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            // PIA gap: SaveCopyAs has an Office.MsoTriState parameter, unavailable without office.dll.
-            ((dynamic)ctx.Presentation).SaveCopyAs(
+            ctx.Presentation.SaveCopyAs(
                 fullOutputPath,
-                (int)PowerPoint.PpSaveAsFileType.ppSaveAsPDF);
+                PowerPoint.PpSaveAsFileType.ppSaveAsPDF,
+                Office.MsoTriState.msoFalse);
 
             if (!File.Exists(fullOutputPath) || new FileInfo(fullOutputPath).Length == 0)
             {

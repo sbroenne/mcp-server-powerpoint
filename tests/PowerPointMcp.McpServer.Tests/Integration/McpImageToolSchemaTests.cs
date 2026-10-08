@@ -54,7 +54,7 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
     {
         "action",       // generated: ImageAction enum, one entry per IImageCommands method
         "session_id",   // generator fixed: added for all session-aware tools
-        "slide_index",  // slideIndex  → snake_case (required for all 7 actions)
+        "slide_index",  // slideIndex  → snake_case (optional only for whole-presentation compression)
         "image_path",   // imagePath   → snake_case (required for: add-picture)
         "left",         // left        → unchanged  (required for: add-picture)
         "top",          // top         → unchanged  (required for: add-picture)
@@ -62,7 +62,8 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
         "height",       // height      → unchanged  (required for: add-picture)
         "link_to_file", // linkToFile  → snake_case (optional for: add-picture)
         "save_with_document", // saveWithDocument → snake_case (optional for: add-picture)
-        "shape_index",  // shapeIndex  → snake_case (required for: set/get-brightness-contrast, set/get-recolor, set/get-crop)
+        "compression",  // compression → unchanged (optional for: add-picture)
+        "shape_index",  // shapeIndex  → snake_case (picture edits and optional for scoped compression)
         "brightness",   // brightness  → unchanged  (required for: set-brightness-contrast)
         "contrast",     // contrast    → unchanged  (required for: set-brightness-contrast)
         "color_type",   // colorType   → snake_case (required for: set-recolor)
@@ -70,6 +71,19 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
         "crop_top",     // cropTop     → snake_case (required for: set-crop)
         "crop_right",   // cropRight   → snake_case (required for: set-crop)
         "crop_bottom",  // cropBottom  → snake_case (required for: set-crop)
+        "increment",    // increment   → required for increment-brightness / increment-contrast
+        "color_rgb",    // colorRgb    → snake_case (required for: set-transparency-color)
+        "enabled",      // enabled     → unchanged (required for: set-transparent-background)
+        "picture_width", // pictureWidth → snake_case (required for: set-crop-frame)
+        "picture_height", // pictureHeight → snake_case (required for: set-crop-frame)
+        "picture_offset_x", // pictureOffsetX → snake_case (required for: set-crop-frame)
+        "picture_offset_y", // pictureOffsetY → snake_case (required for: set-crop-frame)
+        "frame_left",   // frameLeft   → snake_case (required for: set-crop-frame)
+        "frame_top",    // frameTop    → snake_case (required for: set-crop-frame)
+        "frame_width",  // frameWidth  → snake_case (required for: set-crop-frame)
+        "frame_height", // frameHeight → snake_case (required for: set-crop-frame)
+        "resolution",   // resolution  → unchanged (optional for: compress-pictures)
+        "delete_cropped_areas", // deleteCroppedAreas → snake_case (optional for: compress-pictures)
     };
 
     private readonly ITestOutputHelper _output;
@@ -166,6 +180,26 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
         Assert.Equal(3f, root.GetProperty("cropRight").GetSingle());
         Assert.Equal(4f, root.GetProperty("cropBottom").GetSingle());
         Assert.False(root.TryGetProperty("crop_left", out _));
+    }
+
+    [Fact]
+    public void ImageTool_ExposesRemainingPictureEditingAndCompressionActions()
+    {
+        string[] expectedActions =
+        [
+            "increment-brightness",
+            "increment-contrast",
+            "set-transparency-color",
+            "get-transparency-color",
+            "set-transparent-background",
+            "get-transparent-background",
+            "set-crop-frame",
+            "get-crop-frame",
+            "compress-pictures"
+        ];
+
+        Assert.All(expectedActions, action =>
+            Assert.Contains(action, ServiceRegistry.Image.ValidActions));
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -292,84 +326,43 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
         var schema = imageTool.JsonSchema;
         schema.TryGetProperty("properties", out var properties);
 
-        // image_path: required only for add-picture
-        AssertRequiredFor(properties, "image_path",
-            required: [ServiceRegistry.Image.AddPictureAction],
-            notRequired: [
-                ServiceRegistry.Image.SetBrightnessContrastAction,
-                ServiceRegistry.Image.GetBrightnessContrastAction,
-                ServiceRegistry.Image.SetRecolorAction,
-                ServiceRegistry.Image.GetRecolorAction,
-                ServiceRegistry.Image.SetCropAction,
-                ServiceRegistry.Image.GetCropAction]);
+        string[] actions = ServiceRegistry.Image.ValidActions;
+        void AssertOnlyRequiredFor(string parameter, params string[] requiredActions) =>
+            AssertRequiredFor(
+                properties,
+                parameter,
+                requiredActions,
+                actions.Except(requiredActions, StringComparer.Ordinal).ToArray());
 
-        // color_type: required only for set-recolor
-        AssertRequiredFor(properties, "color_type",
-            required: [ServiceRegistry.Image.SetRecolorAction],
-            notRequired: [
-                ServiceRegistry.Image.AddPictureAction,
-                ServiceRegistry.Image.SetBrightnessContrastAction,
-                ServiceRegistry.Image.GetBrightnessContrastAction,
-                ServiceRegistry.Image.GetRecolorAction,
-                ServiceRegistry.Image.SetCropAction,
-                ServiceRegistry.Image.GetCropAction]);
-
-        // brightness + contrast: required only for set-brightness-contrast
-        AssertRequiredFor(properties, "brightness",
-            required: [ServiceRegistry.Image.SetBrightnessContrastAction],
-            notRequired: [
-                ServiceRegistry.Image.AddPictureAction,
-                ServiceRegistry.Image.SetRecolorAction,
-                ServiceRegistry.Image.GetRecolorAction,
-                ServiceRegistry.Image.SetCropAction,
-                ServiceRegistry.Image.GetCropAction]);
-
-        AssertRequiredFor(properties, "contrast",
-            required: [ServiceRegistry.Image.SetBrightnessContrastAction],
-            notRequired: [
-                ServiceRegistry.Image.AddPictureAction,
-                ServiceRegistry.Image.SetRecolorAction,
-                ServiceRegistry.Image.GetRecolorAction,
-                ServiceRegistry.Image.SetCropAction,
-                ServiceRegistry.Image.GetCropAction]);
-
-        // shape_index: required for every action except add-picture
-        AssertRequiredFor(properties, "shape_index",
-            required: [
-                ServiceRegistry.Image.SetBrightnessContrastAction,
-                ServiceRegistry.Image.GetBrightnessContrastAction,
-                ServiceRegistry.Image.SetRecolorAction,
-                ServiceRegistry.Image.GetRecolorAction,
-                ServiceRegistry.Image.SetCropAction,
-                ServiceRegistry.Image.GetCropAction],
-            notRequired: [ServiceRegistry.Image.AddPictureAction]);
-
-        // crop_left / crop_top / crop_right / crop_bottom: required only for set-crop
-        var cropNotRequired = new[]
-        {
-            ServiceRegistry.Image.AddPictureAction,
-            ServiceRegistry.Image.SetBrightnessContrastAction,
-            ServiceRegistry.Image.GetBrightnessContrastAction,
-            ServiceRegistry.Image.SetRecolorAction,
-            ServiceRegistry.Image.GetRecolorAction,
-            ServiceRegistry.Image.GetCropAction,
-        };
-
-        AssertRequiredFor(properties, "crop_left",
-            required: [ServiceRegistry.Image.SetCropAction],
-            notRequired: cropNotRequired);
-
-        AssertRequiredFor(properties, "crop_top",
-            required: [ServiceRegistry.Image.SetCropAction],
-            notRequired: cropNotRequired);
-
-        AssertRequiredFor(properties, "crop_right",
-            required: [ServiceRegistry.Image.SetCropAction],
-            notRequired: cropNotRequired);
-
-        AssertRequiredFor(properties, "crop_bottom",
-            required: [ServiceRegistry.Image.SetCropAction],
-            notRequired: cropNotRequired);
+        AssertOnlyRequiredFor("image_path", "add-picture");
+        AssertOnlyRequiredFor("color_type", "set-recolor");
+        AssertOnlyRequiredFor("brightness", "set-brightness-contrast");
+        AssertOnlyRequiredFor("contrast", "set-brightness-contrast");
+        AssertRequiredFor(
+            properties,
+            "shape_index",
+            actions.Where(action => action is not "add-picture" and not "compress-pictures").ToArray(),
+            notRequired: ["add-picture"]);
+        AssertOnlyRequiredFor("crop_left", "set-crop");
+        AssertOnlyRequiredFor("crop_top", "set-crop");
+        AssertOnlyRequiredFor("crop_right", "set-crop");
+        AssertOnlyRequiredFor("crop_bottom", "set-crop");
+        AssertOnlyRequiredFor("increment", "increment-brightness", "increment-contrast");
+        AssertOnlyRequiredFor("color_rgb", "set-transparency-color");
+        AssertOnlyRequiredFor("enabled", "set-transparent-background");
+        AssertOnlyRequiredFor("picture_width", "set-crop-frame");
+        AssertOnlyRequiredFor("picture_height", "set-crop-frame");
+        AssertOnlyRequiredFor("picture_offset_x", "set-crop-frame");
+        AssertOnlyRequiredFor("picture_offset_y", "set-crop-frame");
+        AssertOnlyRequiredFor("frame_left", "set-crop-frame");
+        AssertOnlyRequiredFor("frame_top", "set-crop-frame");
+        AssertOnlyRequiredFor("frame_width", "set-crop-frame");
+        AssertOnlyRequiredFor("frame_height", "set-crop-frame");
+        AssertRequiredFor(
+            properties,
+            "slide_index",
+            actions.Where(action => action is not "compress-pictures").ToArray(),
+            notRequired: []);
 
         _output.WriteLine(
             "✓ All parameter descriptions correctly document required-by-action constraints");
@@ -417,7 +410,8 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
             "--height",        // height      → unchanged (add-picture)
             "--link-to-file",  // linkToFile  → kebab (optional for add-picture)
             "--save-with-document", // saveWithDocument → kebab (optional for add-picture)
-            "--shape-index",   // shapeIndex  → kebab (set/get-brightness-contrast, set/get-recolor, set/get-crop)
+            "--compression",   // compression → unchanged (optional for add-picture)
+            "--shape-index",   // shapeIndex  → kebab (picture operations)
             "--brightness",    // brightness  → unchanged (set-brightness-contrast)
             "--contrast",      // contrast    → unchanged (set-brightness-contrast)
             "--color-type",    // colorType   → kebab (set-recolor)
@@ -425,6 +419,19 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
             "--crop-top",      // cropTop     → kebab (set-crop)
             "--crop-right",    // cropRight   → kebab (set-crop)
             "--crop-bottom",   // cropBottom  → kebab (set-crop)
+            "--increment",     // increment   → unchanged (increment-brightness / increment-contrast)
+            "--color-rgb",     // colorRgb    → kebab (set-transparency-color)
+            "--enabled",       // enabled     → unchanged (set-transparent-background)
+            "--picture-width", // pictureWidth → kebab (set-crop-frame)
+            "--picture-height", // pictureHeight → kebab (set-crop-frame)
+            "--picture-offset-x", // pictureOffsetX → kebab (set-crop-frame)
+            "--picture-offset-y", // pictureOffsetY → kebab (set-crop-frame)
+            "--frame-left",    // frameLeft → kebab (set-crop-frame)
+            "--frame-top",     // frameTop → kebab (set-crop-frame)
+            "--frame-width",   // frameWidth → kebab (set-crop-frame)
+            "--frame-height",  // frameHeight → kebab (set-crop-frame)
+            "--resolution",    // resolution → unchanged (compress-pictures)
+            "--delete-cropped-areas", // deleteCroppedAreas → kebab (compress-pictures)
             "--output",        // fixed generator param (-o|--output)
         };
 
@@ -453,7 +460,7 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
     }
 
     /// <summary>
-    /// <see cref="ServiceRegistry.Image.RouteCliArgs"/> must dispatch all 7
+    /// <see cref="ServiceRegistry.Image.RouteCliArgs"/> must dispatch every
     /// <c>IImageCommands</c> actions and return the correct command string for each.
     /// Verifies that <c>set-crop</c> and <c>get-crop</c> are properly wired in the generated CLI
     /// dispatch — a generator omission would throw <see cref="ArgumentException"/> here.
@@ -499,11 +506,50 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
             "get-crop", slideIndex: 1, shapeIndex: 1);
         Assert.Equal("image.get-crop", getCrop);
 
-        _output.WriteLine("✓ RouteCliArgs dispatches all 7 IImageCommands actions with correct command strings");
+        var (incrementBrightness, _) = ServiceRegistry.Image.RouteCliArgs(
+            "increment-brightness", slideIndex: 1, shapeIndex: 1, increment: 0.1f);
+        Assert.Equal("image.increment-brightness", incrementBrightness);
+
+        var (incrementContrast, _) = ServiceRegistry.Image.RouteCliArgs(
+            "increment-contrast", slideIndex: 1, shapeIndex: 1, increment: -0.1f);
+        Assert.Equal("image.increment-contrast", incrementContrast);
+
+        var (setTransparencyColor, _) = ServiceRegistry.Image.RouteCliArgs(
+            "set-transparency-color", slideIndex: 1, shapeIndex: 1, colorRgb: 0x00FF00);
+        Assert.Equal("image.set-transparency-color", setTransparencyColor);
+
+        var (getTransparencyColor, _) = ServiceRegistry.Image.RouteCliArgs(
+            "get-transparency-color", slideIndex: 1, shapeIndex: 1);
+        Assert.Equal("image.get-transparency-color", getTransparencyColor);
+
+        var (setTransparentBackground, _) = ServiceRegistry.Image.RouteCliArgs(
+            "set-transparent-background", slideIndex: 1, shapeIndex: 1, enabled: true);
+        Assert.Equal("image.set-transparent-background", setTransparentBackground);
+
+        var (getTransparentBackground, _) = ServiceRegistry.Image.RouteCliArgs(
+            "get-transparent-background", slideIndex: 1, shapeIndex: 1);
+        Assert.Equal("image.get-transparent-background", getTransparentBackground);
+
+        var (setCropFrame, _) = ServiceRegistry.Image.RouteCliArgs(
+            "set-crop-frame", slideIndex: 1, shapeIndex: 1,
+            pictureWidth: 120f, pictureHeight: 80f,
+            pictureOffsetX: 5f, pictureOffsetY: 4f,
+            frameLeft: 20f, frameTop: 25f, frameWidth: 80f, frameHeight: 60f);
+        Assert.Equal("image.set-crop-frame", setCropFrame);
+
+        var (getCropFrame, _) = ServiceRegistry.Image.RouteCliArgs(
+            "get-crop-frame", slideIndex: 1, shapeIndex: 1);
+        Assert.Equal("image.get-crop-frame", getCropFrame);
+
+        var (compressPictures, _) = ServiceRegistry.Image.RouteCliArgs(
+            "compress-pictures", resolution: "print", deleteCroppedAreas: true);
+        Assert.Equal("image.compress-pictures", compressPictures);
+
+        _output.WriteLine($"✓ RouteCliArgs dispatches all {ServiceRegistry.Image.ValidActions.Length} IImageCommands actions");
     }
 
     /// <summary>
-    /// <see cref="ServiceRegistry.Image.ValidActions"/> must contain exactly the 7 action strings
+    /// <see cref="ServiceRegistry.Image.ValidActions"/> must contain exactly the action strings
     /// derived from <c>IImageCommands</c>, and every action must be dispatchable via
     /// <see cref="ServiceRegistry.Image.RouteCliArgs"/>. Guards against both omissions (a new
     /// method added to the interface but not to ValidActions) and accidental additions.
@@ -521,6 +567,15 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
             "get-recolor",
             "set-crop",
             "get-crop",
+            "increment-brightness",
+            "increment-contrast",
+            "set-transparency-color",
+            "get-transparency-color",
+            "set-transparent-background",
+            "get-transparent-background",
+            "set-crop-frame",
+            "get-crop-frame",
+            "compress-pictures",
         };
 
         var actualActions = new HashSet<string>(
@@ -561,7 +616,7 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
         foreach (var action in required)
         {
             Assert.True(
-                desc.Contains(action, StringComparison.Ordinal),
+                DescriptionMentionsAction(desc, action),
                 $"Parameter '{paramName}' description should mention '{action}' (IImageCommands says it is required) but does not. " +
                 $"Description: '{desc}'");
         }
@@ -569,11 +624,15 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
         foreach (var action in notRequired)
         {
             Assert.False(
-                desc.Contains(action, StringComparison.Ordinal),
+                DescriptionMentionsAction(desc, action),
                 $"Parameter '{paramName}' description should NOT mention '{action}' (not required by that action) but does. " +
                 $"Description: '{desc}'");
         }
     }
+
+    private static bool DescriptionMentionsAction(string description, string action) =>
+        description.Split([' ', ',', '(', ')', ':'], StringSplitOptions.RemoveEmptyEntries)
+            .Contains(action, StringComparer.Ordinal);
 
     private static string GetPropertyDescription(JsonElement properties, string name)
     {
