@@ -75,8 +75,7 @@ public sealed class ChartCommands : IChartCommands
                 chartShape = ((dynamic)slide.Shapes).AddChart2(-1, xlChartType.Value, left, top, width, height, true);
                 PowerPoint.Chart chart = chartShape.Chart;
 
-                EnsureChartDataReady(chart);
-                WriteChartData(chart, categories, seriesName, values);
+                WithChartData(chart, () => WriteChartData(chart, categories, seriesName, values));
 
                 // Same NoPIA .Index late-binding quirk as Shape domain — use Shapes.Count instead.
                 int newIndex = slide.Shapes.Count;
@@ -126,57 +125,59 @@ public sealed class ChartCommands : IChartCommands
             }
 
             PowerPoint.Chart chart = shape.Chart;
-            EnsureChartDataReady(chart);
-            dynamic? seriesCollection = null;
-            dynamic? firstSeries = null;
-            try
+            return WithChartData(chart, () =>
             {
-                // Chart writes (e.g. immediately preceding AddChart/ReplaceChartData calls) can
-                // settle asynchronously in the embedded Excel workbook, so SeriesCollection.Count
-                // can transiently read back as 0 right after a write. Retry until it's non-zero,
-                // matching the same settling tolerance used by AddSeries/ReplaceChartData.
-                int seriesCount = 0;
-                for (int attempt = 1; attempt <= TransientReadRetryAttempts; attempt++)
+                dynamic? seriesCollection = null;
+                dynamic? firstSeries = null;
+                try
                 {
-                    seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
-                    seriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
-                    if (seriesCount > 0 || attempt == TransientReadRetryAttempts)
+                    // Chart writes (e.g. immediately preceding AddChart/ReplaceChartData calls) can
+                    // settle asynchronously in the embedded Excel workbook, so SeriesCollection.Count
+                    // can transiently read back as 0 right after a write. Retry until it's non-zero,
+                    // matching the same settling tolerance used by AddSeries/ReplaceChartData.
+                    int seriesCount = 0;
+                    for (int attempt = 1; attempt <= TransientReadRetryAttempts; attempt++)
                     {
-                        break;
+                        seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
+                        seriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
+                        if (seriesCount > 0 || attempt == TransientReadRetryAttempts)
+                        {
+                            break;
+                        }
+
+                        ComUtilities.Release(ref seriesCollection!);
+                        seriesCollection = null;
+                        System.Threading.Thread.Sleep(TransientReadRetryDelayMs);
                     }
 
-                    ComUtilities.Release(ref seriesCollection!);
-                    seriesCollection = null;
-                    System.Threading.Thread.Sleep(TransientReadRetryDelayMs);
-                }
+                    int categoryCount = 0;
+                    if (seriesCount > 0)
+                    {
+                        firstSeries = RetryTransientChartRead(() => seriesCollection.Item(1));
+                        categoryCount = ReadNonEmptyXValues(firstSeries).Length;
+                    }
 
-                int categoryCount = 0;
-                if (seriesCount > 0)
-                {
-                    firstSeries = RetryTransientChartRead(() => seriesCollection.Item(1));
-                    categoryCount = ReadNonEmptyXValues(firstSeries).Length;
+                    return new ChartOperationResult
+                    {
+                        Success = true,
+                        ShapeIndex = shapeIndex,
+                        SeriesCount = seriesCount,
+                        CategoryCount = categoryCount
+                    };
                 }
+                finally
+                {
+                    if (firstSeries != null)
+                    {
+                        ComUtilities.Release(ref firstSeries!);
+                    }
 
-                return new ChartOperationResult
-                {
-                    Success = true,
-                    ShapeIndex = shapeIndex,
-                    SeriesCount = seriesCount,
-                    CategoryCount = categoryCount
-                };
-            }
-            finally
-            {
-                if (firstSeries != null)
-                {
-                    ComUtilities.Release(ref firstSeries!);
+                    if (seriesCollection != null)
+                    {
+                        ComUtilities.Release(ref seriesCollection!);
+                    }
                 }
-
-                if (seriesCollection != null)
-                {
-                    ComUtilities.Release(ref seriesCollection!);
-                }
-            }
+            });
         });
     }
 
@@ -209,71 +210,73 @@ public sealed class ChartCommands : IChartCommands
             }
 
             PowerPoint.Chart chart = shape.Chart;
-            EnsureChartDataReady(chart);
-            dynamic? seriesCollection = null;
-            dynamic? firstSeries = null;
-            dynamic? newSeries = null;
-            try
+            return WithChartData(chart, () =>
             {
-                seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
-                int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
-
-                if (existingSeriesCount == 0)
+                dynamic? seriesCollection = null;
+                dynamic? firstSeries = null;
+                dynamic? newSeries = null;
+                try
                 {
+                    seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
+                    int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
+
+                    if (existingSeriesCount == 0)
+                    {
+                        return new ChartOperationResult
+                        {
+                            Success = false,
+                            ErrorMessage = "The chart has no existing series to determine its category count from."
+                        };
+                    }
+
+                    firstSeries = RetryTransientChartRead(() => seriesCollection.Item(1));
+                    Array existingXValues = ReadNonEmptyXValues(firstSeries);
+                    int categoryCount = existingXValues.Length;
+
+                    if (values.Count != categoryCount)
+                    {
+                        return new ChartOperationResult
+                        {
+                            Success = false,
+                            ErrorMessage = $"Value count ({values.Count}) must match the chart's existing category count ({categoryCount})."
+                        };
+                    }
+
+                    // SeriesCollection is backed by Excel interop types that are not present in the
+                    // embedded PowerPoint PIA. Keep this boundary narrowly late-bound.
+                    newSeries = seriesCollection.NewSeries();
+                    newSeries.Values = values.ToArray();
+                    newSeries.XValues = existingXValues;
+                    newSeries.Name = seriesName;
+
+                    int newSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
+
                     return new ChartOperationResult
                     {
-                        Success = false,
-                        ErrorMessage = "The chart has no existing series to determine its category count from."
+                        Success = true,
+                        ShapeIndex = shapeIndex,
+                        SeriesCount = newSeriesCount,
+                        CategoryCount = categoryCount
                     };
                 }
-
-                firstSeries = RetryTransientChartRead(() => seriesCollection.Item(1));
-                Array existingXValues = ReadNonEmptyXValues(firstSeries);
-                int categoryCount = existingXValues.Length;
-
-                if (values.Count != categoryCount)
+                finally
                 {
-                    return new ChartOperationResult
+                    if (newSeries != null)
                     {
-                        Success = false,
-                        ErrorMessage = $"Value count ({values.Count}) must match the chart's existing category count ({categoryCount})."
-                    };
+                        ComUtilities.Release(ref newSeries!);
+                    }
+
+                    if (firstSeries != null)
+                    {
+                        ComUtilities.Release(ref firstSeries!);
+                    }
+
+                    if (seriesCollection != null)
+                    {
+                        ComUtilities.Release(ref seriesCollection!);
+                    }
                 }
-
-                // SeriesCollection is backed by Excel interop types that are not present in the
-                // embedded PowerPoint PIA. Keep this boundary narrowly late-bound.
-                newSeries = seriesCollection.NewSeries();
-                newSeries.Values = values.ToArray();
-                newSeries.XValues = existingXValues;
-                newSeries.Name = seriesName;
-
-                int newSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
-
-                return new ChartOperationResult
-                {
-                    Success = true,
-                    ShapeIndex = shapeIndex,
-                    SeriesCount = newSeriesCount,
-                    CategoryCount = categoryCount
-                };
-            }
-            finally
-            {
-                if (newSeries != null)
-                {
-                    ComUtilities.Release(ref newSeries!);
-                }
-
-                if (firstSeries != null)
-                {
-                    ComUtilities.Release(ref firstSeries!);
-                }
-
-                if (seriesCollection != null)
-                {
-                    ComUtilities.Release(ref seriesCollection!);
-                }
-            }
+            });
         });
     }
 
@@ -332,75 +335,76 @@ public sealed class ChartCommands : IChartCommands
             }
 
             PowerPoint.Chart chart = shape.Chart;
-            EnsureChartDataReady(chart);
-
-            // Avoid the embedded Excel workbook and update its late-bound SeriesCollection
-            // directly, because Excel interop types are not part of the embedded PowerPoint PIA.
-            dynamic? seriesCollection = null;
-            try
+            return WithChartData(chart, () =>
             {
-                seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
-                int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
-                for (int i = existingSeriesCount; i >= 1; i--)
+                // Avoid the embedded Excel workbook and update its late-bound SeriesCollection
+                // directly, because Excel interop types are not part of the embedded PowerPoint PIA.
+                dynamic? seriesCollection = null;
+                try
                 {
-                    dynamic? existingSeries = null;
-                    try
+                    seriesCollection = RetryTransientChartRead(() => chart.SeriesCollection());
+                    int existingSeriesCount = RetryTransientChartRead(() => (int)seriesCollection.Count);
+                    for (int i = existingSeriesCount; i >= 1; i--)
                     {
-                        existingSeries = seriesCollection.Item(i);
-                        existingSeries.Delete();
-                    }
-                    finally
-                    {
-                        if (existingSeries != null)
+                        dynamic? existingSeries = null;
+                        try
                         {
-                            ComUtilities.Release(ref existingSeries!);
+                            existingSeries = seriesCollection.Item(i);
+                            existingSeries.Delete();
+                        }
+                        finally
+                        {
+                            if (existingSeries != null)
+                            {
+                                ComUtilities.Release(ref existingSeries!);
+                            }
                         }
                     }
-                }
 
-                string[] categoriesArray = categories.ToArray();
-                for (int s = 0; s < seriesNames.Count; s++)
-                {
-                    var valuesForSeries = new double[categories.Count];
-                    for (int i = 0; i < categories.Count; i++)
+                    string[] categoriesArray = categories.ToArray();
+                    for (int s = 0; s < seriesNames.Count; s++)
                     {
-                        valuesForSeries[i] = seriesValues[(s * categories.Count) + i];
-                    }
-
-                    dynamic? newSeries = null;
-                    try
-                    {
-                        newSeries = seriesCollection.NewSeries();
-                        newSeries.Values = valuesForSeries;
-                        newSeries.XValues = categoriesArray;
-                        newSeries.Name = seriesNames[s];
-                    }
-                    finally
-                    {
-                        if (newSeries != null)
+                        var valuesForSeries = new double[categories.Count];
+                        for (int i = 0; i < categories.Count; i++)
                         {
-                            ComUtilities.Release(ref newSeries!);
+                            valuesForSeries[i] = seriesValues[(s * categories.Count) + i];
+                        }
+
+                        dynamic? newSeries = null;
+                        try
+                        {
+                            newSeries = seriesCollection.NewSeries();
+                            newSeries.Values = valuesForSeries;
+                            newSeries.XValues = categoriesArray;
+                            newSeries.Name = seriesNames[s];
+                        }
+                        finally
+                        {
+                            if (newSeries != null)
+                            {
+                                ComUtilities.Release(ref newSeries!);
+                            }
                         }
                     }
-                }
 
-                int newSeriesCount = (int)seriesCollection.Count;
+                    int newSeriesCount = (int)seriesCollection.Count;
 
-                return new ChartOperationResult
-                {
-                    Success = true,
-                    ShapeIndex = shapeIndex,
-                    SeriesCount = newSeriesCount,
-                    CategoryCount = categories.Count
-                };
-            }
-            finally
-            {
-                if (seriesCollection != null)
-                {
-                    ComUtilities.Release(ref seriesCollection!);
+                    return new ChartOperationResult
+                    {
+                        Success = true,
+                        ShapeIndex = shapeIndex,
+                        SeriesCount = newSeriesCount,
+                        CategoryCount = categories.Count
+                    };
                 }
-            }
+                finally
+                {
+                    if (seriesCollection != null)
+                    {
+                        ComUtilities.Release(ref seriesCollection!);
+                    }
+                }
+            });
         });
     }
 
@@ -943,9 +947,58 @@ public sealed class ChartCommands : IChartCommands
         };
     }
 
-    private static void EnsureChartDataReady(PowerPoint.Chart chart)
+    private static void WithChartData(PowerPoint.Chart chart, Action operation) =>
+        WithChartData(chart, () =>
+        {
+            operation();
+            return true;
+        });
+
+    /// <summary>
+    /// Opens the chart's data workbook, runs <paramref name="operation"/>, and always closes the
+    /// workbook again. PowerPoint allows only one open chart data grid per presentation, so a
+    /// grid left open makes the next AddChart2/Activate fail with "The chart data grid is
+    /// already open" and leaves a visible Excel window on screen.
+    /// </summary>
+    private static T WithChartData<T>(PowerPoint.Chart chart, Func<T> operation)
     {
-        dynamic? chartData = null;
+        PowerPoint.ChartData? chartData = null;
+        dynamic? workbook = null;
+        bool completed = false;
+        try
+        {
+            chartData = chart.ChartData;
+            workbook = ActivateChartData(chart, chartData);
+            T result = operation();
+            completed = true;
+            return result;
+        }
+        finally
+        {
+            try
+            {
+                if (chartData != null)
+                {
+                    CloseChartDataWorkbook(chartData, workbook, suppressErrors: !completed);
+                }
+            }
+            finally
+            {
+                if (workbook != null)
+                {
+                    ComUtilities.Release(ref workbook!);
+                }
+
+                if (chartData != null)
+                {
+                    ComUtilities.Release(ref chartData);
+                }
+            }
+        }
+    }
+
+    private static dynamic ActivateChartData(PowerPoint.Chart chart, PowerPoint.ChartData chartData)
+    {
         dynamic? workbook = null;
         dynamic? workbookApplication = null;
         try
@@ -954,8 +1007,7 @@ public sealed class ChartCommands : IChartCommands
             // and forcing a workbook recalculation makes the follow-on SeriesCollection/XValues
             // reads deterministic instead of returning transient zero-count state immediately after
             // AddChart/ReplaceChartData.
-            chartData = chart.ChartData;
-
+            //
             // Any step below (Activate, Workbook, Application, Calculate, Refresh) can throw a
             // transient COMException immediately after AddChart/ReplaceChartData while the
             // embedded Excel workbook is still spinning up — same class of flakiness
@@ -976,12 +1028,18 @@ public sealed class ChartCommands : IChartCommands
                 }
 
                 chartData.Activate();
+                // The Excel Workbook/Application types are not part of the PowerPoint PIA, so
+                // ChartData.Workbook is typed as object and used late-bound.
                 workbook = chartData.Workbook;
                 workbookApplication = workbook.Application;
                 workbookApplication.Calculate();
                 chart.Refresh();
                 return true;
             });
+
+            dynamic activatedWorkbook = workbook!;
+            workbook = null;
+            return activatedWorkbook;
         }
         finally
         {
@@ -994,10 +1052,40 @@ public sealed class ChartCommands : IChartCommands
             {
                 ComUtilities.Release(ref workbook!);
             }
+        }
+    }
 
-            if (chartData != null)
+    /// <summary>
+    /// Closes the chart data workbook. The caller keeps ownership of
+    /// <paramref name="activatedWorkbook"/>; a workbook acquired here is released here.
+    /// </summary>
+    private static void CloseChartDataWorkbook(PowerPoint.ChartData chartData, dynamic? activatedWorkbook, bool suppressErrors)
+    {
+        dynamic? openedWorkbook = null;
+        try
+        {
+            // SaveChanges: true writes edits back to the presentation without a modal save prompt.
+            if (activatedWorkbook != null)
             {
-                ComUtilities.Release(ref chartData!);
+                activatedWorkbook.Close(true);
+            }
+            else
+            {
+                // If activation failed part-way, the grid may still be open (AddChart2 opens it too).
+                // ChartData.Workbook is only readable while the grid is open.
+                openedWorkbook = chartData.Workbook;
+                openedWorkbook.Close(true);
+            }
+        }
+        catch (COMException) when (suppressErrors)
+        {
+            // An earlier exception is already propagating; do not replace it with a close failure.
+        }
+        finally
+        {
+            if (openedWorkbook != null)
+            {
+                ComUtilities.Release(ref openedWorkbook!);
             }
         }
     }
