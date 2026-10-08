@@ -124,6 +124,7 @@ public sealed class PresentationSessionRegistry : IDisposable
 
     private readonly ConcurrentDictionary<string, IPresentationBatch> _sessions = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<Task, byte> _pendingDisposals = new();
+    private readonly object _lifecycleLock = new();
     private readonly ILogger<PresentationSessionRegistry>? _logger;
     private bool _disposed;
 
@@ -146,6 +147,8 @@ public sealed class PresentationSessionRegistry : IDisposable
     /// <returns>The generated session identifier.</returns>
     public string Open(string filePath)
     {
+        lock (_lifecycleLock)
+            ObjectDisposedException.ThrowIf(_disposed, this);
         var batch = PresentationSession.BeginBatch(filePath);
         return Register(batch);
     }
@@ -157,6 +160,8 @@ public sealed class PresentationSessionRegistry : IDisposable
     /// <returns>The generated session identifier.</returns>
     public string Create(string filePath)
     {
+        lock (_lifecycleLock)
+            ObjectDisposedException.ThrowIf(_disposed, this);
         var batch = PresentationSession.CreateNew(filePath);
         return Register(batch);
     }
@@ -188,15 +193,19 @@ public sealed class PresentationSessionRegistry : IDisposable
     /// No-op if the identifier is unknown.
     /// </summary>
     /// <param name="sessionId">The session identifier to close.</param>
+    /// <param name="pendingOperation">
+    /// A cancelled request's still-running operation. Remove its session immediately, but wait for
+    /// the operation to finish before disposing the batch. The caller observes operation failures.
+    /// </param>
     /// <returns><see langword="true"/> if a session was found and its close was started.</returns>
-    public bool Close(string sessionId)
+    public bool Close(string sessionId, Task? pendingOperation = null)
     {
         if (string.IsNullOrEmpty(sessionId) || !_sessions.TryRemove(sessionId, out var batch))
         {
             return false;
         }
 
-        StartBackgroundDispose(sessionId, batch);
+        StartBackgroundDispose(sessionId, batch, pendingOperation);
         return true;
     }
 
@@ -270,20 +279,31 @@ public sealed class PresentationSessionRegistry : IDisposable
     /// <inheritdoc/>
     public void Dispose()
     {
-        if (_disposed)
+        lock (_lifecycleLock)
         {
-            return;
+            if (_disposed)
+                return;
+            _disposed = true;
         }
 
-        _disposed = true;
         DisposeAll();
     }
 
     private string Register(IPresentationBatch batch)
     {
-        var sessionId = Guid.NewGuid().ToString("N");
-        _sessions[sessionId] = batch;
-        return sessionId;
+        lock (_lifecycleLock)
+        {
+            if (!_disposed)
+            {
+                var sessionId = Guid.NewGuid().ToString("N");
+                _sessions[sessionId] = batch;
+                return sessionId;
+            }
+        }
+
+        // Startup may finish after shutdown has already drained the registered sessions.
+        batch.Dispose();
+        throw new ObjectDisposedException(nameof(PresentationSessionRegistry));
     }
 
     /// <summary>
@@ -291,9 +311,15 @@ public sealed class PresentationSessionRegistry : IDisposable
     /// <see cref="_pendingDisposals"/> until it completes, so <see cref="DisposeAll()"/> can find
     /// and await it later regardless of when it was started.
     /// </summary>
-    private Task StartBackgroundDispose(string sessionId, IPresentationBatch batch)
+    private Task StartBackgroundDispose(string sessionId, IPresentationBatch batch, Task? pendingOperation = null)
     {
-        var task = Task.Run(() => DisposeBatch(sessionId, batch));
+        var task = pendingOperation is null
+            ? Task.Run(() => DisposeBatch(sessionId, batch))
+            : pendingOperation.ContinueWith(
+                _ => DisposeBatch(sessionId, batch),
+                CancellationToken.None,
+                TaskContinuationOptions.None,
+                TaskScheduler.Default);
         _pendingDisposals[task] = 0;
 
         // Self-remove once finished so the tracking set doesn't grow unbounded over a long-lived

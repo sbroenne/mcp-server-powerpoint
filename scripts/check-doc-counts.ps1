@@ -277,12 +277,10 @@ $headlineChecks = @(
     @{ File = 'gh-pages\docs\installation.md'; Pattern = 'all (?<t>\d+) tools \((?<o>\d+) operations\) across (?<d>\d+) domains'; Groups = @('t', 'o', 'd') }
     @{ File = 'gh-pages\docs\features.md'; Pattern = '(?<t>\d+) MCP tools with (?<o>\d+) operations across (?<d>\d+) domains'; Groups = @('t', 'o', 'd') }
     @{ File = 'gh-pages\docs\mcp-server.md'; Pattern = '(?<t>\d+) tools with (?<o>\d+) operations across (?<d>\d+) domains'; Groups = @('t', 'o', 'd') }
-    @{ File = 'skills\CLAUDE.md'; Pattern = '(?<t>\d+) MCP tools across (?<d>\d+) domains'; Groups = @('t', 'd') }
-    @{ File = 'skills\powerpoint-mcp\SKILL.md'; Pattern = 'Provides (?<t>\d+) PowerPoint MCP tools \(one presentation tool \+ (?<m>\d+) domain action-dispatch tools \+ (?<r>\d+) read-only aliases\)'; Groups = @('t', 'm', 'r') }
-    @{ File = 'skills\shared\behavioral-rules.md'; Pattern = '(?<t>\d+) PowerPoint MCP tools across (?<d>\d+) domains'; Groups = @('t', 'd') }
-    @{ File = 'skills\shared\behavioral-rules.md'; Pattern = 'All (?<t>\d+) MCP tools are action-dispatch tools'; Groups = @('t') }
-    @{ File = 'skills\shared\behavioral-rules.md'; Pattern = 'The other (?<q>\d+) tools use'; Groups = @('q') }
-    @{ File = 'skills\shared\workflows.md'; Pattern = 'All (?<t>\d+) tools and (?<o>\d+) operations'; Groups = @('t', 'o') }
+    @{ File = 'gh-pages\docs\reference\behavioral-rules.md'; Pattern = '(?<t>\d+) PowerPoint MCP tools across (?<d>\d+) domains'; Groups = @('t', 'd') }
+    @{ File = 'gh-pages\docs\reference\behavioral-rules.md'; Pattern = 'All (?<t>\d+) MCP tools are action-dispatch tools'; Groups = @('t') }
+    @{ File = 'gh-pages\docs\reference\behavioral-rules.md'; Pattern = 'The other (?<q>\d+) tools use'; Groups = @('q') }
+    @{ File = 'gh-pages\docs\reference\workflows.md'; Pattern = 'All (?<t>\d+) tools and (?<o>\d+) operations'; Groups = @('t', 'o') }
 )
 foreach ($check in $headlineChecks) {
     Update-CountPattern $check.File $check.Pattern $check.Groups

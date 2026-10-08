@@ -36,10 +36,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "Could not generate documentation counts."
           }
-          & ./scripts/Build-AgentSkills.ps1 -PopulateReferences -SkipCliReference
-          if ($LASTEXITCODE -ne 0) {
-            throw "Could not synchronize generated Agent Skills references."
-          }
 
       - name: Commit and push updated counts
         shell: pwsh

@@ -32,9 +32,38 @@ public sealed class McpToolGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        context.RegisterSourceOutput(context.CompilationProvider,
-            static (spc, compilation) =>
+        var documentation = context.AdditionalTextsProvider
+            .Where(file => file.Path.EndsWith("Sbroenne.PowerPointMcp.Core.xml", StringComparison.OrdinalIgnoreCase))
+            .Select((file, cancellationToken) => file.GetText(cancellationToken)?.ToString())
+            .Collect();
+
+        context.RegisterSourceOutput(context.CompilationProvider.Combine(documentation),
+            static (spc, input) =>
             {
+                var compilation = input.Left;
+                var coreReference = compilation.References.OfType<PortableExecutableReference>()
+                    .FirstOrDefault(reference =>
+                        compilation.GetAssemblyOrModuleSymbol(reference) is IAssemblySymbol assembly &&
+                        assembly.Name == "Sbroenne.PowerPointMcp.Core");
+                if (coreReference is not null)
+                {
+                    if (input.Right.Length != 1 || string.IsNullOrWhiteSpace(input.Right[0]))
+                    {
+                        spc.ReportDiagnostic(Diagnostic.Create(
+                            new DiagnosticDescriptor("PPTMCP001", "Missing Core documentation",
+                                "MCP generation requires the Core XML documentation as an AdditionalFile",
+                                "PowerPointMcp.Generation", DiagnosticSeverity.Error, isEnabledByDefault: true),
+                            Location.None));
+                        return;
+                    }
+
+                    compilation = compilation.ReplaceReference(coreReference,
+                        ((AssemblyMetadata)coreReference.GetMetadata()).GetReference(
+                            documentation: new CoreDocumentationProvider(input.Right[0]!),
+                            aliases: coreReference.Properties.Aliases,
+                            embedInteropTypes: coreReference.Properties.EmbedInteropTypes,
+                            filePath: coreReference.FilePath));
+                }
                 var services = DiscoverServices(compilation);
                 foreach (var info in services)
                 {
@@ -228,7 +257,31 @@ public sealed class McpToolGenerator : IIncrementalGenerator
             {
                 var p = exposedParams[i];
                 var snakeName = StringHelper.ToSnakeCase(p.Name);
-                var description = EscapeDescription(p.DescriptionWithRequired ?? StringHelper.GetParameterDescription(p.Name));
+                var actionDescriptions = methods
+                    .SelectMany(method => method.Parameters
+                        .Where(parameter => string.Equals(
+                            parameter.ExposedName ?? parameter.Name, p.Name, StringComparison.OrdinalIgnoreCase))
+                        .Select(parameter => new { method.ActionName, Description = parameter.XmlDocDescription }))
+                    .Where(parameter => !string.IsNullOrWhiteSpace(parameter.Description))
+                    .GroupBy(parameter => parameter.Description!, StringComparer.Ordinal)
+                    .ToArray();
+                string explanation;
+                if (actionDescriptions.Length == 1)
+                    explanation = actionDescriptions[0].Key;
+                else if (actionDescriptions.Length > 1)
+                    explanation = string.Join(" ", actionDescriptions.Select(group =>
+                        $"{string.Join(", ", group.Select(parameter => parameter.ActionName))}: {group.Key}"));
+                else
+                {
+                    explanation = string.Join(" ", methods
+                        .Where(method => method.Parameters.Any(parameter =>
+                            string.Equals(parameter.ExposedName ?? parameter.Name, p.Name, StringComparison.OrdinalIgnoreCase)))
+                        .Select(method => string.IsNullOrWhiteSpace(method.XmlDocSummary)
+                            ? method.ActionName
+                            : $"{method.ActionName}: {method.XmlDocSummary}"));
+                }
+                var applicability = p.DescriptionWithRequired?.Substring(p.Description?.Length ?? 0);
+                var description = EscapeDescription($"{explanation} {applicability}".Trim());
                 sb.AppendLine($"        [Description(\"{description}\")] {p.TypeName} {snakeName} = null,");
             }
             sb.AppendLine("        CancellationToken cancellationToken = default)");
@@ -242,16 +295,16 @@ public sealed class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine($"                {(readOnly ? $"System.Enum.Parse<{info.CategoryPascal}Action>(action.ToString())" : "action")},");
         sb.AppendLine("                presentation_session_id,");
 
-        var forwardLine = "                (command, sid, args) => ServiceBridge.ForwardToServiceAsync(service, command, sid, args, cancellationToken).GetAwaiter().GetResult()";
+        var forwardLine = "                (command, sid, args) => ServiceBridge.ForwardToServiceAsync(service, command, sid, args, cancellationToken)";
         sb.AppendLine(exposedParams.Count > 0
             ? forwardLine + ","
-            : forwardLine + "), cancellationToken);");
+            : forwardLine + "), cancellationToken, service.Sessions, presentation_session_id);");
 
         for (int i = 0; i < exposedParams.Count; i++)
         {
             var p = exposedParams[i];
             var snakeName = StringHelper.ToSnakeCase(p.Name);
-            var suffix = i < exposedParams.Count - 1 ? "," : "), cancellationToken);";
+            var suffix = i < exposedParams.Count - 1 ? "," : "), cancellationToken, service.Sessions, presentation_session_id);";
             sb.AppendLine($"                {p.Name}: {snakeName}{suffix}");
         }
         sb.AppendLine("    }");

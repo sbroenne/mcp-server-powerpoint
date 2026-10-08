@@ -24,6 +24,46 @@ public sealed class ReleasePackagingTests
         "pre-commit.ps1");
 
     [Fact]
+    public void CoreInterfaceGuard_HandlesParenthesesInParameterDescriptionsAndStillDetectsOrphans()
+    {
+        using var temp = new TemporaryDirectory();
+        var scripts = Path.Combine(temp.Path, "scripts");
+        var domain = Path.Combine(temp.Path, "src", "PowerPointMcp.Core", "Sample");
+        Directory.CreateDirectory(scripts);
+        Directory.CreateDirectory(domain);
+        var script = Path.Combine(scripts, "check-core-interface-completeness.ps1");
+        File.Copy(Path.Combine(RepoRoot, "scripts", "check-core-interface-completeness.ps1"), script);
+        File.WriteAllText(Path.Combine(domain, "ISampleCommands.cs"), """
+            public interface ISampleCommands
+            {
+                string Inspect(
+                    [System.ComponentModel.Description("Maximum (1-100; default 20).")]
+                    int maxSlides = 20);
+            }
+            """);
+        var implementation = Path.Combine(domain, "SampleCommands.cs");
+        File.WriteAllText(implementation, """
+            public class SampleCommands : ISampleCommands
+            {
+                public string Inspect(int maxSlides = 20) { return ""; }
+            }
+            """);
+        RunPowerShell(script);
+
+        File.WriteAllText(implementation, """
+            public class SampleCommands : ISampleCommands
+            {
+                public string Inspect(int maxSlides = 20) { return ""; }
+                public string Missing() { return ""; }
+            }
+            """);
+        var result = RunPowerShellRaw(script);
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("SampleCommands.Missing", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("SampleCommands.Inspect", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void UpdateReleaseVersionMetadata_StampsEveryPersistentVersion()
     {
         using var temp = new TemporaryDirectory();
@@ -62,38 +102,45 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
-    public void BuildAgentSkills_CreatesBothVersionedSkillsFromGeneratedReferences()
+    public void BuildAgentSkills_PackagesThreeFocusedVersionedSkills()
     {
         using var temp = new TemporaryDirectory();
-        var cliPath = Path.Combine(
-            RepoRoot,
-            "src",
-            "PowerPointMcp.CLI",
-            "bin",
-            "Release",
-            "net10.0-windows",
-            "powerpointcli.exe");
 
         RunPowerShell(
             Path.Combine(RepoRoot, "scripts", "Build-AgentSkills.ps1"),
             "-Version", "9.8.7",
-            "-OutputDir", temp.Path,
-            "-CliPath", cliPath);
+            "-OutputDir", temp.Path);
 
         Assert.False(File.Exists(Path.Combine(RepoRoot, "skills", "powerpoint-mcp", "VERSION")));
         var zipPath = Assert.Single(Directory.GetFiles(temp.Path, "*.zip"));
         using var archive = ZipFile.OpenRead(zipPath);
 
-        AssertEntryText(archive, "skills/powerpoint-mcp/VERSION", "9.8.7");
-        AssertEntryText(archive, "skills/powerpoint-cli/VERSION", "9.8.7");
-        var cliReference = ReadEntry(archive, "skills/powerpoint-cli/references/cli-commands.md");
-        Assert.Contains("pptcli session", cliReference, StringComparison.Ordinal);
-        Assert.Contains("pptcli service stop", cliReference, StringComparison.Ordinal);
+        foreach (var skillName in new[] { "powerpoint-mcp", "powerpoint-cli", "powerpoint-deck-design" })
+        {
+            AssertEntryText(archive, $"skills/{skillName}/VERSION", "9.8.7");
+            Assert.Contains(
+                $"name: {skillName}",
+                ReadEntry(archive, $"skills/{skillName}/SKILL.md"),
+                StringComparison.Ordinal);
+        }
+        var expectedEntries = new[]
+        {
+            "README.md",
+            "skills/powerpoint-cli/SKILL.md",
+            "skills/powerpoint-cli/VERSION",
+            "skills/powerpoint-deck-design/SKILL.md",
+            "skills/powerpoint-deck-design/VERSION",
+            "skills/powerpoint-mcp/SKILL.md",
+            "skills/powerpoint-mcp/VERSION"
+        };
+        Assert.Equal(
+            expectedEntries.OrderBy(path => path, StringComparer.Ordinal),
+            archive.Entries.Select(entry => entry.FullName).OrderBy(path => path, StringComparer.Ordinal));
 
         using var manifest = JsonDocument.Parse(
             File.ReadAllText(Path.Combine(temp.Path, "manifest.json")));
         Assert.Equal("9.8.7", manifest.RootElement.GetProperty("version").GetString());
-        Assert.Equal(2, manifest.RootElement.GetProperty("skills").GetArrayLength());
+        Assert.Equal(3, manifest.RootElement.GetProperty("skills").GetArrayLength());
     }
 
     [Fact]
@@ -303,11 +350,7 @@ public sealed class ReleasePackagingTests
             @"\d+ tools \(\d+ operations across \d+ domains",
             "1 tools (2 operations across 3 domains");
         CorruptOnce(
-            Path.Combine(temp.Path, "skills", "powerpoint-mcp", "SKILL.md"),
-            @"Provides \d+ PowerPoint MCP tools \(one presentation tool \+ \d+ domain action-dispatch tools(?: \+ \d+ read-only aliases)?\)",
-            "Provides 1 PowerPoint MCP tools (one presentation tool + 2 domain action-dispatch tools + 3 read-only aliases)");
-        CorruptOnce(
-            Path.Combine(temp.Path, "skills", "shared", "behavioral-rules.md"),
+            Path.Combine(temp.Path, "gh-pages", "docs", "reference", "behavioral-rules.md"),
             @"The other \d+ tools use",
             "The other 1 tools use");
 
@@ -414,17 +457,16 @@ public sealed class ReleasePackagingTests
         Assert.Contains("./scripts/check-doc-counts.ps1 -SkipBuild", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("Update-DocumentationCounts.ps1", workflow, StringComparison.Ordinal);
         Assert.Contains("name: generated-documentation", workflow, StringComparison.Ordinal);
-        Assert.Contains("skills/shared/*.md", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("skills/shared", workflow, StringComparison.Ordinal);
+        Assert.Contains("skills/powerpoint-deck-design/SKILL.md", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("PopulateReferences", workflow, StringComparison.Ordinal);
         Assert.Contains("path: .", workflow, StringComparison.Ordinal);
         Assert.Contains("git add CHANGELOG.md package.json .changeset", workflow, StringComparison.Ordinal);
         Assert.Contains("git add --update", workflow, StringComparison.Ordinal);
 
         Assert.Contains("branches: [main]", docCountsWorkflow, StringComparison.Ordinal);
         Assert.Contains("check-doc-counts.ps1 -Update", docCountsWorkflow, StringComparison.Ordinal);
-        Assert.Contains(
-            "Build-AgentSkills.ps1 -PopulateReferences -SkipCliReference",
-            docCountsWorkflow,
-            StringComparison.Ordinal);
+        Assert.DoesNotContain("Build-AgentSkills.ps1", docCountsWorkflow, StringComparison.Ordinal);
         Assert.Matches(
             @"git diff --cached --quiet\s+if \(\$LASTEXITCODE -eq 0\) \{",
             docCountsWorkflow);
@@ -480,7 +522,7 @@ public sealed class ReleasePackagingTests
             ["src/PowerPointMcp.Core/Slide/SlideCommands.cs"],
             ["CLI", "McpServer", "SkillGeneration"]);
         AssertSelectedPowerPointFreeTests(
-            ["skills/shared/behavioral-rules.md"],
+            ["skills/powerpoint-mcp/SKILL.md"],
             ["SkillGeneration"]);
         AssertSelectedPowerPointFreeTests(
             ["docs/usage.md", "README.md", ".changeset/session-id.md"],
@@ -732,10 +774,8 @@ public sealed class ReleasePackagingTests
         Path.Combine("gh-pages", "docs", "installation.md"),
         Path.Combine("gh-pages", "docs", "features.md"),
         Path.Combine("gh-pages", "docs", "mcp-server.md"),
-        Path.Combine("skills", "CLAUDE.md"),
-        Path.Combine("skills", "powerpoint-mcp", "SKILL.md"),
-        Path.Combine("skills", "shared", "behavioral-rules.md"),
-        Path.Combine("skills", "shared", "workflows.md"),
+        Path.Combine("gh-pages", "docs", "reference", "behavioral-rules.md"),
+        Path.Combine("gh-pages", "docs", "reference", "workflows.md"),
     ];
 
     private static void CorruptOnce(string path, string pattern, string replacement)

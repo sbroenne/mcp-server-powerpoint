@@ -201,7 +201,7 @@ jobs:
             exit 0
           fi
 
-          mapfile -t CHANGED_FILES < <(git diff --name-only "$PREVIOUS_TAG" "$CURRENT_TAG" -- .github/plugins .github/workflows/publish-plugins.yml scripts/Build-Plugins.ps1 scripts/Sync-PublishedPluginRepo.ps1 skills/powerpoint-cli skills/powerpoint-mcp skills/shared)
+          mapfile -t CHANGED_FILES < <(git diff --name-only "$PREVIOUS_TAG" "$CURRENT_TAG" -- .github/plugins .github/workflows/publish-plugins.yml scripts/Build-Plugins.ps1 scripts/Sync-PublishedPluginRepo.ps1 skills/powerpoint-cli skills/powerpoint-mcp skills/powerpoint-deck-design)
 
           if [ "${#CHANGED_FILES[@]}" -eq 0 ]; then
             REASON="No plugin-published source files changed between $PREVIOUS_TAG and $CURRENT_TAG; skipping downstream publish."

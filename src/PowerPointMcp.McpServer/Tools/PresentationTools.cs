@@ -62,8 +62,8 @@ public static class PresentationTools
             var reg = registry!;
             return action switch
             {
-                PresentationToolAction.Create => HandleCreate(filePath, isMacroEnabled == true, reg),
-                PresentationToolAction.Open => HandleOpen(filePath, reg),
+                PresentationToolAction.Create => HandleCreate(filePath, isMacroEnabled == true, reg, cancellationToken),
+                PresentationToolAction.Open => HandleOpen(filePath, reg, cancellationToken),
                 PresentationToolAction.Close => HandleClose(presentation_session_id, save == true, reg),
                 PresentationToolAction.List => HandleList(reg),
                 PresentationToolAction.Test => HandleTest(filePath),
@@ -84,7 +84,7 @@ public static class PresentationTools
                 PresentationToolAction.DeleteTag => HandleDeleteTag(presentation_session_id, tagName, reg),
                 _ => PowerPointToolsBase.ValidationError($"Unknown action: {action}")
             };
-        }, cancellationToken);
+        }, cancellationToken, registry, presentation_session_id);
 
     internal static void ValidateActionParameterNames(
         string action,
@@ -173,7 +173,8 @@ public static class PresentationTools
     /// OPEN — returns a presentation_session_id immediately. No synchronous dispose happens here, so the call
     /// cannot block on PowerPoint's slow shutdown sequence.
     /// </summary>
-    private static string HandleCreate(string? filePath, bool isMacroEnabled, PresentationSessionRegistry registry)
+    private static string HandleCreate(
+        string? filePath, bool isMacroEnabled, PresentationSessionRegistry registry, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(filePath))
         {
@@ -186,33 +187,42 @@ public static class PresentationTools
         }
 
         var sessionId = registry.Create(filePath);
-
-        // Persist the new file to disk immediately through the still-open batch — no
-        // Dispose(), so this cannot block on PowerPoint's shutdown/grace-period sequence.
-        if (!registry.TryGet(sessionId, out var batch))
+        try
         {
-            return PowerPointToolsBase.ValidationError($"Session {sessionId} was created but could not be resolved.");
+            cancellationToken.ThrowIfCancellationRequested();
+            // Persist the new file to disk immediately through the still-open batch — no
+            // Dispose(), so this cannot block on PowerPoint's shutdown/grace-period sequence.
+            if (!registry.TryGet(sessionId, out var batch))
+            {
+                return PowerPointToolsBase.ValidationError($"Session {sessionId} was created but could not be resolved.");
+            }
+
+            var result = Commands.Save(batch);
+            if (!result.Success)
+            {
+                return SerializeResult(result);
+            }
+
+            return PowerPointToolsBase.Serialize(new
+            {
+                success = true,
+                presentation_session_id = sessionId,
+                presentationPath = result.PresentationPath,
+                message = "Presentation created and saved; session left open. Use the returned presentation_session_id with other actions, then action=close when finished."
+            });
         }
-
-        var result = Commands.Save(batch);
-        if (!result.Success)
+        finally
         {
-            return SerializeResult(result);
+            if (cancellationToken.IsCancellationRequested)
+                registry.Close(sessionId);
         }
-
-        return PowerPointToolsBase.Serialize(new
-        {
-            success = true,
-            presentation_session_id = sessionId,
-            presentationPath = result.PresentationPath,
-            message = "Presentation created and saved; session left open. Use the returned presentation_session_id with other actions, then action=close when finished."
-        });
     }
 
     /// <summary>
     /// Opens an existing presentation and returns a session id used by all subsequent actions.
     /// </summary>
-    private static string HandleOpen(string? filePath, PresentationSessionRegistry registry)
+    private static string HandleOpen(
+        string? filePath, PresentationSessionRegistry registry, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(filePath))
         {
@@ -225,6 +235,11 @@ public static class PresentationTools
         }
 
         var sessionId = registry.Open(filePath);
+        if (cancellationToken.IsCancellationRequested)
+        {
+            registry.Close(sessionId);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
         return PowerPointToolsBase.Serialize(new
         {
             success = true,

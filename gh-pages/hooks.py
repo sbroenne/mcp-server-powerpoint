@@ -44,34 +44,6 @@ SITE_PAGE_MAP = {
     "skills/README.md": "/skills/",
 }
 
-SKILL_SOURCES = {
-    "workflows.md": "Workflows",
-    "behavioral-rules.md": "Behavioral Rules",
-    "anti-patterns.md": "Anti-Patterns",
-    "deck-builder.md": "Deck Builder",
-    "composition-recipes.md": "Composition Recipes",
-    "slides-and-shapes.md": "Slides and Shapes",
-    "tags.md": "String Tags",
-    "text-formatting.md": "Text Formatting",
-    "tables.md": "Tables",
-    "charts.md": "Charts",
-    "images.md": "Images",
-    "media.md": "Media",
-    "smart-art.md": "SmartArt",
-    "speaker-notes.md": "Speaker Notes",
-    "layouts.md": "Layouts",
-    "master.md": "Slide Masters",
-    "animations.md": "Animations",
-    "export-and-verify.md": "Export and Verify",
-}
-
-SITE_PAGE_MAP.update(
-    {
-        f"skills/shared/{name}": f"/reference/{Path(name).stem}/"
-        for name in SKILL_SOURCES
-    }
-)
-
 _MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)\)")
 _SNIPPET = re.compile(r'^[ \t]*--8<--[ \t]+"([^"]+)"[ \t]*$', re.MULTILINE)
 _FRONTMATTER = re.compile(r"\A---\r?\n.*?\r?\n---\r?\n", re.DOTALL)
@@ -239,14 +211,6 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
         "skills/README.md",
         _strip_header(_read("skills/README.md"), demote_h1=True),
     )
-
-    for name in SKILL_SOURCES:
-        _write(
-            f"skills-{Path(name).stem}.md",
-            f"skills/shared/{name}",
-            _strip_header(_read(f"skills/shared/{name}"), demote_h1=True),
-        )
-
 
 DOCS_DIR = Path(__file__).resolve().parent / "docs"
 SNIPPET_BASE_PATHS = (DOCS_DIR, Path(__file__).resolve().parent)

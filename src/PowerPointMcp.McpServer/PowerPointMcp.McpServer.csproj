@@ -96,6 +96,14 @@
   </ItemGroup>
 
   <!-- Allow the (Phase-2) test project to drive the in-memory transport and access internals. -->
+  <Target Name="IncludeCoreToolDocumentation" BeforeTargets="CoreCompile" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <CoreDocumentationAssembly Include="@(ReferenceCopyLocalPaths)"
+                                 Condition="'%(Filename)' == 'Sbroenne.PowerPointMcp.Core' and '%(Extension)' == '.dll'" />
+      <AdditionalFiles Include="@(CoreDocumentationAssembly->'%(RootDir)%(Directory)%(Filename).xml')" />
+    </ItemGroup>
+  </Target>
+
   <ItemGroup>
     <InternalsVisibleTo Include="Sbroenne.PowerPointMcp.McpServer.Tests" />
   </ItemGroup>

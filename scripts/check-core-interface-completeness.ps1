@@ -45,6 +45,8 @@ function Get-InterfaceMethodNames {
     param([string]$FilePath)
 
     $text = Get-Content $FilePath -Raw
+    # Parentheses inside quoted descriptions/defaults are not method syntax.
+    $text = $text -replace '"(?:\\.|[^"\\])*"', '""'
 
     # Strip /// XML doc comments and // line comments to avoid false matches
     $text = $text -replace '///.*', ''
@@ -66,6 +68,7 @@ function Get-ClassMethodNames {
     $names = @()
     foreach ($path in $FilePaths) {
         $text = Get-Content $path -Raw
+        $text = $text -replace '"(?:\\.|[^"\\])*"', '""'
         $text = $text -replace '///.*', ''
         $text = $text -replace '(?m)//.*$', ''
 

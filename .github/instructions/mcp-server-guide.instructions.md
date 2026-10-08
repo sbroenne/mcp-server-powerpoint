@@ -16,7 +16,7 @@ the service bridge; it is never advertised as a tool argument.
 **NO EMOJIS in LLM-consumed content** — never use emoji characters in:
 - Tool `[Description(...)]` attributes and XML `/// <summary>` comments — the MCP SDK extracts
   these into the tool schema an LLM reads directly.
-- `skills/shared/*.md` and any future MCP prompt content.
+- skill files and any future MCP prompt content.
 
 **Use plain text markers:** "IMPORTANT:", "WARNING:", "NOTE:", "CRITICAL:".
 
@@ -162,8 +162,8 @@ Image, Media, Chart, Export, CustomShow) — the common case:**
 3. Verify the new operation appears correctly in `tools/list`, its output fields come from the
    Core result contract, malformed action arguments are rejected before dispatch, and
    `PowerPointMcp.Generators.Cli` emitted the matching `pptcli {category} {action}` command.
-4. Update `skills/shared/*.md` (and its copy under `skills/powerpoint-mcp/references/`) if the new
-   operation changes recommended workflows.
+4. Update the relevant page under `gh-pages/docs/reference/` if the new operation changes
+   recommended workflows. Keep the compact skill focused on tool discovery and safe-use basics.
 
 **For a hand-written tool (`PresentationTools.cs` only) — rare, session-lifecycle/template work:**
 1. Add the Core command first, same as above.
@@ -171,4 +171,4 @@ Image, Media, Chart, Export, CustomShow) — the common case:**
 3. Update `PresentationToolOutputSchema` when the action adds a new result field, then verify the
    `presentation` tool appears in `tools/list` with structured output and no leaked `registry` or
    `cancellationToken` parameter.
-4. Update `skills/shared/*.md` as above.
+4. Update the relevant documentation-site page as above.

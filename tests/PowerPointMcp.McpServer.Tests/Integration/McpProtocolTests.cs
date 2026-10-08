@@ -120,6 +120,58 @@ public sealed class McpProtocolTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
+    public async Task ExportSchema_PreservesCoreParameterDocumentation()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        var export = Assert.Single(tools, tool => tool.Name == "export");
+        var properties = export.JsonSchema.GetProperty("properties");
+        Assert.Contains("pixels", properties.GetProperty("width").GetProperty("description").GetString());
+        Assert.Contains("PNG", properties.GetProperty("format").GetProperty("description").GetString());
+        Assert.Contains("Defaults", properties.GetProperty("overwrite").GetProperty("description").GetString());
+    }
+
+    [Fact]
+    public async Task GeneratedSchema_ParametersExplainMoreThanActionApplicability()
+    {
+        var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);
+        foreach (var tool in tools.Where(tool => tool.Name != "presentation"))
+        {
+            foreach (var property in tool.JsonSchema.GetProperty("properties").EnumerateObject())
+            {
+                var description = property.Value.GetProperty("description").GetString();
+                Assert.False(string.IsNullOrWhiteSpace(description), $"{tool.Name}.{property.Name} has no description.");
+                Assert.False(description.TrimStart().StartsWith('('),
+                    $"{tool.Name}.{property.Name} only describes action applicability.");
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(null, "required")]
+    [InlineData("", "non-empty")]
+    [InlineData("   ", "non-empty")]
+    public async Task GeneratedTool_RejectsMissingOrBlankSessionBeforeDispatch(string? sessionId, string expected)
+    {
+        var arguments = new Dictionary<string, object?> { ["action"] = "get-count" };
+        if (sessionId != null)
+            arguments["presentation_session_id"] = sessionId;
+
+        var result = await _client!.CallToolAsync("slide_read", arguments, cancellationToken: _cts.Token);
+        Assert.True(result.IsError);
+        var structured = Assert.IsType<JsonElement>(result.StructuredContent);
+        Assert.Contains(expected, structured.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ServerInstructions_ExplainDependentCallsAndUserOwnership()
+    {
+        var instructions = _client!.ServerInstructions;
+        Assert.Contains("Await", instructions);
+        Assert.Contains("leave", instructions, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("not authorization", instructions);
+    }
+
+    [Fact]
     public async Task ShapeSchema_ExposesArrangementActionsAndParameters()
     {
         var tools = await _client!.ListToolsAsync(cancellationToken: _cts.Token);

@@ -40,6 +40,34 @@ public sealed class GeneratedContractTests
         Assert.Contains("add-picture", error.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task RouteAction_CanReturnPendingAsyncForwardResult()
+    {
+        var routeMethod = typeof(ServiceRegistry.Slide).GetMethod("RouteAction");
+        Assert.NotNull(routeMethod);
+        Assert.True(routeMethod.IsGenericMethodDefinition);
+        Assert.True(ServiceRegistry.Slide.TryParseAction("get-count", out var action));
+
+        var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Func<string, string, object?, Task<string>> forward = (_, _, _) => completion.Task;
+        var arguments = routeMethod.GetParameters()
+            .Select(parameter => parameter.Name switch
+            {
+                "action" => (object)action,
+                "sessionId" => "test-session",
+                "forwardToService" => forward,
+                _ => parameter.DefaultValue
+            })
+            .ToArray();
+
+        var result = Assert.IsAssignableFrom<Task<string>>(
+            routeMethod.MakeGenericMethod(typeof(Task<string>)).Invoke(null, arguments));
+        Assert.False(result.IsCompleted);
+
+        completion.SetResult("forwarded");
+        Assert.Equal("forwarded", await result);
+    }
+
     [Theory]
     [InlineData("""{"slideIndex":1,"imagePath":"image.png","left":0,"top":0,"width":100,"height":100,"unexpected":true}""")]
     [InlineData("""{"SlideIndex":1,"imagePath":"image.png","left":0,"top":0,"width":100,"height":100}""")]

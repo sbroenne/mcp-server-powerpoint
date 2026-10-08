@@ -312,6 +312,9 @@ Write-Host "  Synchronizing complete powerpoint-mcp skill directory..." -Foregro
 $SourceSkillMcp = Join-Path $SkillsDir "powerpoint-mcp"
 $DestSkillMcp = Join-Path $OutputMcp "skills\powerpoint-mcp"
 Copy-AgentSkill -SourceDir $SourceSkillMcp -DestinationDir $DestSkillMcp -Version $Version
+$SourceSkillDesign = Join-Path $SkillsDir "powerpoint-deck-design"
+$DestSkillDesignMcp = Join-Path $OutputMcp "skills\powerpoint-deck-design"
+Copy-AgentSkill -SourceDir $SourceSkillDesign -DestinationDir $DestSkillDesignMcp -Version $Version
 
 Assert-AgentPluginPackage -PluginName "powerpoint-mcp" -PluginDir $OutputMcp -ExpectedVersion $Version
 Write-Host "✅ powerpoint-mcp plugin built" -ForegroundColor Green
@@ -348,6 +351,8 @@ Write-Host "  Synchronizing complete powerpoint-cli skill directory..." -Foregro
 $SourceSkillCli = Join-Path $SkillsDir "powerpoint-cli"
 $DestSkillCli = Join-Path $OutputCli "skills\powerpoint-cli"
 Copy-AgentSkill -SourceDir $SourceSkillCli -DestinationDir $DestSkillCli -Version $Version
+$DestSkillDesignCli = Join-Path $OutputCli "skills\powerpoint-deck-design"
+Copy-AgentSkill -SourceDir $SourceSkillDesign -DestinationDir $DestSkillDesignCli -Version $Version
 
 Assert-AgentPluginPackage -PluginName "powerpoint-cli" -PluginDir $OutputCli -ExpectedVersion $Version
 Write-Host "✅ powerpoint-cli plugin built" -ForegroundColor Green
@@ -361,8 +366,8 @@ Write-Host "Version: $Version"
 Write-Host "Output:  $OutputDir"
 Write-Host ""
 Write-Host "Plugins:" -ForegroundColor Cyan
-Write-Host '  [ok] powerpoint-mcp - npx configuration and skill' -ForegroundColor Green
-Write-Host '  [ok] powerpoint-cli - npx wrapper and skill' -ForegroundColor Green
+Write-Host '  [ok] powerpoint-mcp - npx configuration, MCP skill, and optional deck-design skill' -ForegroundColor Green
+Write-Host '  [ok] powerpoint-cli - npx wrapper, CLI skill, and optional deck-design skill' -ForegroundColor Green
 Write-Host ""
 Write-Host "Test locally:" -ForegroundColor Yellow
 Write-Host "  copilot plugin install $OutputDir\powerpoint-mcp"

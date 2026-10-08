@@ -126,10 +126,10 @@ The two entry points run as **separate processes** with **separate PowerPoint in
 **not** share live sessions with each other — only the same `Core`/`Service` codebase.
 
 `presentation(action="create", filePath)` creates and saves the file and returns
-an open session. Reuse that `sessionId`, rather than opening the file again.
+an open session. Reuse that `presentation_session_id`, rather than opening the file again.
 `presentation(action="test", filePath)` validates that PowerPoint can open the
-file without retaining a session. Presentation actions take `sessionId`;
-generated domain tools take `presentation_session_id`.
+file without retaining a session. Both presentation actions and generated domain tools
+take `presentation_session_id`. CLI and internal session APIs retain their existing names.
 
 For all-slide image export, prefer PowerPoint's single `Presentation.Export`
 call over a loop of `Slide.Export` calls.

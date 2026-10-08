@@ -50,9 +50,24 @@ public sealed class PluginSkillVersionTests
                 .ToList();
 
             // Guard against a vacuous pass if the output layout ever changes.
-            Assert.True(
-                skillDirectories.Count >= 2,
-                $"Expected at least one skill per plugin, found {skillDirectories.Count} under {outputDir}.");
+            var pluginDirectories = Directory.GetDirectories(outputDir);
+            Assert.Equal(2, pluginDirectories.Length);
+            foreach (var pluginDir in pluginDirectories)
+            {
+                var expectedSkills = Path.GetFileName(pluginDir) switch
+                {
+                    "powerpoint-mcp" => new[] { "powerpoint-deck-design", "powerpoint-mcp" },
+                    "powerpoint-cli" => new[] { "powerpoint-cli", "powerpoint-deck-design" },
+                    var pluginName => throw new Xunit.Sdk.XunitException($"Unexpected plugin directory '{pluginName}'.")
+                };
+                Assert.Equal(
+                    expectedSkills,
+                    Directory.GetDirectories(Path.Combine(pluginDir, "skills"))
+                        .Select(Path.GetFileName)
+                        .Select(name => name!)
+                        .OrderBy(name => name, StringComparer.Ordinal)
+                        .ToArray());
+            }
 
             foreach (var skillDirectory in skillDirectories)
             {
@@ -161,7 +176,7 @@ public sealed class PluginSkillVersionTests
                 .ToList();
 
             Assert.Equal(
-                ["skills/powerpoint-cli/VERSION", "skills/powerpoint-mcp/VERSION"],
+                ["skills/powerpoint-cli/VERSION", "skills/powerpoint-deck-design/VERSION", "skills/powerpoint-mcp/VERSION"],
                 versionEntries.Select(entry => entry.FullName).ToArray());
 
             foreach (var entry in versionEntries)
