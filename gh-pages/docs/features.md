@@ -31,7 +31,7 @@ The CLI mirrors the same domain model:
 | `accessibility` | 3 | Deterministic audit and reading order | `accessibility(action="...", session_id=..., ...)` | `pptcli accessibility <action> -s <SESSION_ID> ...` |
 | `master` | 12 | Theme color/font inspection, slide master fonts and backgrounds | `master(action="...", session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
 | `animation` | 5 | Shape effects and slide transitions | `animation(action="...", session_id=..., ...)` | `pptcli animation <action> -s <SESSION_ID> ...` |
-| `image` | 16 | Picture insertion and picture adjustments (brightness/contrast, recolor, crop) | `image(action="...", session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
+| `image` | 16 | Picture insertion, compression, crop frames, brightness/contrast, recoloring, and transparency | `image(action="...", session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
 | `media` | 2 | Embedded or linked audio/video insertion and native media metadata | `media(action="...", session_id=..., ...)` | `pptcli media <action> -s <SESSION_ID> ...` |
 | `chart` | 16 | Native charts, titles, legend, data replacement, styles, colors, data tables | `chart(action="...", session_id=..., ...)` | `pptcli chart <action> -s <SESSION_ID> ...` |
 | `smartart` | 7 | SmartArt diagrams and node editing | `smartart(action="...", session_id=..., ...)` | `pptcli smartart <action> -s <SESSION_ID> ...` |
@@ -180,10 +180,13 @@ Use `master` for theme color/font inspection, deck-wide master placeholder fonts
 
 ### `image` tool (16 operations)
 
-Use `image` for inserting and adjusting pictures.
+Use `image` to insert pictures, adjust color and transparency, set crop geometry, and compress one picture, a slide, or the full presentation.
 
 **Exact action order:** `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`,
-`set-recolor`, `get-recolor`, `set-crop`, `get-crop`
+`increment-brightness`, `increment-contrast`, `set-recolor`, `get-recolor`,
+`set-transparency-color`, `get-transparency-color`, `set-transparent-background`,
+`get-transparent-background`, `set-crop`, `get-crop`, `set-crop-frame`, `get-crop-frame`,
+`compress-pictures`
 
 ### `media` tool (2 operations)
 

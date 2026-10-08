@@ -38,7 +38,7 @@ public sealed class ImageOperationResult
     /// <summary>The MsoPictureColorType name of the picture's recolor mode, if applicable.</summary>
     public string? ColorTypeName { get; init; }
 
-    /// <summary>Transparency color key as an RGB integer (0xBBGGRR), if applicable.</summary>
+    /// <summary>Transparency color key as a 24-bit RGB integer (0xBBGGRR), if applicable.</summary>
     public int? ColorRgb { get; init; }
 
     /// <summary>Whether color-key transparency is enabled, if applicable.</summary>

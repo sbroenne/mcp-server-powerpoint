@@ -67,7 +67,7 @@ public sealed partial class ImageCommands
             {
                 Success = true,
                 ShapeIndex = shapeIndex,
-                ColorRgb = pictureFormat.TransparencyColor
+                ColorRgb = NormalizeTransparencyColor(pictureFormat.TransparencyColor)
             };
         });
     }
@@ -79,8 +79,11 @@ public sealed partial class ImageCommands
         {
             Success = true,
             ShapeIndex = shapeIndex,
-            ColorRgb = pictureFormat.TransparencyColor
+            ColorRgb = NormalizeTransparencyColor(pictureFormat.TransparencyColor)
         });
+
+    internal static int? NormalizeTransparencyColor(int colorRgb) =>
+        colorRgb is >= 0 and <= 0xFFFFFF ? colorRgb : null;
 
     /// <inheritdoc/>
     public ImageOperationResult SetTransparentBackground(

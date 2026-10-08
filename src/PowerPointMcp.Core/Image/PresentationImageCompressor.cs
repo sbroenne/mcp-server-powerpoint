@@ -199,6 +199,11 @@ internal static class PresentationImageCompressor
                     new XAttribute("Target", $"../media/{newMediaName}")));
                 blip.SetAttributeValue(OfficeRelationshipNamespace + "embed", newRelationshipId);
                 blip.Attribute(OfficeRelationshipNamespace + "link")?.Remove();
+                if (!slideDocument.Descendants(DrawingNamespace + "blip")
+                    .Any(otherBlip => (string?)otherBlip.Attribute(OfficeRelationshipNamespace + "embed") == relationshipId))
+                {
+                    relationship.Remove();
+                }
 
                 if (deleteCroppedAreas)
                 {
@@ -298,6 +303,13 @@ internal static class PresentationImageCompressor
         int? targetPpi,
         bool deleteCroppedAreas)
     {
+        if (deleteCroppedAreas &&
+            (crop.Left < 0d || crop.Top < 0d || crop.Right < 0d || crop.Bottom < 0d))
+        {
+            return PictureTransform.Skip(
+                "negative crop margins expand beyond the source image and cannot be removed without changing the visible framing.");
+        }
+
         using var input = new MemoryStream(originalBytes, writable: false);
         using System.Drawing.Image source =
             System.Drawing.Image.FromStream(input, useEmbeddedColorManagement: true, validateImageData: true);
@@ -432,7 +444,7 @@ internal static class PresentationImageCompressor
         {
             return 0d;
         }
-        return Math.Clamp(value / 100000d, 0d, 1d);
+        return value / 100000d;
     }
 
     private static (long Width, long Height)? GetPictureSize(XElement picture)

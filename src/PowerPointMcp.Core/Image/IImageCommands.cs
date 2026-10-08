@@ -61,7 +61,10 @@ public interface IImageCommands
     /// </summary>
     ImageOperationResult SetTransparencyColor(IPresentationBatch batch, int slideIndex, int shapeIndex, int colorRgb);
 
-    /// <summary>Gets the picture's transparency color key as a PowerPoint RGB color integer (0xBBGGRR).</summary>
+    /// <summary>
+    /// Gets the picture's transparency color key as a PowerPoint RGB color integer (0xBBGGRR),
+    /// or null when PowerPoint does not expose a valid 24-bit color key.
+    /// </summary>
     ImageOperationResult GetTransparencyColor(IPresentationBatch batch, int slideIndex, int shapeIndex);
 
     /// <summary>Enables or disables color-key transparency for a picture.</summary>

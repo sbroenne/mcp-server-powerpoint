@@ -342,7 +342,7 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
             properties,
             "shape_index",
             actions.Where(action => action is not "add-picture" and not "compress-pictures").ToArray(),
-            notRequired: ["add-picture"]);
+            notRequired: ["add-picture", "compress-pictures"]);
         AssertOnlyRequiredFor("crop_left", "set-crop");
         AssertOnlyRequiredFor("crop_top", "set-crop");
         AssertOnlyRequiredFor("crop_right", "set-crop");
@@ -362,7 +362,7 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
             properties,
             "slide_index",
             actions.Where(action => action is not "compress-pictures").ToArray(),
-            notRequired: []);
+            notRequired: ["compress-pictures"]);
 
         _output.WriteLine(
             "✓ All parameter descriptions correctly document required-by-action constraints");
@@ -616,7 +616,7 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
         foreach (var action in required)
         {
             Assert.True(
-                DescriptionMentionsAction(desc, action),
+                DescriptionRequiresAction(desc, action),
                 $"Parameter '{paramName}' description should mention '{action}' (IImageCommands says it is required) but does not. " +
                 $"Description: '{desc}'");
         }
@@ -624,7 +624,7 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
         foreach (var action in notRequired)
         {
             Assert.False(
-                DescriptionMentionsAction(desc, action),
+                DescriptionRequiresAction(desc, action),
                 $"Parameter '{paramName}' description should NOT mention '{action}' (not required by that action) but does. " +
                 $"Description: '{desc}'");
         }
@@ -633,6 +633,15 @@ public sealed class McpImageToolSchemaTests : IAsyncLifetime, IAsyncDisposable
     private static bool DescriptionMentionsAction(string description, string action) =>
         description.Split([' ', ',', '(', ')', ':'], StringSplitOptions.RemoveEmptyEntries)
             .Contains(action, StringComparer.Ordinal);
+
+    private static bool DescriptionRequiresAction(string description, string action)
+    {
+        int validActionsStart = description.IndexOf("(valid for:", StringComparison.Ordinal);
+        string requiredActions = validActionsStart < 0
+            ? description
+            : description[..validActionsStart];
+        return DescriptionMentionsAction(requiredActions, action);
+    }
 
     private static string GetPropertyDescription(JsonElement properties, string name)
     {

@@ -1,3 +1,5 @@
+using System.IO.Compression;
+using System.Xml.Linq;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Presentation;
@@ -535,6 +537,17 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
         }
     }
 
+    [Theory]
+    [InlineData(int.MinValue, null)]
+    [InlineData(-1, null)]
+    [InlineData(0, 0)]
+    [InlineData(16777215, 16777215)]
+    [InlineData(16777216, null)]
+    public void NormalizeTransparencyColor_OnlyReturns24BitRgbValues(int color, int? expected)
+    {
+        Assert.Equal(expected, ImageCommands.NormalizeTransparencyColor(color));
+    }
+
     [Fact]
     public void CropFrame_SetAndGet_RoundTripsPictureAndFrameGeometry()
     {
@@ -624,6 +637,109 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
         {
             File.Delete(imagePath);
         }
+    }
+
+    [Fact]
+    public void CompressPictures_RemovesReplacedImageRelationship()
+    {
+        string presentationPath = _fixture.CreateFreshPresentation();
+        string imagePath = CreateLargeCompressibleTestImageFile();
+        try
+        {
+            Assert.True(_commands.AddPicture(
+                _fixture.Batch, 1, imagePath, 0f, 0f, 100f, 100f,
+                compression: "preserve").Success);
+            Assert.True(_presentationCommands.Save(_fixture.Batch).Success);
+
+            ImageOperationResult result = _commands.CompressPictures(
+                _fixture.Batch, slideIndex: 1, shapeIndex: 1, resolution: "email");
+
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.Equal(1, result.CompressedPictureCount);
+            using ZipArchive archive = ZipFile.OpenRead(presentationPath);
+            ZipArchiveEntry relationships = Assert.Single(
+                archive.Entries,
+                entry => entry.FullName == "ppt/slides/_rels/slide1.xml.rels");
+            using Stream stream = relationships.Open();
+            XDocument document = XDocument.Load(stream);
+            XNamespace packageRelationships =
+                "http://schemas.openxmlformats.org/package/2006/relationships";
+            Assert.Single(
+                document.Root!.Elements(packageRelationships + "Relationship"),
+                element => ((string?)element.Attribute("Type"))?.EndsWith("/image", StringComparison.Ordinal) == true);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public void CompressPictures_DeleteCroppedAreas_SkipsNegativeCropWithoutChangingCrop()
+    {
+        _fixture.CreateFreshPresentation();
+        string imagePath = CreateLargeCompressibleTestImageFile();
+        try
+        {
+            Assert.True(_commands.AddPicture(
+                _fixture.Batch, 1, imagePath, 0f, 0f, 100f, 100f,
+                compression: "preserve").Success);
+            Assert.True(_commands.SetCrop(_fixture.Batch, 1, 1, -5f, 0f, 0f, 0f).Success);
+
+            ImageOperationResult result = _commands.CompressPictures(
+                _fixture.Batch, slideIndex: 1, shapeIndex: 1,
+                resolution: "email", deleteCroppedAreas: true);
+            ImageOperationResult crop = _commands.GetCrop(_fixture.Batch, 1, 1);
+
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.Equal(0, result.CompressedPictureCount);
+            Assert.Contains(result.SkippedPictures!, skipped =>
+                skipped.Contains("negative crop margins", StringComparison.OrdinalIgnoreCase));
+            Assert.True(crop.Success, crop.ErrorMessage);
+            Assert.InRange(crop.CropLeft!.Value, -5.01f, -4.99f);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public async Task TransformPresentationCopy_TimeoutDoesNotReplaceTheActivePresentation()
+    {
+        string presentationPath = _fixture.CreateFreshPresentation();
+        var batch = (PresentationBatch)_fixture.Batch;
+        using var transformStarted = new ManualResetEventSlim();
+        using var allowTransformToFinish = new ManualResetEventSlim();
+        Task operation = Task.Run(() => Assert.Throws<TimeoutException>(() =>
+            batch.TransformPresentationCopyWithTimeout(
+                (temporaryPath, _) =>
+                {
+                    using (ZipArchive archive = ZipFile.Open(temporaryPath, ZipArchiveMode.Update))
+                    {
+                        archive.CreateEntry("timeout-marker.txt");
+                    }
+
+                    transformStarted.Set();
+                    allowTransformToFinish.Wait();
+                    return true;
+                },
+                TimeSpan.FromSeconds(5))));
+
+        try
+        {
+            Assert.True(await Task.Run(() => transformStarted.Wait(TimeSpan.FromSeconds(15))));
+            await operation;
+        }
+        finally
+        {
+            allowTransformToFinish.Set();
+            await operation;
+        }
+
+        batch.Execute((_, _) => { });
+        using ZipArchive activePresentation = ZipFile.OpenRead(presentationPath);
+        Assert.Null(activePresentation.GetEntry("timeout-marker.txt"));
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────────
