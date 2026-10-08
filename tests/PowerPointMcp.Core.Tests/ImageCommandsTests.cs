@@ -1,7 +1,10 @@
+using System.IO.Compression;
+using System.Xml.Linq;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Image;
 using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Shape;
+using Sbroenne.PowerPointMcp.Core.Slide;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
 
@@ -19,6 +22,7 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
     private readonly PresentationCommands _presentationCommands = new();
     private readonly ImageCommands _commands = new();
     private readonly ShapeCommands _shapeCommands = new();
+    private readonly SlideCommands _slideCommands = new();
 
     public ImageCommandsTests(SharedPresentationFixture fixture)
     {
@@ -275,43 +279,9 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
         }
     }
 
-    // ─── SetCrop / GetCrop — permanent red tests (TDD: red before Parker implements) ─
-    //
-    // CONTRACT (to be implemented by Parker in IImageCommands / ImageCommands):
-    //
-    //   ImageOperationResult SetCrop(
-    //       IPresentationBatch batch,
-    //       int slideIndex,
-    //       int shapeIndex,
-    //       float cropLeft,   // points, left edge; L-T-R-B ordering throughout
-    //       float cropTop,    // points, top edge
-    //       float cropRight,  // points, right edge
-    //       float cropBottom) // points, bottom edge
-    //
-    //   ImageOperationResult GetCrop(
-    //       IPresentationBatch batch,
-    //       int slideIndex,
-    //       int shapeIndex)
-    //
-    // ImageOperationResult additions required:
-    //   public float? CropLeft   { get; init; }
-    //   public float? CropTop    { get; init; }
-    //   public float? CropRight  { get; init; }
-    //   public float? CropBottom { get; init; }
-    //
-    // EMPIRICAL BASIS (from passing COM investigation tests below):
-    //   • CropLeft/Top/Right/Bottom are in POINTS, not fractions or percentages.
-    //   • Round-trip precision: < 0.001 pt; tolerance for tests: 0.01 pt.
-    //   • The four sides are independent; setting one does not affect the others.
-    //   • Default is 0.0 for all four sides immediately after AddPicture.
-    //   • A properly-sized source image (≥ 50×50 px BMP) is required for reliable
-    //     round-trip; the 1×1-pixel PNG helper overflows EMU arithmetic (see
-    //     CreateProperSizeTestImageFile doc comment below).
-    //   • Negative crop values are valid COM inputs; they expand the visible area
-    //     beyond the natural image boundary. No range validation needed.
-    //
-    // THESE TESTS CURRENTLY FAIL TO COMPILE (CS1061) because SetCrop, GetCrop, and
-    // CropLeft/Top/Right/Bottom do not yet exist. That is the intentional TDD red state.
+    // PowerPoint's scalar crop properties use points, not fractions or percentages.
+    // Meaningful geometry tests use a 50×50 BMP; the 1×1 test image can produce
+    // unintuitive COM crop values because PowerPoint rescales the shape internally.
 
     /// <summary>
     /// Primary round-trip: set all four sides with distinct values, assert SetCrop
@@ -492,6 +462,286 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
         finally { File.Delete(imagePath); }
     }
 
+    [Theory]
+    [InlineData("default")]
+    [InlineData("compress")]
+    [InlineData("preserve")]
+    public void AddPicture_WithCompressionMode_UsesRequestedMode(string compression)
+    {
+        _fixture.CreateFreshPresentation();
+        string imagePath = CreateProperSizeTestImageFile();
+        try
+        {
+            ImageOperationResult result = _commands.AddPicture(
+                _fixture.Batch, 1, imagePath, 0f, 0f, 100f, 100f, compression: compression);
+
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.Equal(compression, result.CompressionMode);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public void IncrementBrightnessAndContrast_AdjustPictureByRelativeAmounts()
+    {
+        _fixture.CreateFreshPresentation();
+        string imagePath = CreateProperSizeTestImageFile();
+        try
+        {
+            _commands.AddPicture(_fixture.Batch, 1, imagePath, 0f, 0f, 100f, 100f);
+            Assert.True(_commands.SetBrightnessContrast(_fixture.Batch, 1, 1, 0.5f, 0.5f).Success);
+
+            ImageOperationResult brightness = _commands.IncrementBrightness(_fixture.Batch, 1, 1, 0.1f);
+            ImageOperationResult contrast = _commands.IncrementContrast(_fixture.Batch, 1, 1, -0.1f);
+
+            Assert.True(brightness.Success, brightness.ErrorMessage);
+            Assert.InRange(brightness.Brightness!.Value, 0.59f, 0.61f);
+            Assert.True(contrast.Success, contrast.ErrorMessage);
+            Assert.InRange(contrast.Contrast!.Value, 0.39f, 0.41f);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public void TransparencyColorAndBackground_RoundTrip()
+    {
+        _fixture.CreateFreshPresentation();
+        string imagePath = CreateProperSizeTestImageFile();
+        try
+        {
+            _commands.AddPicture(_fixture.Batch, 1, imagePath, 0f, 0f, 100f, 100f);
+
+            ImageOperationResult color = _commands.SetTransparencyColor(_fixture.Batch, 1, 1, 0x00FF00);
+            ImageOperationResult background = _commands.SetTransparentBackground(_fixture.Batch, 1, 1, true);
+            ImageOperationResult readColor = _commands.GetTransparencyColor(_fixture.Batch, 1, 1);
+            ImageOperationResult readBackground = _commands.GetTransparentBackground(_fixture.Batch, 1, 1);
+
+            Assert.True(color.Success, color.ErrorMessage);
+            Assert.Equal(0x00FF00, color.ColorRgb);
+            Assert.True(background.Success, background.ErrorMessage);
+            Assert.True(background.TransparentBackground);
+            Assert.True(readColor.Success, readColor.ErrorMessage);
+            Assert.Equal(0x00FF00, readColor.ColorRgb);
+            Assert.True(readBackground.Success, readBackground.ErrorMessage);
+            Assert.True(readBackground.TransparentBackground);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Theory]
+    [InlineData(int.MinValue, null)]
+    [InlineData(-1, null)]
+    [InlineData(0, 0)]
+    [InlineData(16777215, 16777215)]
+    [InlineData(16777216, null)]
+    public void NormalizeTransparencyColor_OnlyReturns24BitRgbValues(int color, int? expected)
+    {
+        Assert.Equal(expected, ImageCommands.NormalizeTransparencyColor(color));
+    }
+
+    [Fact]
+    public void CropFrame_SetAndGet_RoundTripsPictureAndFrameGeometry()
+    {
+        _fixture.CreateFreshPresentation();
+        string imagePath = CreateProperSizeTestImageFile();
+        try
+        {
+            _commands.AddPicture(_fixture.Batch, 1, imagePath, 0f, 0f, 100f, 100f);
+
+            ImageOperationResult set = _commands.SetCropFrame(
+                _fixture.Batch, 1, 1,
+                pictureWidth: 120f, pictureHeight: 80f,
+                pictureOffsetX: 5f, pictureOffsetY: 4f,
+                frameLeft: 20f, frameTop: 25f, frameWidth: 80f, frameHeight: 60f);
+            ImageOperationResult get = _commands.GetCropFrame(_fixture.Batch, 1, 1);
+
+            Assert.True(set.Success, set.ErrorMessage);
+            Assert.True(get.Success, get.ErrorMessage);
+            Assert.InRange(get.PictureWidth!.Value, 119.99f, 120.01f);
+            Assert.InRange(get.PictureHeight!.Value, 79.99f, 80.01f);
+            Assert.InRange(get.PictureOffsetX!.Value, 4.99f, 5.01f);
+            Assert.InRange(get.PictureOffsetY!.Value, 3.99f, 4.01f);
+            Assert.InRange(get.FrameLeft!.Value, 19.99f, 20.01f);
+            Assert.InRange(get.FrameTop!.Value, 24.99f, 25.01f);
+            Assert.InRange(get.FrameWidth!.Value, 79.99f, 80.01f);
+            Assert.InRange(get.FrameHeight!.Value, 59.99f, 60.01f);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public void CompressPictures_HandlesPictureSlideAndPresentationScopes()
+    {
+        _fixture.CreateFreshPresentation();
+        string imagePath = CreateLargeCompressibleTestImageFile();
+        try
+        {
+            _commands.AddPicture(
+                _fixture.Batch, 1, imagePath, 0f, 0f, 100f, 100f, compression: "preserve");
+            _commands.AddPicture(
+                _fixture.Batch, 1, imagePath, 110f, 0f, 100f, 100f, compression: "preserve");
+            Assert.True(_slideCommands.AddBlank(_fixture.Batch).Success);
+            _commands.AddPicture(
+                _fixture.Batch, 2, imagePath, 0f, 0f, 100f, 100f, compression: "preserve");
+            _commands.AddPicture(
+                _fixture.Batch, 2, imagePath, 110f, 0f, 100f, 100f,
+                linkToFile: true, saveWithDocument: false, compression: "preserve");
+            Assert.True(_commands.SetCrop(_fixture.Batch, 1, 1, 5f, 3f, 2f, 1f).Success);
+
+            ImageOperationResult onePicture = _commands.CompressPictures(
+                _fixture.Batch, slideIndex: 1, shapeIndex: 1,
+                resolution: "email", deleteCroppedAreas: true);
+            ImageOperationResult oneSlide = _commands.CompressPictures(
+                _fixture.Batch, slideIndex: 1, resolution: "web");
+            ImageOperationResult wholePresentation = _commands.CompressPictures(
+                _fixture.Batch, resolution: "email");
+
+            Assert.True(onePicture.Success, onePicture.ErrorMessage);
+            Assert.True(
+                onePicture.CompressedPictureCount == 1,
+                $"Expected one compressed image; skipped: {string.Join("; ", onePicture.SkippedPictures ?? [])}");
+            Assert.True(onePicture.CompressedImageBytes < onePicture.OriginalImageBytes);
+            ImageOperationResult cropAfterCompression = _commands.GetCrop(_fixture.Batch, 1, 1);
+            Assert.True(cropAfterCompression.Success, cropAfterCompression.ErrorMessage);
+            Assert.Equal(0f, cropAfterCompression.CropLeft);
+            Assert.Equal(0f, cropAfterCompression.CropTop);
+            Assert.Equal(0f, cropAfterCompression.CropRight);
+            Assert.Equal(0f, cropAfterCompression.CropBottom);
+            Assert.True(oneSlide.Success, oneSlide.ErrorMessage);
+            Assert.Equal(1, oneSlide.CompressedPictureCount);
+            Assert.True(wholePresentation.Success, wholePresentation.ErrorMessage);
+            Assert.Equal(2, wholePresentation.CompressedPictureCount);
+            Assert.Equal(1, wholePresentation.SkippedPictureCount);
+            Assert.Contains("linked", wholePresentation.SkippedPictures![0], StringComparison.OrdinalIgnoreCase);
+
+            ShapeOperationResult slideOneCount = _shapeCommands.GetCount(_fixture.Batch, 1);
+            ShapeOperationResult slideTwoCount = _shapeCommands.GetCount(_fixture.Batch, 2);
+            Assert.True(slideOneCount.Success, slideOneCount.ErrorMessage);
+            Assert.True(slideTwoCount.Success, slideTwoCount.ErrorMessage);
+            Assert.Equal(2, slideOneCount.ShapeCount);
+            Assert.Equal(2, slideTwoCount.ShapeCount);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public void CompressPictures_RemovesReplacedImageRelationship()
+    {
+        string presentationPath = _fixture.CreateFreshPresentation();
+        string imagePath = CreateLargeCompressibleTestImageFile();
+        try
+        {
+            Assert.True(_commands.AddPicture(
+                _fixture.Batch, 1, imagePath, 0f, 0f, 100f, 100f,
+                compression: "preserve").Success);
+            Assert.True(_presentationCommands.Save(_fixture.Batch).Success);
+
+            ImageOperationResult result = _commands.CompressPictures(
+                _fixture.Batch, slideIndex: 1, shapeIndex: 1, resolution: "email");
+
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.Equal(1, result.CompressedPictureCount);
+            using ZipArchive archive = ZipFile.OpenRead(presentationPath);
+            ZipArchiveEntry relationships = Assert.Single(
+                archive.Entries,
+                entry => entry.FullName == "ppt/slides/_rels/slide1.xml.rels");
+            using Stream stream = relationships.Open();
+            XDocument document = XDocument.Load(stream);
+            XNamespace packageRelationships =
+                "http://schemas.openxmlformats.org/package/2006/relationships";
+            Assert.Single(
+                document.Root!.Elements(packageRelationships + "Relationship"),
+                element => ((string?)element.Attribute("Type"))?.EndsWith("/image", StringComparison.Ordinal) == true);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public void CompressPictures_DeleteCroppedAreas_SkipsNegativeCropWithoutChangingCrop()
+    {
+        _fixture.CreateFreshPresentation();
+        string imagePath = CreateLargeCompressibleTestImageFile();
+        try
+        {
+            Assert.True(_commands.AddPicture(
+                _fixture.Batch, 1, imagePath, 0f, 0f, 100f, 100f,
+                compression: "preserve").Success);
+            Assert.True(_commands.SetCrop(_fixture.Batch, 1, 1, -5f, 0f, 0f, 0f).Success);
+
+            ImageOperationResult result = _commands.CompressPictures(
+                _fixture.Batch, slideIndex: 1, shapeIndex: 1,
+                resolution: "email", deleteCroppedAreas: true);
+            ImageOperationResult crop = _commands.GetCrop(_fixture.Batch, 1, 1);
+
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.Equal(0, result.CompressedPictureCount);
+            Assert.Contains(result.SkippedPictures!, skipped =>
+                skipped.Contains("negative crop margins", StringComparison.OrdinalIgnoreCase));
+            Assert.True(crop.Success, crop.ErrorMessage);
+            Assert.InRange(crop.CropLeft!.Value, -5.01f, -4.99f);
+        }
+        finally
+        {
+            File.Delete(imagePath);
+        }
+    }
+
+    [Fact]
+    public async Task TransformPresentationCopy_TimeoutDoesNotReplaceTheActivePresentation()
+    {
+        string presentationPath = _fixture.CreateFreshPresentation();
+        var batch = (PresentationBatch)_fixture.Batch;
+        using var transformStarted = new ManualResetEventSlim();
+        using var allowTransformToFinish = new ManualResetEventSlim();
+        Task operation = Task.Run(() => Assert.Throws<TimeoutException>(() =>
+            batch.TransformPresentationCopyWithTimeout(
+                (temporaryPath, _) =>
+                {
+                    using (ZipArchive archive = ZipFile.Open(temporaryPath, ZipArchiveMode.Update))
+                    {
+                        archive.CreateEntry("timeout-marker.txt");
+                    }
+
+                    transformStarted.Set();
+                    allowTransformToFinish.Wait();
+                    return true;
+                },
+                TimeSpan.FromSeconds(5))));
+
+        try
+        {
+            Assert.True(await Task.Run(() => transformStarted.Wait(TimeSpan.FromSeconds(15))));
+            await operation;
+        }
+        finally
+        {
+            allowTransformToFinish.Set();
+            await operation;
+        }
+
+        batch.Execute((_, _) => { });
+        using ZipArchive activePresentation = ZipFile.OpenRead(presentationPath);
+        Assert.Null(activePresentation.GetEntry("timeout-marker.txt"));
+    }
+
     // ─── Helpers ──────────────────────────────────────────────────────────────────
 
     private static void AssertSupportedAutoUpdateOrKnownPowerPointError(Exception? exception)
@@ -530,15 +780,19 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
     /// a properly-sized source image; this factory provides one.
     /// </para>
     /// </summary>
-    private static string CreateProperSizeTestImageFile()
+    private static string CreateProperSizeTestImageFile() => CreateBmpTestImageFile(50, 50);
+
+    private static string CreateLargeCompressibleTestImageFile() =>
+        CreateBmpTestImageFile(1024, 1024, randomPixels: true);
+
+    private static string CreateBmpTestImageFile(int width, int height, bool randomPixels = false)
     {
         string dir = Path.Combine(Path.GetTempPath(), "PowerPointMcpTests");
         Directory.CreateDirectory(dir);
-        string path = Path.Combine(dir, $"pptmcp-test-50px-{Guid.NewGuid():N}.bmp");
+        string path = Path.Combine(dir, $"pptmcp-test-{width}x{height}-{Guid.NewGuid():N}.bmp");
 
-        const int W = 50, H = 50;
-        int rowStride = (W * 3 + 3) / 4 * 4;   // BMP rows are 4-byte aligned
-        byte[] bmp = new byte[54 + rowStride * H];
+        int rowStride = (width * 3 + 3) / 4 * 4;   // BMP rows are 4-byte aligned
+        byte[] bmp = new byte[54 + rowStride * height];
 
         // BITMAPFILEHEADER (14 bytes)
         bmp[0] = 0x42; bmp[1] = 0x4D;                           // "BM" signature
@@ -547,20 +801,27 @@ public class ImageCommandsTests : IClassFixture<SharedPresentationFixture>
 
         // BITMAPINFOHEADER (40 bytes at offset 14)
         BitConverter.GetBytes(40).CopyTo(bmp, 14);               // header size
-        BitConverter.GetBytes(W).CopyTo(bmp, 18);                // width in pixels
-        BitConverter.GetBytes(-H).CopyTo(bmp, 22);               // height — negative = top-down rows
+        BitConverter.GetBytes(width).CopyTo(bmp, 18);             // width in pixels
+        BitConverter.GetBytes(-height).CopyTo(bmp, 22);            // height — negative = top-down rows
         bmp[26] = 1;                                              // colour planes = 1
         bmp[28] = 24;                                             // bits per pixel = 24 (RGB)
         BitConverter.GetBytes(3780).CopyTo(bmp, 38);             // X pixels per metre ≈ 96 DPI
         BitConverter.GetBytes(3780).CopyTo(bmp, 42);             // Y pixels per metre ≈ 96 DPI
 
-        // Pixel data: solid blue, stored as B G R (BMP byte order)
-        for (int y = 0; y < H; y++)
-            for (int x = 0; x < W; x++)
-            {
-                int i = 54 + y * rowStride + x * 3;
-                bmp[i] = 180; bmp[i + 1] = 100; bmp[i + 2] = 0;
-            }
+        if (randomPixels)
+        {
+            System.Security.Cryptography.RandomNumberGenerator.Fill(bmp.AsSpan(54));
+        }
+        else
+        {
+            // Pixel data: solid blue, stored as B G R (BMP byte order)
+            for (int y = 0; y < height; y++)
+                for (int x = 0; x < width; x++)
+                {
+                    int i = 54 + y * rowStride + x * 3;
+                    bmp[i] = 180; bmp[i + 1] = 100; bmp[i + 2] = 0;
+                }
+        }
 
         File.WriteAllBytes(path, bmp);
         return path;

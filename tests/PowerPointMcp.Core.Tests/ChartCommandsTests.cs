@@ -529,6 +529,125 @@ public class ChartCommandsTests : IClassFixture<SharedPresentationFixture>
         }
     }
 
+    [Fact]
+    public void AddChart_BackToBackOnDifferentSlides_WithTitleBetween_AllSucceedAndLeaveNoDataGridOpen()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        AddBlankSlides(batch, 2);
+        string[] categories = ["Q1", "Q2", "Q3"];
+
+        var first = _commands.AddChart(batch, 1, "line", 50f, 50f, 400f, 300f, categories, "Revenue", [10d, 20d, 30d]);
+        Assert.True(first.Success, first.ErrorMessage);
+        AssertChartDataGridClosed(batch);
+        var title = _commands.SetChartTitle(batch, 1, first.ShapeIndex!.Value, "Revenue");
+        Assert.True(title.Success, title.ErrorMessage);
+
+        var second = _commands.AddChart(batch, 2, "bar", 50f, 50f, 400f, 300f, categories, "Costs", [5d, 6d, 7d]);
+        Assert.True(second.Success, second.ErrorMessage);
+        var third = _commands.AddChart(batch, 3, "pie", 50f, 50f, 400f, 300f, categories, "Share", [1d, 2d, 3d]);
+        Assert.True(third.Success, third.ErrorMessage);
+
+        for (int slideIndex = 1; slideIndex <= 3; slideIndex++)
+        {
+            var data = _commands.GetChartData(batch, slideIndex, 1);
+            Assert.True(data.Success, data.ErrorMessage);
+            Assert.Equal(1, data.SeriesCount);
+            Assert.Equal(3, data.CategoryCount);
+        }
+
+        // Reading charts on different slides back to back already fails if an earlier read left
+        // its grid open; probe once more for the final read.
+        AssertChartDataGridClosed(batch);
+    }
+
+    [Fact]
+    public void AddSeries_RepeatedWithGetChartDataBetween_AllSucceedAndLeaveNoDataGridOpen()
+    {
+        _fixture.CreateFreshPresentation();
+        var batch = _fixture.Batch;
+        string[] categories = ["A", "B", "C", "D", "E"];
+        var add = _commands.AddChart(batch, 1, "line", 50f, 50f, 400f, 300f, categories, "Base", [1d, 2d, 3d, 4d, 5d]);
+        Assert.True(add.Success, add.ErrorMessage);
+        int shapeIndex = add.ShapeIndex!.Value;
+        AssertChartDataGridClosed(batch);
+
+        for (int i = 1; i <= 4; i++)
+        {
+            var series = _commands.AddSeries(batch, 1, shapeIndex, $"Series {i}", [i, i + 1d, i + 2d, i + 3d, i + 4d]);
+            Assert.True(series.Success, series.ErrorMessage);
+            Assert.Equal(i + 1, series.SeriesCount);
+            if (i == 1)
+            {
+                AssertChartDataGridClosed(batch);
+            }
+
+            var data = _commands.GetChartData(batch, 1, shapeIndex);
+            Assert.True(data.Success, data.ErrorMessage);
+            Assert.Equal(i + 1, data.SeriesCount);
+            Assert.Equal(5, data.CategoryCount);
+        }
+
+        AssertChartDataGridClosed(batch);
+
+        var replace = _commands.ReplaceChartData(batch, 1, shapeIndex, ["X", "Y"], ["One"], [1d, 2d]);
+        Assert.True(replace.Success, replace.ErrorMessage);
+        AssertChartDataGridClosed(batch);
+    }
+
+    private static void AddBlankSlides(IPresentationBatch batch, int count)
+    {
+        batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Slides? slides = ctx.Presentation.Slides;
+            try
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    PowerPoint.Slide? slide = slides.Add(slides.Count + 1, PowerPoint.PpSlideLayout.ppLayoutBlank);
+                    ComUtilities.Release(ref slide);
+                }
+
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref slides);
+            }
+        });
+    }
+
+    /// <summary>
+    /// PowerPoint allows one open chart data grid per presentation and rejects adding another
+    /// chart while it is open ("The chart data grid is already open"). Adding and removing a
+    /// chart on a scratch slide therefore proves no grid was left open, without reading
+    /// ChartData.Workbook (which itself loads the chart's workbook). Scratch slides are appended
+    /// after the slides under test and left in place so a failure is never masked by cleanup.
+    /// </summary>
+    private void AssertChartDataGridClosed(IPresentationBatch batch)
+    {
+        int scratchSlideIndex = batch.Execute((ctx, ct) =>
+        {
+            PowerPoint.Slides? slides = ctx.Presentation.Slides;
+            try
+            {
+                return slides.Count;
+            }
+            finally
+            {
+                ComUtilities.Release(ref slides);
+            }
+        }) + 1;
+        AddBlankSlides(batch, 1);
+
+        ChartOperationResult? probe = null;
+        var error = Record.Exception(() => probe = _commands.AddChart(
+            batch, scratchSlideIndex, "bar", 10f, 10f, 100f, 100f, ["P"], "Probe", [1d]));
+
+        Assert.True(error is null, $"A chart data grid was left open: {error?.Message}");
+        Assert.True(probe!.Success, probe.ErrorMessage);
+    }
+
     private int AddFormattingChart(IPresentationBatch batch)
     {
         var result = _commands.AddChart(

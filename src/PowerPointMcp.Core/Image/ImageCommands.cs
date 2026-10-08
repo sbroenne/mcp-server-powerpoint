@@ -8,7 +8,7 @@ using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 namespace Sbroenne.PowerPointMcp.Core.Image;
 
 /// <inheritdoc cref="IImageCommands"/>
-public sealed class ImageCommands : IImageCommands
+public sealed partial class ImageCommands : IImageCommands
 {
     // MsoPictureColorType member name -> value, for SetRecolor/GetRecolor
     // (learn.microsoft.com/office/vba/api/office.msopicturecolortype) — verified live via
@@ -24,6 +24,14 @@ public sealed class ImageCommands : IImageCommands
     private static readonly Dictionary<int, string> PictureColorTypesByValue =
         PictureColorTypes.ToDictionary(kvp => kvp.Value, kvp => kvp.Key);
 
+    private static readonly Dictionary<string, Office.MsoPictureCompress> PictureCompressionModes =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["default"] = Office.MsoPictureCompress.msoPictureCompressDocDefault,
+            ["compress"] = Office.MsoPictureCompress.msoPictureCompressTrue,
+            ["preserve"] = Office.MsoPictureCompress.msoPictureCompressFalse,
+        };
+
     /// <inheritdoc/>
     public ImageOperationResult AddPicture(
         IPresentationBatch batch,
@@ -34,10 +42,21 @@ public sealed class ImageCommands : IImageCommands
         float width,
         float height,
         bool linkToFile = false,
-        bool saveWithDocument = true)
+        bool saveWithDocument = true,
+        string compression = "default")
     {
         ArgumentNullException.ThrowIfNull(batch);
         ArgumentNullException.ThrowIfNull(imagePath);
+        ArgumentNullException.ThrowIfNull(compression);
+
+        if (!PictureCompressionModes.TryGetValue(compression, out Office.MsoPictureCompress compressionMode))
+        {
+            return new ImageOperationResult
+            {
+                Success = false,
+                ErrorMessage = $"'{compression}' is not a recognized compression mode. Use 'default', 'compress', or 'preserve'."
+            };
+        }
 
         if (!linkToFile && !saveWithDocument)
         {
@@ -85,14 +104,15 @@ public sealed class ImageCommands : IImageCommands
 
                 slide = slides[slideIndex];
                 shapes = slide.Shapes;
-                picture = shapes.AddPicture(
+                picture = shapes.AddPicture2(
                     fullImagePath,
                     linkToFile ? Office.MsoTriState.msoTrue : Office.MsoTriState.msoFalse,
                     saveWithDocument ? Office.MsoTriState.msoTrue : Office.MsoTriState.msoFalse,
                     left,
                     top,
                     width,
-                    height);
+                    height,
+                    compressionMode);
                 int shapeCount = shapes.Count;
 
                 return new ImageOperationResult
@@ -101,7 +121,8 @@ public sealed class ImageCommands : IImageCommands
                     ShapeIndex = shapeCount,
                     ShapeCount = shapeCount,
                     LinkToFile = linkToFile,
-                    SaveWithDocument = saveWithDocument
+                    SaveWithDocument = saveWithDocument,
+                    CompressionMode = compression
                 };
             }
             finally

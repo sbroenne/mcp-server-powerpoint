@@ -1,12 +1,12 @@
 ---
 title: Complete Feature Reference
-description: 32 MCP tools with 206 operations across 17 domains for live PowerPoint automation through single action-dispatch tools.
+description: 32 MCP tools with 215 operations across 17 domains for live PowerPoint automation through single action-dispatch tools.
 keywords: "PowerPoint MCP features, PowerPoint automation, presentation tool, slide tool, shape tool, media tool, chart tool, SmartArt tool, export-to-verify"
 ---
 
 # Complete Feature Reference
 
-PowerPoint MCP Server exposes **32 MCP tools with 206 operations across 17 domains**.
+PowerPoint MCP Server exposes **32 MCP tools with 215 operations across 17 domains**.
 The tool total includes 15 read-only aliases; the operation total counts each unique action once.
 Every domain is a **single action-dispatch tool** that takes an `action` parameter — for example
 `presentation(action="open", filePath="C:\\Decks\\q4.pptx")` or
@@ -32,7 +32,7 @@ The CLI mirrors the same domain model:
 | `accessibility` | 3 | Deterministic audit and reading order | `accessibility(action="...", presentation_session_id=..., ...)` | `pptcli accessibility <action> -s <SESSION_ID> ...` |
 | `master` | 12 | Theme color/font inspection, slide master fonts and backgrounds | `master(action="...", presentation_session_id=..., ...)` | `pptcli master <action> -s <SESSION_ID> ...` |
 | `animation` | 5 | Shape effects and slide transitions | `animation(action="...", presentation_session_id=..., ...)` | `pptcli animation <action> -s <SESSION_ID> ...` |
-| `image` | 7 | Picture insertion and picture adjustments (brightness/contrast, recolor, crop) | `image(action="...", presentation_session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
+| `image` | 16 | Picture insertion, compression, crop frames, brightness/contrast, recoloring, and transparency | `image(action="...", presentation_session_id=..., ...)` | `pptcli image <action> -s <SESSION_ID> ...` |
 | `media` | 2 | Embedded or linked audio/video insertion and native media metadata | `media(action="...", presentation_session_id=..., ...)` | `pptcli media <action> -s <SESSION_ID> ...` |
 | `chart` | 16 | Native charts, titles, legend, data replacement, styles, colors, data tables | `chart(action="...", presentation_session_id=..., ...)` | `pptcli chart <action> -s <SESSION_ID> ...` |
 | `smartart` | 7 | SmartArt diagrams and node editing | `smartart(action="...", presentation_session_id=..., ...)` | `pptcli smartart <action> -s <SESSION_ID> ...` |
@@ -180,12 +180,15 @@ Use `master` for theme color/font inspection, deck-wide master placeholder fonts
 **Exact action order:** `add-effect`, `get-effect-count`, `delete-effect`, `get-transition`,
 `set-transition`
 
-### `image` tool (7 operations)
+### `image` tool (16 operations)
 
-Use `image` for inserting and adjusting pictures.
+Use `image` to insert pictures, adjust color and transparency, set crop geometry, and compress one picture, a slide, or the full presentation.
 
 **Exact action order:** `add-picture`, `set-brightness-contrast`, `get-brightness-contrast`,
-`set-recolor`, `get-recolor`, `set-crop`, `get-crop`
+`increment-brightness`, `increment-contrast`, `set-recolor`, `get-recolor`,
+`set-transparency-color`, `get-transparency-color`, `set-transparent-background`,
+`get-transparent-background`, `set-crop`, `get-crop`, `set-crop-frame`, `get-crop-frame`,
+`compress-pictures`
 
 ### `media` tool (2 operations)
 

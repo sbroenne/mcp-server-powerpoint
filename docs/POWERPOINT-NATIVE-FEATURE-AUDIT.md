@@ -2,7 +2,7 @@
 
 ## Scope
 
-This audit compares the current 32 tools and 206 operations with the restored
+This audit compares the current 32 tools and 215 operations with the restored
 `Microsoft.Office.Interop.PowerPoint` 15.0.4420.1018 assembly. It looks for useful PowerPoint
 features that fit the existing live-session model. It does not copy Excel-only worksheet, Power
 Query, Data Model, PivotTable, or calculation APIs.
@@ -24,6 +24,12 @@ The existing surface already covers the main editing workflow:
 Modern Microsoft 365 threaded comments are not available through a reliable PowerPoint COM API.
 The existing legacy comment operations are therefore correctly scoped.
 
+Although the PIA declares drawing-canvas insertion and crop members, the installed PowerPoint
+returns `E_NOTIMPL` for `Shapes.AddCanvas`; canvas-specific cropping is therefore not exposed.
+
+The `image` tool now exposes the usable picture-format API, full crop-frame editing, insertion
+compression modes, and automatic compression of embedded raster images.
+
 ## Recommended additions
 
 | Priority | Capability | Proposed operations | Why it fits | Main risk |
@@ -35,6 +41,22 @@ The existing legacy comment operations are therefore correctly scoped.
 | 5 | Linked pictures | optional `link_to_file` on `image: add-picture`; `shape: get-link-info`, `update-link`, `break-link`, `set-link-auto-update` | Enables linked-asset workflows and repair | `LinkFormat` is valid only for linked shapes |
 | 6 | Audio and video (delivered) | `media: add-media`, `get-media-info` | Closes a PowerPoint-specific capability gap | Uses repository-owned synthetic WAV and H.264 MP4 fixtures |
 | 7 | Named custom shows (delivered) | `customshow: list`, `create`, `delete` | Reuses one deck for different audiences without duplicating slides | `NamedSlideShows.Item(...).SlideIDs` returns an array shape that needs care to map back to slide indices |
+| 8 | Picture editing and compression (delivered) | picture-format controls, full crop frame, insertion compression, and scoped `compress-pictures` | Adds the actionable PictureFormat surface and non-interactive image optimization | Package-level image replacement must preserve presentation relationships and be tested with real PowerPoint |
+
+### 8. Picture editing and compression — implemented
+
+The `PictureFormat` surface now includes brightness/contrast increments, color-key
+transparency, scalar crop offsets, and the `Crop` object for full source-picture and visible-frame
+geometry. Picture insertion exposes PowerPoint's typed `AddPicture2` compression modes.
+
+PowerPoint does not expose a dependable non-interactive bulk-compression command through COM.
+`compress-pictures` therefore saves a copy, updates supported embedded raster picture parts in the
+Open XML package, then replaces and reopens the active presentation. It can target one picture,
+one slide, or the full presentation, with high-fidelity, HD, print, web, and email resolution
+presets; `delete_cropped_areas` optionally removes pixels outside the visible crop. Linked,
+vector, animated, and unsupported image parts are reported as skipped. Compression requires a
+saved `.pptx` or `.pptm` and is covered by real-PowerPoint tests, including session reuse after
+the package replacement.
 
 ### 1. Save As and Save Copy As — implemented
 
@@ -43,10 +65,8 @@ The restored PIA exposes:
 - `_Presentation.SaveAs(string, PpSaveAsFileType, MsoTriState)`
 - `_Presentation.SaveCopyAs(string, PpSaveAsFileType, MsoTriState)`
 
-The restored signatures include an optional `Office.MsoTriState` parameter, but this project does
-not reference `office.dll`, so the compiler cannot bind either method. The implementation keeps
-late binding limited to these two invocations, passes typed `PpSaveAsFileType` values, and leaves
-font embedding at PowerPoint's default.
+The implementation references the Office PIA and calls both methods through the typed API,
+passing `Office.MsoTriState.msoFalse` for the optional font-embedding parameter.
 
 `save-as` updates the batch and session registry path only after COM succeeds. `save-copy-as`
 preserves the active session and original path. Both operations validate supported extensions,

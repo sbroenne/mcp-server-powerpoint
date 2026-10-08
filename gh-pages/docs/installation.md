@@ -124,7 +124,7 @@ you get back a rendered PNG of a real PowerPoint slide, you're set up correctly.
 
 ## More information
 
-- [Complete Feature Reference](features.md) — all 32 tools (206 operations) across 17 domains
+- [Complete Feature Reference](features.md) — all 32 tools (215 operations) across 17 domains
 - [MCP Server Documentation](mcp-server.md) — MCP tool reference
 - [CLI Documentation](cli.md) — CLI command reference
 - [Agent Skills](skills.md) — AI guidance for Claude Code, Cursor, Windsurf and more

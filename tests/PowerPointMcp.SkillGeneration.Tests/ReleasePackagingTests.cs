@@ -102,6 +102,21 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
+    public void CliSkill_RemainsCompactAndIsNotRegeneratedDuringBuild()
+    {
+        var project = XDocument.Load(Path.Combine(
+            RepoRoot, "src", "PowerPointMcp.CLI", "PowerPointMcp.CLI.csproj"));
+        Assert.DoesNotContain(
+            project.Descendants("Target"),
+            target => (string?)target.Attribute("Name") == "GenerateCliSkill");
+        foreach (var skillName in new[] { "powerpoint-cli", "powerpoint-mcp" })
+        {
+            var skill = File.ReadAllText(Path.Combine(RepoRoot, "skills", skillName, "SKILL.md"));
+            Assert.True(skill.Length < 4000, $"{skillName} should remain a compact entry skill.");
+        }
+    }
+
+    [Fact]
     public void BuildAgentSkills_PackagesThreeFocusedVersionedSkills()
     {
         using var temp = new TemporaryDirectory();

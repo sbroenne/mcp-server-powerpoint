@@ -171,6 +171,14 @@ public class PresentationCommandsTests
         public void Save(CancellationToken cancellationToken = default) =>
             inner.Save(cancellationToken);
 
+        public T TransformPresentationCopy<T>(
+            Func<string, CancellationToken, T> transform,
+            CancellationToken cancellationToken = default)
+        {
+            RunBeforeExecute();
+            return inner.TransformPresentationCopy(transform, cancellationToken);
+        }
+
         public void UpdatePresentationPath(string presentationPath) =>
             inner.UpdatePresentationPath(presentationPath);
 
@@ -388,7 +396,7 @@ public class PresentationCommandsTests
     }
 
     [Fact]
-    public void Dispose_QuitsPowerPoint_ProcessEventuallyExits()
+    public void Dispose_ClosesPresentation_AndQuitsOnlyWhenApplicationIsExclusive()
     {
         // Exercises PresentationShutdownService's resilient close/quit + process-exit polling
         // (invoked internally from PresentationBatch's STA-thread cleanup on Dispose()).
@@ -399,15 +407,39 @@ public class PresentationCommandsTests
 
             var batch = PresentationSession.BeginBatch(path);
             int? processId;
+            bool hasOtherPresentations;
             try
             {
                 processId = batch.PowerPointProcessId;
                 Assert.True(processId.HasValue, "Expected to capture a PowerPoint process ID for the shutdown-polling test.");
                 Assert.True(batch.IsPowerPointProcessAlive(), "PowerPoint process should be alive while the batch is open.");
+                hasOtherPresentations = batch.Execute((ctx, ct) =>
+                {
+                    PowerPoint.Presentations? presentations = null;
+                    try
+                    {
+                        presentations = ctx.App.Presentations;
+                        return presentations.Count > 1;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref presentations);
+                    }
+                });
             }
             finally
             {
                 batch.Dispose();
+            }
+
+            using (File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                if (hasOtherPresentations)
+                {
+                    Assert.True(batch.IsPowerPointProcessAlive(),
+                        "Disposing one presentation must not terminate an application with other open presentations.");
+                    return;
+                }
             }
 
             // PresentationShutdownService tolerates PowerPoint's documented ~90-100s post-Quit()

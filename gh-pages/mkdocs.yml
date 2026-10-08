@@ -93,6 +93,8 @@ nav:
       - Update an existing presentation: guides/update-existing-deck.md
       - Build an accessible presentation: guides/build-accessible-deck.md
       - Apply a template: guides/apply-template.md
+  - Samples:
+      - World Bank briefing: samples/world-bank-briefing.md
   - Features: features.md
   - Installation: installation.md
   - MCP Server: mcp-server.md

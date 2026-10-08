@@ -44,7 +44,7 @@ layout regressions that text-only automation simply cannot detect.
 
 ## 🎯 What You Can Do
 
-**32 MCP tools with 206 operations across 17 domains:**
+**32 MCP tools with 215 operations across 17 domains:**
 
 The tool total includes 15 read-only aliases; the operation total counts each unique action once.
 
@@ -63,8 +63,7 @@ The tool total includes 15 read-only aliases; the operation total counts each un
 - ♿ **Accessibility** (3 ops) — deterministic audit and reading-order management
 - 🎭 **Master** (12 ops) — theme color/font inspection, slide master title/body placeholder fonts, background color
 - 🎬 **Animation** (5 ops) — shape entrance/emphasis/exit effects, slide transitions
-- 🖼️ **Image** (7 ops) — insert embedded or linked pictures and adjust brightness, contrast,
-  recolor, and crop
+- 🖼️ **Image** (16 ops) — insert, adjust, crop, set transparency, and compress pictures
 - 📈 **Chart** (16 ops) — add chart, multi-series data, titles, legend, built-in styles, color styles,
   and data tables
 - 🎧 **Media** (2 ops) — insert embedded or linked audio/video and inspect native media metadata
