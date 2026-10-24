@@ -863,7 +863,7 @@ jobs:
         VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
       run: |
         $PSNativeCommandUseErrorActionPreference = $true
-        npm exec --no -- vsce publish --packagePath "../vscode-vsix/powerpoint-mcp-$env:VERSION.vsix" --skip-duplicate
+        & .\node_modules\.bin\vsce.cmd publish --packagePath "../vscode-vsix/powerpoint-mcp-$env:VERSION.vsix" --skip-duplicate
 
     - name: Publish Windows ARM64 extension
       working-directory: vscode-extension
@@ -872,7 +872,7 @@ jobs:
         VSCE_PAT: ${{ secrets.VSCE_TOKEN }}
       run: |
         $PSNativeCommandUseErrorActionPreference = $true
-        npm exec --no -- vsce publish --packagePath "../vscode-vsix/powerpoint-mcp-$env:VERSION-win32-arm64.vsix" --skip-duplicate
+        & .\node_modules\.bin\vsce.cmd publish --packagePath "../vscode-vsix/powerpoint-mcp-$env:VERSION-win32-arm64.vsix" --skip-duplicate
 
   # =============================================================================
   # Job 10: Create Unified GitHub Release

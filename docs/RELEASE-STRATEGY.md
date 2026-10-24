@@ -25,6 +25,9 @@ The publishing job installs `npm@latest`, makes that installation available to
 later steps, and prints its version before publishing. Node 22's bundled npm 10
 does not support npm's OIDC publishing, which requires npm 11.5.1 or later.
 
+VS Code publishing runs the installed `vsce.cmd` directly on Windows so its
+options reach the extension publisher rather than being interpreted by npm.
+
 To resume a partially published release, run the workflow with the existing
 `custom_version` and `resume_release=true`. This preserves the existing tag and
 skips package versions that are already published; do not request another patch

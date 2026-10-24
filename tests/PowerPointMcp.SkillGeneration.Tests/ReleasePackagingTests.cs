@@ -255,6 +255,13 @@ public sealed class ReleasePackagingTests
             publishJob.IndexOf("- name: Publish npm packages", StringComparison.Ordinal));
         Assert.DoesNotContain("NODE_AUTH_TOKEN", publishJob, StringComparison.Ordinal);
         Assert.DoesNotContain("NPM_TOKEN", workflow, StringComparison.Ordinal);
+        Assert.Equal(
+            2,
+            System.Text.RegularExpressions.Regex.Count(
+                publishJob,
+                System.Text.RegularExpressions.Regex.Escape(
+                    @"& .\node_modules\.bin\vsce.cmd publish --packagePath")));
+        Assert.DoesNotContain("npm exec --no -- vsce publish", publishJob, StringComparison.Ordinal);
     }
 
     [Fact]
