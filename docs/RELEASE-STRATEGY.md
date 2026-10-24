@@ -32,6 +32,9 @@ To resume a partially published release, run the workflow with the existing
 `custom_version` and `resume_release=true`. This preserves the existing tag and
 skips package versions that are already published; do not request another patch
 bump to retry the same release.
+An existing MCP Registry version is skipped only after its description,
+repository, and package identities match the release metadata. Unexpected
+responses or different published metadata still fail the release.
 
 ## Changelog generation
 
@@ -56,6 +59,8 @@ bump to retry the same release.
 - A follow-up step opens a PR (`chore/changelog-v<version>`) committing the
   updated documentation counts, `CHANGELOG.md`, `package.json`, and consumed
   `.changeset/*.md` deletions back to `main`, since branch protection prevents a direct push.
+  Before pushing, it puts the generated documentation changes on top of the
+  current `main` branch so workflow fixes made after the release tag are kept.
   This step deliberately does **not** use `continue-on-error` — if it fails
   (e.g. missing permissions), the release is left visibly incomplete rather
   than silently missing its changelog commit-back.
