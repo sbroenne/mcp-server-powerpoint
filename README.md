@@ -11,27 +11,20 @@
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/sbroenne/mcp-server-powerpoint)
 [![Built with Copilot](https://img.shields.io/badge/Built%20with-GitHub%20Copilot-0366d6.svg)](https://copilot.github.com/)
 
-**Automate PowerPoint with AI** — a [Model Context Protocol](https://modelcontextprotocol.io) server and CLI
-for live, real-time PowerPoint automation through conversational AI. Sibling project to
-[mcp-server-excel](https://github.com/sbroenne/mcp-server-excel), following the same layered
-architecture: `ComInterop` → `Core` → `CLI` / `MCP Server`.
+**Create and edit real PowerPoint presentations with AI assistants or scripts.**
+Build a new deck or update an existing `.pptx` file. Add slides, format text and
+shapes, create charts and tables, insert images, and write speaker notes using
+the installed Microsoft PowerPoint desktop application on Windows.
 
-**MCP Server for PowerPoint** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to build and
-edit real `.pptx` presentations through natural language — slides, shapes, text, tables, charts,
-speaker notes, and layouts — no VBA or PowerPoint object-model knowledge required.
+**Choose how you work.** Connect your AI assistant through the
+[Model Context Protocol](https://modelcontextprotocol.io) server, use the VS Code
+extension with GitHub Copilot Chat, or run `pptcli` from terminal commands and
+scripts. The packages require desktop PowerPoint; they do not replace it.
 
-**🛡️ Live COM automation, not file parsing** — Most PowerPoint MCP servers manipulate `.pptx`
-files offline with libraries like `python-pptx`, or use agent-run scripts with LibreOffice-rendered
-thumbnails. This project instead drives a **live, real PowerPoint desktop instance** via
-`Microsoft.Office.Interop.PowerPoint` — the official Primary Interop Assembly. That means
-true-fidelity rendering, compatibility with an already-open deck, and zero risk of producing a
-`.pptx` that PowerPoint itself can't open, because PowerPoint is the one writing it.
-
-**🖼️ Export-to-verify** — the core differentiator. After any visual edit, export the slide (or the
-whole deck) to an image with `export(action="export-slide-to-image", ...)` /
-`export(action="export-all-slides-to-images", ...)` and let a
-vision-capable AI assistant *see* the result — catching overlapping shapes, text overflow, and
-layout regressions that text-only automation simply cannot detect.
+**Review the actual result.** The MCP server can export presentations to PDF or
+render slides as images through PowerPoint. An assistant that can inspect images
+can then check for overlapping shapes, text overflow, and layout problems before
+you share the presentation.
 
 **Technical Requirements:**
 - ⚠️ **Windows Only** — COM interop is Windows-specific

@@ -17,7 +17,7 @@
     <!-- NuGet package configuration (distributed as a .NET tool + MCP Registry entry). -->
     <PackageId>Sbroenne.PowerPointMcp.McpServer</PackageId>
     <Title>MCP Server for PowerPoint</Title>
-    <Description>PowerPoint automation for AI assistants - slides, shapes, text, tables, charts, images, notes, layouts, and slide-to-image export for visual verification. Requires PowerPoint to be installed. Only runs on Windows.</Description>
+    <Description>Let AI assistants create, edit, and export PowerPoint presentations with slides, charts, tables, images, and notes. Requires desktop Microsoft PowerPoint on Windows.</Description>
     <PackageTags>mcp;model-context-protocol;powerpoint;microsoft;office;presentation;slides;automation;charts;tables;copilot;ai;github-copilot</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-powerpoint/releases for release notes</PackageReleaseNotes>

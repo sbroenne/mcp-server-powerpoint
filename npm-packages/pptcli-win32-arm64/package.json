@@ -1,7 +1,7 @@
 {
   "name": "@sbroenne/pptcli-win32-arm64",
   "version": "0.0.0-development",
-  "description": "Windows ARM64 runtime for the PowerPointMcp CLI.",
+  "description": "Create and edit PowerPoint presentations with pptcli on Windows ARM64. Requires desktop Microsoft PowerPoint. Installed automatically by @sbroenne/pptcli.",
   "license": "MIT",
   "main": "pptcli.exe",
   "files": [

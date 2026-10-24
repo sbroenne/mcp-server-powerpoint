@@ -1,7 +1,11 @@
 # PowerPointMcp CLI Windows runtime
 
-This package contains the self-contained Windows x64 `pptcli.exe` runtime.
-Microsoft PowerPoint 2016 or later is required. x64 Node.js selects this runtime,
+Create and edit PowerPoint presentations from commands and scripts. This package
+provides the Windows x64 `pptcli.exe` used by `@sbroenne/pptcli` to work with
+slides, text, charts, tables, images, and notes. It requires Microsoft PowerPoint
+2016 or later and an interactive Windows desktop.
+
+x64 Node.js selects this runtime,
 including through x64 emulation on Windows ARM64. ARM64 Node.js uses the separate
 native ARM64 runtime.
 

@@ -1,7 +1,7 @@
 {
   "name": "@sbroenne/mcp-server-powerpoint",
   "version": "0.0.0-development",
-  "description": "PowerPoint automation MCP server for Windows, distributed through npm.",
+  "description": "Let AI assistants create, edit, and export PowerPoint presentations with slides, charts, tables, images, and notes. Requires desktop Microsoft PowerPoint on Windows.",
   "license": "MIT",
   "type": "module",
   "bin": {

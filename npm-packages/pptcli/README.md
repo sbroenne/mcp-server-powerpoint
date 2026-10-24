@@ -1,6 +1,11 @@
 # PowerPointMcp CLI
 
-Run the self-contained PowerPoint automation CLI through npm:
+Create and edit Microsoft PowerPoint presentations from terminal commands and
+scripts. Add slides, format text and shapes, update charts and tables, insert
+images, and write speaker notes using the installed PowerPoint desktop
+application on Windows.
+
+Run the command-line tool through npm:
 
 ```powershell
 npx -y @sbroenne/pptcli@latest --help

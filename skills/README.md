@@ -1,5 +1,10 @@
 # PowerPoint MCP Server - Agent Skills
 
+Help your AI assistant create, edit, and review PowerPoint presentations.
+These skills explain how to use the MCP server or `pptcli` safely, with optional
+guidance for slide design. Automation requires the matching tool and desktop
+Microsoft PowerPoint on Windows; the skills do not replace either.
+
 | Skill | Component | Distribution | Best For |
 |-------|-----------|---------------|----------|
 | **[powerpoint-mcp](powerpoint-mcp/SKILL.md)** | MCP Server (`mcp-powerpoint.exe`) | Agent Plugin, GitHub Release, VS Code extension, MCPB, direct skill extraction | Conversational AI — rich MCP tool schemas |

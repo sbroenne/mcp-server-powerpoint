@@ -1,7 +1,7 @@
 {
   "name": "@sbroenne/pptcli",
   "version": "0.0.0-development",
-  "description": "PowerPoint automation CLI for Windows, distributed through npm.",
+  "description": "Create and edit PowerPoint presentations from commands and scripts. Add slides, format text, and manage charts, tables, images, and notes. Requires desktop Microsoft PowerPoint on Windows.",
   "license": "MIT",
   "type": "module",
   "bin": {

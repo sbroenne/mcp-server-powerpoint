@@ -69,7 +69,7 @@ Copy-Item -LiteralPath (Join-Path $SkillsDir '.cursorrules') -Destination $outpu
 $manifest = [ordered]@{
     name = 'powerpoint-skills'
     version = $Version
-    description = 'PowerPoint MCP Server Agent Skills for AI coding assistants'
+    description = 'Help AI assistants create, edit, and review PowerPoint presentations with MCP tools, pptcli commands, and slide design guidance. Automation requires desktop Microsoft PowerPoint on Windows.'
     platforms = @('github-copilot', 'claude-code', 'cursor', 'windsurf', 'gemini-cli', 'goose', 'codex')
     skills = @(
         [ordered]@{ name = 'powerpoint-mcp'; path = 'skills/powerpoint-mcp'; target = 'MCP Server' }
