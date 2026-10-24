@@ -1,3 +1,5 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
+
 namespace Sbroenne.PowerPointMcp.Core.Export;
 
 /// <summary>
@@ -7,7 +9,7 @@ namespace Sbroenne.PowerPointMcp.Core.Export;
 /// Follows the same Success/ErrorMessage invariant as other domain results (Rule 1):
 /// Success == true implies ErrorMessage is null/empty. Never set both.
 /// </remarks>
-public sealed class ExportOperationResult
+public sealed class ExportOperationResult : IPresentationOperationResult
 {
     /// <summary>Whether the operation succeeded.</summary>
     public bool Success { get; init; }

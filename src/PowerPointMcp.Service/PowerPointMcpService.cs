@@ -130,6 +130,8 @@ public sealed class PowerPointMcpService : IDisposable
 
     internal static readonly TimeSpan InitialBackoff = TimeSpan.FromMilliseconds(100);
     internal static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan IdleConnectionTimeout = TimeSpan.FromSeconds(1);
+    private const int MaximumConnections = 64;
 
     /// <summary>Records client activity to keep the idle timeout monitor alive.</summary>
     internal void RecordActivity() => _lastActivityTime = DateTime.UtcNow;
@@ -154,10 +156,14 @@ public sealed class PowerPointMcpService : IDisposable
                 currentBackoff = InitialBackoff;
                 _lastActivityTime = DateTime.UtcNow;
 
-                if (_activeConnectionTasks.Count >= 64)
+                while (_activeConnectionTasks.Count >= MaximumConnections)
                 {
-                    System.Diagnostics.Trace.TraceWarning("PowerPoint CLI connection capacity reached; refusing another connection.");
-                    continue;
+                    var connections = _activeConnectionTasks.Keys.ToArray();
+                    if (connections.Length == 0)
+                        break;
+                    var completed = await Task.WhenAny(connections).WaitAsync(cancellationToken);
+                    _activeConnectionTasks.TryRemove(completed, out _);
+                    await ObserveConnectionTaskAsync(completed);
                 }
 
                 var clientServer = server;
@@ -173,7 +179,24 @@ public sealed class PowerPointMcpService : IDisposable
                             CancelLocallyInvokedMethodsWhenConnectionIsClosed = true
                         };
                         rpc.StartListening();
-                        await rpc.Completion.WaitAsync(cancellationToken);
+                        while (true)
+                        {
+                            var idleWait = rpcTarget.GetIdleWaitTimeout(IdleConnectionTimeout);
+                            if (idleWait == TimeSpan.Zero)
+                            {
+                                System.Diagnostics.Trace.TraceWarning("Closing an idle PowerPoint CLI connection; no request is running.");
+                                break;
+                            }
+                            try
+                            {
+                                await rpc.Completion.WaitAsync(idleWait, cancellationToken);
+                                break;
+                            }
+                            catch (TimeoutException) when (!rpc.Completion.IsCompleted)
+                            {
+                                // Recheck activity before expiring a connection with a running request.
+                            }
+                        }
                     }
                     catch (Exception ex)
                     {

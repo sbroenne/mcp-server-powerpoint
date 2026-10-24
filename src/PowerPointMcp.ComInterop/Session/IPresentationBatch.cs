@@ -31,6 +31,10 @@ public interface IPresentationBatch : IDisposable
     /// <summary>
     /// Executes a COM operation within this batch and returns its result.
     /// </summary>
+    /// <remarks>
+    /// Results implementing <see cref="IPresentationOperationResult"/> preserve returned failures
+    /// in operation status even when the caller's wait has already expired.
+    /// </remarks>
     T Execute<T>(
         Func<PresentationContext, CancellationToken, T> operation,
         CancellationToken cancellationToken = default);

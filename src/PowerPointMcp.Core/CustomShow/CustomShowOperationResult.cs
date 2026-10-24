@@ -1,9 +1,11 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
+
 namespace Sbroenne.PowerPointMcp.Core.CustomShow;
 
 /// <summary>
 /// Result of a named-custom-show operation (list, create, delete).
 /// </summary>
-public sealed class CustomShowOperationResult
+public sealed class CustomShowOperationResult : IPresentationOperationResult
 {
     /// <summary>Whether the operation succeeded.</summary>
     public bool Success { get; init; }

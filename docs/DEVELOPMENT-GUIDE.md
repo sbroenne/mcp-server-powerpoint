@@ -107,6 +107,8 @@ callback actually finishes, even if its caller has already stopped waiting.
 Service requests track their whole lifetime across callbacks and clipboard waits.
 Completing a request's wait must not hide an unfinished callback, and a late failure
 must remain visible in session lists.
+Core results implement `IPresentationOperationResult` so the PowerPoint layer can record
+returned failures as well as exceptions, including results delivered after a wait expires.
 Keep the actual PowerPoint result even when it arrives before the request finishes
 reporting an expired wait. Handwritten MCP presentation actions also track validation
 and file work after PowerPoint calls. Explicit close reserves the batch before removing
@@ -118,6 +120,13 @@ PowerPoint process, restoring user interaction only after the last owner detache
 Shutdown tests check presentation closure and successful Quit calls, not a fixed deadline
 for Office's later process exit. Tracking tests preserve owners that existed before the
 test and check that another open presentation remains usable.
+
+The CLI pipe accepts up to 64 connections. A connection with no running request expires
+after one second of inactivity, including before its first request. A client arriving at
+capacity waits for a slot instead of being disconnected immediately. Running requests
+do not expire under this rule, and the normal client opens a connection for each command.
+Tracking-record lock or access failures are reported as warnings, not failures of service
+status.
 
 Host shutdown through Ctrl+C, stdin EOF, or normal exit has two cleanup layers:
 `PresentationSessionShutdownService.StopAsync` and the `Main` finally block both

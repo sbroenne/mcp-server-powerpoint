@@ -9,3 +9,5 @@ Track clipboard waits as part of the running request, and keep service controls 
 Keep late PowerPoint results regardless of completion order, include presentation validation and file-copy failures in session status, and prevent closing from removing a session while another request is starting.
 
 Do not let cancellation change another request's status, or let closing one presentation re-enable prompts that interrupt another automated presentation.
+
+Clear idle service connections without interrupting running commands, report tracking-record lock problems as warnings, and preserve failures returned after a wait has expired.

@@ -7,6 +7,43 @@ namespace Sbroenne.PowerPointMcp.CLI.Tests;
 public sealed class DaemonProcessTrackerTests
 {
     [Fact]
+    public async Task TryGetLivePowerPointProcesses_LockedRecordReturnsWarning()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"pptmcp-locked-record-{Guid.NewGuid():N}.json");
+        string mutexName = $@"Local\PowerPointMcp-Test-{Guid.NewGuid():N}";
+        var tracker = new DaemonProcessTracker(path, mutexName);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var release = new ManualResetEventSlim();
+        var holder = Task.Run(() =>
+        {
+            using var mutex = new Mutex(false, mutexName);
+            Assert.True(mutex.WaitOne(TimeSpan.FromSeconds(5)));
+            try
+            {
+                started.SetResult();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(15)));
+            }
+            finally
+            {
+                mutex.ReleaseMutex();
+            }
+        });
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(tracker.TryGetLivePowerPointProcesses(out var processes, out var error));
+            Assert.Empty(processes);
+            Assert.Contains("tracking record", error, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            release.Set();
+            await holder.WaitAsync(TimeSpan.FromSeconds(5));
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void RegisterProcess_PersistsPipeScopedProcessIdentity()
     {
         var pipeName = UniquePipeName();

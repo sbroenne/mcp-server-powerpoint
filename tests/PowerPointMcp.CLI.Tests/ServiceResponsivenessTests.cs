@@ -1,5 +1,6 @@
 using System.IO.Pipes;
 using Sbroenne.PowerPointMcp.Service;
+using Sbroenne.PowerPointMcp.Service.Rpc;
 using StreamJsonRpc;
 
 namespace Sbroenne.PowerPointMcp.CLI.Tests;
@@ -51,20 +52,32 @@ public sealed class ServiceResponsivenessTests
         }
     }
 
-    [Fact]
-    public async Task IdleConnections_DoNotBlockStatusOrShutdown()
+    [Theory]
+    [InlineData(12, false)]
+    [InlineData(64, false)]
+    [InlineData(64, true)]
+    public async Task IdleConnections_DoNotBlockStatusOrShutdown(int connectionCount, bool sendInitialRequest)
     {
         string pipeName = $"PowerPointMcp_Pressure_{Guid.NewGuid():N}";
         using var service = new PowerPointMcpService();
         var server = service.RunAsync(pipeName);
         var connections = new List<NamedPipeClientStream>();
+        var proxies = new List<IDisposable>();
         try
         {
-            for (int i = 0; i < 12; i++)
+            for (int i = 0; i < connectionCount; i++)
             {
                 var pipe = ServiceSecurity.CreateClient(pipeName);
                 connections.Add(pipe);
                 await pipe.ConnectAsync(2000);
+                if (sendInitialRequest)
+                {
+                    var proxy = JsonRpc.Attach<IPowerPointDaemonRpc>(pipe);
+                    proxies.Add((IDisposable)proxy);
+                    var response = await proxy.ProcessCommandAsync(new ServiceRequest { Command = "service.ping" })
+                        .WaitAsync(TimeSpan.FromSeconds(2));
+                    Assert.True(response.Success);
+                }
             }
 
             using var client = new ServiceClient(pipeName, requestTimeout: TimeSpan.FromSeconds(2));
@@ -72,13 +85,18 @@ public sealed class ServiceResponsivenessTests
             await Task.WhenAny(status, Task.Delay(TimeSpan.FromSeconds(3)));
             Assert.True(status.IsCompleted, "Idle clients must not block service status.");
             Assert.True((await status).Success);
+            Assert.True((await client.SendAsync(new ServiceRequest { Command = "session.list" })
+                .WaitAsync(TimeSpan.FromSeconds(3))).Success);
 
-            service.RequestShutdown();
+            Assert.True((await client.SendAsync(new ServiceRequest { Command = "service.shutdown" })
+                .WaitAsync(TimeSpan.FromSeconds(3))).Success);
             await Task.WhenAny(server, Task.Delay(TimeSpan.FromSeconds(3)));
             Assert.True(server.IsCompleted, "Shutdown must not wait for idle clients to disconnect.");
         }
         finally
         {
+            foreach (var proxy in proxies)
+                proxy.Dispose();
             foreach (var connection in connections)
                 await connection.DisposeAsync();
             service.RequestShutdown();

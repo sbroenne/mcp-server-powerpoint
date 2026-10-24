@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Tags;
 
 namespace Sbroenne.PowerPointMcp.Core.Presentation;
@@ -9,7 +10,7 @@ namespace Sbroenne.PowerPointMcp.Core.Presentation;
 /// Follows the same Success/ErrorMessage invariant used throughout mcp-server-excel
 /// (Rule 1): Success == true implies ErrorMessage is null/empty. Never set both.
 /// </remarks>
-public sealed class PresentationOperationResult
+public sealed class PresentationOperationResult : IPresentationOperationResult
 {
     /// <summary>Whether the operation succeeded.</summary>
     public bool Success { get; init; }

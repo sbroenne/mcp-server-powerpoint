@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Presentation;
+using Sbroenne.PowerPointMcp.Core.Slide;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
@@ -18,6 +19,81 @@ namespace Sbroenne.PowerPointMcp.Core.Tests;
 public class PresentationCommandsTests
 {
     private readonly PresentationCommands _commands = new();
+
+    [Fact]
+    public void OperationResults_ExposeLateOutcomes()
+    {
+        var resultTypes = typeof(PresentationOperationResult).Assembly.GetTypes()
+            .Where(type => type.IsClass &&
+                type.GetProperty(nameof(IPresentationOperationResult.Success))?.PropertyType == typeof(bool) &&
+                type.GetProperty(nameof(IPresentationOperationResult.ErrorMessage))?.PropertyType == typeof(string))
+            .ToArray();
+        Assert.NotEmpty(resultTypes);
+        Assert.All(resultTypes, type => Assert.True(
+            typeof(IPresentationOperationResult).IsAssignableFrom(type),
+            $"{type.Name} must expose its returned outcome to PowerPoint operation tracking."));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExpiredWait_PreservesReturnedFailure(bool callbackFinishesFirst)
+    {
+        string path = CoreTestHelper.CreateUniqueTestFilePath();
+        using var release = new ManualResetEventSlim();
+        using var batch = PresentationSession.CreateNew(path, operationTimeout: TimeSpan.FromSeconds(5));
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var operation = Task.Run(() =>
+        {
+            batch.BeginRequest();
+            try
+            {
+                return batch.Execute((context, token) =>
+                {
+                    started.SetResult();
+                    Assert.True(release.Wait(TimeSpan.FromSeconds(20)));
+                    Assert.Equal(Path.GetFileName(path), context.Presentation.Name);
+                    return new SlideOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = "The delayed PowerPoint operation returned a failure."
+                    };
+                });
+            }
+            finally
+            {
+                if (callbackFinishesFirst)
+                {
+                    release.Set();
+                    Assert.True(SpinWait.SpinUntil(() => !batch.HasTimedOutOperation, TimeSpan.FromSeconds(5)));
+                }
+                batch.CompleteRequest("failed", "The request wait ended.");
+            }
+        });
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await Assert.ThrowsAsync<TimeoutException>(() => operation.WaitAsync(TimeSpan.FromSeconds(10)));
+            release.Set();
+            using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (batch.GetOperationStatus().ExecutionPending)
+                await Task.Delay(20, completionTimeout.Token);
+            var completed = batch.GetOperationStatus();
+            Assert.Equal("failed", completed.State);
+            Assert.Equal("The delayed PowerPoint operation returned a failure.", completed.ErrorMessage);
+            Assert.True(completed.WaitExpired);
+            Assert.True(batch.IsPowerPointProcessAlive());
+            Assert.True(new SlideCommands().GetCount(batch).Success);
+        }
+        finally
+        {
+            release.Set();
+            try { await operation.WaitAsync(TimeSpan.FromSeconds(10)); }
+            catch (TimeoutException) { }
+            batch.Dispose();
+            File.Delete(path);
+        }
+    }
 
     [Fact]
     public void SaveAs_Pptx_ReopensWithEditedContentAndUpdatesSessionPath()

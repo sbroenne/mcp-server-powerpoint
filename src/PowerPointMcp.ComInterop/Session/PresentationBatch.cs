@@ -624,7 +624,10 @@ internal sealed class PresentationBatch : IPresentationBatch
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         var result = operation(_context!, cancellationToken);
-                        CompleteOperation(sequence, "completed");
+                        if (result is IPresentationOperationResult { Success: false } failure)
+                            CompleteOperation(sequence, "failed", failure.ErrorMessage);
+                        else
+                            CompleteOperation(sequence, "completed");
                         tcs.SetResult(result);
                     }
                     catch (OperationCanceledException oce)

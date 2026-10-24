@@ -135,7 +135,16 @@ internal sealed class DaemonProcessTracker
     {
         processes = [];
         error = null;
-        var record = ReadRecord();
+        DaemonTrackingRecord? record;
+        try
+        {
+            record = ReadRecord();
+        }
+        catch (Exception ex) when (ex is TimeoutException or UnauthorizedAccessException or IOException or System.Security.SecurityException)
+        {
+            error = $"The service tracking record could not be checked ({ex.GetType().Name}). It was preserved.";
+            return false;
+        }
         if (record == null && File.Exists(_recordPath))
         {
             error = "The service tracking record is invalid or unreadable. It was preserved.";

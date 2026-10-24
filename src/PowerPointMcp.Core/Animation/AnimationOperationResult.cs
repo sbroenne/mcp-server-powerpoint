@@ -1,3 +1,5 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
+
 namespace Sbroenne.PowerPointMcp.Core.Animation;
 
 /// <summary>
@@ -7,7 +9,7 @@ namespace Sbroenne.PowerPointMcp.Core.Animation;
 /// Follows the same Success/ErrorMessage invariant as the other domain results (Rule 1):
 /// Success == true implies ErrorMessage is null/empty.
 /// </remarks>
-public sealed class AnimationOperationResult
+public sealed class AnimationOperationResult : IPresentationOperationResult
 {
     /// <summary>Whether the operation succeeded.</summary>
     public bool Success { get; init; }

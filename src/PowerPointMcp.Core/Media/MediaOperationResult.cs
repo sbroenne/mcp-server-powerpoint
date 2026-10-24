@@ -1,7 +1,9 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
+
 namespace Sbroenne.PowerPointMcp.Core.Media;
 
 /// <summary>Result of a media operation.</summary>
-public sealed class MediaOperationResult
+public sealed class MediaOperationResult : IPresentationOperationResult
 {
     /// <summary>Whether the operation succeeded.</summary>
     public bool Success { get; init; }
