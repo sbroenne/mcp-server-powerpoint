@@ -15,8 +15,8 @@ name: Release All Components
 #
 # Required GitHub Secrets:
 # - NUGET_USER: Your NuGet.org username (profile name, NOT email)
-# - NPM_TOKEN: npm automation token with publish access to the @sbroenne scope
 # - VSCE_TOKEN: VS Code Marketplace PAT
+# npm and NuGet publishing authenticate with GitHub Actions OIDC.
 #
 on:
   workflow_dispatch:
@@ -757,7 +757,7 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read
-      id-token: write  # Required for NuGet OIDC
+      id-token: write  # Required for npm and NuGet OIDC
 
     steps:
     - uses: actions/checkout@v7
@@ -772,6 +772,13 @@ jobs:
       with:
         node-version: ${{ env.NODE_VERSION }}
         registry-url: https://registry.npmjs.org
+
+    - name: Install latest npm
+      run: |
+        $PSNativeCommandUseErrorActionPreference = $true
+        npm install --global npm@latest
+        npm prefix --global >> $env:GITHUB_PATH
+      shell: pwsh
 
     - name: Set Version
       run: |
@@ -828,9 +835,8 @@ jobs:
 
     - name: Publish npm packages
       shell: pwsh
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       run: |
+        npm --version
         foreach ($name in @(
           'pptcli-win32-x64',
           'pptcli-win32-arm64',

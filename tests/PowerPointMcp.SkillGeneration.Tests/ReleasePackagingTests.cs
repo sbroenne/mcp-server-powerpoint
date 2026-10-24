@@ -237,6 +237,27 @@ public sealed class ReleasePackagingTests
     }
 
     [Fact]
+    public void ReleaseWorkflow_PublishesNpmWithLatestCliAndOidc()
+    {
+        var workflow = File.ReadAllText(ReleaseWorkflow);
+        var publishJobStart = workflow.IndexOf("  publish:", StringComparison.Ordinal);
+        Assert.True(publishJobStart >= 0);
+        var nextJobStart = workflow.IndexOf("  create-release:", publishJobStart, StringComparison.Ordinal);
+        Assert.True(nextJobStart > publishJobStart);
+        var publishJob = workflow[publishJobStart..nextJobStart];
+
+        Assert.Contains("id-token: write", publishJob, StringComparison.Ordinal);
+        Assert.Contains("npm install --global npm@latest", publishJob, StringComparison.Ordinal);
+        Assert.Contains("npm prefix --global >> $env:GITHUB_PATH", publishJob, StringComparison.Ordinal);
+        Assert.Contains("npm --version", publishJob, StringComparison.Ordinal);
+        Assert.True(
+            publishJob.IndexOf("npm install --global npm@latest", StringComparison.Ordinal) <
+            publishJob.IndexOf("- name: Publish npm packages", StringComparison.Ordinal));
+        Assert.DoesNotContain("NODE_AUTH_TOKEN", publishJob, StringComparison.Ordinal);
+        Assert.DoesNotContain("NPM_TOKEN", workflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ReleaseTagState_RequiresResumeExactlyWhenTagExists()
     {
         using var temp = new TemporaryDirectory();
