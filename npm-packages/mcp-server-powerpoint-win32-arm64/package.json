@@ -1,7 +1,7 @@
 {
   "name": "@sbroenne/mcp-server-powerpoint-win32-arm64",
   "version": "0.0.0-development",
-  "description": "Windows ARM64 runtime for the PowerPointMcp MCP server.",
+  "description": "Let AI assistants create, edit, and export PowerPoint presentations on Windows ARM64. Requires desktop Microsoft PowerPoint. Installed by @sbroenne/mcp-server-powerpoint.",
   "license": "MIT",
   "main": "mcp-powerpoint.exe",
   "files": [

@@ -1,7 +1,7 @@
 {
   "name": "powerpoint-mcp",
   "displayName": "PowerPoint MCP Server",
-  "description": "PowerPoint automation for AI assistants - slides, shapes, text, tables, charts, images, notes, layouts & slide-to-image export - requires PowerPoint to be installed",
+  "description": "Create, edit, and export PowerPoint presentations from GitHub Copilot Chat in VS Code. Add slides, charts, tables, images, and notes. Requires desktop Microsoft PowerPoint on Windows.",
   "version": "0.1.5",
   "publisher": "sbroenne",
   "icon": "icon.png",

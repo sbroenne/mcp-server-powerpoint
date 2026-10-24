@@ -3,11 +3,13 @@
 <!-- mcp-name: io.github.sbroenne/mcp-server-powerpoint -->
 mcp-name: io.github.sbroenne/mcp-server-powerpoint
 
-A [Model Context Protocol](https://modelcontextprotocol.io) server that automates
-Microsoft PowerPoint for AI assistants. It drives a **live PowerPoint desktop
-instance** via COM automation, so decks are created and edited exactly as they
-would be by hand — then exported to images so an AI can *visually verify* its own
-work.
+Let your AI assistant create, edit, and export Microsoft PowerPoint presentations.
+Build slides, format text and shapes, add charts and tables, insert images, and
+write speaker notes. Export PDFs for sharing or slide images so your assistant
+can visually review the result.
+
+This [Model Context Protocol](https://modelcontextprotocol.io) server controls
+the installed PowerPoint desktop application on Windows.
 
 > **Windows only.** Requires Microsoft PowerPoint (desktop) to be installed.
 

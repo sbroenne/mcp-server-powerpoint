@@ -1,8 +1,13 @@
 # PowerPoint MCP — CLI
 
-A command-line companion to the [PowerPoint MCP Server](https://www.nuget.org/packages/Sbroenne.PowerPointMcp.McpServer)
-for scripting PowerPoint automation directly from a terminal, built on the same
-`ComInterop → Core` engine.
+Create and edit Microsoft PowerPoint presentations from terminal commands and
+scripts. Add slides, format text and shapes, update charts and tables, insert
+images, and write speaker notes using the installed PowerPoint desktop
+application on Windows.
+
+Use `pptcli` on its own or alongside the
+[PowerPoint MCP Server](https://www.nuget.org/packages/Sbroenne.PowerPointMcp.McpServer)
+for AI assistants.
 
 > **Windows only.** Requires Microsoft PowerPoint (desktop) to be installed.
 

@@ -12,7 +12,7 @@
     <!-- NuGet package configuration (distributed as a .NET tool). Command: pptcli -->
     <PackageId>Sbroenne.PowerPointMcp.CLI</PackageId>
     <Title>PowerPoint MCP CLI</Title>
-    <Description>Command-line PowerPoint automation built on the PowerPoint MCP engine. Requires PowerPoint to be installed. Only runs on Windows.</Description>
+    <Description>Create and edit PowerPoint presentations from commands and scripts. Add slides, format text, and manage charts, tables, images, and notes. Requires desktop Microsoft PowerPoint on Windows.</Description>
     <PackageTags>powerpoint;microsoft;office;presentation;slides;automation;cli;dotnet-tool</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageReleaseNotes>See https://github.com/sbroenne/mcp-server-powerpoint/releases for release notes</PackageReleaseNotes>

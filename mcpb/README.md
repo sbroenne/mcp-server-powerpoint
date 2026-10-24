@@ -1,7 +1,12 @@
 # PowerPoint MCP Server — Claude Desktop Bundle
 
-This is the [PowerPoint MCP Server](https://powerpointmcpserver.dev) packaged as
-an **MCPB bundle** for one-click installation in **Claude Desktop**.
+Let Claude Desktop create, edit, and export Microsoft PowerPoint presentations.
+Build slides, format text and shapes, add charts and tables, insert images, and
+write speaker notes. Export PDFs for sharing or slide images so Claude can
+review its work.
+
+This [PowerPoint MCP Server](https://powerpointmcpserver.dev) bundle connects
+Claude Desktop to the installed PowerPoint desktop application on Windows.
 
 > **Windows only.** Requires Microsoft PowerPoint (desktop) and Node.js 18 or later with npm/npx.
 

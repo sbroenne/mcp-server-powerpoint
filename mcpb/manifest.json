@@ -3,8 +3,8 @@
   "name": "powerpoint-mcp",
   "display_name": "PowerPoint (Windows)",
   "version": "0.1.5",
-  "description": "Automate Microsoft PowerPoint - slides, shapes, boolean shape merging, text, tables, charts, accessibility, custom shows, slide visibility, PDF export, and more - requires PowerPoint to be installed",
-  "long_description": "MCP server for Microsoft PowerPoint automation. 32 tools (215 operations across 17 domains: Presentation, Slide, Shape, TextFrame, Table, Notes, Layout, PageSetup, Accessibility, Master, Animation, Image, Media, Chart, SmartArt, Export, CustomShow) that drive a live PowerPoint desktop instance via COM, including free-floating and attached connectors, boolean shape merging, theme font inspection, slide-show visibility, inherited master-shape controls, native shape alignment and distribution, editable WordArt, per-axis 3D shape rotation, literal text find/replace, string tags, chart quick formatting, shape duplication and cross-slide copying, linked-picture get-link-info, update-link, break-link, and set-link-auto-update actions, PDF delivery, slide-to-image export for visual verification, and named custom shows. Windows-only, requires Microsoft PowerPoint desktop application.",
+  "description": "Create, edit, and export PowerPoint presentations from Claude Desktop. Add slides, charts, tables, images, and notes. Requires desktop Microsoft PowerPoint on Windows.",
+  "long_description": "Ask Claude Desktop to build a presentation, update an existing deck, format slides, add charts and tables, insert images, and write speaker notes. Export PDFs for sharing or slide images so Claude can review the result. Includes 32 tools (215 operations across 17 domains) for editing presentations through the installed Microsoft PowerPoint desktop application. Requires Windows, Microsoft PowerPoint 2016 or later, Node.js 18 or later, and an interactive desktop.",
   "author": {
     "name": "Stefan Broenner",
     "url": "https://github.com/sbroenne"

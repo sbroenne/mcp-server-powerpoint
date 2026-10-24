@@ -1,6 +1,11 @@
 # PowerPointMcp MCP Server
 
-Run the self-contained PowerPointMcp server through npm:
+Let your AI assistant create, edit, and export Microsoft PowerPoint presentations.
+Build slides, format text and shapes, add charts and tables, insert images, and
+write speaker notes. Export PDFs for sharing or slide images for visual review.
+The server controls the installed PowerPoint desktop application on Windows.
+
+Run the server through npm:
 
 ```powershell
 npx -y @sbroenne/mcp-server-powerpoint@latest
