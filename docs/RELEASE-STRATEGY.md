@@ -17,6 +17,19 @@ under a single version number, via the
    then creates the GitHub Release. The npm Windows runtime packages are
    published before their architecture-selecting launcher packages.
 
+## Publishing access
+
+npm and NuGet publishing use GitHub Actions OIDC rather than stored publishing
+tokens. Each npm package must trust this repository's `release.yml` workflow.
+The publishing job installs `npm@latest`, makes that installation available to
+later steps, and prints its version before publishing. Node 22's bundled npm 10
+does not support npm's OIDC publishing, which requires npm 11.5.1 or later.
+
+To resume a partially published release, run the workflow with the existing
+`custom_version` and `resume_release=true`. This preserves the existing tag and
+skips package versions that are already published; do not request another patch
+bump to retry the same release.
+
 ## Changelog generation
 
 `CHANGELOG.md` is generated from **changesets** (`@changesets/cli`), not hand-edited.
