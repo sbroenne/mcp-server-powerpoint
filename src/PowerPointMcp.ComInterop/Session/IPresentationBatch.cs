@@ -70,6 +70,12 @@ public interface IPresentationBatch : IDisposable
     /// <summary>Reads execution state without waiting for the PowerPoint thread.</summary>
     PresentationOperationStatus GetOperationStatus();
 
+    /// <summary>Tracks a complete service request, including waits between PowerPoint callbacks, and rejects other callers until it completes.</summary>
+    void BeginRequest();
+
+    /// <summary>Records a request outcome without hiding an unfinished PowerPoint callback.</summary>
+    void CompleteRequest(string state, string? errorMessage = null);
+
     /// <summary>Records that a caller stopped waiting without stopping PowerPoint work.</summary>
     void MarkWaitExpired();
 

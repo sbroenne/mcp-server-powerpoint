@@ -263,6 +263,7 @@ public sealed class PowerPointMcpService : IDisposable
             return BusyResponse(request, "Another request is still running for this session. Inspect session list before retrying.");
 
         bool admitted = false;
+        IPresentationBatch? trackedBatch = null;
         using var cancellationRegistration = cancellationToken.Register(() =>
         {
             if (!string.IsNullOrWhiteSpace(request.SessionId) && _sessions.TryGet(request.SessionId, out var activeBatch))
@@ -280,9 +281,28 @@ public sealed class PowerPointMcpService : IDisposable
                 admitted = true;
             }
 
-            return control
+            if (claimSession && request.Command != "session.close" &&
+                _sessions.TryGet(request.SessionId!, out var requestBatch))
+            {
+                requestBatch.BeginRequest();
+                trackedBatch = requestBatch;
+            }
+
+            var response = control
                 ? await ProcessCoreAsync(request)
                 : await Task.Run(() => ProcessCoreAsync(request), cancellationToken);
+            trackedBatch?.CompleteRequest(response.Success ? "completed" : "failed", response.ErrorMessage);
+            return response;
+        }
+        catch (OperationCanceledException)
+        {
+            trackedBatch?.CompleteRequest("cancelled");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            trackedBatch?.CompleteRequest("failed", ex.Message);
+            throw;
         }
         finally
         {

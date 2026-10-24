@@ -7,10 +7,12 @@ namespace Sbroenne.PowerPointMcp.ComInterop.Tests;
 public sealed class PresentationBatchRecoveryTests
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public async Task ExpiredWait_PreservesPresentationAndAllowsWorkAfterCompletion(bool cancellable, bool failsLater)
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, true)]
+    public async Task ExpiredWait_PreservesPresentationAndAllowsWorkAfterCompletion(bool cancellable, bool failsLater, bool trackRequest)
     {
         string path = Path.Combine(Path.GetTempPath(), $"pptmcp-recovery-{Guid.NewGuid():N}.pptx");
         using var release = new ManualResetEventSlim();
@@ -19,14 +21,27 @@ public sealed class PresentationBatchRecoveryTests
         try
         {
             var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var operation = Task.Run(() => batch.Execute((context, token) =>
+            var operation = Task.Run(() =>
             {
-                started.SetResult();
-                Assert.True(release.Wait(TimeSpan.FromSeconds(20)));
-                if (failsLater)
-                    throw new InvalidOperationException("The delayed PowerPoint operation failed.");
-                return context.Presentation.Name;
-            }, cancellable ? cancellation.Token : CancellationToken.None));
+                if (trackRequest)
+                    batch.BeginRequest();
+                try
+                {
+                    return batch.Execute((context, token) =>
+                    {
+                        started.SetResult();
+                        Assert.True(release.Wait(TimeSpan.FromSeconds(20)));
+                        if (failsLater)
+                            throw new InvalidOperationException("The delayed PowerPoint operation failed.");
+                        return context.Presentation.Name;
+                    }, cancellable ? cancellation.Token : CancellationToken.None);
+                }
+                finally
+                {
+                    if (trackRequest)
+                        batch.CompleteRequest("failed", "The request wait ended.");
+                }
+            });
 
             try
             {

@@ -189,8 +189,11 @@ public sealed class McpCancellationSessionTests
                     .WaitAsync(TimeSpan.FromSeconds(2));
                 Assert.False(busy.Success);
                 Assert.Equal("Busy", busy.ErrorCategory);
-                var close = await PresentationTools.Presentation(PresentationToolAction.Close, affected, registry: registry);
+                var close = await PresentationTools.Presentation(PresentationToolAction.Close,
+                    presentation_session_id: affected, registry: registry);
                 Assert.True(close.IsError);
+                Assert.Contains("still running", Assert.IsType<JsonElement>(close.StructuredContent)
+                    .GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
                 Assert.True(registry.TryGet(affected, out _));
                 Assert.True(registry.TryGet(unrelated, out var batch));
                 Assert.True(new SlideCommands().GetCount(batch).Success);

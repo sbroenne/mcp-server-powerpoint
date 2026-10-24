@@ -6,6 +6,33 @@ namespace Sbroenne.PowerPointMcp.CLI.Tests;
 
 public sealed class ServiceStopRegressionTests
 {
+    [Theory]
+    [InlineData("status")]
+    [InlineData("stop")]
+    public async Task ServiceControl_DoesNotDependOnPowerPointTrackingDiagnostics(string action)
+    {
+        string pipeName = $"PowerPointMcp_TrackingWarning_{Guid.NewGuid():N}";
+        using var daemon = StartCli("service", "run", "--pipe-name", pipeName);
+        try
+        {
+            await WaitForDaemonAsync(pipeName);
+            string trackingPath = DaemonProcessTracker.GetTrackingFilePath(pipeName);
+            File.WriteAllText(trackingPath, "{invalid-record");
+            using var command = StartCli("service", action, "--pipe-name", pipeName);
+            string output = await command.StandardOutput.ReadToEndAsync();
+            await command.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.True(command.ExitCode == 0, output);
+            Assert.Contains("powerPointProcessWarning", output, StringComparison.Ordinal);
+            if (action == "status")
+                Assert.Contains("\"responsive\":true", output, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await StopTestServiceAsync(daemon, pipeName);
+            DaemonProcessTracker.Clear(pipeName);
+        }
+    }
+
     [Fact]
     public async Task ForcedStop_StopsRecordedServiceEvenAfterItsLockWasReleased()
     {

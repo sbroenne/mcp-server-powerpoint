@@ -104,6 +104,9 @@ Cancelled or expired waits retain existing sessions. Session lists expose operat
 state without calling into PowerPoint, so they remain available while work is blocked.
 Only one operation may run per session; a later request is rejected until the earlier
 callback actually finishes, even if its caller has already stopped waiting.
+Service requests track their whole lifetime across callbacks and clipboard waits.
+Completing a request's wait must not hide an unfinished callback, and a late failure
+must remain visible in session lists.
 
 Host shutdown through Ctrl+C, stdin EOF, or normal exit has two cleanup layers:
 `PresentationSessionShutdownService.StopAsync` and the `Main` finally block both

@@ -56,6 +56,9 @@ start times. Forced cleanup validates the service identity and stops only that s
 never PowerPoint: PowerPoint can share its process with other presentations.
 `service status` reports `starting`, `running`, `unresponsive`, or `stopped`,
 plus any known PowerPoint processes still running.
+If those PowerPoint records cannot be checked, `powerPointProcessWarning` explains
+the uncertainty without blocking status checks or service shutdown. Forced stopping
+still requires a verified service-process identity.
 
 ## Interrupted work and safe shutdown
 
@@ -64,6 +67,8 @@ PowerPoint may still be working. Run `pptcli session list` before retrying: each
 `operation` reports its state, whether execution is still pending, whether the wait expired,
 its start time, and any failure. Further work in that session is rejected while execution
 is pending; status and session-list requests remain available.
+This covers the whole request, including time spent waiting for the shared clipboard
+between calls into PowerPoint, not just the individual PowerPoint calls.
 
 Stopping the service leaves unsaved or unfinished presentations open without saving them.
 This differs from `pptcli session close <id>`: explicit close without `--save` still

@@ -78,6 +78,10 @@ internal sealed class PresentationBatch : IPresentationBatch
     private readonly object _operationLock = new();
     private PresentationOperationStatus _operationStatus = new("idle", false, false, null, null);
     private long _operationSequence;
+    private bool _requestPending;
+    private bool _callbackPending;
+    private readonly AsyncLocal<object?> _requestContext = new();
+    private object? _requestOwner;
     private volatile bool _preserveUnsavedChanges;
     private volatile bool _leavePresentationOpen;
 
@@ -490,7 +494,7 @@ internal sealed class PresentationBatch : IPresentationBatch
         get
         {
             lock (_operationLock)
-                return _operationStatus.WaitExpired && _operationStatus.ExecutionPending;
+                return _operationStatus.WaitExpired && _callbackPending;
         }
     }
 
@@ -498,6 +502,36 @@ internal sealed class PresentationBatch : IPresentationBatch
     {
         lock (_operationLock)
             return _operationStatus;
+    }
+
+    public void BeginRequest()
+    {
+        lock (_operationLock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            if (_operationStatus.ExecutionPending)
+                throw new InvalidOperationException("PowerPoint work is still running for this session.");
+            _requestPending = true;
+            _requestOwner = new object();
+            _requestContext.Value = _requestOwner;
+            _operationStatus = new("running", true, false, DateTime.UtcNow, null);
+        }
+    }
+
+    public void CompleteRequest(string state, string? errorMessage = null)
+    {
+        lock (_operationLock)
+        {
+            _requestPending = false;
+            _requestOwner = null;
+            _requestContext.Value = null;
+            _operationStatus = _operationStatus with
+            {
+                State = _callbackPending ? "running" : state,
+                ExecutionPending = _callbackPending,
+                ErrorMessage = errorMessage
+            };
+        }
     }
 
     public void MarkWaitExpired()
@@ -542,11 +576,13 @@ internal sealed class PresentationBatch : IPresentationBatch
         lock (_operationLock)
         {
             ObjectDisposedException.ThrowIf(_disposed != 0, this);
-            if (_operationStatus.ExecutionPending)
+            if (_callbackPending || (_requestPending && !ReferenceEquals(_requestContext.Value, _requestOwner)))
                 throw new InvalidOperationException(
                     "Another PowerPoint operation is still running for this session. " +
                     "Inspect session list before retrying; an expired wait does not undo changes.");
-            _operationStatus = new("running", true, false, DateTime.UtcNow, null);
+            _callbackPending = true;
+            if (!_requestPending)
+                _operationStatus = new("running", true, false, DateTime.UtcNow, null);
             sequence = ++_operationSequence;
         }
 
@@ -627,10 +663,11 @@ internal sealed class PresentationBatch : IPresentationBatch
         {
             if (_operationSequence != sequence)
                 return;
+            _callbackPending = false;
             _operationStatus = _operationStatus with
             {
-                State = state,
-                ExecutionPending = false,
+                State = _requestPending ? "running" : state,
+                ExecutionPending = _requestPending,
                 ErrorMessage = errorMessage
             };
         }

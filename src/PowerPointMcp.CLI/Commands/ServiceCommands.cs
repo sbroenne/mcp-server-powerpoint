@@ -52,8 +52,7 @@ internal sealed class ServiceStopCommand : AsyncCommand<ServiceStopSettings>
         var pipeName = settings.ResolvedPipeName;
         var tracker = new DaemonProcessTracker(pipeName);
         var trackedRecord = tracker.ReadRecord();
-        if (!tracker.TryGetLivePowerPointProcesses(out var powerPointProcesses, out var trackingError))
-            return CliErrorOutput.WriteError(trackingError!);
+        tracker.TryGetLivePowerPointProcesses(out var powerPointProcesses, out var trackingError);
         using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(1), requestTimeout: TimeSpan.FromSeconds(2));
 
         if (!DaemonAutoStart.IsDaemonMutexHeld(pipeName) && !DaemonAutoStart.IsDaemonStartupMutexHeld(pipeName)
@@ -64,7 +63,8 @@ internal sealed class ServiceStopCommand : AsyncCommand<ServiceStopSettings>
                 {
                     success = true,
                     message = "Daemon is not running. Any remaining PowerPoint windows were left open.",
-                    powerPointProcesses
+                    powerPointProcesses,
+                    powerPointProcessWarning = trackingError
                 }, ServiceProtocol.JsonOptions));
             return 0;
         }
@@ -77,7 +77,7 @@ internal sealed class ServiceStopCommand : AsyncCommand<ServiceStopSettings>
                 if (!settings.Force)
                 {
                     Console.WriteLine(JsonSerializer.Serialize(
-                        new { success = true, message = "Daemon shutdown started." },
+                        new { success = true, message = "Daemon shutdown started.", powerPointProcessWarning = trackingError },
                         ServiceProtocol.JsonOptions));
                     return 0;
                 }
@@ -91,7 +91,7 @@ internal sealed class ServiceStopCommand : AsyncCommand<ServiceStopSettings>
                 if (!DaemonAutoStart.IsDaemonMutexHeld(pipeName))
                 {
                     Console.WriteLine(JsonSerializer.Serialize(
-                        new { success = true, message = "Daemon stopped." },
+                        new { success = true, message = "Daemon stopped.", powerPointProcessWarning = trackingError },
                         ServiceProtocol.JsonOptions));
                     return 0;
                 }
@@ -124,16 +124,16 @@ internal sealed class ServiceStopCommand : AsyncCommand<ServiceStopSettings>
             var cleanupDeadline = OperationDeadline.Start(TimeSpan.FromSeconds(10));
             if (OwnedProcessCleanup.TryCleanup(trackedRecord, cleanupDeadline, out var error))
             {
-                if (!tracker.TryGetLivePowerPointProcesses(out powerPointProcesses, out trackingError))
-                    return CliErrorOutput.WriteError(trackingError!);
-                if (powerPointProcesses.Count == 0)
+                bool inspected = tracker.TryGetLivePowerPointProcesses(out powerPointProcesses, out trackingError);
+                if (inspected && powerPointProcesses.Count == 0)
                     tracker.ClearIfMatches(trackedRecord.Daemon);
                 Console.WriteLine(JsonSerializer.Serialize(
                     new
                     {
                         success = true,
                         message = "The service process was stopped. PowerPoint was not terminated; check its windows for unsaved changes.",
-                        powerPointProcesses
+                        powerPointProcesses,
+                        powerPointProcessWarning = trackingError
                     },
                     ServiceProtocol.JsonOptions));
                 return 0;
@@ -157,8 +157,7 @@ internal sealed class ServiceStatusCommand : AsyncCommand<ServicePipeSettings>
     {
         var pipeName = settings.ResolvedPipeName;
         var tracker = new DaemonProcessTracker(pipeName);
-        if (!tracker.TryGetLivePowerPointProcesses(out var powerPointProcesses, out var trackingError))
-            return CliErrorOutput.WriteError(trackingError!);
+        tracker.TryGetLivePowerPointProcesses(out var powerPointProcesses, out var trackingError);
         var daemonHeld = DaemonAutoStart.IsDaemonMutexHeld(pipeName);
         var startupHeld = DaemonAutoStart.IsDaemonStartupMutexHeld(pipeName);
         using var client = new ServiceClient(pipeName, connectTimeout: TimeSpan.FromSeconds(1), requestTimeout: TimeSpan.FromSeconds(2));
@@ -174,6 +173,7 @@ internal sealed class ServiceStatusCommand : AsyncCommand<ServicePipeSettings>
                     running = daemonHeld,
                     responsive = false,
                     powerPointProcesses,
+                    powerPointProcessWarning = trackingError,
                 },
                 ServiceProtocol.JsonOptions));
             return 0;
@@ -189,6 +189,8 @@ internal sealed class ServiceStatusCommand : AsyncCommand<ServicePipeSettings>
             ? JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(response.Result, ServiceProtocol.JsonOptions)!
             : throw new InvalidOperationException("The service returned no status.");
         status["powerPointProcesses"] = JsonSerializer.SerializeToElement(powerPointProcesses, ServiceProtocol.JsonOptions);
+        if (trackingError != null)
+            status["powerPointProcessWarning"] = JsonSerializer.SerializeToElement(trackingError, ServiceProtocol.JsonOptions);
         Console.WriteLine(JsonSerializer.Serialize(status, ServiceProtocol.JsonOptions));
         return 0;
     }
