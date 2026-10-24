@@ -19,7 +19,7 @@ internal sealed class SessionOpenSettings : CommandSettings
 internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionOpenSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionOpenSettings settings, CancellationToken cancellationToken)
     {
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
@@ -43,7 +43,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenSettings>
 internal sealed class SessionCreateCommand : AsyncCommand<SessionOpenSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionOpenSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionOpenSettings settings, CancellationToken cancellationToken)
     {
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
@@ -79,7 +79,7 @@ internal sealed class SessionCloseSettings : CommandSettings
 internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionCloseSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionCloseSettings settings, CancellationToken cancellationToken)
     {
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
@@ -112,7 +112,7 @@ internal sealed class SessionIdSettings : CommandSettings
 internal sealed class SessionTestCommand : AsyncCommand<SessionOpenSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionOpenSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionOpenSettings settings, CancellationToken cancellationToken)
     {
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
@@ -172,7 +172,7 @@ internal sealed class SessionSaveCopyAsSettings : CommandSettings
 internal sealed class SessionSaveAsCommand : AsyncCommand<SessionSaveAsSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(
+    public override async Task<int> ExecuteAsync(
         CommandContext context,
         SessionSaveAsSettings settings,
         CancellationToken cancellationToken)
@@ -189,7 +189,7 @@ internal sealed class SessionSaveAsCommand : AsyncCommand<SessionSaveAsSettings>
 internal sealed class SessionSaveCopyAsCommand : AsyncCommand<SessionSaveCopyAsSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(
+    public override async Task<int> ExecuteAsync(
         CommandContext context,
         SessionSaveCopyAsSettings settings,
         CancellationToken cancellationToken)
@@ -218,7 +218,7 @@ internal sealed class SessionApplyTemplateSettings : CommandSettings
 internal sealed class SessionApplyTemplateCommand : AsyncCommand<SessionApplyTemplateSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionApplyTemplateSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionApplyTemplateSettings settings, CancellationToken cancellationToken)
     {
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
@@ -243,7 +243,7 @@ internal sealed class SessionApplyTemplateCommand : AsyncCommand<SessionApplyTem
 internal sealed class SessionGetThemeNameCommand : AsyncCommand<SessionIdSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionIdSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionIdSettings settings, CancellationToken cancellationToken)
     {
         using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
         var response = await client.SendAsync(new ServiceRequest
@@ -267,7 +267,7 @@ internal sealed class SessionGetThemeNameCommand : AsyncCommand<SessionIdSetting
 internal sealed class SessionGetFinalCommand : AsyncCommand<SessionIdSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionIdSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionIdSettings settings, CancellationToken cancellationToken)
         => await SessionCommandHelpers.SendFinalCommandAsync(
             "session.get-final",
             settings.SessionId,
@@ -291,7 +291,7 @@ internal sealed class SessionSetFinalSettings : CommandSettings
 internal sealed class SessionSetFinalCommand : AsyncCommand<SessionSetFinalSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionSetFinalSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionSetFinalSettings settings, CancellationToken cancellationToken)
         => await SessionCommandHelpers.SendFinalCommandAsync(
             "session.set-final",
             settings.SessionId,
@@ -331,7 +331,7 @@ internal sealed class SessionPropertySetSettings : CommandSettings
 internal sealed class SessionSetDocumentPropertyCommand : AsyncCommand<SessionPropertySetSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionPropertySetSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionPropertySetSettings settings, CancellationToken cancellationToken)
         => await SessionCommandHelpers.SendPropertyCommandAsync("session.set-document-property", settings.SessionId, settings.PropertyName, settings.Value, cancellationToken);
 }
 
@@ -339,7 +339,7 @@ internal sealed class SessionSetDocumentPropertyCommand : AsyncCommand<SessionPr
 internal sealed class SessionGetDocumentPropertyCommand : AsyncCommand<SessionPropertyGetSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionPropertyGetSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionPropertyGetSettings settings, CancellationToken cancellationToken)
         => await SessionCommandHelpers.SendPropertyCommandAsync("session.get-document-property", settings.SessionId, settings.PropertyName, value: null, cancellationToken);
 }
 
@@ -347,7 +347,7 @@ internal sealed class SessionGetDocumentPropertyCommand : AsyncCommand<SessionPr
 internal sealed class SessionSetCustomPropertyCommand : AsyncCommand<SessionPropertySetSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionPropertySetSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionPropertySetSettings settings, CancellationToken cancellationToken)
         => await SessionCommandHelpers.SendPropertyCommandAsync("session.set-custom-property", settings.SessionId, settings.PropertyName, settings.Value, cancellationToken);
 }
 
@@ -355,7 +355,7 @@ internal sealed class SessionSetCustomPropertyCommand : AsyncCommand<SessionProp
 internal sealed class SessionGetCustomPropertyCommand : AsyncCommand<SessionPropertyGetSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionPropertyGetSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionPropertyGetSettings settings, CancellationToken cancellationToken)
         => await SessionCommandHelpers.SendPropertyCommandAsync("session.get-custom-property", settings.SessionId, settings.PropertyName, value: null, cancellationToken);
 }
 
@@ -363,7 +363,7 @@ internal sealed class SessionGetCustomPropertyCommand : AsyncCommand<SessionProp
 internal sealed class SessionRemoveCustomPropertyCommand : AsyncCommand<SessionPropertyGetSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionPropertyGetSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionPropertyGetSettings settings, CancellationToken cancellationToken)
         => await SessionCommandHelpers.SendPropertyCommandAsync("session.remove-custom-property", settings.SessionId, settings.PropertyName, value: null, cancellationToken);
 }
 
@@ -465,7 +465,7 @@ internal sealed class SessionTagSetSettings : SessionTagGetSettings
 internal sealed class SessionSetTagCommand : AsyncCommand<SessionTagSetSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionTagSetSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionTagSetSettings settings, CancellationToken cancellationToken)
         => await SessionTagCommandHelpers.SendAsync("session.set-tag", settings.SessionId, settings.TagName, settings.TagValue, cancellationToken);
 }
 
@@ -473,7 +473,7 @@ internal sealed class SessionSetTagCommand : AsyncCommand<SessionTagSetSettings>
 internal sealed class SessionGetTagCommand : AsyncCommand<SessionTagGetSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionTagGetSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionTagGetSettings settings, CancellationToken cancellationToken)
         => await SessionTagCommandHelpers.SendAsync("session.get-tag", settings.SessionId, settings.TagName, tagValue: null, cancellationToken);
 }
 
@@ -481,7 +481,7 @@ internal sealed class SessionGetTagCommand : AsyncCommand<SessionTagGetSettings>
 internal sealed class SessionListTagsCommand : AsyncCommand<SessionIdSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionIdSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionIdSettings settings, CancellationToken cancellationToken)
         => await SessionTagCommandHelpers.SendAsync("session.list-tags", settings.SessionId, tagName: null, tagValue: null, cancellationToken);
 }
 
@@ -489,7 +489,7 @@ internal sealed class SessionListTagsCommand : AsyncCommand<SessionIdSettings>
 internal sealed class SessionDeleteTagCommand : AsyncCommand<SessionTagGetSettings>
 {
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, SessionTagGetSettings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, SessionTagGetSettings settings, CancellationToken cancellationToken)
         => await SessionTagCommandHelpers.SendAsync("session.delete-tag", settings.SessionId, settings.TagName, tagValue: null, cancellationToken);
 }
 
@@ -527,7 +527,7 @@ internal sealed class SessionListCommand : AsyncCommand
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(2);
 
     /// <inheritdoc/>
-    protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout, requestTimeout: CommandTimeout);

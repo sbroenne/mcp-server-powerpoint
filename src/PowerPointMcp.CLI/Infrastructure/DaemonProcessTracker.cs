@@ -126,9 +126,47 @@ internal sealed class DaemonProcessTracker
         WithLock(() => WriteRecord(new DaemonTrackingRecord
         {
             Daemon = identity,
-            PowerPointProcesses = [],
+            PowerPointProcesses = ReadRecordCore()?.PowerPointProcesses ?? [],
         }));
         return identity;
+    }
+
+    internal bool TryGetLivePowerPointProcesses(out IReadOnlyList<DaemonProcessIdentity> processes, out string? error)
+    {
+        processes = [];
+        error = null;
+        DaemonTrackingRecord? record;
+        try
+        {
+            record = ReadRecord();
+        }
+        catch (Exception ex) when (ex is TimeoutException or UnauthorizedAccessException or IOException or System.Security.SecurityException)
+        {
+            error = $"The service tracking record could not be checked ({ex.GetType().Name}). It was preserved.";
+            return false;
+        }
+        if (record == null && File.Exists(_recordPath))
+        {
+            error = "The service tracking record is invalid or unreadable. It was preserved.";
+            return false;
+        }
+
+        var live = new List<DaemonProcessIdentity>();
+        foreach (var identity in record?.PowerPointProcesses ?? [])
+        {
+            if (!TryOpenMatchingProcess(identity, out var process))
+            {
+                error = $"Recorded PowerPoint process {identity.ProcessId} could not be checked.";
+                return false;
+            }
+            using (process)
+            {
+                if (process != null)
+                    live.Add(identity);
+            }
+        }
+        processes = live;
+        return true;
     }
 
     public void RecordPowerPointProcess(PowerPointProcessIdentity identity)

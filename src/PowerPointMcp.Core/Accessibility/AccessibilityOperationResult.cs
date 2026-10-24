@@ -1,7 +1,9 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
+
 namespace Sbroenne.PowerPointMcp.Core.Accessibility;
 
 /// <summary>Result of an accessibility operation.</summary>
-public sealed class AccessibilityOperationResult
+public sealed class AccessibilityOperationResult : IPresentationOperationResult
 {
     /// <summary>Whether the operation succeeded.</summary>
     public bool Success { get; init; }

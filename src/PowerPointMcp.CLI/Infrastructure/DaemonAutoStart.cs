@@ -26,9 +26,9 @@ internal static class DaemonAutoStart
     /// Ensures the CLI daemon is running and returns a connected <see cref="ServiceClient"/>.
     /// If the daemon is not running, starts it and waits for it to be ready.
     /// </summary>
-    public static async Task<ServiceClient> EnsureAndConnectAsync(CancellationToken cancellationToken = default)
+    public static async Task<ServiceClient> EnsureAndConnectAsync(CancellationToken cancellationToken = default, string? pipeName = null)
     {
-        var pipeName = GetPipeName();
+        pipeName ??= GetPipeName();
 
         // Fast path: daemon already running and responsive.
         if (await PingAsync(pipeName, InitialPingTimeout, cancellationToken))

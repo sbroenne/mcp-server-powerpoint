@@ -62,9 +62,10 @@ public static class PowerPointToolsBase
         Func<string> operation,
         CancellationToken cancellationToken,
         PresentationSessionRegistry? registry = null,
-        string? sessionId = null) =>
+        string? sessionId = null,
+        bool trackRequest = false) =>
         ExecuteToolActionAsync(toolName, actionName, () => Task.FromResult(operation()),
-            cancellationToken, registry, sessionId);
+            cancellationToken, registry, sessionId, trackRequest);
 
     public static async Task<CallToolResult> ExecuteToolActionAsync(
         string toolName,
@@ -72,21 +73,52 @@ public static class PowerPointToolsBase
         Func<Task<string>> operation,
         CancellationToken cancellationToken,
         PresentationSessionRegistry? registry = null,
-        string? sessionId = null)
+        string? sessionId = null,
+        bool trackRequest = false)
     {
         var context = string.IsNullOrEmpty(actionName) ? toolName : $"{toolName}.{actionName}";
         Task<string>? operationTask = null;
-        int started = 0;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
             // Core marshals COM to its STA thread, but its dispatch waits synchronously.
             // Keep that wait off the SDK request loop and allow cancellation of the caller's wait.
-            operationTask = Task.Run(() =>
+            operationTask = Task.Run(async () =>
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                Interlocked.Exchange(ref started, 1);
-                return operation();
+                IPresentationBatch? trackedBatch = null;
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (trackRequest && registry is not null && !string.IsNullOrWhiteSpace(sessionId) &&
+                        registry.TryGet(sessionId, out var batch))
+                    {
+                        batch.BeginRequest();
+                        trackedBatch = batch;
+                    }
+                    using CancellationTokenRegistration cancellationRegistration = trackedBatch is null
+                        ? default : cancellationToken.Register(trackedBatch.MarkWaitExpired);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var response = await operation();
+                    if (trackedBatch is not null)
+                    {
+                        using var document = JsonDocument.Parse(response);
+                        var root = document.RootElement;
+                        bool failed = root.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.False;
+                        string? error = root.TryGetProperty("errorMessage", out var message) ? message.GetString() : null;
+                        trackedBatch.CompleteRequest(failed ? "failed" : "completed", error);
+                    }
+                    return response;
+                }
+                catch (OperationCanceledException)
+                {
+                    trackedBatch?.CompleteRequest("cancelled");
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    trackedBatch?.CompleteRequest("failed", ex.Message);
+                    throw;
+                }
             }, CancellationToken.None);
             var json = await operationTask.WaitAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
@@ -94,11 +126,13 @@ public static class PowerPointToolsBase
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            if (!string.IsNullOrWhiteSpace(sessionId))
+            {
+                Console.Error.WriteLine($"[PowerPointMcp] Cancelled wait in {context}; the presentation session was not closed.");
+            }
             if (operationTask is not null)
             {
-                if (Volatile.Read(ref started) != 0 && !string.IsNullOrWhiteSpace(sessionId))
-                    registry?.Close(sessionId, operationTask);
-                _ = ObserveCancelledOperationAsync(operationTask, context, toolName, actionName, registry, sessionId);
+                _ = ObserveCancelledOperationAsync(operationTask, context, toolName, actionName, registry);
             }
             throw;
         }
@@ -125,14 +159,11 @@ public static class PowerPointToolsBase
         string context,
         string toolName,
         string actionName,
-        PresentationSessionRegistry? registry,
-        string? sessionId)
+        PresentationSessionRegistry? registry)
     {
         try
         {
             var json = await operationTask;
-            if (!string.IsNullOrWhiteSpace(sessionId))
-                registry?.Close(sessionId);
             if (registry is not null && toolName == "presentation" && actionName is "open" or "create")
             {
                 using var result = JsonDocument.Parse(json);
@@ -145,7 +176,7 @@ public static class PowerPointToolsBase
                 if (!result.RootElement.TryGetProperty("presentation_session_id", out var id) ||
                     id.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(id.GetString()))
                     throw new InvalidOperationException("Session creation returned no session identifier.");
-                registry.Close(id.GetString()!);
+                registry.Close(id.GetString()!, preserveUnsavedChanges: true);
             }
         }
         catch (OperationCanceledException)
@@ -155,8 +186,6 @@ public static class PowerPointToolsBase
 #pragma warning disable CA1031 // Observe late failures after the SDK request has already been cancelled.
         catch (Exception ex)
         {
-            if (!string.IsNullOrWhiteSpace(sessionId))
-                registry?.Close(sessionId);
             Console.Error.WriteLine(
                 $"[PowerPointMcp] Cancelled operation {context} finished with {ex.GetType().Name}: HResult=0x{ex.HResult:X8}.");
         }

@@ -1,7 +1,9 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
+
 namespace Sbroenne.PowerPointMcp.Core.PageSetup;
 
 /// <summary>Result of a presentation page-setup operation.</summary>
-public sealed class PageSetupOperationResult
+public sealed class PageSetupOperationResult : IPresentationOperationResult
 {
     /// <summary>Whether the operation succeeded.</summary>
     public bool Success { get; init; }

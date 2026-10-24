@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Sbroenne.PowerPointMcp.Service.Rpc;
 
 /// <summary>
@@ -8,6 +10,10 @@ namespace Sbroenne.PowerPointMcp.Service.Rpc;
 internal sealed class DaemonRpcTarget : IPowerPointDaemonRpc
 {
     private readonly PowerPointMcpService _service;
+    private readonly object _activityLock = new();
+    private long _lastActivityTimestamp = Stopwatch.GetTimestamp();
+    private int _activeRequests;
+    private bool _idleClosing;
 
     public DaemonRpcTarget(PowerPointMcpService service)
     {
@@ -15,9 +21,47 @@ internal sealed class DaemonRpcTarget : IPowerPointDaemonRpc
     }
 
     /// <inheritdoc />
-    public async Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request)
+    public async Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request, CancellationToken cancellationToken = default)
     {
-        _service.RecordActivity();
-        return await _service.ProcessAsync(request);
+        ArgumentNullException.ThrowIfNull(request);
+        lock (_activityLock)
+        {
+            if (_idleClosing)
+                return new ServiceResponse
+                {
+                    Success = false,
+                    Command = request.Command,
+                    SessionId = request.SessionId,
+                    ErrorCategory = "ServiceUnavailable",
+                    ErrorMessage = "The idle service connection expired. Reconnect and retry; no PowerPoint work was started."
+                };
+            _activeRequests++;
+        }
+        try
+        {
+            return await _service.ProcessAsync(request, cancellationToken);
+        }
+        finally
+        {
+            lock (_activityLock)
+            {
+                _activeRequests--;
+                _lastActivityTimestamp = Stopwatch.GetTimestamp();
+            }
+        }
+    }
+
+    internal TimeSpan GetIdleWaitTimeout(TimeSpan idleTimeout)
+    {
+        lock (_activityLock)
+        {
+            if (_activeRequests > 0)
+                return idleTimeout;
+            var remaining = idleTimeout - Stopwatch.GetElapsedTime(_lastActivityTimestamp);
+            if (remaining > TimeSpan.Zero)
+                return remaining;
+            _idleClosing = true;
+            return TimeSpan.Zero;
+        }
     }
 }

@@ -1,3 +1,5 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
+
 namespace Sbroenne.PowerPointMcp.Core.Layout;
 
 /// <summary>
@@ -6,7 +8,7 @@ namespace Sbroenne.PowerPointMcp.Core.Layout;
 /// <remarks>
 /// Follows the same Success/ErrorMessage invariant as the other domain results (Rule 1).
 /// </remarks>
-public sealed class LayoutOperationResult
+public sealed class LayoutOperationResult : IPresentationOperationResult
 {
     /// <summary>Whether the operation succeeded.</summary>
     public bool Success { get; init; }

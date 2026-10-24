@@ -29,7 +29,7 @@ namespace Sbroenne.PowerPointMcp.ComInterop.Session;
 /// (open/create/close/save). It intentionally omits several hardening features present in
 /// ExcelBatch that should be ported before this is considered production-ready:
 /// multi-presentation batches, IRM/AIP detection, and macro-security handling for .pptm.
-/// Resilient close/quit retry + process-exit polling IS implemented — see
+/// Bounded close/quit retries preserve unsaved work on host shutdown — see
 /// <see cref="PresentationShutdownService"/>.
 /// </para>
 /// </remarks>
@@ -74,12 +74,19 @@ internal sealed class PresentationBatch : IPresentationBatch
     private int _disposed;
     private int? _powerPointProcessId;
     private PowerPointProcessIdentity? _powerPointProcessIdentity;
-
-    // Set on whichever thread's Execute() call actually times out, read via HasTimedOutOperation
-    // from any other thread that shares this batch (dispatch can run commands against the same
-    // batch concurrently) - always access through Volatile.Read/Write so a timeout recorded on one
-    // thread is guaranteed visible to a caller polling this from another.
-    private bool _operationTimedOut;
+    private int _processOwnershipReleased;
+    private readonly object _operationLock = new();
+    private PresentationOperationStatus _operationStatus = new("idle", false, false, null, null);
+    private long _operationSequence;
+    private bool _requestPending;
+    private bool _callbackPending;
+    private readonly AsyncLocal<object?> _requestContext = new();
+    private object? _requestOwner;
+    private bool _closing;
+    private bool _callbackWaitExpired;
+    private PresentationOperationStatus? _callbackOutcome;
+    private volatile bool _preserveUnsavedChanges;
+    private volatile bool _leavePresentationOpen;
 
     private PowerPoint.Application? _app;
     private PowerPoint.Presentation? _presentation;
@@ -127,9 +134,16 @@ internal sealed class PresentationBatch : IPresentationBatch
             bool completedInTime = started.Task.Wait(_operationTimeout);
             if (!completedInTime)
             {
-                Volatile.Write(ref _operationTimedOut, true);
-                _workQueue.Writer.TryComplete();
-                _shutdownCts.Cancel();
+                lock (_operationLock)
+                {
+                    _preserveUnsavedChanges = true;
+                    _leavePresentationOpen = true;
+                    if (_disposed == 0)
+                    {
+                        _workQueue.Writer.TryComplete();
+                        _shutdownCts.Cancel();
+                    }
+                }
                 throw new TimeoutException(
                     $"PowerPoint startup timed out after {_operationTimeout.TotalSeconds} seconds while opening " +
                     $"'{Path.GetFileName(_presentationPath)}'. The presentation may be blocked on an interactive " +
@@ -139,33 +153,13 @@ internal sealed class PresentationBatch : IPresentationBatch
 
             started.Task.GetAwaiter().GetResult();
         }
-        catch (Exception startupFailure)
+        catch
         {
+            _preserveUnsavedChanges = true;
             if (_staThread.IsAlive)
-            {
-                _ = _staThread.Join(TimeSpan.FromSeconds(10));
-            }
+                _ = _staThread.Join(ComInteropConstants.StaThreadJoinTimeout);
 
-            if (_powerPointProcessIdentity is { } failedStartupIdentity)
-            {
-                try
-                {
-                    FinalizeFailedStartupOwnedProcess(failedStartupIdentity);
-                }
-                catch (Exception teardownFailure)
-                {
-                    throw new InvalidOperationException(
-                        $"PowerPoint startup failed and exact process teardown could not be confirmed for " +
-                        $"process {failedStartupIdentity.ProcessId}. The process identity remains tracked " +
-                        "for later cleanup.",
-                        new AggregateException(startupFailure, teardownFailure));
-                }
-
-                if (_staThread.IsAlive)
-                {
-                    _ = _staThread.Join(TimeSpan.FromSeconds(5));
-                }
-            }
+            ReleaseProcessForUser();
 
             throw;
         }
@@ -180,8 +174,8 @@ internal sealed class PresentationBatch : IPresentationBatch
     /// <c>Presentation.ApplyTemplate</c> on a slide that already has shape/text content
     /// triggers PowerPoint's Designer (Design Ideas) feature, which opens a blocking, title-less
     /// modal dialog of window class <c>NUIDialog</c>. With no interactive user present to dismiss
-    /// it, the call hangs forever until our own <see cref="ComInteropConstants.DefaultOperationTimeout"/>
-    /// force-kills the process.</para>
+    /// it, the call may remain blocked after <see cref="ComInteropConstants.DefaultOperationTimeout"/>
+    /// stops the caller's wait.</para>
     /// <para>
     /// There is no supported COM/VBA property to toggle this (confirmed: not exposed via
     /// <c>Application</c> or <c>Presentation</c>). The supported Group Policy key
@@ -296,6 +290,7 @@ internal sealed class PresentationBatch : IPresentationBatch
         }
         catch (Exception ex)
         {
+            _preserveUnsavedChanges = true;
             started.TrySetException(ex);
         }
         finally
@@ -303,8 +298,11 @@ internal sealed class PresentationBatch : IPresentationBatch
             var cleanupApp = _app ?? startupApp;
             var cleanupPresentation = _presentation ?? startupPresentation;
             var cleanupContext = _context;
-            Action? releaseOwnedComOwners =
-                cleanupContext is null ? null : cleanupContext.ReleaseOwnedComOwners;
+            Action releaseOwnedComOwners = () =>
+            {
+                cleanupContext?.ReleaseOwnedComOwners();
+                ReleaseProcessForUser();
+            };
 
             cleanupContext?.ReleaseOwnedComResources();
             _context = null;
@@ -312,20 +310,26 @@ internal sealed class PresentationBatch : IPresentationBatch
             PresentationShutdownService.CloseAndQuit(
                 cleanupPresentation,
                 cleanupApp,
-                _powerPointProcessIdentity,
                 _logger,
                 _presentationPath,
-                releaseOwnedComOwners);
-            if (_powerPointProcessIdentity is { } identity
-                && OwnedProcessGuard.TryConfirmExited(identity))
-            {
-                PresentationSessionRegistry.UntrackPowerPointProcess(identity);
-            }
+                releaseOwnedComOwners,
+                preserveUnsavedChanges: _preserveUnsavedChanges,
+                leavePresentationOpen: _leavePresentationOpen,
+                canRestoreUserInteraction: () => _powerPointProcessIdentity is not { } identity ||
+                    !PresentationSessionRegistry.GetTrackedPowerPointProcesses().Contains(identity));
+            ReleaseProcessForUser();
 
             _presentation = null;
             _app = null;
             try { OleMessageFilter.Revoke(); }
             catch (Exception ex) { _logger.LogWarning(ex, "OleMessageFilter.Revoke() failed during STA cleanup"); }
+            lock (_operationLock)
+            {
+                _disposed = 1;
+                _workQueue.Writer.TryComplete();
+                _shutdownCts.Dispose();
+                _workSignal.Dispose();
+            }
         }
     }
 
@@ -361,7 +365,7 @@ internal sealed class PresentationBatch : IPresentationBatch
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to capture PowerPoint process ID. Force-kill will not be available.");
+            _logger.LogWarning(ex, "Failed to capture PowerPoint process identity; process status is unavailable.");
         }
     }
 
@@ -493,7 +497,76 @@ internal sealed class PresentationBatch : IPresentationBatch
 
     public string PresentationPath => Volatile.Read(ref _presentationPath);
 
-    public bool HasTimedOutOperation => Volatile.Read(ref _operationTimedOut);
+    public bool HasTimedOutOperation
+    {
+        get
+        {
+            lock (_operationLock)
+                return _operationStatus.WaitExpired && _callbackPending;
+        }
+    }
+
+    public PresentationOperationStatus GetOperationStatus()
+    {
+        lock (_operationLock)
+            return _operationStatus;
+    }
+
+    public void BeginRequest()
+    {
+        lock (_operationLock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0 || _closing, this);
+            if (_operationStatus.ExecutionPending)
+                throw new InvalidOperationException("PowerPoint work is still running for this session.");
+            _requestPending = true;
+            _requestOwner = new object();
+            _requestContext.Value = _requestOwner;
+            _callbackWaitExpired = false;
+            _callbackOutcome = null;
+            _operationStatus = new("running", true, false, DateTime.UtcNow, null);
+        }
+    }
+
+    public void CompleteRequest(string state, string? errorMessage = null)
+    {
+        lock (_operationLock)
+        {
+            _requestPending = false;
+            _requestOwner = null;
+            _requestContext.Value = null;
+            var lateOutcome = _callbackWaitExpired && !_callbackPending ? _callbackOutcome : null;
+            _operationStatus = _operationStatus with
+            {
+                State = _callbackPending ? "running" : lateOutcome?.State ?? state,
+                ExecutionPending = _callbackPending,
+                ErrorMessage = lateOutcome is null ? errorMessage : lateOutcome.ErrorMessage
+            };
+        }
+    }
+
+    public bool TryBeginClose()
+    {
+        lock (_operationLock)
+        {
+            if (_disposed != 0)
+                return true;
+            if (_closing || _callbackPending ||
+                (_requestPending && !ReferenceEquals(_requestContext.Value, _requestOwner)))
+                return false;
+            _closing = true;
+            return true;
+        }
+    }
+
+    public void MarkWaitExpired()
+    {
+        lock (_operationLock)
+        {
+            if (_operationStatus.ExecutionPending && ReferenceEquals(_requestContext.Value, _requestOwner))
+                _operationStatus = _operationStatus with { WaitExpired = true };
+        }
+    }
 
     public int? PowerPointProcessId => _powerPointProcessId;
 
@@ -513,12 +586,8 @@ internal sealed class PresentationBatch : IPresentationBatch
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(PresentationBatch));
 
-        if (Volatile.Read(ref _operationTimedOut))
-        {
-            throw new TimeoutException(
-                $"A previous operation timed out for '{Path.GetFileName(_presentationPath)}'. " +
-                "Please close this session and create a new one.");
-        }
+        ArgumentNullException.ThrowIfNull(operation);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!IsPowerPointProcessAlive())
         {
@@ -528,63 +597,122 @@ internal sealed class PresentationBatch : IPresentationBatch
         }
 
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        long sequence;
+        lock (_operationLock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed != 0 || _closing, this);
+            if (_callbackPending || (_requestPending && !ReferenceEquals(_requestContext.Value, _requestOwner)))
+                throw new InvalidOperationException(
+                    "Another PowerPoint operation is still running for this session. " +
+                    "Inspect session list before retrying; an expired wait does not undo changes.");
+            _callbackPending = true;
+            _callbackWaitExpired = false;
+            _callbackOutcome = null;
+            if (!_requestPending)
+                _operationStatus = new("running", true, false, DateTime.UtcNow, null);
+            sequence = ++_operationSequence;
+        }
 
         try
         {
-            var writeTask = _workQueue.Writer.WriteAsync(() =>
+            lock (_operationLock)
             {
-                try
+                ObjectDisposedException.ThrowIf(_disposed != 0, this);
+                var writeTask = _workQueue.Writer.WriteAsync(() =>
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var result = operation(_context!, cancellationToken);
-                    tcs.SetResult(result);
-                }
-                catch (OperationCanceledException oce)
-                {
-                    tcs.TrySetCanceled(oce.CancellationToken);
-                }
-                catch (Exception ex)
-                {
-                    tcs.TrySetException(ex);
-                }
-                return Task.CompletedTask;
-            }, cancellationToken);
+                    try
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        var result = operation(_context!, cancellationToken);
+                        if (result is IPresentationOperationResult { Success: false } failure)
+                            CompleteOperation(sequence, "failed", failure.ErrorMessage);
+                        else
+                            CompleteOperation(sequence, "completed");
+                        tcs.SetResult(result);
+                    }
+                    catch (OperationCanceledException oce)
+                    {
+                        CompleteOperation(sequence, "cancelled");
+                        tcs.TrySetCanceled(oce.CancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        CompleteOperation(sequence, "failed", ex.Message);
+                        tcs.TrySetException(ex);
+                        _logger.LogWarning(ex, "PowerPoint operation failed (HResult: 0x{HResult:X8}).", ex.HResult);
+                    }
+                    return Task.CompletedTask;
+                }, cancellationToken);
 
-            if (writeTask.IsCompleted) writeTask.GetAwaiter().GetResult();
-            else writeTask.AsTask().GetAwaiter().GetResult();
-            _workSignal.Set();
+                if (writeTask.IsCompleted) writeTask.GetAwaiter().GetResult();
+                else writeTask.AsTask().GetAwaiter().GetResult();
+                _workSignal.Set();
+            }
         }
         catch (ChannelClosedException)
         {
+            CompleteOperation(sequence, "cancelled");
             throw new ObjectDisposedException(nameof(PresentationBatch),
                 $"Session for '{Path.GetFileName(_presentationPath)}' was disposed while submitting an operation.");
+        }
+        catch (OperationCanceledException)
+        {
+            CompleteOperation(sequence, "cancelled");
+            throw;
+        }
+        catch (ObjectDisposedException)
+        {
+            CompleteOperation(sequence, "cancelled");
+            throw;
         }
 
         try
         {
-            if (cancellationToken.CanBeCanceled)
-            {
-                return tcs.Task.WaitAsync(cancellationToken).GetAwaiter().GetResult();
-            }
-
-            using var timeoutCts = new CancellationTokenSource(_operationTimeout);
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(_operationTimeout);
             return tcs.Task.WaitAsync(timeoutCts.Token).GetAwaiter().GetResult();
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            Volatile.Write(ref _operationTimedOut, true);
+            RecordExpiredWait(sequence);
             throw new TimeoutException(
                 $"PowerPoint operation timed out after {_operationTimeout.TotalSeconds} seconds for " +
-                $"'{Path.GetFileName(_presentationPath)}'.");
+                $"'{Path.GetFileName(_presentationPath)}'. Work may still be running; " +
+                "inspect session list before retrying. The wait does not undo presentation changes.");
         }
         catch (OperationCanceledException)
         {
-            // Caller-initiated cancellation (e.g. an upstream request timeout or Ctrl+C). This is
-            // NOT an internal operation timeout: the STA thread drains the in-flight operation
-            // normally and the batch remains reusable, so we must NOT set _operationTimedOut here
-            // (doing so would poison every later call AND force-kill the PowerPoint process in
-            // Dispose, bypassing the graceful PresentationShutdownService path).
+            RecordExpiredWait(sequence);
             throw;
+        }
+    }
+
+    private void CompleteOperation(long sequence, string state, string? errorMessage = null)
+    {
+        lock (_operationLock)
+        {
+            if (_operationSequence != sequence)
+                return;
+            _callbackPending = false;
+            _callbackOutcome = _operationStatus with { State = state, ExecutionPending = false, ErrorMessage = errorMessage };
+            _operationStatus = _operationStatus with
+            {
+                State = _requestPending ? "running" : state,
+                ExecutionPending = _requestPending,
+                ErrorMessage = errorMessage
+            };
+        }
+    }
+
+    private void RecordExpiredWait(long sequence)
+    {
+        lock (_operationLock)
+        {
+            if (_operationSequence == sequence)
+            {
+                _callbackWaitExpired = true;
+                _operationStatus = _operationStatus with { WaitExpired = true };
+            }
         }
     }
 
@@ -840,74 +968,43 @@ internal sealed class PresentationBatch : IPresentationBatch
         }, cancellationToken);
     }
 
+    public void DisposeForShutdown()
+    {
+        _preserveUnsavedChanges = true;
+        Dispose();
+    }
+
     public void Dispose()
     {
-        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
-
-        _shutdownCts.Cancel();
-        _workQueue.Writer.Complete();
-
-        if (Volatile.Read(ref _operationTimedOut) && _powerPointProcessIdentity.HasValue && _staThread.IsAlive)
+        bool pending;
+        lock (_operationLock)
         {
-            TryKillProcess(_powerPointProcessIdentity.Value);
+            if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
+            pending = _callbackPending || (_requestPending && !_closing);
+            _leavePresentationOpen = pending;
+            _shutdownCts.Cancel();
+            _workQueue.Writer.TryComplete();
         }
 
-        bool staThreadExited = _staThread.Join(ComInteropConstants.StaThreadJoinTimeout);
-
-        // Ultimate backstop: StaThreadJoinTimeout is sized to comfortably cover
-        // PresentationShutdownService's full worst-case duration (Close/Quit retries + the
-        // process-exit grace period + its own force-kill). If the STA thread STILL hasn't
-        // finished even after that — e.g. Quit() itself is blocked on a modal dialog that
-        // outlasts every other safety net — force-kill here so Dispose() never returns having
-        // silently leaked the process.
-        if (!staThreadExited && _powerPointProcessIdentity.HasValue)
+        if (pending)
         {
-            TryKillProcess(_powerPointProcessIdentity.Value);
+            ReleaseProcessForUser();
+            return;
         }
 
-        _shutdownCts.Dispose();
-        _workSignal.Dispose();
+        if (!_staThread.Join(ComInteropConstants.StaThreadJoinTimeout))
+        {
+            _leavePresentationOpen = true;
+            ReleaseProcessForUser();
+            _logger.LogWarning("PowerPoint did not finish shutdown within five seconds. It was left open; no process was terminated.");
+        }
     }
 
-    private static bool TryKillProcess(PowerPointProcessIdentity identity)
+    private void ReleaseProcessForUser()
     {
-        try
-        {
-            if (!OwnedProcessGuard.TryOpenMatchingProcess(identity, out var process))
-            {
-                return false;
-            }
-
-            using (process)
-            {
-                if (process != null)
-                {
-                    process.Kill();
-                    if (!process.WaitForExit(5000))
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            PresentationSessionRegistry.UntrackPowerPointProcess(identity);
-            return true;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+        if (_powerPointProcessIdentity is { } identity &&
+            Interlocked.Exchange(ref _processOwnershipReleased, 1) == 0)
+            PresentationSessionRegistry.ReleasePowerPointProcessOwnership(identity);
     }
 
-    private static void FinalizeFailedStartupOwnedProcess(PowerPointProcessIdentity identity)
-    {
-        if (OwnedProcessGuard.IsAlive(identity) && !TryKillProcess(identity)
-            && !OwnedProcessGuard.TryConfirmExited(identity))
-        {
-            throw new InvalidOperationException(
-                $"PowerPoint process {identity.ProcessId} remained live or inaccessible after startup cleanup.");
-        }
-
-        PresentationSessionRegistry.UntrackPowerPointProcess(identity);
-    }
 }

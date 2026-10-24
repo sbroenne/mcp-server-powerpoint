@@ -5,7 +5,10 @@ using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Text.Json;
 using ModelContextProtocol.Client;
+using Sbroenne.PowerPointMcp.ComInterop;
+using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Xunit.Abstractions;
+using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 using static Sbroenne.PowerPointMcp.McpServer.Tests.Integration.McpToolCallHelper;
 
 namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
@@ -13,17 +16,14 @@ namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
 /// <summary>
 /// Close/shutdown robustness coverage for the async-close design: double-close, concurrent closes of multiple
 /// sessions, and a close-then-immediate-host-shutdown race — all driven through the MCP protocol,
-/// with a final real-process check that no POWERPNT.exe spawned by this test survives host
-/// shutdown.
+/// checking that the test's presentations close while an unrelated presentation stays usable.
 /// </summary>
 /// <remarks>
 /// Manages its own <see cref="ProgramTransportTestHost"/> lifecycle inline (rather than via
 /// <see cref="IAsyncLifetime"/>) so the test can control exactly when the host stops relative to
 /// the last <c>close_presentation</c> call to exercise the close-then-host-shutdown race.
-/// Only ONE <c>create_presentation</c> call is made (that call alone currently blocks
-/// synchronously for the full PowerPoint quit sequence); the resulting file is
-/// copied on disk (no COM) to produce independent files for each of the four sessions this test
-/// opens, keeping total runtime bounded while still exercising four real PowerPoint processes.
+/// One seed presentation is copied on disk to produce independent files for the four sessions.
+/// An observer outside the host keeps the shared PowerPoint application available for inspection.
 /// </remarks>
 [Collection("ProgramTransport")]
 [Trait("Category", "Integration")]
@@ -41,14 +41,13 @@ public sealed class McpShutdownRobustnessTests
     }
 
     [Fact]
-    public async Task CloseRobustness_DoubleCloseConcurrentCloseAndHostShutdown_LeavesNoOrphanedProcesses()
+    public async Task CloseRobustness_DoubleCloseConcurrentCloseAndHostShutdown_ClosesPresentationsAndPreservesSharedApplication()
     {
-        var baselinePowerPointPids = GetCurrentPowerPointPids();
-        _output.WriteLine($"Baseline POWERPNT.exe PIDs before test: [{string.Join(", ", baselinePowerPointPids)}]");
-
         var tempDir = Path.Join(Path.GetTempPath(), $"McpShutdownRobustnessTest_{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempDir);
         _output.WriteLine($"Test directory: {tempDir}");
+        using var observer = PresentationSession.CreateNew(Path.Join(tempDir, "Observer.pptx"));
+        var managedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var clientToServerPipe = new Pipe();
         var serverToClientPipe = new Pipe();
@@ -75,6 +74,7 @@ public sealed class McpShutdownRobustnessTests
             // session once the file is on disk — otherwise it lingers in the registry and the
             // final list_sessions count assertion (expecting 0) would see it.
             var seedFile = Path.Join(tempDir, "Seed.pptx");
+            managedFiles.Add(seedFile);
             var seedCreateJson = await Call("presentation", new() { ["action"] = "create", ["filePath"] = seedFile });
             AssertSuccess(seedCreateJson, "create_presentation");
             var seedSessionId = GetString(seedCreateJson, "presentation_session_id");
@@ -88,6 +88,7 @@ public sealed class McpShutdownRobustnessTests
             foreach (var f in new[] { fileA, fileB, fileC, fileD })
             {
                 File.Copy(seedFile, f);
+                managedFiles.Add(f);
             }
 
             // Close the seed session now that its file has been copied — the test only needs the
@@ -159,34 +160,55 @@ public sealed class McpShutdownRobustnessTests
         }
         finally
         {
-            // Stopping the host drives PresentationSessionShutdownService.StopAsync →
-            // registry.DisposeAll(), which blocks until every in-flight background disposal
-            // (A, B, C, D — regardless of how recently each was closed) has actually finished.
-            var shutdownStopwatch = Stopwatch.StartNew();
-            await ProgramTransportTestHost.StopAsync(client, clientToServerPipe, serverToClientPipe, serverTask, _output, cts);
-            shutdownStopwatch.Stop();
-            _output.WriteLine($"✓ Host shutdown (awaiting all pending disposals) took {shutdownStopwatch.Elapsed}");
-
-            // The critical assertion: after the host has FULLY stopped, no POWERPNT.exe process
-            // that wasn't already running before this test (baseline) may still be alive. Diffing
-            // against the baseline (rather than asserting zero total) tolerates unrelated
-            // processes from other sources while still catching anything THIS test leaked.
-            var survivingPids = GetCurrentPowerPointPids().Except(baselinePowerPointPids).ToList();
-            Assert.True(
-                survivingPids.Count == 0,
-                $"Orphaned POWERPNT.exe process(es) survived host shutdown: [{string.Join(", ", survivingPids)}]");
-            _output.WriteLine("✓ No orphaned POWERPNT.exe processes from this test remain after host shutdown");
-
-            if (Directory.Exists(tempDir))
+            try
             {
-                try
+                var shutdownStopwatch = Stopwatch.StartNew();
+                await ProgramTransportTestHost.StopAsync(client, clientToServerPipe, serverToClientPipe, serverTask, _output, cts);
+                shutdownStopwatch.Stop();
+                Assert.NotNull(serverTask);
+                Assert.True(serverTask.IsCompletedSuccessfully, "The MCP host must stop without an error.");
+                _output.WriteLine($"Host shutdown took {shutdownStopwatch.Elapsed}");
+
+                var remaining = observer.Execute((context, token) =>
                 {
-                    Directory.Delete(tempDir, recursive: true);
-                }
-                catch
+                    var openFiles = new List<string>();
+                    PowerPoint.Presentations? presentations = null;
+                    try
+                    {
+                        presentations = context.App.Presentations;
+                        for (int i = 1; i <= presentations.Count; i++)
+                        {
+                            PowerPoint.Presentation? presentation = null;
+                            try
+                            {
+                                presentation = presentations[i];
+                                if (managedFiles.Contains(presentation.FullName))
+                                    openFiles.Add(presentation.FullName);
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref presentation);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref presentations);
+                    }
+                    return openFiles;
+                });
+                Assert.Empty(remaining);
+                foreach (var file in managedFiles)
                 {
-                    // Best-effort cleanup only.
+                    using var unlocked = File.Open(file, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
                 }
+                Assert.True(observer.IsPowerPointProcessAlive());
+                Assert.Equal("Observer.pptx", observer.Execute((context, token) => context.Presentation.Name));
+            }
+            finally
+            {
+                observer.Dispose();
+                Directory.Delete(tempDir, recursive: true);
             }
         }
     }
@@ -213,17 +235,4 @@ public sealed class McpShutdownRobustnessTests
         return (result, stopwatch.Elapsed);
     }
 
-    private static List<int> GetCurrentPowerPointPids()
-    {
-        var result = new List<int>();
-        foreach (var process in Process.GetProcessesByName("POWERPNT"))
-        {
-            using (process)
-            {
-                result.Add(process.Id);
-            }
-        }
-
-        return result;
-    }
 }

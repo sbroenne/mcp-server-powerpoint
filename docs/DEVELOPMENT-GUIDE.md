@@ -100,9 +100,41 @@ The close call returns without waiting for the PowerPoint process to exit.
 Office may take minutes to finish post-Quit cleanup; that delay alone does not
 prove a leak or justify force-killing it.
 
+Cancelled or expired waits retain existing sessions. Session lists expose operation
+state without calling into PowerPoint, so they remain available while work is blocked.
+Only one operation may run per session; a later request is rejected until the earlier
+callback actually finishes, even if its caller has already stopped waiting.
+Service requests track their whole lifetime across callbacks and clipboard waits.
+Completing a request's wait must not hide an unfinished callback, and a late failure
+must remain visible in session lists.
+Core results implement `IPresentationOperationResult` so the PowerPoint layer can record
+returned failures as well as exceptions, including results delivered after a wait expires.
+Keep the actual PowerPoint result even when it arrives before the request finishes
+reporting an expired wait. Handwritten MCP presentation actions also track validation
+and file work after PowerPoint calls. Explicit close reserves the batch before removing
+its session, using the same lock that admits requests and PowerPoint calls.
+Cancellation marks only the request that registered it; cancellation before dispatch or
+after an earlier request completes must not change another request's status.
+Keep alerts suppressed while another managed presentation remains open in the shared
+PowerPoint process, restoring user interaction only after the last owner detaches.
+Shutdown tests check presentation closure and successful Quit calls, not a fixed deadline
+for Office's later process exit. Tracking tests preserve owners that existed before the
+test and check that another open presentation remains usable.
+
+The CLI pipe accepts up to 64 connections. A connection with no running request expires
+after one second of inactivity, including before its first request. A client arriving at
+capacity waits for a slot instead of being disconnected immediately. Running requests
+do not expire under this rule, and the normal client opens a connection for each command.
+Tracking-record lock or access failures are reported as warnings, not failures of service
+status.
+
 Host shutdown through Ctrl+C, stdin EOF, or normal exit has two cleanup layers:
 `PresentationSessionShutdownService.StopAsync` and the `Main` finally block both
-call the registry's idempotent `DisposeAll()`. The
+call the registry's idempotent `DisposeAll()`. This rejects new session startup,
+releases automation, and retains unsaved or unfinished presentations without saving.
+Explicit close remains separate and discards changes unless saving was requested.
+Recovery may stop a verified service process, but never its recorded PowerPoint
+processes: PowerPoint can share one process with other presentations. The
 [critical rules](../.github/instructions/critical-rules.instructions.md)
 define the required tracking and process-ownership safeguards.
 

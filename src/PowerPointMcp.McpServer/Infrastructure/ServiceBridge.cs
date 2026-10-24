@@ -55,7 +55,7 @@ public static class ServiceBridge
             Source = "mcp"
         };
 
-        var response = await service.ProcessAsync(request);
+        var response = await service.ProcessAsync(request, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         return FormatResponse(response);
     }

@@ -1,3 +1,5 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
+
 namespace Sbroenne.PowerPointMcp.Core.SmartArt;
 
 /// <summary>
@@ -7,7 +9,7 @@ namespace Sbroenne.PowerPointMcp.Core.SmartArt;
 /// Follows the same Success/ErrorMessage invariant as the other domain results (Rule 1):
 /// Success == true implies ErrorMessage is null/empty.
 /// </remarks>
-public sealed class SmartArtOperationResult
+public sealed class SmartArtOperationResult : IPresentationOperationResult
 {
     /// <summary>Whether the operation succeeded.</summary>
     public bool Success { get; init; }

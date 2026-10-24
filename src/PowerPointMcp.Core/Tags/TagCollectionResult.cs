@@ -1,6 +1,8 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
+
 namespace Sbroenne.PowerPointMcp.Core.Tags;
 
-internal sealed class TagCollectionResult
+internal sealed class TagCollectionResult : IPresentationOperationResult
 {
     public bool Success { get; init; }
 

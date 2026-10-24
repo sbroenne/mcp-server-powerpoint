@@ -42,7 +42,7 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
     protected virtual bool RequiresSession => true;
 
     /// <inheritdoc/>
-    protected sealed override async Task<int> ExecuteAsync(CommandContext context, TSettings settings, CancellationToken cancellationToken)
+    public sealed override async Task<int> ExecuteAsync(CommandContext context, TSettings settings, CancellationToken cancellationToken)
     {
         var sessionId = GetSessionId(settings);
         if (RequiresSession && string.IsNullOrWhiteSpace(sessionId))

@@ -44,11 +44,14 @@ public sealed class PowerPointMcpService : IDisposable
     private readonly PresentationSessionRegistry _sessions = new();
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly ConcurrentDictionary<Task, byte> _activeConnectionTasks = new();
+    private readonly ConcurrentDictionary<string, byte> _busySessions = new(StringComparer.Ordinal);
+    private int _activeRequests;
     private readonly DateTime _startTime = DateTime.UtcNow;
     private string _pipeName = "";
     private TimeSpan? _idleTimeout;
     private DateTime _lastActivityTime = DateTime.UtcNow;
     private int _shutdownRequested;
+    private readonly object _shutdownLock = new();
     private bool _disposed;
 
     private readonly PresentationCommands _presentationCommands = new();
@@ -107,8 +110,12 @@ public sealed class PowerPointMcpService : IDisposable
     /// <summary>Signals the pipe accept loop to stop, ending <see cref="RunAsync"/>.</summary>
     public void RequestShutdown()
     {
-        Interlocked.Exchange(ref _shutdownRequested, 1);
-        _shutdownCts.Cancel();
+        lock (_shutdownLock)
+        {
+            Interlocked.Exchange(ref _shutdownRequested, 1);
+            if (!_disposed)
+                _shutdownCts.Cancel();
+        }
     }
 
     private void RequestShutdownAfterResponse()
@@ -123,14 +130,14 @@ public sealed class PowerPointMcpService : IDisposable
 
     internal static readonly TimeSpan InitialBackoff = TimeSpan.FromMilliseconds(100);
     internal static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan IdleConnectionTimeout = TimeSpan.FromSeconds(1);
+    private const int MaximumConnections = 64;
 
     /// <summary>Records client activity to keep the idle timeout monitor alive.</summary>
     internal void RecordActivity() => _lastActivityTime = DateTime.UtcNow;
 
     private async Task RunPipeServerAsync(CancellationToken cancellationToken)
     {
-        using var connectionLimit = new SemaphoreSlim(10, 10);
-
         if (_idleTimeout.HasValue)
         {
             _ = Task.Run(() => MonitorIdleTimeoutAsync(cancellationToken), cancellationToken);
@@ -149,28 +156,58 @@ public sealed class PowerPointMcpService : IDisposable
                 currentBackoff = InitialBackoff;
                 _lastActivityTime = DateTime.UtcNow;
 
+                while (_activeConnectionTasks.Count >= MaximumConnections)
+                {
+                    var connections = _activeConnectionTasks.Keys.ToArray();
+                    if (connections.Length == 0)
+                        break;
+                    var completed = await Task.WhenAny(connections).WaitAsync(cancellationToken);
+                    _activeConnectionTasks.TryRemove(completed, out _);
+                    await ObserveConnectionTaskAsync(completed);
+                }
+
                 var clientServer = server;
                 server = null;
 
                 var connectionTask = Task.Run(async () =>
                 {
-                    await connectionLimit.WaitAsync(CancellationToken.None);
                     try
                     {
                         var rpcTarget = new DaemonRpcTarget(this);
-                        using var rpc = JsonRpc.Attach(clientServer, rpcTarget);
-                        await rpc.Completion;
+                        using var rpc = new JsonRpc(clientServer, clientServer, rpcTarget)
+                        {
+                            CancelLocallyInvokedMethodsWhenConnectionIsClosed = true
+                        };
+                        rpc.StartListening();
+                        while (true)
+                        {
+                            var idleWait = rpcTarget.GetIdleWaitTimeout(IdleConnectionTimeout);
+                            if (idleWait == TimeSpan.Zero)
+                            {
+                                System.Diagnostics.Trace.TraceWarning("Closing an idle PowerPoint CLI connection; no request is running.");
+                                break;
+                            }
+                            try
+                            {
+                                await rpc.Completion.WaitAsync(idleWait, cancellationToken);
+                                break;
+                            }
+                            catch (TimeoutException) when (!rpc.Completion.IsCompleted)
+                            {
+                                // Recheck activity before expiring a connection with a running request.
+                            }
+                        }
                     }
-                    catch (Exception)
+                    catch (Exception ex)
                     {
-                        // Connection-level failures are expected on client disconnect; nothing to
-                        // recover here — the accept loop simply serves the next connection.
+                        System.Diagnostics.Trace.TraceWarning("PowerPoint CLI connection ended: {0}", ex.Message);
                     }
                     finally
                     {
-                        connectionLimit.Release();
-                        try { if (clientServer.IsConnected) clientServer.Disconnect(); } catch (Exception) { }
-                        try { await clientServer.DisposeAsync(); } catch (Exception) { }
+                        try { if (clientServer.IsConnected) clientServer.Disconnect(); }
+                        catch (IOException ex) { System.Diagnostics.Trace.TraceWarning("Pipe disconnect failed: {0}", ex.Message); }
+                        try { await clientServer.DisposeAsync(); }
+                        catch (IOException ex) { System.Diagnostics.Trace.TraceWarning("Pipe cleanup failed: {0}", ex.Message); }
                     }
                 }, CancellationToken.None);
                 _activeConnectionTasks.TryAdd(connectionTask, 0);
@@ -184,8 +221,9 @@ public sealed class PowerPointMcpService : IDisposable
             {
                 break;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                System.Diagnostics.Trace.TraceWarning("Pipe listener failed: {0}", ex.Message);
                 try { await Task.Delay(currentBackoff, cancellationToken); } catch (OperationCanceledException) { break; }
                 currentBackoff = TimeSpan.FromMilliseconds(Math.Min(currentBackoff.TotalMilliseconds * 2, MaxBackoff.TotalMilliseconds));
             }
@@ -193,7 +231,8 @@ public sealed class PowerPointMcpService : IDisposable
             {
                 if (server != null)
                 {
-                    try { if (server.IsConnected) server.Disconnect(); } catch (Exception) { }
+                    try { if (server.IsConnected) server.Disconnect(); }
+                    catch (IOException ex) { System.Diagnostics.Trace.TraceWarning("Pipe disconnect failed: {0}", ex.Message); }
                     await server.DisposeAsync();
                 }
             }
@@ -207,7 +246,8 @@ public sealed class PowerPointMcpService : IDisposable
 
     private static async Task ObserveConnectionTaskAsync(Task connectionTask)
     {
-        try { await connectionTask; } catch (Exception) { }
+        try { await connectionTask; }
+        catch (Exception ex) { System.Diagnostics.Trace.TraceWarning("Pipe connection cleanup failed: {0}", ex.Message); }
     }
 
     private async Task MonitorIdleTimeoutAsync(CancellationToken cancellationToken)
@@ -216,7 +256,7 @@ public sealed class PowerPointMcpService : IDisposable
         {
             await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
 
-            if (_sessions.List().Count > 0)
+            if (_sessions.List().Count > 0 || Volatile.Read(ref _activeRequests) > 0)
             {
                 _lastActivityTime = DateTime.UtcNow;
                 continue;
@@ -232,7 +272,77 @@ public sealed class PowerPointMcpService : IDisposable
     }
 
     /// <summary>Processes a single request. Used by the pipe RPC target.</summary>
-    public Task<ServiceResponse> ProcessAsync(ServiceRequest request)
+    public async Task<ServiceResponse> ProcessAsync(ServiceRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
+        RecordActivity();
+        bool control = request.Command is "service.ping" or "service.status" or "service.shutdown" or "session.list";
+        bool claimSession = !control && !string.IsNullOrWhiteSpace(request.SessionId)
+            && request.Command is not ("session.open" or "session.create" or "session.test");
+        if (claimSession && _sessions.TryGet(request.SessionId!, out var batch) && batch.GetOperationStatus().ExecutionPending)
+            return BusyResponse(request, "PowerPoint work is still running for this session. Inspect session list before retrying.");
+        if (claimSession && !_busySessions.TryAdd(request.SessionId!, 0))
+            return BusyResponse(request, "Another request is still running for this session. Inspect session list before retrying.");
+
+        bool admitted = false;
+        IPresentationBatch? trackedBatch = null;
+        try
+        {
+            if (!control)
+            {
+                if (Interlocked.Increment(ref _activeRequests) > 10)
+                {
+                    Interlocked.Decrement(ref _activeRequests);
+                    return BusyResponse(request, "The service is busy. No PowerPoint work was started for this request.");
+                }
+                admitted = true;
+            }
+
+            if (claimSession &&
+                _sessions.TryGet(request.SessionId!, out var requestBatch))
+            {
+                requestBatch.BeginRequest();
+                trackedBatch = requestBatch;
+            }
+
+            using CancellationTokenRegistration cancellationRegistration = trackedBatch is null
+                ? default : cancellationToken.Register(trackedBatch.MarkWaitExpired);
+            var response = control
+                ? await ProcessCoreAsync(request)
+                : await Task.Run(() => ProcessCoreAsync(request), cancellationToken);
+            trackedBatch?.CompleteRequest(response.Success ? "completed" : "failed", response.ErrorMessage);
+            return response;
+        }
+        catch (OperationCanceledException)
+        {
+            trackedBatch?.CompleteRequest("cancelled");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            trackedBatch?.CompleteRequest("failed", ex.Message);
+            throw;
+        }
+        finally
+        {
+            if (admitted)
+                Interlocked.Decrement(ref _activeRequests);
+            if (claimSession)
+                _busySessions.TryRemove(request.SessionId!, out _);
+        }
+    }
+
+    private static ServiceResponse BusyResponse(ServiceRequest request, string message) => new()
+    {
+        Success = false,
+        Command = request.Command,
+        SessionId = request.SessionId,
+        ErrorCategory = "Busy",
+        ErrorMessage = message
+    };
+
+    private Task<ServiceResponse> ProcessCoreAsync(ServiceRequest request)
     {
         try
         {
@@ -511,6 +621,8 @@ public sealed class PowerPointMcpService : IDisposable
         // background task — mirrors PresentationSessionRegistry's MCP-server usage, see its
         // remarks for why this must not block the caller.
         var closed = _sessions.Close(request.SessionId);
+        if (!closed && _sessions.TryGet(request.SessionId, out _))
+            return BusyResponse(request, "PowerPoint work is still running for this session. Inspect session list before closing it.");
 
         return new ServiceResponse
         {
@@ -539,7 +651,8 @@ public sealed class PowerPointMcpService : IDisposable
             {
                 sessionId = s.SessionId,
                 filePath = s.PresentationPath,
-                isPowerPointAlive = s.IsPowerPointProcessAlive
+                isPowerPointAlive = s.IsPowerPointProcessAlive,
+                operation = s.Operation
             })
             .ToList();
 
@@ -973,10 +1086,15 @@ public sealed class PowerPointMcpService : IDisposable
     /// <summary>Disposes every open presentation session, closing PowerPoint for each.</summary>
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
+        lock (_shutdownLock)
+        {
+            if (_disposed) return;
+            Interlocked.Exchange(ref _shutdownRequested, 1);
+            _shutdownCts.Cancel();
+            _disposed = true;
+        }
+        _sessions.Dispose();
         _shutdownCts.Dispose();
-        _sessions.DisposeAll();
     }
 }
 

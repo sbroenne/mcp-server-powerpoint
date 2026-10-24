@@ -36,8 +36,23 @@ Every editing workflow starts by establishing a session:
 - Unknown/expired `presentation_session_id` values return `success: false` with `errorMessage: "Unknown
   presentation_session_id: ..."` — reopen the file to get a fresh session, do not retry the same id.
 - `presentation(action: "list")` shows every open session (`presentation_session_id`, `presentationPath`,
-  `isPowerPointProcessAlive`) — use it to check state instead of asking the user which
+  `isPowerPointProcessAlive`, `operation`) — use it to check state instead of asking the user which
   presentation is open.
+
+## Cancelled or Expired Waits
+
+A cancelled call or an expired wait stops waiting, not the session. PowerPoint may
+continue working, and neither condition undoes edits or file writes. Do not immediately
+retry an editing action: inspect `presentation(action: "list")` first.
+
+Each session's `operation` includes `state`, `executionPending`, `waitExpired`,
+`startedAtUtc`, and `errorMessage`. While `executionPending` is true, wait before
+sending another edit or close request for that session. List and service-status
+requests remain available. A later failure stays visible until another operation begins.
+
+Host shutdown leaves unsaved or unfinished presentations open without saving or
+terminating PowerPoint. Inspect those windows before starting another session.
+This does not change explicit close: its default `save: false` still discards changes.
 
 ## Tool Conventions
 

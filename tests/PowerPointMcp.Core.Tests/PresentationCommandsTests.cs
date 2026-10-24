@@ -1,7 +1,10 @@
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Sbroenne.PowerPointMcp.ComInterop;
 using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Presentation;
+using Sbroenne.PowerPointMcp.Core.Slide;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.Core.Tests;
@@ -16,6 +19,81 @@ namespace Sbroenne.PowerPointMcp.Core.Tests;
 public class PresentationCommandsTests
 {
     private readonly PresentationCommands _commands = new();
+
+    [Fact]
+    public void OperationResults_ExposeLateOutcomes()
+    {
+        var resultTypes = typeof(PresentationOperationResult).Assembly.GetTypes()
+            .Where(type => type.IsClass &&
+                type.GetProperty(nameof(IPresentationOperationResult.Success))?.PropertyType == typeof(bool) &&
+                type.GetProperty(nameof(IPresentationOperationResult.ErrorMessage))?.PropertyType == typeof(string))
+            .ToArray();
+        Assert.NotEmpty(resultTypes);
+        Assert.All(resultTypes, type => Assert.True(
+            typeof(IPresentationOperationResult).IsAssignableFrom(type),
+            $"{type.Name} must expose its returned outcome to PowerPoint operation tracking."));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExpiredWait_PreservesReturnedFailure(bool callbackFinishesFirst)
+    {
+        string path = CoreTestHelper.CreateUniqueTestFilePath();
+        using var release = new ManualResetEventSlim();
+        using var batch = PresentationSession.CreateNew(path, operationTimeout: TimeSpan.FromSeconds(5));
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var operation = Task.Run(() =>
+        {
+            batch.BeginRequest();
+            try
+            {
+                return batch.Execute((context, token) =>
+                {
+                    started.SetResult();
+                    Assert.True(release.Wait(TimeSpan.FromSeconds(20)));
+                    Assert.Equal(Path.GetFileName(path), context.Presentation.Name);
+                    return new SlideOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = "The delayed PowerPoint operation returned a failure."
+                    };
+                });
+            }
+            finally
+            {
+                if (callbackFinishesFirst)
+                {
+                    release.Set();
+                    Assert.True(SpinWait.SpinUntil(() => !batch.HasTimedOutOperation, TimeSpan.FromSeconds(5)));
+                }
+                batch.CompleteRequest("failed", "The request wait ended.");
+            }
+        });
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await Assert.ThrowsAsync<TimeoutException>(() => operation.WaitAsync(TimeSpan.FromSeconds(10)));
+            release.Set();
+            using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (batch.GetOperationStatus().ExecutionPending)
+                await Task.Delay(20, completionTimeout.Token);
+            var completed = batch.GetOperationStatus();
+            Assert.Equal("failed", completed.State);
+            Assert.Equal("The delayed PowerPoint operation returned a failure.", completed.ErrorMessage);
+            Assert.True(completed.WaitExpired);
+            Assert.True(batch.IsPowerPointProcessAlive());
+            Assert.True(new SlideCommands().GetCount(batch).Success);
+        }
+        finally
+        {
+            release.Set();
+            try { await operation.WaitAsync(TimeSpan.FromSeconds(10)); }
+            catch (TimeoutException) { }
+            batch.Dispose();
+            File.Delete(path);
+        }
+    }
 
     [Fact]
     public void SaveAs_Pptx_ReopensWithEditedContentAndUpdatesSessionPath()
@@ -148,6 +226,12 @@ public class PresentationCommandsTests
 
         public string PresentationPath => inner.PresentationPath;
         public bool HasTimedOutOperation => inner.HasTimedOutOperation;
+        public PresentationOperationStatus GetOperationStatus() => inner.GetOperationStatus();
+        public void BeginRequest() => inner.BeginRequest();
+        public void CompleteRequest(string state, string? errorMessage = null) => inner.CompleteRequest(state, errorMessage);
+        public bool TryBeginClose() => inner.TryBeginClose();
+        public void MarkWaitExpired() => inner.MarkWaitExpired();
+        public void DisposeForShutdown() => inner.DisposeForShutdown();
         public int? PowerPointProcessId => inner.PowerPointProcessId;
         public PowerPointProcessIdentity? PowerPointProcessIdentity => inner.PowerPointProcessIdentity;
         public TimeSpan OperationTimeout => inner.OperationTimeout;
@@ -214,7 +298,7 @@ public class PresentationCommandsTests
             // Round-trip: open the file we just created with a fresh PowerPoint COM session
             // and verify it is a valid, readable presentation with the default single slide.
             using var batch = PresentationSession.BeginBatch(path);
-            int slideCount = batch.Execute((ctx, ct) => ctx.Presentation.Slides.Count);
+            int slideCount = batch.Execute((ctx, ct) => GetSlideCount(ctx));
             Assert.Equal(1, slideCount);
         }
         finally
@@ -230,8 +314,19 @@ public class PresentationCommandsTests
         try
         {
             using var batch = PresentationSession.CreateNew(path);
-            var appState = batch.Execute((ctx, ct) => ctx.Presentation.Application.WindowState);
-            int windowCount = batch.Execute((ctx, ct) => ctx.Presentation.Windows.Count);
+            var appState = batch.Execute((ctx, ct) =>
+            {
+                PowerPoint.DocumentWindows? windows = null;
+                try
+                {
+                    windows = ctx.Presentation.Windows;
+                    return (WindowState: ctx.App.WindowState, WindowCount: windows.Count);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref windows);
+                }
+            });
 
             // PowerPoint does not support hiding its application window (Application.Visible =
             // False throws), and two workarounds — minimizing (ppWindowMinimized) and moving the
@@ -240,8 +335,8 @@ public class PresentationCommandsTests
             // categories/series in both cases). So the window is always a real, visible,
             // ppWindowNormal document window regardless of the `show` flag — see
             // PresentationBatch.RunStaThread for the full rationale.
-            Assert.Equal(1, windowCount);
-            Assert.Equal(Microsoft.Office.Interop.PowerPoint.PpWindowState.ppWindowNormal, appState);
+            Assert.Equal(1, appState.WindowCount);
+            Assert.Equal(PowerPoint.PpWindowState.ppWindowNormal, appState.WindowState);
         }
         finally
         {
@@ -261,7 +356,7 @@ public class PresentationCommandsTests
             {
                 batch.Execute((ctx, ct) =>
                 {
-                    ctx.Presentation.Slides.Add(2, Microsoft.Office.Interop.PowerPoint.PpSlideLayout.ppLayoutBlank);
+                    AddBlankSlide(ctx);
                     return 0;
                 });
 
@@ -271,7 +366,7 @@ public class PresentationCommandsTests
             }
 
             using var reopened = PresentationSession.BeginBatch(path);
-            int slideCount = reopened.Execute((ctx, ct) => ctx.Presentation.Slides.Count);
+            int slideCount = reopened.Execute((ctx, ct) => GetSlideCount(ctx));
             Assert.Equal(2, slideCount);
         }
         finally
@@ -380,13 +475,13 @@ public class PresentationCommandsTests
             using var batch = PresentationSession.BeginBatch(openResult.PresentationPath!);
             batch.Execute((ctx, ct) =>
             {
-                ctx.Presentation.Slides.Add(2, Microsoft.Office.Interop.PowerPoint.PpSlideLayout.ppLayoutBlank);
+                AddBlankSlide(ctx);
                 return 0;
             });
             batch.Save();
 
             using var reopened = PresentationSession.BeginBatch(path);
-            int slideCount = reopened.Execute((ctx, ct) => ctx.Presentation.Slides.Count);
+            int slideCount = reopened.Execute((ctx, ct) => GetSlideCount(ctx));
             Assert.Equal(2, slideCount);
         }
         finally
@@ -395,17 +490,25 @@ public class PresentationCommandsTests
         }
     }
 
-    [Fact]
-    public void Dispose_SharedApplicationRetainsTrackingUntilLastManagedOwnerCloses()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Dispose_SharedApplicationRetainsTrackingUntilLastManagedOwnerCloses(bool keepOtherOwnerOpen)
     {
         string firstPath = CoreTestHelper.CreateUniqueTestFilePath();
         string secondPath = CoreTestHelper.CreateUniqueTestFilePath();
+        string observerPath = CoreTestHelper.CreateUniqueTestFilePath();
         try
         {
+            var initiallyTracked = PresentationSessionRegistry.GetTrackedPowerPointProcesses();
+            using var observer = keepOtherOwnerOpen ? PresentationSession.CreateNew(observerPath) : null;
+            var previouslyTracked = PresentationSessionRegistry.GetTrackedPowerPointProcesses();
             using var first = PresentationSession.CreateNew(firstPath);
             using var second = PresentationSession.CreateNew(secondPath);
             var identity = Assert.IsType<PowerPointProcessIdentity>(first.PowerPointProcessIdentity);
             Assert.Equal(identity, second.PowerPointProcessIdentity);
+            if (observer is not null)
+                Assert.Equal(identity, observer.PowerPointProcessIdentity);
             Assert.Contains(identity, PresentationSessionRegistry.GetTrackedPowerPointProcesses());
 
             first.Dispose();
@@ -413,33 +516,45 @@ public class PresentationCommandsTests
             Assert.Contains(identity, PresentationSessionRegistry.GetTrackedPowerPointProcesses());
             Assert.Equal(1, second.Execute((ctx, ct) => GetSlideCount(ctx)));
             second.Dispose();
-            Assert.DoesNotContain(identity, PresentationSessionRegistry.GetTrackedPowerPointProcesses());
+            if (previouslyTracked.Contains(identity))
+                Assert.Contains(identity, PresentationSessionRegistry.GetTrackedPowerPointProcesses());
+            else
+                Assert.DoesNotContain(identity, PresentationSessionRegistry.GetTrackedPowerPointProcesses());
+            if (observer is not null)
+            {
+                Assert.Equal(1, observer.Execute((ctx, ct) => GetSlideCount(ctx)));
+                observer.Dispose();
+                Assert.Equal(initiallyTracked.Contains(identity),
+                    PresentationSessionRegistry.GetTrackedPowerPointProcesses().Contains(identity));
+            }
         }
         finally
         {
             File.Delete(firstPath);
             File.Delete(secondPath);
+            File.Delete(observerPath);
         }
     }
 
-    [Fact]
-    public void Dispose_ClosesPresentation_AndQuitsOnlyWhenApplicationIsExclusive()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Dispose_ClosesPresentation_AndQuitsOnlyWhenApplicationIsExclusive(bool keepOtherPresentationOpen)
     {
-        // Exercises PresentationShutdownService's resilient close/quit + process-exit polling
-        // (invoked internally from PresentationBatch's STA-thread cleanup on Dispose()).
         string path = CoreTestHelper.CreateUniqueTestFilePath();
+        string observerPath = CoreTestHelper.CreateUniqueTestFilePath();
         try
         {
-            _commands.Create(path);
-
-            var batch = PresentationSession.BeginBatch(path);
-            int? processId;
+            using var observer = keepOtherPresentationOpen ? PresentationSession.CreateNew(observerPath) : null;
+            var logger = new ShutdownLogger();
+            using var batch = new PresentationBatch(path, createNewFile: true, logger: logger);
             bool hasOtherPresentations;
             try
             {
-                processId = batch.PowerPointProcessId;
-                Assert.True(processId.HasValue, "Expected to capture a PowerPoint process ID for the shutdown-polling test.");
+                Assert.NotNull(batch.PowerPointProcessIdentity);
                 Assert.True(batch.IsPowerPointProcessAlive(), "PowerPoint process should be alive while the batch is open.");
+                if (observer is not null)
+                    Assert.Equal(observer.PowerPointProcessIdentity, batch.PowerPointProcessIdentity);
                 hasOtherPresentations = batch.Execute((ctx, ct) =>
                 {
                     PowerPoint.Presentations? presentations = null;
@@ -459,37 +574,43 @@ public class PresentationCommandsTests
                 batch.Dispose();
             }
 
-            using (File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            using (File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
+            Assert.Contains(logger.Messages, message => message.Contains("closed successfully", StringComparison.Ordinal));
+            if (hasOtherPresentations)
             {
-                if (hasOtherPresentations)
-                {
-                    Assert.True(batch.IsPowerPointProcessAlive(),
-                        "Disposing one presentation must not terminate an application with other open presentations.");
-                    return;
-                }
+                Assert.True(batch.IsPowerPointProcessAlive(),
+                    "Disposing one presentation must not terminate an application with other open presentations.");
+                Assert.DoesNotContain(logger.Messages,
+                    message => message.StartsWith("Quit attempt ", StringComparison.Ordinal));
+                if (observer is not null)
+                    Assert.Equal(1, observer.Execute((ctx, ct) => GetSlideCount(ctx)));
             }
-
-            // PresentationShutdownService tolerates PowerPoint's documented ~90-100s post-Quit()
-            // Office-cleanup lingering and never force-kills within that window, so poll generously here
-            // rather than asserting an immediate exit.
-            bool exited = false;
-            var deadline = DateTime.UtcNow.AddSeconds(150);
-            while (DateTime.UtcNow < deadline)
+            else
             {
-                if (!batch.IsPowerPointProcessAlive())
-                {
-                    exited = true;
-                    break;
-                }
-                Thread.Sleep(1000);
+                // Quit returning successfully does not bound Office's later process-exit time.
+                Assert.Contains(logger.Messages, message =>
+                    message.StartsWith("Quit attempt ", StringComparison.Ordinal) &&
+                    message.Contains(" succeeded for ", StringComparison.Ordinal));
             }
-
-            Assert.True(exited, $"PowerPoint process {processId} should eventually exit after Dispose() (within the shutdown service's grace period).");
         }
         finally
         {
             File.Delete(path);
+            File.Delete(observerPath);
         }
+    }
+
+    private sealed class ShutdownLogger : ILogger<PresentationBatch>
+    {
+        public ConcurrentQueue<string> Messages { get; } = new();
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Messages.Enqueue(formatter(state, exception));
     }
 
 }

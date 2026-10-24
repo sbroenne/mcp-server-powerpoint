@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Tags;
 
 namespace Sbroenne.PowerPointMcp.Core.Shape;
@@ -9,7 +10,7 @@ namespace Sbroenne.PowerPointMcp.Core.Shape;
 /// Follows the same Success/ErrorMessage invariant as the other domain results (Rule 1):
 /// Success == true implies ErrorMessage is null/empty.
 /// </remarks>
-public sealed class ShapeOperationResult
+public sealed class ShapeOperationResult : IPresentationOperationResult
 {
     /// <summary>Whether the operation succeeded.</summary>
     public bool Success { get; init; }

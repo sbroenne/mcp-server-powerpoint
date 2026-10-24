@@ -52,14 +52,6 @@ internal static class OwnedProcessCleanup
         OperationDeadline deadline,
         out string? error)
     {
-        foreach (var identity in record.PowerPointProcesses)
-        {
-            if (!TryTerminate(identity, deadline, out error))
-            {
-                return false;
-            }
-        }
-
         return TryTerminate(record.Daemon, deadline, out error);
     }
 }

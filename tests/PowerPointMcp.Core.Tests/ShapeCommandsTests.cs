@@ -1011,6 +1011,12 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
     {
         public string PresentationPath => inner.PresentationPath;
         public bool HasTimedOutOperation => true;
+        public PresentationOperationStatus GetOperationStatus() => inner.GetOperationStatus();
+        public void BeginRequest() => inner.BeginRequest();
+        public void CompleteRequest(string state, string? errorMessage = null) => inner.CompleteRequest(state, errorMessage);
+        public bool TryBeginClose() => inner.TryBeginClose();
+        public void MarkWaitExpired() => inner.MarkWaitExpired();
+        public void DisposeForShutdown() => inner.DisposeForShutdown();
         public int? PowerPointProcessId => inner.PowerPointProcessId;
         public PowerPointProcessIdentity? PowerPointProcessIdentity => inner.PowerPointProcessIdentity;
         public TimeSpan OperationTimeout => inner.OperationTimeout;
@@ -1055,6 +1061,12 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
 
         public string PresentationPath => inner.PresentationPath;
         public bool HasTimedOutOperation => _stopwatch.Elapsed >= delay;
+        public PresentationOperationStatus GetOperationStatus() => inner.GetOperationStatus();
+        public void BeginRequest() => inner.BeginRequest();
+        public void CompleteRequest(string state, string? errorMessage = null) => inner.CompleteRequest(state, errorMessage);
+        public bool TryBeginClose() => inner.TryBeginClose();
+        public void MarkWaitExpired() => inner.MarkWaitExpired();
+        public void DisposeForShutdown() => inner.DisposeForShutdown();
         public int? PowerPointProcessId => inner.PowerPointProcessId;
         public PowerPointProcessIdentity? PowerPointProcessIdentity => inner.PowerPointProcessIdentity;
         public TimeSpan OperationTimeout => inner.OperationTimeout;
@@ -1382,7 +1394,8 @@ public class ShapeCommandsTests : IClassFixture<SharedPresentationFixture>
             var ex = Assert.Throws<TimeoutException>(() => _commands.CopyToSlide(becomesPoisoned, 1, 1, 2));
             stopwatch.Stop();
 
-            Assert.Contains("unusable", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Inspect session list before retrying", ex.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("open a new session", ex.Message, StringComparison.OrdinalIgnoreCase);
             Assert.True(
                 stopwatch.Elapsed < TimeSpan.FromSeconds(5),
                 $"Took {stopwatch.Elapsed} to abandon after the session became poisoned mid-wait, " +

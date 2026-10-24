@@ -1,3 +1,4 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Tags;
 
 namespace Sbroenne.PowerPointMcp.Core.Slide;
@@ -9,7 +10,7 @@ namespace Sbroenne.PowerPointMcp.Core.Slide;
 /// Follows the same Success/ErrorMessage invariant as PresentationOperationResult
 /// (Rule 1): Success == true implies ErrorMessage is null/empty.
 /// </remarks>
-public sealed class SlideOperationResult
+public sealed class SlideOperationResult : IPresentationOperationResult
 {
     /// <summary>Whether the operation succeeded.</summary>
     public bool Success { get; init; }

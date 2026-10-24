@@ -31,6 +31,10 @@ public interface IPresentationBatch : IDisposable
     /// <summary>
     /// Executes a COM operation within this batch and returns its result.
     /// </summary>
+    /// <remarks>
+    /// Results implementing <see cref="IPresentationOperationResult"/> preserve returned failures
+    /// in operation status even when the caller's wait has already expired.
+    /// </remarks>
     T Execute<T>(
         Func<PresentationContext, CancellationToken, T> operation,
         CancellationToken cancellationToken = default);
@@ -63,10 +67,27 @@ public interface IPresentationBatch : IDisposable
     bool IsPowerPointProcessAlive();
 
     /// <summary>
-    /// Gets whether a previous operation timed out or was cancelled while PowerPoint was
-    /// unresponsive. When true, the session is poisoned and callers must fail fast.
+    /// Gets whether an expired wait still has unfinished PowerPoint work.
     /// </summary>
     bool HasTimedOutOperation { get; }
+
+    /// <summary>Reads execution state without waiting for the PowerPoint thread.</summary>
+    PresentationOperationStatus GetOperationStatus();
+
+    /// <summary>Tracks a complete service request, including waits between PowerPoint callbacks, and rejects other callers until it completes.</summary>
+    void BeginRequest();
+
+    /// <summary>Records a request outcome without hiding an unfinished PowerPoint callback.</summary>
+    void CompleteRequest(string state, string? errorMessage = null);
+
+    /// <summary>Reserves an idle session for closing, rejecting other requests and later PowerPoint calls.</summary>
+    bool TryBeginClose();
+
+    /// <summary>Records that a caller stopped waiting without stopping PowerPoint work.</summary>
+    void MarkWaitExpired();
+
+    /// <summary>Releases automation on host shutdown, leaving unsaved presentations open.</summary>
+    void DisposeForShutdown();
 
     /// <summary>Gets the PowerPoint process ID, if captured.</summary>
     int? PowerPointProcessId { get; }

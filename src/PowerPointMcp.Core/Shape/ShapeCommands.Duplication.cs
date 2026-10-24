@@ -115,9 +115,9 @@ public sealed partial class ShapeCommands
             {
                 request.MarkCallerGaveUp();
                 throw new TimeoutException(
-                    "The PowerPoint session became unusable while waiting for the shared clipboard " +
-                    "(a previous operation timed out, or the PowerPoint process exited). The " +
-                    "copy-to-slide operation was abandoned; open a new session and retry.");
+                    "PowerPoint work is still running, or its process exited while waiting for the shared clipboard. " +
+                    "The copy-to-slide operation was not started. Inspect session list before retrying; " +
+                    "do not open another session while earlier work is pending.");
             }
 
             TimeSpan remaining = waitDeadlineUtc - DateTime.UtcNow;

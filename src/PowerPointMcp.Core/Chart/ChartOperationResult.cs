@@ -1,9 +1,11 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
+
 namespace Sbroenne.PowerPointMcp.Core.Chart;
 
 /// <summary>
 /// Result of a chart-domain operation.
 /// </summary>
-public sealed class ChartOperationResult
+public sealed class ChartOperationResult : IPresentationOperationResult
 {
     /// <summary>True if the operation succeeded. Never true when <see cref="ErrorMessage"/> is set.</summary>
     public bool Success { get; init; }

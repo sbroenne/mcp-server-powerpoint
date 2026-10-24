@@ -1,8 +1,11 @@
+extern alias OfficeInterop;
+
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Polly;
+using Office = OfficeInterop::Microsoft.Office.Core;
 using PowerPoint = Microsoft.Office.Interop.PowerPoint;
 
 namespace Sbroenne.PowerPointMcp.ComInterop.Session;
@@ -13,40 +16,9 @@ namespace Sbroenne.PowerPointMcp.ComInterop.Session;
 /// mcp-server-excel's <c>ExcelShutdownService</c>.
 /// </summary>
 /// <remarks>
-/// <para><b>Shutdown order</b> (called from <see cref="PresentationBatch"/>'s STA thread once its
-/// message pump loop exits):</para>
-/// <list type="number">
-/// <item>Close() the presentation, retrying transient COM-busy errors
-/// (RPC_E_SERVERCALL_RETRYLATER, RPC_E_CALL_REJECTED) with linear backoff.</item>
-/// <item>Release the presentation COM reference.</item>
-/// <item>Quit() the application, retrying transient COM-busy errors with exponential backoff +
-/// jitter (<see cref="ResiliencePipelines.CreatePowerPointQuitPipeline"/>).</item>
-/// <item>Release the application COM reference.</item>
-/// <item>If a process ID was captured, poll <c>Process.HasExited</c> with exponential backoff
-/// for up to <see cref="ComInteropConstants.PowerPointProcessExitGracePeriod"/> before
-/// force-terminating as a last resort.</item>
-/// </list>
-/// <para>
-/// <b>Why the process-exit poll matters (Ripley's finding, recorded 2026-07-01):</b> a live
-/// MCP round-trip integration test observed POWERPNT.exe legitimately taking ~90-100 seconds to
-/// leave the OS process list after <c>Quit()</c> returns — Office's own COM/telemetry cleanup,
-/// not a hang. <see cref="ComInteropConstants.PowerPointProcessExitGracePeriod"/> is sized
-/// comfortably above that window so the happy path NEVER force-kills. Force-termination is
-/// reserved strictly for the case where PowerPoint is still alive after the full grace period
-/// elapses (a genuine hang, e.g. a stuck modal dialog or dead RPC connection).
-/// </para>
-/// <para>
-/// This runs on the batch's dedicated STA thread as part of its own cleanup.
-/// <c>PresentationBatch.Dispose()</c> deliberately joins that thread with
-/// <see cref="ComInteropConstants.StaThreadJoinTimeout"/>, which is sized to cover this
-/// service's full worst-case duration (Close()/Quit() retries + the process-exit grace period +
-/// force-kill) — NOT just the Quit() call. A shorter join timeout would let Dispose() (and the
-/// host process) return/exit before the grace-period poll or force-kill escalation ever runs,
-/// silently defeating the safety net and leaking POWERPNT.exe (this was tried and observed to
-/// leak indefinitely — see history.md). On the happy path (PowerPoint quits within seconds),
-/// <c>Thread.Join()</c> returns as soon as the STA thread actually finishes, so this does not
-/// slow down normal shutdown.
-/// </para>
+/// Runs only on the batch's PowerPoint thread. Host shutdown retains unsaved presentations;
+/// explicit close discards changes only after any requested save. Neither path terminates
+/// PowerPoint, and Quit is allowed only when no presentations remain open.
 /// </remarks>
 internal static class PresentationShutdownService
 {
@@ -55,63 +27,69 @@ internal static class PresentationShutdownService
     private const int CloseMaxAttempts = 3;
     private const int CloseRetryDelayMs = 200;
 
-    private const int InitialPollDelayMs = 250;
-    private const int MaxPollDelayMs = 8000;
-
     /// <summary>
-    /// Closes the presentation and quits the PowerPoint application with resilient retry logic,
-    /// then polls (with exponential backoff) for the process to actually exit before ever
-    /// force-terminating it.
+    /// Releases presentation and application references, retaining unsaved work on host shutdown.
     /// </summary>
     /// <param name="presentation">Presentation COM object (can be null).</param>
     /// <param name="app">Application COM object (can be null).</param>
-    /// <param name="processIdentity">
-    /// POWERPNT.exe PID and creation time captured at startup, if any. Required for the process-exit
-    /// poll/force-terminate step; if not supplied, that step is skipped entirely (the process
-    /// may leak — captured only best-effort at batch startup).
-    /// </param>
     /// <param name="logger">Logger for diagnostic output (optional).</param>
     /// <param name="filePath">File path for diagnostic messages (optional).</param>
     public static void CloseAndQuit(
         PowerPoint.Presentation? presentation,
         PowerPoint.Application? app,
-        PowerPointProcessIdentity? processIdentity,
         ILogger? logger = null,
         string? filePath = null,
-        Action? afterPresentationClose = null)
+        Action? afterPresentationClose = null,
+        bool preserveUnsavedChanges = false,
+        bool leavePresentationOpen = false,
+        Func<bool>? canRestoreUserInteraction = null)
     {
         logger ??= NullLogger.Instance;
         string fileName = string.IsNullOrEmpty(filePath) ? "unknown" : Path.GetFileName(filePath);
 
-        ClosePresentation(presentation, fileName, logger);
+        bool retain = leavePresentationOpen;
+        if (preserveUnsavedChanges && presentation != null && !retain)
+        {
+            try
+            {
+                retain = presentation.Saved != Office.MsoTriState.msoTrue;
+            }
+            catch (COMException ex)
+            {
+                logger.LogWarning(ex, "Could not read presentation save state; leaving it open without saving or closing it.");
+                retain = true;
+            }
+        }
+
+        if (!retain)
+            ClosePresentation(presentation, fileName, logger);
         afterPresentationClose?.Invoke();
         ComUtilities.Release(ref presentation);
 
-        bool canWaitForProcessExit = true;
         if (app != null)
         {
-            canWaitForProcessExit = CanQuitApplication(app, logger);
-            if (canWaitForProcessExit)
+            if (!retain && CanQuitApplication(app, logger))
                 QuitApplication(app, fileName, logger);
+            else if (canRestoreUserInteraction?.Invoke() != false)
+            {
+                try
+                {
+                    app.DisplayAlerts = PowerPoint.PpAlertLevel.ppAlertsAll;
+                    app.Visible = Office.MsoTriState.msoTrue;
+                }
+                catch (COMException ex)
+                {
+                    logger.LogWarning(ex, "PowerPoint was left open, but its window or alerts could not be restored.");
+                }
+            }
             ComUtilities.Release(ref app);
         }
 
-        // Force the CLR to process any deferred RCW finalization before we check whether the
-        // PowerPoint process has actually exited. Without this, the process can linger until the
-        // runtime notices the COM references are gone.
+        // Release deferred COM wrappers without waiting for the Office process to exit.
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
 
-        if (processIdentity.HasValue && canWaitForProcessExit)
-        {
-            WaitForProcessExitOrEscalate(processIdentity.Value, fileName, logger);
-        }
-        else if (processIdentity.HasValue)
-        {
-            // Keep the crash backstop while another managed batch still owns this process.
-            PresentationSessionRegistry.ReleasePowerPointProcessOwnership(processIdentity.Value);
-        }
     }
 
     private static bool CanQuitApplication(PowerPoint.Application app, ILogger logger)
@@ -144,6 +122,7 @@ internal static class PresentationShutdownService
         {
             try
             {
+                presentation.Saved = Office.MsoTriState.msoTrue;
                 presentation.Close();
                 LogDebugSafe(logger, "Presentation {FileName} closed successfully (attempt {Attempt})", fileName, attempt);
                 return;
@@ -202,8 +181,7 @@ internal static class PresentationShutdownService
         catch (COMException ex)
         {
             // Retries exhausted, or a fatal RPC error (process already gone/disconnected).
-            // Proceed with cleanup regardless — the process-exit poll below decides whether
-            // force-termination is actually needed.
+            // Release automation without terminating PowerPoint.
             logger.LogWarning(
                 ex,
                 "PowerPoint.Quit() did not succeed for {FileName} after {Attempts} attempt(s) (HResult: 0x{HResult:X8}) in {Elapsed}ms - proceeding with cleanup",
@@ -215,93 +193,6 @@ internal static class PresentationShutdownService
                 ex,
                 "Unexpected error quitting PowerPoint for {FileName} after {Attempts} attempt(s) - proceeding with cleanup",
                 fileName, attemptNumber);
-        }
-    }
-
-    private static void WaitForProcessExitOrEscalate(
-        PowerPointProcessIdentity identity,
-        string fileName,
-        ILogger logger)
-    {
-        var stopwatch = Stopwatch.StartNew();
-        var delay = TimeSpan.FromMilliseconds(InitialPollDelayMs);
-
-        while (stopwatch.Elapsed < ComInteropConstants.PowerPointProcessExitGracePeriod)
-        {
-            if (!OwnedProcessGuard.IsAlive(identity))
-            {
-                LogDebugSafe(
-                    logger,
-                    "PowerPoint process {ProcessId} for {FileName} exited normally after {Elapsed}ms - no force-termination needed",
-                    identity.ProcessId, fileName, stopwatch.ElapsedMilliseconds);
-                return;
-            }
-
-            // KernelSleep (not Thread.Sleep) so this poll genuinely waits the full backoff
-            // interval regardless of any COM callbacks — this runs after the STA thread's
-            // message pump has already exited, so there is nothing left to service anyway.
-            ComUtilities.KernelSleep((int)delay.TotalMilliseconds);
-            delay = TimeSpan.FromMilliseconds(Math.Min(delay.TotalMilliseconds * 2, MaxPollDelayMs));
-        }
-
-        if (!OwnedProcessGuard.IsAlive(identity))
-        {
-            LogDebugSafe(
-                logger,
-                "PowerPoint process {ProcessId} for {FileName} exited right at the grace-period boundary - no force-termination needed",
-                identity.ProcessId, fileName);
-            return;
-        }
-
-        // Grace period exhausted and the process is still alive: this exceeds the known benign
-        // ~90-100s Office-cleanup lingering window, so treat it as a genuine hang and
-        // force-terminate as a last resort.
-        logger.LogWarning(
-            "PowerPoint process {ProcessId} for {FileName} did not exit within the {GraceSeconds}s grace period after Quit(). " +
-            "Treating as a hung process and force-terminating.",
-            identity.ProcessId, fileName, ComInteropConstants.PowerPointProcessExitGracePeriod.TotalSeconds);
-
-        TryKillProcess(identity, fileName, logger);
-    }
-
-    private static void TryKillProcess(
-        PowerPointProcessIdentity identity,
-        string fileName,
-        ILogger logger)
-    {
-        try
-        {
-            if (!OwnedProcessGuard.TryOpenMatchingProcess(identity, out var process))
-            {
-                logger.LogError(
-                    "Could not validate ownership of PowerPoint process {ProcessId} for {FileName}; refusing to terminate it",
-                    identity.ProcessId,
-                    fileName);
-                return;
-            }
-
-            using (process)
-            {
-                if (process != null)
-                {
-                    process.Kill();
-                    process.WaitForExit(5000);
-                    logger.LogWarning(
-                        "Force-terminated hung PowerPoint process {ProcessId} for {FileName}",
-                        identity.ProcessId,
-                        fileName);
-                }
-            }
-
-            PresentationSessionRegistry.UntrackPowerPointProcess(identity);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(
-                ex,
-                "Failed to force-terminate PowerPoint process {ProcessId} for {FileName} - process may leak",
-                identity.ProcessId,
-                fileName);
         }
     }
 

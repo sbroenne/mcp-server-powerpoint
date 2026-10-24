@@ -7,6 +7,43 @@ namespace Sbroenne.PowerPointMcp.CLI.Tests;
 public sealed class DaemonProcessTrackerTests
 {
     [Fact]
+    public async Task TryGetLivePowerPointProcesses_LockedRecordReturnsWarning()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"pptmcp-locked-record-{Guid.NewGuid():N}.json");
+        string mutexName = $@"Local\PowerPointMcp-Test-{Guid.NewGuid():N}";
+        var tracker = new DaemonProcessTracker(path, mutexName);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var release = new ManualResetEventSlim();
+        var holder = Task.Run(() =>
+        {
+            using var mutex = new Mutex(false, mutexName);
+            Assert.True(mutex.WaitOne(TimeSpan.FromSeconds(5)));
+            try
+            {
+                started.SetResult();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(15)));
+            }
+            finally
+            {
+                mutex.ReleaseMutex();
+            }
+        });
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(tracker.TryGetLivePowerPointProcesses(out var processes, out var error));
+            Assert.Empty(processes);
+            Assert.Contains("tracking record", error, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            release.Set();
+            await holder.WaitAsync(TimeSpan.FromSeconds(5));
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void RegisterProcess_PersistsPipeScopedProcessIdentity()
     {
         var pipeName = UniquePipeName();
@@ -124,6 +161,60 @@ public sealed class DaemonProcessTrackerTests
         var identity = new PowerPointProcessIdentity(101, 1001);
 
         Assert.Throws<InvalidOperationException>(() => tracker.RecordPowerPointProcess(identity));
+    }
+
+    [Fact]
+    public void Recovery_DoesNotTerminateRecordedPowerPointProcess()
+    {
+        using var child = Process.Start(new ProcessStartInfo("pwsh", "-NoProfile -Command \"Start-Sleep 60\"")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true
+        }) ?? throw new InvalidOperationException("Could not start cleanup test process.");
+        using var current = Process.GetCurrentProcess();
+        var record = new DaemonTrackingRecord
+        {
+            Daemon = new DaemonProcessIdentity(current.Id, current.StartTime.ToUniversalTime().ToFileTimeUtc() - 1),
+            PowerPointProcesses =
+            [
+                new DaemonProcessIdentity(child.Id, child.StartTime.ToUniversalTime().ToFileTimeUtc())
+            ]
+        };
+        try
+        {
+            Assert.True(OwnedProcessCleanup.TryCleanup(record, OperationDeadline.Start(TimeSpan.FromSeconds(3)), out var error), error);
+            Assert.False(child.HasExited, "Recovering a CLI service must not end PowerPoint or lose unsaved work.");
+        }
+        finally
+        {
+            if (!child.HasExited)
+            {
+                child.Kill();
+                child.WaitForExit(5000);
+            }
+        }
+    }
+
+    [Fact]
+    public void RegisterCurrentProcess_PreservesEarlierPowerPointRecords()
+    {
+        string pipeName = UniquePipeName();
+        using var current = Process.GetCurrentProcess();
+        var tracker = new DaemonProcessTracker(pipeName);
+        try
+        {
+            var daemon = DaemonProcessTracker.RegisterProcess(pipeName, current.Id, current.StartTime.ToUniversalTime().ToFileTimeUtc());
+            var earlier = new DaemonProcessTracker.ProcessIdentity(101, 1001);
+            DaemonProcessTracker.RecordPowerPointProcesses(pipeName, daemon, [earlier]);
+
+            tracker.RegisterCurrentProcess();
+
+            Assert.Contains(earlier, DaemonProcessTracker.ReadProcessSnapshot(pipeName).Snapshot!.PowerPointProcesses);
+        }
+        finally
+        {
+            tracker.Clear();
+        }
     }
 
     private static string UniquePipeName() => $"PowerPointMcpTests-{Guid.NewGuid():N}";

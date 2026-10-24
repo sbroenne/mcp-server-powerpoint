@@ -19,6 +19,7 @@
   <ItemGroup>
     <!-- PowerPointMcp.Core.Tests sets no AssemblyName, so it builds without the Sbroenne prefix. -->
     <InternalsVisibleTo Include="PowerPointMcp.Core.Tests" />
+    <InternalsVisibleTo Include="Sbroenne.PowerPointMcp.McpServer.Tests" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,3 +1,5 @@
+using Sbroenne.PowerPointMcp.ComInterop.Session;
+
 namespace Sbroenne.PowerPointMcp.Core.TextFrame;
 
 /// <summary>
@@ -6,7 +8,7 @@ namespace Sbroenne.PowerPointMcp.Core.TextFrame;
 /// <remarks>
 /// Follows the same Success/ErrorMessage invariant as the other domain results (Rule 1).
 /// </remarks>
-public sealed class TextFrameOperationResult
+public sealed class TextFrameOperationResult : IPresentationOperationResult
 {
     /// <summary>Whether the operation succeeded.</summary>
     public bool Success { get; init; }
