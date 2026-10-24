@@ -298,8 +298,11 @@ internal sealed class PresentationBatch : IPresentationBatch
             var cleanupApp = _app ?? startupApp;
             var cleanupPresentation = _presentation ?? startupPresentation;
             var cleanupContext = _context;
-            Action? releaseOwnedComOwners =
-                cleanupContext is null ? null : cleanupContext.ReleaseOwnedComOwners;
+            Action releaseOwnedComOwners = () =>
+            {
+                cleanupContext?.ReleaseOwnedComOwners();
+                ReleaseProcessForUser();
+            };
 
             cleanupContext?.ReleaseOwnedComResources();
             _context = null;
@@ -311,7 +314,9 @@ internal sealed class PresentationBatch : IPresentationBatch
                 _presentationPath,
                 releaseOwnedComOwners,
                 preserveUnsavedChanges: _preserveUnsavedChanges,
-                leavePresentationOpen: _leavePresentationOpen);
+                leavePresentationOpen: _leavePresentationOpen,
+                canRestoreUserInteraction: () => _powerPointProcessIdentity is not { } identity ||
+                    !PresentationSessionRegistry.GetTrackedPowerPointProcesses().Contains(identity));
             ReleaseProcessForUser();
 
             _presentation = null;
@@ -558,7 +563,7 @@ internal sealed class PresentationBatch : IPresentationBatch
     {
         lock (_operationLock)
         {
-            if (_operationStatus.ExecutionPending)
+            if (_operationStatus.ExecutionPending && ReferenceEquals(_requestContext.Value, _requestOwner))
                 _operationStatus = _operationStatus with { WaitExpired = true };
         }
     }

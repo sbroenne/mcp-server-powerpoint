@@ -14,6 +14,88 @@ namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
 [Trait("RequiresPowerPoint", "true")]
 public sealed class RequestLifetimeTests
 {
+    [Fact]
+    public async Task LateCancellation_DoesNotExpireTheNextRequestsWait()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"pptmcp-late-cancel-{Guid.NewGuid():N}.pptx");
+        using var service = new PowerPointMcpService();
+        string sessionId = service.Sessions.Create(path);
+        Assert.True(service.Sessions.TryGet(sessionId, out var batch));
+        using var cancellation = new CancellationTokenSource();
+        batch.BeginRequest();
+        using var registration = cancellation.Token.Register(batch.MarkWaitExpired);
+        batch.CompleteRequest("completed");
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var owner = Task.Run(async () =>
+        {
+            batch.BeginRequest();
+            started.SetResult();
+            try { await release.Task; }
+            finally { batch.CompleteRequest("completed"); }
+        });
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            cancellation.Cancel();
+            Assert.True(batch.GetOperationStatus().ExecutionPending);
+            Assert.False(batch.GetOperationStatus().WaitExpired);
+        }
+        finally
+        {
+            release.TrySetResult();
+            await owner.WaitAsync(TimeSpan.FromSeconds(5));
+            service.Sessions.Close(sessionId);
+            service.Sessions.DisposeAll();
+            File.Delete(path);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CancelledBeforeDispatch_DoesNotExpireAnotherRequestsWait(bool useService)
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"pptmcp-cancelled-{Guid.NewGuid():N}.pptx");
+        using var service = new PowerPointMcpService();
+        string sessionId = service.Sessions.Create(path);
+        Assert.True(service.Sessions.TryGet(sessionId, out var batch));
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var owner = Task.Run(async () =>
+        {
+            batch.BeginRequest();
+            started.SetResult();
+            try { await release.Task; }
+            finally { batch.CompleteRequest("completed"); }
+        });
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+            {
+                if (useService)
+                    await service.ProcessAsync(new ServiceRequest { Command = "slide.get-count", SessionId = sessionId },
+                        cancellation.Token);
+                else
+                    await PresentationTools.Presentation(PresentationToolAction.GetThemeName,
+                        presentation_session_id: sessionId, registry: service.Sessions, cancellationToken: cancellation.Token);
+            });
+            Assert.True(batch.GetOperationStatus().ExecutionPending);
+            Assert.False(batch.GetOperationStatus().WaitExpired);
+        }
+        finally
+        {
+            release.TrySetResult();
+            await owner.WaitAsync(TimeSpan.FromSeconds(5));
+            service.Sessions.Close(sessionId);
+            service.Sessions.DisposeAll();
+            File.Delete(path);
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

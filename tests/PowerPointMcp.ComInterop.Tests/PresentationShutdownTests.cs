@@ -7,6 +7,29 @@ namespace Sbroenne.PowerPointMcp.ComInterop.Tests;
 [Trait("Feature", "PresentationBatch")]
 public sealed class PresentationShutdownTests
 {
+    [Fact]
+    public void Close_KeepsAlertsSuppressedForAnotherManagedPresentation()
+    {
+        string firstPath = Path.Combine(Path.GetTempPath(), $"pptmcp-alerts-first-{Guid.NewGuid():N}.pptx");
+        string secondPath = Path.Combine(Path.GetTempPath(), $"pptmcp-alerts-second-{Guid.NewGuid():N}.pptx");
+        using var first = PresentationSession.CreateNew(firstPath);
+        using var second = PresentationSession.CreateNew(secondPath);
+        try
+        {
+            Assert.Equal(first.PowerPointProcessIdentity, second.PowerPointProcessIdentity);
+            first.Dispose();
+            Assert.Equal(PowerPoint.PpAlertLevel.ppAlertsNone,
+                second.Execute((context, token) => context.App.DisplayAlerts));
+        }
+        finally
+        {
+            first.Dispose();
+            second.Dispose();
+            File.Delete(firstPath);
+            File.Delete(secondPath);
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

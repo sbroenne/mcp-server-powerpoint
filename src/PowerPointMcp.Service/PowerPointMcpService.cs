@@ -264,11 +264,6 @@ public sealed class PowerPointMcpService : IDisposable
 
         bool admitted = false;
         IPresentationBatch? trackedBatch = null;
-        using var cancellationRegistration = cancellationToken.Register(() =>
-        {
-            if (!string.IsNullOrWhiteSpace(request.SessionId) && _sessions.TryGet(request.SessionId, out var activeBatch))
-                activeBatch.MarkWaitExpired();
-        });
         try
         {
             if (!control)
@@ -288,6 +283,8 @@ public sealed class PowerPointMcpService : IDisposable
                 trackedBatch = requestBatch;
             }
 
+            using CancellationTokenRegistration cancellationRegistration = trackedBatch is null
+                ? default : cancellationToken.Register(trackedBatch.MarkWaitExpired);
             var response = control
                 ? await ProcessCoreAsync(request)
                 : await Task.Run(() => ProcessCoreAsync(request), cancellationToken);

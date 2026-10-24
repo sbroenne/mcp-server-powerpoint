@@ -41,7 +41,8 @@ internal static class PresentationShutdownService
         string? filePath = null,
         Action? afterPresentationClose = null,
         bool preserveUnsavedChanges = false,
-        bool leavePresentationOpen = false)
+        bool leavePresentationOpen = false,
+        Func<bool>? canRestoreUserInteraction = null)
     {
         logger ??= NullLogger.Instance;
         string fileName = string.IsNullOrEmpty(filePath) ? "unknown" : Path.GetFileName(filePath);
@@ -69,7 +70,7 @@ internal static class PresentationShutdownService
         {
             if (!retain && CanQuitApplication(app, logger))
                 QuitApplication(app, fileName, logger);
-            else
+            else if (canRestoreUserInteraction?.Invoke() != false)
             {
                 try
                 {

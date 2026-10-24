@@ -95,6 +95,9 @@ public static class PowerPointToolsBase
                         batch.BeginRequest();
                         trackedBatch = batch;
                     }
+                    using CancellationTokenRegistration cancellationRegistration = trackedBatch is null
+                        ? default : cancellationToken.Register(trackedBatch.MarkWaitExpired);
+                    cancellationToken.ThrowIfCancellationRequested();
                     var response = await operation();
                     if (trackedBatch is not null)
                     {
@@ -125,8 +128,6 @@ public static class PowerPointToolsBase
         {
             if (!string.IsNullOrWhiteSpace(sessionId))
             {
-                if (registry is not null && registry.TryGet(sessionId, out var batch))
-                    batch.MarkWaitExpired();
                 Console.Error.WriteLine($"[PowerPointMcp] Cancelled wait in {context}; the presentation session was not closed.");
             }
             if (operationTask is not null)

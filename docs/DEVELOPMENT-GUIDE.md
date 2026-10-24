@@ -111,6 +111,10 @@ Keep the actual PowerPoint result even when it arrives before the request finish
 reporting an expired wait. Handwritten MCP presentation actions also track validation
 and file work after PowerPoint calls. Explicit close reserves the batch before removing
 its session, using the same lock that admits requests and PowerPoint calls.
+Cancellation marks only the request that registered it; cancellation before dispatch or
+after an earlier request completes must not change another request's status.
+Keep alerts suppressed while another managed presentation remains open in the shared
+PowerPoint process, restoring user interaction only after the last owner detaches.
 
 Host shutdown through Ctrl+C, stdin EOF, or normal exit has two cleanup layers:
 `PresentationSessionShutdownService.StopAsync` and the `Main` finally block both

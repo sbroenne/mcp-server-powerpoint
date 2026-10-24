@@ -162,7 +162,7 @@ public sealed class McpCancellationSessionTests
                 {
                     finished.SetResult();
                 }
-            }, cancellation.Token, registry, affected);
+            }, cancellation.Token, registry, affected, trackRequest: true);
 
             try
             {
@@ -202,6 +202,9 @@ public sealed class McpCancellationSessionTests
             {
                 release.Set();
                 await finished.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                using var completionTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                while (affectedBatch.GetOperationStatus().ExecutionPending)
+                    await Task.Delay(20, completionTimeout.Token);
             }
             Assert.True(registry.TryGet(affected, out var retained));
             Assert.True(new SlideCommands().GetCount(retained).Success);
