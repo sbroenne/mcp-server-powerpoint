@@ -84,7 +84,9 @@ public static class PresentationTools
                 PresentationToolAction.DeleteTag => HandleDeleteTag(presentation_session_id, tagName, reg),
                 _ => PowerPointToolsBase.ValidationError($"Unknown action: {action}")
             };
-        }, cancellationToken, registry, presentation_session_id);
+        }, cancellationToken, registry, presentation_session_id,
+            trackRequest: action is not (PresentationToolAction.Create or PresentationToolAction.Open or
+                PresentationToolAction.List or PresentationToolAction.Test));
 
     internal static void ValidateActionParameterNames(
         string action,
@@ -267,9 +269,6 @@ public static class PresentationTools
             return PowerPointToolsBase.ValidationError("presentation_session_id is required for action=close.");
         }
 
-        if (registry.TryGet(sessionId, out var activeBatch) && activeBatch.GetOperationStatus().ExecutionPending)
-            return PowerPointToolsBase.ValidationError("PowerPoint work is still running for this session. Inspect presentation list before closing it.");
-
         if (save)
         {
             if (!registry.TryGet(sessionId, out var batch))
@@ -287,6 +286,8 @@ public static class PresentationTools
         var closed = registry.Close(sessionId);
         if (!closed)
         {
+            if (registry.TryGet(sessionId, out _))
+                return PowerPointToolsBase.ValidationError("PowerPoint work is still running for this session. Inspect presentation list before closing it.");
             return PowerPointToolsBase.ValidationError($"Unknown presentation_session_id: {sessionId}");
         }
 

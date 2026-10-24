@@ -82,6 +82,9 @@ internal sealed class PresentationBatch : IPresentationBatch
     private bool _callbackPending;
     private readonly AsyncLocal<object?> _requestContext = new();
     private object? _requestOwner;
+    private bool _closing;
+    private bool _callbackWaitExpired;
+    private PresentationOperationStatus? _callbackOutcome;
     private volatile bool _preserveUnsavedChanges;
     private volatile bool _leavePresentationOpen;
 
@@ -508,12 +511,14 @@ internal sealed class PresentationBatch : IPresentationBatch
     {
         lock (_operationLock)
         {
-            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            ObjectDisposedException.ThrowIf(_disposed != 0 || _closing, this);
             if (_operationStatus.ExecutionPending)
                 throw new InvalidOperationException("PowerPoint work is still running for this session.");
             _requestPending = true;
             _requestOwner = new object();
             _requestContext.Value = _requestOwner;
+            _callbackWaitExpired = false;
+            _callbackOutcome = null;
             _operationStatus = new("running", true, false, DateTime.UtcNow, null);
         }
     }
@@ -525,12 +530,27 @@ internal sealed class PresentationBatch : IPresentationBatch
             _requestPending = false;
             _requestOwner = null;
             _requestContext.Value = null;
+            var lateOutcome = _callbackWaitExpired && !_callbackPending ? _callbackOutcome : null;
             _operationStatus = _operationStatus with
             {
-                State = _callbackPending ? "running" : state,
+                State = _callbackPending ? "running" : lateOutcome?.State ?? state,
                 ExecutionPending = _callbackPending,
-                ErrorMessage = errorMessage
+                ErrorMessage = lateOutcome is null ? errorMessage : lateOutcome.ErrorMessage
             };
+        }
+    }
+
+    public bool TryBeginClose()
+    {
+        lock (_operationLock)
+        {
+            if (_disposed != 0)
+                return true;
+            if (_closing || _callbackPending ||
+                (_requestPending && !ReferenceEquals(_requestContext.Value, _requestOwner)))
+                return false;
+            _closing = true;
+            return true;
         }
     }
 
@@ -575,12 +595,14 @@ internal sealed class PresentationBatch : IPresentationBatch
         long sequence;
         lock (_operationLock)
         {
-            ObjectDisposedException.ThrowIf(_disposed != 0, this);
+            ObjectDisposedException.ThrowIf(_disposed != 0 || _closing, this);
             if (_callbackPending || (_requestPending && !ReferenceEquals(_requestContext.Value, _requestOwner)))
                 throw new InvalidOperationException(
                     "Another PowerPoint operation is still running for this session. " +
                     "Inspect session list before retrying; an expired wait does not undo changes.");
             _callbackPending = true;
+            _callbackWaitExpired = false;
+            _callbackOutcome = null;
             if (!_requestPending)
                 _operationStatus = new("running", true, false, DateTime.UtcNow, null);
             sequence = ++_operationSequence;
@@ -664,6 +686,7 @@ internal sealed class PresentationBatch : IPresentationBatch
             if (_operationSequence != sequence)
                 return;
             _callbackPending = false;
+            _callbackOutcome = _operationStatus with { State = state, ExecutionPending = false, ErrorMessage = errorMessage };
             _operationStatus = _operationStatus with
             {
                 State = _requestPending ? "running" : state,
@@ -678,7 +701,10 @@ internal sealed class PresentationBatch : IPresentationBatch
         lock (_operationLock)
         {
             if (_operationSequence == sequence)
+            {
+                _callbackWaitExpired = true;
                 _operationStatus = _operationStatus with { WaitExpired = true };
+            }
         }
     }
 
@@ -946,7 +972,7 @@ internal sealed class PresentationBatch : IPresentationBatch
         lock (_operationLock)
         {
             if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0) return;
-            pending = _operationStatus.ExecutionPending;
+            pending = _callbackPending || (_requestPending && !_closing);
             _leavePresentationOpen = pending;
             _shutdownCts.Cancel();
             _workQueue.Writer.TryComplete();

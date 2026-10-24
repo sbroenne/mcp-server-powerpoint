@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Sbroenne.PowerPointMcp.ComInterop.Session;
+using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Shape;
 using Sbroenne.PowerPointMcp.Core.Slide;
 using Sbroenne.PowerPointMcp.McpServer.Infrastructure;
@@ -12,6 +14,69 @@ namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
 [Trait("RequiresPowerPoint", "true")]
 public sealed class RequestLifetimeTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PresentationFailure_RecordsValidationAndPostPowerPointErrors(bool failFileMove)
+    {
+        string directory = Path.Combine(Path.GetTempPath(), $"pptmcp-result-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        try
+        {
+            using var registry = new PresentationSessionRegistry();
+            string sessionId = registry.Create(Path.Combine(directory, "Original.pptx"));
+            Assert.True(registry.TryGet(sessionId, out var batch));
+            string target = Path.Combine(directory, failFileMove ? "Copy.pptx" : "Copy.pptm");
+            using var lockedOutput = failFileMove
+                ? new FileStream(target, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None)
+                : null;
+            var result = await PresentationTools.Presentation(PresentationToolAction.SaveCopyAs,
+                presentation_session_id: sessionId, targetPath: target, overwrite: true, registry: registry);
+            Assert.True(result.IsError);
+            var outcome = batch.GetOperationStatus();
+            Assert.Equal("failed", outcome.State);
+            Assert.False(outcome.ExecutionPending);
+            Assert.Contains(outcome.ErrorMessage!, Assert.IsType<JsonElement>(result.StructuredContent)
+                .GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+            registry.Close(sessionId);
+            registry.DisposeAll();
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task RegistryClose_RejectsAnotherRequestAndRetainsItsSession()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"pptmcp-close-{Guid.NewGuid():N}.pptx");
+        using var registry = new PresentationSessionRegistry();
+        string sessionId = registry.Create(path);
+        Assert.True(registry.TryGet(sessionId, out var batch));
+        batch.Save();
+        batch.BeginRequest();
+        try
+        {
+            Task<bool> close;
+            using (ExecutionContext.SuppressFlow())
+                close = Task.Run(() => registry.Close(sessionId));
+            Assert.False(await close.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.True(registry.TryGet(sessionId, out _));
+        }
+        finally
+        {
+            batch.CompleteRequest("completed");
+            bool retained = registry.Close(sessionId);
+            registry.DisposeAll();
+            if (!retained)
+            {
+                using var recovery = PresentationSession.BeginBatch(path);
+            }
+            File.Delete(path);
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

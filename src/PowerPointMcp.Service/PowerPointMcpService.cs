@@ -281,7 +281,7 @@ public sealed class PowerPointMcpService : IDisposable
                 admitted = true;
             }
 
-            if (claimSession && request.Command != "session.close" &&
+            if (claimSession &&
                 _sessions.TryGet(request.SessionId!, out var requestBatch))
             {
                 requestBatch.BeginRequest();
@@ -601,6 +601,8 @@ public sealed class PowerPointMcpService : IDisposable
         // background task — mirrors PresentationSessionRegistry's MCP-server usage, see its
         // remarks for why this must not block the caller.
         var closed = _sessions.Close(request.SessionId);
+        if (!closed && _sessions.TryGet(request.SessionId, out _))
+            return BusyResponse(request, "PowerPoint work is still running for this session. Inspect session list before closing it.");
 
         return new ServiceResponse
         {

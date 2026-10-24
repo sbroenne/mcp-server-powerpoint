@@ -107,6 +107,10 @@ callback actually finishes, even if its caller has already stopped waiting.
 Service requests track their whole lifetime across callbacks and clipboard waits.
 Completing a request's wait must not hide an unfinished callback, and a late failure
 must remain visible in session lists.
+Keep the actual PowerPoint result even when it arrives before the request finishes
+reporting an expired wait. Handwritten MCP presentation actions also track validation
+and file work after PowerPoint calls. Explicit close reserves the batch before removing
+its session, using the same lock that admits requests and PowerPoint calls.
 
 Host shutdown through Ctrl+C, stdin EOF, or normal exit has two cleanup layers:
 `PresentationSessionShutdownService.StopAsync` and the `Main` finally block both

@@ -159,21 +159,25 @@ public sealed class PresentationSessionRegistry : IDisposable
     /// Closes a session: atomically removes it from the registry and starts disposing its batch
     /// on a background task. Returns immediately, without waiting for PowerPoint to exit. The
     /// background dispose is tracked so <see cref="DisposeAll()"/> can await it on host shutdown.
-    /// No-op if the identifier is unknown.
+    /// No-op if the identifier is unknown or another request is still running. Reserving the
+    /// batch for close prevents work from starting through an earlier lookup.
     /// </summary>
     /// <param name="sessionId">The session identifier to close.</param>
     /// <param name="pendingOperation">
     /// A cancelled request's still-running operation. Remove its session immediately, but wait for
     /// the operation to finish before disposing the batch. The caller observes operation failures.
     /// </param>
-    /// <returns><see langword="true"/> if a session was found and its close was started.</returns>
+    /// <returns><see langword="true"/> if a session was found and its close was started; otherwise, unknown or busy.</returns>
     public bool Close(string sessionId, Task? pendingOperation = null, bool preserveUnsavedChanges = false)
     {
         lock (_lifecycleLock)
         {
-            if (string.IsNullOrEmpty(sessionId) || !_sessions.TryRemove(sessionId, out var batch))
+            if (string.IsNullOrEmpty(sessionId) || !_sessions.TryGetValue(sessionId, out var batch))
                 return false;
 
+            if (!preserveUnsavedChanges && pendingOperation is null && !batch.TryBeginClose())
+                return false;
+            _sessions.TryRemove(sessionId, out _);
             StartBackgroundDispose(sessionId, batch, pendingOperation, preserveUnsavedChanges);
             return true;
         }

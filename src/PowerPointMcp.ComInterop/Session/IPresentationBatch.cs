@@ -76,6 +76,9 @@ public interface IPresentationBatch : IDisposable
     /// <summary>Records a request outcome without hiding an unfinished PowerPoint callback.</summary>
     void CompleteRequest(string state, string? errorMessage = null);
 
+    /// <summary>Reserves an idle session for closing, rejecting other requests and later PowerPoint calls.</summary>
+    bool TryBeginClose();
+
     /// <summary>Records that a caller stopped waiting without stopping PowerPoint work.</summary>
     void MarkWaitExpired();
 

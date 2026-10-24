@@ -62,9 +62,10 @@ public static class PowerPointToolsBase
         Func<string> operation,
         CancellationToken cancellationToken,
         PresentationSessionRegistry? registry = null,
-        string? sessionId = null) =>
+        string? sessionId = null,
+        bool trackRequest = false) =>
         ExecuteToolActionAsync(toolName, actionName, () => Task.FromResult(operation()),
-            cancellationToken, registry, sessionId);
+            cancellationToken, registry, sessionId, trackRequest);
 
     public static async Task<CallToolResult> ExecuteToolActionAsync(
         string toolName,
@@ -72,7 +73,8 @@ public static class PowerPointToolsBase
         Func<Task<string>> operation,
         CancellationToken cancellationToken,
         PresentationSessionRegistry? registry = null,
-        string? sessionId = null)
+        string? sessionId = null,
+        bool trackRequest = false)
     {
         var context = string.IsNullOrEmpty(actionName) ? toolName : $"{toolName}.{actionName}";
         Task<string>? operationTask = null;
@@ -81,10 +83,39 @@ public static class PowerPointToolsBase
             cancellationToken.ThrowIfCancellationRequested();
             // Core marshals COM to its STA thread, but its dispatch waits synchronously.
             // Keep that wait off the SDK request loop and allow cancellation of the caller's wait.
-            operationTask = Task.Run(() =>
+            operationTask = Task.Run(async () =>
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                return operation();
+                IPresentationBatch? trackedBatch = null;
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (trackRequest && registry is not null && !string.IsNullOrWhiteSpace(sessionId) &&
+                        registry.TryGet(sessionId, out var batch))
+                    {
+                        batch.BeginRequest();
+                        trackedBatch = batch;
+                    }
+                    var response = await operation();
+                    if (trackedBatch is not null)
+                    {
+                        using var document = JsonDocument.Parse(response);
+                        var root = document.RootElement;
+                        bool failed = root.TryGetProperty("success", out var success) && success.ValueKind == JsonValueKind.False;
+                        string? error = root.TryGetProperty("errorMessage", out var message) ? message.GetString() : null;
+                        trackedBatch.CompleteRequest(failed ? "failed" : "completed", error);
+                    }
+                    return response;
+                }
+                catch (OperationCanceledException)
+                {
+                    trackedBatch?.CompleteRequest("cancelled");
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    trackedBatch?.CompleteRequest("failed", ex.Message);
+                    throw;
+                }
             }, CancellationToken.None);
             var json = await operationTask.WaitAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();

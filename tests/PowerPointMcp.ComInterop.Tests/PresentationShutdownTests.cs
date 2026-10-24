@@ -7,8 +7,10 @@ namespace Sbroenne.PowerPointMcp.ComInterop.Tests;
 [Trait("Feature", "PresentationBatch")]
 public sealed class PresentationShutdownTests
 {
-    [Fact]
-    public void HostShutdown_LeavesUnsavedPresentationOpenWithoutSavingIt()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SessionEnd_PreservesUnsavedWorkOnlyDuringHostShutdown(bool explicitClose)
     {
         string path = Path.Combine(Path.GetTempPath(), $"pptmcp-unsaved-{Guid.NewGuid():N}.pptx");
         string observerPath = Path.Combine(Path.GetTempPath(), $"pptmcp-observer-{Guid.NewGuid():N}.pptx");
@@ -35,6 +37,12 @@ public sealed class PresentationShutdownTests
             });
             byte[] savedFile = File.ReadAllBytes(path);
 
+            if (explicitClose)
+            {
+                batch.BeginRequest();
+                Assert.True(registry.Close(sessionId));
+                batch.CompleteRequest("completed");
+            }
             registry.DisposeAll();
 
             bool retained = observer.Execute((context, token) =>
@@ -68,7 +76,10 @@ public sealed class PresentationShutdownTests
                     ComUtilities.Release(ref presentations);
                 }
             });
-            Assert.True(retained, "Host shutdown must leave unsaved work open in PowerPoint.");
+            if (explicitClose)
+                Assert.False(retained, "An explicit close must close the presentation even within its owning request.");
+            else
+                Assert.True(retained, "Host shutdown must leave unsaved work open in PowerPoint.");
             Assert.Equal(savedFile, File.ReadAllBytes(path));
         }
         finally

@@ -6,13 +6,34 @@ namespace Sbroenne.PowerPointMcp.ComInterop.Tests;
 [Trait("Feature", "PresentationBatch")]
 public sealed class PresentationBatchRecoveryTests
 {
+    [Fact]
+    public void ClosingReservation_RejectsWorkThroughAnEarlierBatchLookup()
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"pptmcp-closing-{Guid.NewGuid():N}.pptx");
+        using var batch = PresentationSession.CreateNew(path);
+        try
+        {
+            Assert.True(batch.TryBeginClose());
+            Assert.Throws<ObjectDisposedException>(() => batch.BeginRequest());
+            Assert.Throws<ObjectDisposedException>(() => batch.Execute((context, token) => 0));
+        }
+        finally
+        {
+            batch.Dispose();
+            File.Delete(path);
+        }
+    }
+
     [Theory]
-    [InlineData(false, false, false)]
-    [InlineData(true, false, false)]
-    [InlineData(false, true, false)]
-    [InlineData(false, false, true)]
-    [InlineData(false, true, true)]
-    public async Task ExpiredWait_PreservesPresentationAndAllowsWorkAfterCompletion(bool cancellable, bool failsLater, bool trackRequest)
+    [InlineData(false, false, false, false)]
+    [InlineData(true, false, false, false)]
+    [InlineData(false, true, false, false)]
+    [InlineData(false, false, true, false)]
+    [InlineData(false, true, true, false)]
+    [InlineData(false, false, true, true)]
+    [InlineData(false, true, true, true)]
+    public async Task ExpiredWait_PreservesPresentationAndAllowsWorkAfterCompletion(
+        bool cancellable, bool failsLater, bool trackRequest, bool callbackFinishesFirst)
     {
         string path = Path.Combine(Path.GetTempPath(), $"pptmcp-recovery-{Guid.NewGuid():N}.pptx");
         using var release = new ManualResetEventSlim();
@@ -39,7 +60,14 @@ public sealed class PresentationBatchRecoveryTests
                 finally
                 {
                     if (trackRequest)
+                    {
+                        if (callbackFinishesFirst)
+                        {
+                            release.Set();
+                            Assert.True(SpinWait.SpinUntil(() => !batch.HasTimedOutOperation, TimeSpan.FromSeconds(5)));
+                        }
                         batch.CompleteRequest("failed", "The request wait ended.");
+                    }
                 }
             });
 
@@ -50,11 +78,14 @@ public sealed class PresentationBatchRecoveryTests
                 Assert.True(operation.IsCompleted, "The operation timeout must also bound waits with a caller cancellation token.");
                 await Assert.ThrowsAsync<TimeoutException>(() => operation);
                 var pending = batch.GetOperationStatus();
-                Assert.Equal("running", pending.State);
-                Assert.True(pending.ExecutionPending);
+                Assert.Equal(callbackFinishesFirst ? (failsLater ? "failed" : "completed") : "running", pending.State);
+                Assert.Equal(!callbackFinishesFirst, pending.ExecutionPending);
+                if (callbackFinishesFirst)
+                    Assert.Equal(failsLater ? "The delayed PowerPoint operation failed." : null, pending.ErrorMessage);
                 Assert.True(pending.WaitExpired);
                 Assert.NotNull(pending.StartedAtUtc);
-                Assert.Throws<InvalidOperationException>(() => batch.Execute((context, token) => 0));
+                if (!callbackFinishesFirst)
+                    Assert.Throws<InvalidOperationException>(() => batch.Execute((context, token) => 0));
             }
             finally
             {

@@ -151,6 +151,7 @@ public class PresentationCommandsTests
         public PresentationOperationStatus GetOperationStatus() => inner.GetOperationStatus();
         public void BeginRequest() => inner.BeginRequest();
         public void CompleteRequest(string state, string? errorMessage = null) => inner.CompleteRequest(state, errorMessage);
+        public bool TryBeginClose() => inner.TryBeginClose();
         public void MarkWaitExpired() => inner.MarkWaitExpired();
         public void DisposeForShutdown() => inner.DisposeForShutdown();
         public int? PowerPointProcessId => inner.PowerPointProcessId;
