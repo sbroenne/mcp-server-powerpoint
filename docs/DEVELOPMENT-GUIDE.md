@@ -115,6 +115,9 @@ Cancellation marks only the request that registered it; cancellation before disp
 after an earlier request completes must not change another request's status.
 Keep alerts suppressed while another managed presentation remains open in the shared
 PowerPoint process, restoring user interaction only after the last owner detaches.
+Shutdown tests check presentation closure and successful Quit calls, not a fixed deadline
+for Office's later process exit. Tracking tests preserve owners that existed before the
+test and check that another open presentation remains usable.
 
 Host shutdown through Ctrl+C, stdin EOF, or normal exit has two cleanup layers:
 `PresentationSessionShutdownService.StopAsync` and the `Main` finally block both
