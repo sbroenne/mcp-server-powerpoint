@@ -63,10 +63,18 @@ public interface IPresentationBatch : IDisposable
     bool IsPowerPointProcessAlive();
 
     /// <summary>
-    /// Gets whether a previous operation timed out or was cancelled while PowerPoint was
-    /// unresponsive. When true, the session is poisoned and callers must fail fast.
+    /// Gets whether an expired wait still has unfinished PowerPoint work.
     /// </summary>
     bool HasTimedOutOperation { get; }
+
+    /// <summary>Reads execution state without waiting for the PowerPoint thread.</summary>
+    PresentationOperationStatus GetOperationStatus();
+
+    /// <summary>Records that a caller stopped waiting without stopping PowerPoint work.</summary>
+    void MarkWaitExpired();
+
+    /// <summary>Releases automation on host shutdown, leaving unsaved presentations open.</summary>
+    void DisposeForShutdown();
 
     /// <summary>Gets the PowerPoint process ID, if captured.</summary>
     int? PowerPointProcessId { get; }

@@ -3,6 +3,7 @@ using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Presentation;
 using Sbroenne.PowerPointMcp.Core.Slide;
 using Sbroenne.PowerPointMcp.McpServer.Tools;
+using Sbroenne.PowerPointMcp.Service;
 
 namespace Sbroenne.PowerPointMcp.McpServer.Tests.Integration;
 
@@ -69,6 +70,9 @@ public sealed class McpCancellationSessionTests
             finally
             {
                 release.TrySetResult();
+                foreach (var session in registry.List())
+                    registry.Close(session.SessionId);
+                registry.DisposeAll();
             }
         }
         finally
@@ -99,6 +103,8 @@ public sealed class McpCancellationSessionTests
             Assert.True(preserved.IsPowerPointProcessAlive());
             Assert.True(commands.AddBlank(preserved).Success);
             Assert.Equal(count + 1, commands.GetCount(preserved).SlideCount);
+            registry.Close(unrelated);
+            registry.DisposeAll();
         }
         finally
         {
@@ -126,13 +132,14 @@ public sealed class McpCancellationSessionTests
     }
 
     [Fact]
-    public async Task CancelledComWait_ClosesOnlyAffectedSessionAndReturnsBeforeComFinishes()
+    public async Task CancelledComWait_PreservesAffectedSessionAndReturnsBeforeComFinishes()
     {
         var directory = Path.Join(Path.GetTempPath(), $"McpCancellation_{Guid.NewGuid():N}");
         Directory.CreateDirectory(directory);
         try
         {
-            using var registry = new PresentationSessionRegistry();
+            using var service = new PowerPointMcpService();
+            var registry = service.Sessions;
             var unrelated = registry.Create(Path.Join(directory, "Existing.pptx"));
             var affected = registry.Create(Path.Join(directory, "Affected.pptx"));
             Assert.True(registry.TryGet(affected, out var affectedBatch));
@@ -164,7 +171,27 @@ public sealed class McpCancellationSessionTests
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(
                     () => call.WaitAsync(TimeSpan.FromSeconds(2)));
                 Assert.False(finished.Task.IsCompleted);
-                Assert.False(registry.TryGet(affected, out _));
+                Assert.True(registry.TryGet(affected, out _));
+                Assert.True(affectedBatch.GetOperationStatus().WaitExpired);
+                var listed = Assert.Single(registry.List(), item => item.SessionId == affected);
+                Assert.True(listed.Operation.ExecutionPending);
+                var status = await service.ProcessAsync(new ServiceRequest { Command = "service.status" })
+                    .WaitAsync(TimeSpan.FromSeconds(2));
+                Assert.True(status.Success);
+                var list = await service.ProcessAsync(new ServiceRequest { Command = "session.list" })
+                    .WaitAsync(TimeSpan.FromSeconds(2));
+                Assert.True(list.Success);
+                using var listJson = JsonDocument.Parse(list.Result!);
+                var listedSession = Assert.Single(listJson.RootElement.GetProperty("sessions").EnumerateArray(),
+                    item => item.GetProperty("sessionId").GetString() == affected);
+                Assert.True(listedSession.GetProperty("operation").GetProperty("executionPending").GetBoolean());
+                var busy = await service.ProcessAsync(new ServiceRequest { Command = "slide.get-count", SessionId = affected })
+                    .WaitAsync(TimeSpan.FromSeconds(2));
+                Assert.False(busy.Success);
+                Assert.Equal("Busy", busy.ErrorCategory);
+                var close = await PresentationTools.Presentation(PresentationToolAction.Close, affected, registry: registry);
+                Assert.True(close.IsError);
+                Assert.True(registry.TryGet(affected, out _));
                 Assert.True(registry.TryGet(unrelated, out var batch));
                 Assert.True(new SlideCommands().GetCount(batch).Success);
             }
@@ -173,6 +200,11 @@ public sealed class McpCancellationSessionTests
                 release.Set();
                 await finished.Task.WaitAsync(TimeSpan.FromSeconds(10));
             }
+            Assert.True(registry.TryGet(affected, out var retained));
+            Assert.True(new SlideCommands().GetCount(retained).Success);
+            registry.Close(affected);
+            registry.Close(unrelated);
+            registry.DisposeAll();
         }
         finally
         {

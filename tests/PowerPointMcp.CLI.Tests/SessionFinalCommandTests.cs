@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Sbroenne.PowerPointMcp.Service;
 
@@ -18,13 +19,24 @@ public sealed class SessionFinalCommandTests
     [Fact]
     public async Task SessionFinalCommands_RejectMissingOrInapplicableArguments()
     {
-        var getExitCode = await Program.Main(
-            ["session", "get-final", "missing-session", "--is-final", "true"]);
-        Assert.NotEqual(0, getExitCode);
+        string pipeName = $"PowerPointMcp_FinalArguments_{Guid.NewGuid():N}";
+        using var service = new PowerPointMcpService();
+        var running = service.RunAsync(pipeName, TimeSpan.FromMinutes(5));
+        try
+        {
+            var getExitCode = await RunCliAsync(pipeName,
+                "session", "get-final", "missing-session", "--is-final", "true");
+            Assert.NotEqual(0, getExitCode);
 
-        var setExitCode = await Program.Main(
-            ["session", "set-final", "missing-session"]);
-        Assert.NotEqual(0, setExitCode);
+            var setExitCode = await RunCliAsync(pipeName,
+                "session", "set-final", "missing-session");
+            Assert.NotEqual(0, setExitCode);
+        }
+        finally
+        {
+            service.RequestShutdown();
+            await running.WaitAsync(TimeSpan.FromSeconds(5));
+        }
     }
 
     [Fact]
@@ -76,5 +88,39 @@ public sealed class SessionFinalCommandTests
         });
         Assert.False(setResponse.Success);
         Assert.Contains("Unknown parameter", setResponse.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task<int> RunCliAsync(string pipeName, params string[] arguments)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = Path.Combine(AppContext.BaseDirectory, "powerpointcli.exe"),
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        startInfo.Environment["POWERPOINTMCP_CLI_PIPE"] = pipeName;
+        foreach (string argument in arguments)
+            startInfo.ArgumentList.Add(argument);
+
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Could not start the test CLI.");
+        var output = process.StandardOutput.ReadToEndAsync();
+        var error = process.StandardError.ReadToEndAsync();
+        try
+        {
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
+            await Task.WhenAll(output, error);
+            return process.ExitCode;
+        }
+        finally
+        {
+            if (!process.HasExited)
+            {
+                process.Kill();
+                await process.WaitForExitAsync();
+            }
+        }
     }
 }

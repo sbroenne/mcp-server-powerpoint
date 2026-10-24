@@ -15,9 +15,9 @@ internal sealed class DaemonRpcTarget : IPowerPointDaemonRpc
     }
 
     /// <inheritdoc />
-    public async Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request)
+    public async Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request, CancellationToken cancellationToken = default)
     {
         _service.RecordActivity();
-        return await _service.ProcessAsync(request);
+        return await _service.ProcessAsync(request, cancellationToken);
     }
 }

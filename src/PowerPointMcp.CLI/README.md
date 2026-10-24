@@ -39,7 +39,7 @@ pptcli session close <SESSION_ID> --save
 # Check on / manage the daemon directly.
 pptcli service status
 pptcli service stop
-pptcli service stop --force   # stop only PID + start-time identities owned by this daemon
+pptcli service stop --force   # stop only the verified service process, never PowerPoint
 ```
 
 Every `[ServiceCategory]`-annotated Core domain (Presentation, Slide, Shape, TextFrame, Table,
@@ -51,10 +51,24 @@ conflict, unrelated to session handling.)
 The daemon shuts down automatically after an idle period with no open sessions, or immediately
 via `pptcli service stop`.
 
-Each pipe has an atomic ownership record containing the daemon and PowerPoint process PID plus
-start time. Forced cleanup validates both values and refuses to terminate anything it cannot prove
-belongs to that daemon. `service status` reports `starting`, `running`, `unresponsive`, or
-`stopped` rather than treating every failed ping as stopped.
+Each pipe has an ownership record containing the service and PowerPoint process IDs plus
+start times. Forced cleanup validates the service identity and stops only that service,
+never PowerPoint: PowerPoint can share its process with other presentations.
+`service status` reports `starting`, `running`, `unresponsive`, or `stopped`,
+plus any known PowerPoint processes still running.
+
+## Interrupted work and safe shutdown
+
+A cancelled command or an expired wait does not undo edits or close an existing session.
+PowerPoint may still be working. Run `pptcli session list` before retrying: each session's
+`operation` reports its state, whether execution is still pending, whether the wait expired,
+its start time, and any failure. Further work in that session is rejected while execution
+is pending; status and session-list requests remain available.
+
+Stopping the service leaves unsaved or unfinished presentations open without saving them.
+This differs from `pptcli session close <id>`: explicit close without `--save` still
+discards changes. A forced service stop also leaves PowerPoint running, and cannot safely
+finish or undo an interrupted edit. Inspect the open presentation before continuing.
 
 ## Session commands
 
@@ -64,7 +78,7 @@ belongs to that daemon. `service status` reports `starting`, `running`, `unrespo
 | `pptcli session open <path>` | Open an existing presentation, return a session id. |
 | `pptcli session test <path>` | Validate that PowerPoint can open a presentation without retaining a session. |
 | `pptcli session close <id> [--save]` | Close a session, optionally saving first. |
-| `pptcli session list` | List every session currently open in the daemon. |
+| `pptcli session list` | List open sessions and the state of their most recent work. |
 
 ## Service (daemon) commands
 
@@ -72,7 +86,7 @@ belongs to that daemon. `service status` reports `starting`, `running`, `unrespo
 |---|---|
 | `pptcli service start` | Auto-start the daemon if it isn't already running. |
 | `pptcli service status` | Report the daemon state, responsiveness, session count, and uptime. |
-| `pptcli service stop [--force]` | Gracefully shut down the daemon, or stop only validated owned processes. |
+| `pptcli service stop [--force]` | Stop the service, preserving unsaved PowerPoint work; force stops only the verified service process. |
 
 ## Links
 

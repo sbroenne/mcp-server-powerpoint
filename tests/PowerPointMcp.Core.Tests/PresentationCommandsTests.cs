@@ -148,6 +148,9 @@ public class PresentationCommandsTests
 
         public string PresentationPath => inner.PresentationPath;
         public bool HasTimedOutOperation => inner.HasTimedOutOperation;
+        public PresentationOperationStatus GetOperationStatus() => inner.GetOperationStatus();
+        public void MarkWaitExpired() => inner.MarkWaitExpired();
+        public void DisposeForShutdown() => inner.DisposeForShutdown();
         public int? PowerPointProcessId => inner.PowerPointProcessId;
         public PowerPointProcessIdentity? PowerPointProcessIdentity => inner.PowerPointProcessIdentity;
         public TimeSpan OperationTimeout => inner.OperationTimeout;

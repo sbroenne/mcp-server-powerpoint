@@ -115,19 +115,21 @@ public static class Program
             }
 
             var staleRecord = tracker.ReadRecord();
-            if (staleRecord != null
-                && !OwnedProcessCleanup.TryCleanup(
-                    staleRecord,
-                    OperationDeadline.Start(TimeSpan.FromSeconds(10)),
-                    out var cleanupError))
-            {
-                Console.Error.WriteLine(cleanupError);
-                return 1;
-            }
-
             if (staleRecord != null)
             {
-                tracker.ClearIfMatches(staleRecord.Daemon);
+                if (!DaemonProcessTracker.TryOpenMatchingProcess(staleRecord.Daemon, out var previousDaemon))
+                {
+                    Console.Error.WriteLine("The earlier service process could not be checked. No processes were stopped.");
+                    return 1;
+                }
+                using (previousDaemon)
+                {
+                    if (previousDaemon != null)
+                    {
+                        Console.Error.WriteLine("An earlier service process is still running. Check 'pptcli service status' before retrying.");
+                        return 1;
+                    }
+                }
             }
 
             var daemonIdentity = tracker.RegisterCurrentProcess();

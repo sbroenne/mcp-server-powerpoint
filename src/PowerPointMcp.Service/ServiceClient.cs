@@ -42,9 +42,11 @@ public sealed class ServiceClient : IDisposable
         using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         connectCts.CancelAfter(_connectTimeout);
 
+        bool connected = false;
         try
         {
             await pipe.ConnectAsync((int)_connectTimeout.TotalMilliseconds, connectCts.Token);
+            connected = true;
 
             var proxy = JsonRpc.Attach<IPowerPointDaemonRpc>(pipe);
             try
@@ -53,9 +55,9 @@ public sealed class ServiceClient : IDisposable
                 using var disconnectMonitorCts = CancellationTokenSource.CreateLinkedTokenSource(requestCts.Token);
                 requestCts.CancelAfter(_requestTimeout);
 
-                var callTask = proxy.ProcessCommandAsync(request);
+                var callTask = proxy.ProcessCommandAsync(request, requestCts.Token);
                 var disconnectTask = WaitForPipeDisconnectAsync(pipe, disconnectMonitorCts.Token);
-                var completed = await Task.WhenAny(callTask, disconnectTask);
+                var completed = await Task.WhenAny(callTask, disconnectTask).WaitAsync(requestCts.Token);
                 if (completed == disconnectTask
                     && disconnectTask.IsCompletedSuccessfully
                     && disconnectTask.Result
@@ -84,7 +86,7 @@ public sealed class ServiceClient : IDisposable
                 ExceptionType = nameof(TimeoutException)
             };
         }
-        catch (OperationCanceledException) when (connectCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (!connected && connectCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
             return new ServiceResponse
             {
@@ -104,7 +106,8 @@ public sealed class ServiceClient : IDisposable
                 Command = request.Command,
                 SessionId = request.SessionId,
                 ErrorCategory = "Timeout",
-                ErrorMessage = "Daemon request timed out",
+                ErrorMessage = "The wait for the daemon expired. PowerPoint work may still be running. " +
+                    "Inspect 'pptcli session list' before retrying; the wait does not undo presentation changes.",
                 ExceptionType = nameof(OperationCanceledException)
             };
         }
@@ -174,8 +177,13 @@ public sealed class ServiceClient : IDisposable
             var response = await SendAsync(new ServiceRequest { Command = "service.ping" }, cancellationToken);
             return response.Success;
         }
-        catch (Exception)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceWarning("PowerPoint CLI ping failed: {0}", ex.Message);
             return false;
         }
     }

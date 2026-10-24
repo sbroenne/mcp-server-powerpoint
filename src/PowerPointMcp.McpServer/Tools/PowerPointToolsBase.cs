@@ -76,7 +76,6 @@ public static class PowerPointToolsBase
     {
         var context = string.IsNullOrEmpty(actionName) ? toolName : $"{toolName}.{actionName}";
         Task<string>? operationTask = null;
-        int started = 0;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -85,7 +84,6 @@ public static class PowerPointToolsBase
             operationTask = Task.Run(() =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                Interlocked.Exchange(ref started, 1);
                 return operation();
             }, CancellationToken.None);
             var json = await operationTask.WaitAsync(cancellationToken);
@@ -94,11 +92,15 @@ public static class PowerPointToolsBase
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            if (!string.IsNullOrWhiteSpace(sessionId))
+            {
+                if (registry is not null && registry.TryGet(sessionId, out var batch))
+                    batch.MarkWaitExpired();
+                Console.Error.WriteLine($"[PowerPointMcp] Cancelled wait in {context}; the presentation session was not closed.");
+            }
             if (operationTask is not null)
             {
-                if (Volatile.Read(ref started) != 0 && !string.IsNullOrWhiteSpace(sessionId))
-                    registry?.Close(sessionId, operationTask);
-                _ = ObserveCancelledOperationAsync(operationTask, context, toolName, actionName, registry, sessionId);
+                _ = ObserveCancelledOperationAsync(operationTask, context, toolName, actionName, registry);
             }
             throw;
         }
@@ -125,14 +127,11 @@ public static class PowerPointToolsBase
         string context,
         string toolName,
         string actionName,
-        PresentationSessionRegistry? registry,
-        string? sessionId)
+        PresentationSessionRegistry? registry)
     {
         try
         {
             var json = await operationTask;
-            if (!string.IsNullOrWhiteSpace(sessionId))
-                registry?.Close(sessionId);
             if (registry is not null && toolName == "presentation" && actionName is "open" or "create")
             {
                 using var result = JsonDocument.Parse(json);
@@ -145,7 +144,7 @@ public static class PowerPointToolsBase
                 if (!result.RootElement.TryGetProperty("presentation_session_id", out var id) ||
                     id.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(id.GetString()))
                     throw new InvalidOperationException("Session creation returned no session identifier.");
-                registry.Close(id.GetString()!);
+                registry.Close(id.GetString()!, preserveUnsavedChanges: true);
             }
         }
         catch (OperationCanceledException)
@@ -155,8 +154,6 @@ public static class PowerPointToolsBase
 #pragma warning disable CA1031 // Observe late failures after the SDK request has already been cancelled.
         catch (Exception ex)
         {
-            if (!string.IsNullOrWhiteSpace(sessionId))
-                registry?.Close(sessionId);
             Console.Error.WriteLine(
                 $"[PowerPointMcp] Cancelled operation {context} finished with {ex.GetType().Name}: HResult=0x{ex.HResult:X8}.");
         }

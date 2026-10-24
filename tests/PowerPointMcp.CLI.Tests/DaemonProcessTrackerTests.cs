@@ -126,5 +126,59 @@ public sealed class DaemonProcessTrackerTests
         Assert.Throws<InvalidOperationException>(() => tracker.RecordPowerPointProcess(identity));
     }
 
+    [Fact]
+    public void Recovery_DoesNotTerminateRecordedPowerPointProcess()
+    {
+        using var child = Process.Start(new ProcessStartInfo("pwsh", "-NoProfile -Command \"Start-Sleep 60\"")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true
+        }) ?? throw new InvalidOperationException("Could not start cleanup test process.");
+        using var current = Process.GetCurrentProcess();
+        var record = new DaemonTrackingRecord
+        {
+            Daemon = new DaemonProcessIdentity(current.Id, current.StartTime.ToUniversalTime().ToFileTimeUtc() - 1),
+            PowerPointProcesses =
+            [
+                new DaemonProcessIdentity(child.Id, child.StartTime.ToUniversalTime().ToFileTimeUtc())
+            ]
+        };
+        try
+        {
+            Assert.True(OwnedProcessCleanup.TryCleanup(record, OperationDeadline.Start(TimeSpan.FromSeconds(3)), out var error), error);
+            Assert.False(child.HasExited, "Recovering a CLI service must not end PowerPoint or lose unsaved work.");
+        }
+        finally
+        {
+            if (!child.HasExited)
+            {
+                child.Kill();
+                child.WaitForExit(5000);
+            }
+        }
+    }
+
+    [Fact]
+    public void RegisterCurrentProcess_PreservesEarlierPowerPointRecords()
+    {
+        string pipeName = UniquePipeName();
+        using var current = Process.GetCurrentProcess();
+        var tracker = new DaemonProcessTracker(pipeName);
+        try
+        {
+            var daemon = DaemonProcessTracker.RegisterProcess(pipeName, current.Id, current.StartTime.ToUniversalTime().ToFileTimeUtc());
+            var earlier = new DaemonProcessTracker.ProcessIdentity(101, 1001);
+            DaemonProcessTracker.RecordPowerPointProcesses(pipeName, daemon, [earlier]);
+
+            tracker.RegisterCurrentProcess();
+
+            Assert.Contains(earlier, DaemonProcessTracker.ReadProcessSnapshot(pipeName).Snapshot!.PowerPointProcesses);
+        }
+        finally
+        {
+            tracker.Clear();
+        }
+    }
+
     private static string UniquePipeName() => $"PowerPointMcpTests-{Guid.NewGuid():N}";
 }

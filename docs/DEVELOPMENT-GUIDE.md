@@ -100,9 +100,18 @@ The close call returns without waiting for the PowerPoint process to exit.
 Office may take minutes to finish post-Quit cleanup; that delay alone does not
 prove a leak or justify force-killing it.
 
+Cancelled or expired waits retain existing sessions. Session lists expose operation
+state without calling into PowerPoint, so they remain available while work is blocked.
+Only one operation may run per session; a later request is rejected until the earlier
+callback actually finishes, even if its caller has already stopped waiting.
+
 Host shutdown through Ctrl+C, stdin EOF, or normal exit has two cleanup layers:
 `PresentationSessionShutdownService.StopAsync` and the `Main` finally block both
-call the registry's idempotent `DisposeAll()`. The
+call the registry's idempotent `DisposeAll()`. This rejects new session startup,
+releases automation, and retains unsaved or unfinished presentations without saving.
+Explicit close remains separate and discards changes unless saving was requested.
+Recovery may stop a verified service process, but never its recorded PowerPoint
+processes: PowerPoint can share one process with other presentations. The
 [critical rules](../.github/instructions/critical-rules.instructions.md)
 define the required tracking and process-ownership safeguards.
 

@@ -14,7 +14,11 @@ namespace Sbroenne.PowerPointMcp.ComInterop.Session;
 public sealed record PresentationSessionInfo(
     string SessionId,
     string PresentationPath,
-    bool IsPowerPointProcessAlive);
+    bool IsPowerPointProcessAlive)
+{
+    /// <summary>Last operation state, read without calling PowerPoint.</summary>
+    public PresentationOperationStatus? Operation { get; init; }
+}
 
 /// <summary>
 /// In-process registry that maps a generated session identifier to a long-lived
@@ -28,19 +32,11 @@ public sealed record PresentationSessionInfo(
 /// session table, mirroring mcp-server-excel's <c>SessionManager</c> — there each session maps to a live
 /// <c>IPresentationBatch</c> held open across separate CLI process invocations, avoiding a
 /// PowerPoint relaunch on every command. Disposing a batch closes PowerPoint for that
-/// presentation, so any host embedding this registry MUST call <see cref="DisposeAll()"/> on
-/// shutdown to guarantee no lingering POWERPNT.exe process.
+/// presentation, so hosts must call <see cref="DisposeAll()"/> on shutdown to release automation
+/// while leaving unsaved presentations open.
 ///
-/// ASYNC CLOSE: shutdown hardening made <c>IPresentationBatch.Dispose()</c> legitimately block for up to
-/// <see cref="ComInteropConstants.StaThreadJoinTimeout"/> (~210s) in the worst case — the bounded
-/// grace period + force-kill safety net that guarantees no orphaned POWERPNT.exe. An MCP tool
-/// call cannot block that long without risking a client-side timeout, so <see cref="Close"/>
-/// atomically removes the session and starts its dispose on a background <see cref="Task"/>,
-/// returning immediately. In-flight dispose tasks are tracked so <see cref="DisposeAll()"/> (host
-/// shutdown) can await every one of them — both the ones it starts itself and any still pending
-/// from earlier <see cref="Close"/> calls — before the host is allowed to exit. This preserves
-/// the "no lingering POWERPNT.exe after shutdown" guarantee while keeping the MCP-visible
-/// `presentation(action=close)` call fast.
+/// Close removes a session immediately and tracks its background cleanup. Host shutdown waits
+/// only for bounded cleanup, never for PowerPoint's process to exit, and rejects later startup.
 /// </remarks>
 public sealed class PresentationSessionRegistry : IDisposable
 {
@@ -88,55 +84,12 @@ public sealed class PresentationSessionRegistry : IDisposable
         }
     }
 
-    internal static void UntrackPowerPointProcess(PowerPointProcessIdentity identity)
-    {
-        lock (ProcessOwnershipLock)
-            TrackedPowerPointProcesses.TryRemove(identity, out _);
-    }
-
     private static void OnProcessExit(object? sender, EventArgs e)
     {
-        int killedCount = 0;
-        int alreadyExitedCount = 0;
-        int failedCount = 0;
-
         foreach (var identity in TrackedPowerPointProcesses.Keys)
         {
-            try
-            {
-                if (!OwnedProcessGuard.TryOpenMatchingProcess(identity, out var process))
-                {
-                    failedCount++;
-                    continue;
-                }
-
-                using (process)
-                {
-                    if (process != null)
-                    {
-                        process.Kill();
-                        killedCount++;
-                        PresentationDiagnostics.WriteStdErr(
-                            $"[DIAG-PROCESSEXIT-KILLED] Force-killed owned PowerPoint process {identity.ProcessId}");
-                    }
-                    else
-                    {
-                        alreadyExitedCount++;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                failedCount++;
-                PresentationDiagnostics.WriteStdErr(
-                    $"[DIAG-PROCESSEXIT-FAILED] Failed to kill owned PowerPoint process {identity.ProcessId}: {ex.Message}");
-            }
-        }
-
-        if (killedCount > 0 || failedCount > 0)
-        {
             PresentationDiagnostics.WriteStdErr(
-                $"[DIAG-PROCESSEXIT-SUMMARY] Killed={killedCount}, AlreadyExited={alreadyExitedCount}, Failed={failedCount}, Total={TrackedPowerPointProcesses.Count}");
+                $"[DIAG-PROCESSEXIT-RETAINED] PowerPoint process {identity.ProcessId} was not terminated; unsaved work may remain open.");
         }
     }
 
@@ -204,9 +157,7 @@ public sealed class PresentationSessionRegistry : IDisposable
 
     /// <summary>
     /// Closes a session: atomically removes it from the registry and starts disposing its batch
-    /// (closing PowerPoint for that presentation) on a background task. Returns immediately —
-    /// does NOT wait for PowerPoint's Quit/grace-period/force-kill sequence to finish, which can
-    /// legitimately take up to <see cref="ComInteropConstants.StaThreadJoinTimeout"/>. The
+    /// on a background task. Returns immediately, without waiting for PowerPoint to exit. The
     /// background dispose is tracked so <see cref="DisposeAll()"/> can await it on host shutdown.
     /// No-op if the identifier is unknown.
     /// </summary>
@@ -216,15 +167,16 @@ public sealed class PresentationSessionRegistry : IDisposable
     /// the operation to finish before disposing the batch. The caller observes operation failures.
     /// </param>
     /// <returns><see langword="true"/> if a session was found and its close was started.</returns>
-    public bool Close(string sessionId, Task? pendingOperation = null)
+    public bool Close(string sessionId, Task? pendingOperation = null, bool preserveUnsavedChanges = false)
     {
-        if (string.IsNullOrEmpty(sessionId) || !_sessions.TryRemove(sessionId, out var batch))
+        lock (_lifecycleLock)
         {
-            return false;
-        }
+            if (string.IsNullOrEmpty(sessionId) || !_sessions.TryRemove(sessionId, out var batch))
+                return false;
 
-        StartBackgroundDispose(sessionId, batch, pendingOperation);
-        return true;
+            StartBackgroundDispose(sessionId, batch, pendingOperation, preserveUnsavedChanges);
+            return true;
+        }
     }
 
     /// <summary>
@@ -238,7 +190,10 @@ public sealed class PresentationSessionRegistry : IDisposable
             result.Add(new PresentationSessionInfo(
                 pair.Key,
                 pair.Value.PresentationPath,
-                pair.Value.IsPowerPointProcessAlive()));
+                pair.Value.IsPowerPointProcessAlive())
+            {
+                Operation = pair.Value.GetOperationStatus()
+            });
         }
 
         return result;
@@ -260,11 +215,13 @@ public sealed class PresentationSessionRegistry : IDisposable
     /// </summary>
     internal void DisposeAll(TimeSpan overallTimeout)
     {
-        foreach (var sessionId in _sessions.Keys.ToArray())
+        lock (_lifecycleLock)
         {
-            if (_sessions.TryRemove(sessionId, out var batch))
+            _disposed = true;
+            foreach (var sessionId in _sessions.Keys.ToArray())
             {
-                StartBackgroundDispose(sessionId, batch);
+                if (_sessions.TryRemove(sessionId, out var batch))
+                    StartBackgroundDispose(sessionId, batch, preserveUnsavedChanges: true);
             }
         }
 
@@ -281,7 +238,7 @@ public sealed class PresentationSessionRegistry : IDisposable
             if (!Task.WhenAll(pending).Wait(overallTimeout))
             {
                 _logger?.LogWarning(
-                    "Timed out after {TimeoutSeconds:N0}s waiting for {Count} PowerPoint session(s) to finish shutting down in the background; each session's own force-kill safety net remains active and will still run to completion.",
+                    "Stopped waiting after {TimeoutSeconds:N0}s for {Count} PowerPoint session(s) to release automation. PowerPoint was not terminated; unsaved work may remain open.",
                     overallTimeout.TotalSeconds,
                     pending.Length);
             }
@@ -320,7 +277,7 @@ public sealed class PresentationSessionRegistry : IDisposable
         }
 
         // Startup may finish after shutdown has already drained the registered sessions.
-        batch.Dispose();
+        batch.DisposeForShutdown();
         throw new ObjectDisposedException(nameof(PresentationSessionRegistry));
     }
 
@@ -329,12 +286,12 @@ public sealed class PresentationSessionRegistry : IDisposable
     /// <see cref="_pendingDisposals"/> until it completes, so <see cref="DisposeAll()"/> can find
     /// and await it later regardless of when it was started.
     /// </summary>
-    private Task StartBackgroundDispose(string sessionId, IPresentationBatch batch, Task? pendingOperation = null)
+    private Task StartBackgroundDispose(string sessionId, IPresentationBatch batch, Task? pendingOperation = null, bool preserveUnsavedChanges = false)
     {
         var task = pendingOperation is null
-            ? Task.Run(() => DisposeBatch(sessionId, batch))
+            ? Task.Run(() => DisposeBatch(sessionId, batch, preserveUnsavedChanges))
             : pendingOperation.ContinueWith(
-                _ => DisposeBatch(sessionId, batch),
+                _ => DisposeBatch(sessionId, batch, preserveUnsavedChanges),
                 CancellationToken.None,
                 TaskContinuationOptions.None,
                 TaskScheduler.Default);
@@ -356,11 +313,14 @@ public sealed class PresentationSessionRegistry : IDisposable
         return task;
     }
 
-    private void DisposeBatch(string sessionId, IPresentationBatch batch)
+    private void DisposeBatch(string sessionId, IPresentationBatch batch, bool preserveUnsavedChanges)
     {
         try
         {
-            batch.Dispose();
+            if (preserveUnsavedChanges)
+                batch.DisposeForShutdown();
+            else
+                batch.Dispose();
         }
 #pragma warning disable CA1031 // Shutdown cleanup must never throw — a failed dispose cannot block closing other sessions.
         catch (Exception ex)

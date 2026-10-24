@@ -19,5 +19,5 @@ public interface IPowerPointDaemonRpc
     /// </summary>
     /// <param name="request">The service request with command, sessionId, and args.</param>
     /// <returns>The service response indicating success/failure with optional result data.</returns>
-    Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request);
+    Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request, CancellationToken cancellationToken = default);
 }

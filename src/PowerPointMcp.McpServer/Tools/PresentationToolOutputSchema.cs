@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Sbroenne.PowerPointMcp.ComInterop.Session;
 using Sbroenne.PowerPointMcp.Core.Tags;
 
 namespace Sbroenne.PowerPointMcp.McpServer.Tools;
@@ -63,4 +64,5 @@ internal sealed class PresentationSessionOutputSchema
     public string SessionId { get; set; } = string.Empty;
     public string PresentationPath { get; set; } = string.Empty;
     public bool IsPowerPointProcessAlive { get; set; }
+    public PresentationOperationStatus? Operation { get; set; }
 }

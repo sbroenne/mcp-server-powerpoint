@@ -214,7 +214,7 @@ public static class PresentationTools
         finally
         {
             if (cancellationToken.IsCancellationRequested)
-                registry.Close(sessionId);
+                registry.Close(sessionId, preserveUnsavedChanges: true);
         }
     }
 
@@ -237,7 +237,7 @@ public static class PresentationTools
         var sessionId = registry.Open(filePath);
         if (cancellationToken.IsCancellationRequested)
         {
-            registry.Close(sessionId);
+            registry.Close(sessionId, preserveUnsavedChanges: true);
             cancellationToken.ThrowIfCancellationRequested();
         }
         return PowerPointToolsBase.Serialize(new
@@ -254,7 +254,7 @@ public static class PresentationTools
     /// </summary>
     /// <remarks>
     /// PowerPoint's own post-Quit cleanup can legitimately take up to ~150-210s because of the
-    /// bounded grace period and force-kill safety net.
+    /// bounded automation cleanup without terminating PowerPoint.
     /// This does NOT wait for that; it returns as soon as the session is removed from the
     /// registry, so the MCP client is never blocked. The host still guarantees the PowerPoint
     /// process is fully cleaned up before it exits (see
@@ -266,6 +266,9 @@ public static class PresentationTools
         {
             return PowerPointToolsBase.ValidationError("presentation_session_id is required for action=close.");
         }
+
+        if (registry.TryGet(sessionId, out var activeBatch) && activeBatch.GetOperationStatus().ExecutionPending)
+            return PowerPointToolsBase.ValidationError("PowerPoint work is still running for this session. Inspect presentation list before closing it.");
 
         if (save)
         {
@@ -359,7 +362,8 @@ public static class PresentationTools
             {
                 presentation_session_id = s.SessionId,
                 presentationPath = s.PresentationPath,
-                isPowerPointProcessAlive = s.IsPowerPointProcessAlive
+                isPowerPointProcessAlive = s.IsPowerPointProcessAlive,
+                operation = s.Operation
             })
             .ToArray();
 
