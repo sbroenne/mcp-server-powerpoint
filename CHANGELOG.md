@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.4] - 2026-10-24
+
+### Patch Changes
+
+- [#118](https://github.com/sbroenne/mcp-server-powerpoint/pull/118) [`336d827`](https://github.com/sbroenne/mcp-server-powerpoint/commit/336d827060dd217f27d6e750606329d141f39415) Thanks [@sbroenne](https://github.com/sbroenne)! - Make package descriptions and introductory guides explain what you can do with PowerPoint before installation details. Clearly identify AI assistant and command-line options, Windows x64 and ARM64 packages, and the requirement for desktop Microsoft PowerPoint.
+
+- [#116](https://github.com/sbroenne/mcp-server-powerpoint/pull/116) [`ac820ca`](https://github.com/sbroenne/mcp-server-powerpoint/commit/ac820ca5311100521cc8f20b58cb4442509f1ecb) Thanks [@sbroenne](https://github.com/sbroenne)! - Keep existing PowerPoint sessions available after cancelled commands or expired waits, and show unfinished work and later failures in session lists. Keep service status and shutdown responsive while editing is busy, and leave unsaved presentations open when the service stops instead of terminating PowerPoint. Update dependencies and ensure `service start --pipe-name` uses the requested service.
+  
+  Track clipboard waits as part of the running request, and keep service controls available when recorded PowerPoint processes cannot be checked. Preserve support for VS Code 1.125; retain the previous video-tool version because the newer version adds dependencies outside the repository's accepted licenses.
+  
+  Keep late PowerPoint results regardless of completion order, include presentation validation and file-copy failures in session status, and prevent closing from removing a session while another request is starting.
+  
+  Do not let cancellation change another request's status, or let closing one presentation re-enable prompts that interrupt another automated presentation.
+  
+  Clear idle service connections without interrupting running commands, report tracking-record lock problems as warnings, and preserve failures returned after a wait has expired.
+
 ## [0.3.2] - 2026-10-08
 
 ### Major Changes
