@@ -275,7 +275,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine($"        public static TResult RouteAction<TResult>(");
         sb.AppendLine($"            {info.CategoryPascal}Action action,");
         sb.AppendLine($"            string sessionId,");
-        sb.AppendLine($"            System.Func<string, string, object?, TResult> forwardToService,");
+        sb.AppendLine($"            System.Func<string, string, object?, TResult> forwardToService{(allExposedParams.Count == 0 ? ")" : ",")}");
 
         // Collect all unique exposed parameters across all methods
         for (int i = 0; i < allExposedParams.Count; i++)
@@ -319,10 +319,10 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("        /// Returns (command, args) tuple for sending to service.");
         sb.AppendLine("        /// </summary>");
         sb.AppendLine($"        public static (string Command, object? Args) RouteCliArgs(");
-        sb.AppendLine($"            string action,");
 
         // Collect all unique exposed parameters
         var allExposedParams = GetAllExposedParameters(info);
+        sb.AppendLine($"            string action{(allExposedParams.Count == 0 ? ")" : ",")}");
         for (int i = 0; i < allExposedParams.Count; i++)
         {
             var p = allExposedParams[i];
@@ -410,7 +410,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("        public static (string Command, object? Args) RouteFromSettings(string action, CliSettings settings)");
         sb.AppendLine("        {");
         sb.AppendLine("            return RouteCliArgs(");
-        sb.AppendLine("                action,");
+        sb.AppendLine($"                action{(allExposedParams.Count == 0 ? ");" : ",")}");
 
         for (int i = 0; i < allExposedParams.Count; i++)
         {
