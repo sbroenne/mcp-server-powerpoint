@@ -218,6 +218,9 @@ public sealed class ReleasePackagingTests
             "gh pr merge \"$EXISTING_PR\" --squash --delete-branch --auto",
             workflow,
             StringComparison.Ordinal);
+        Assert.Matches(
+            @"git fetch origin main\s+git rebase origin/main\s+git push origin",
+            workflow);
         Assert.Contains(
             "ref: ${{ needs.version.outputs.source_ref }}",
             workflow,
@@ -233,6 +236,13 @@ public sealed class ReleasePackagingTests
         Assert.DoesNotContain(
             "continue-on-error",
             workflow[registryStepStart..nextJobStart],
+            StringComparison.Ordinal);
+        var registryStep = workflow[registryStepStart..nextJobStart];
+        Assert.Contains("if ($response.StatusCode -eq 200)", registryStep, StringComparison.Ordinal);
+        Assert.Contains("if ($response.StatusCode -ne 404)", registryStep, StringComparison.Ordinal);
+        Assert.Contains(
+            "Compare-Object -ReferenceObject $expectedPackages -DifferenceObject $publishedPackages -CaseSensitive",
+            registryStep,
             StringComparison.Ordinal);
     }
 

@@ -743,6 +743,32 @@ jobs:
 
     - name: Publish to MCP Registry
       run: |
+        $manifest = Get-Content 'src\PowerPointMcp.McpServer\.mcp\server.json' -Raw | ConvertFrom-Json
+        $serverName = [Uri]::EscapeDataString($manifest.name)
+        $response = Invoke-WebRequest -Uri "https://registry.modelcontextprotocol.io/v0.1/servers/$serverName/versions/$env:VERSION" -SkipHttpErrorCheck
+        if ($response.StatusCode -eq 200) {
+          $published = ($response.Content | ConvertFrom-Json).server
+          if ($published.name -cne $manifest.name -or
+              $published.version -cne $manifest.version -or
+              $published.description -cne $manifest.description -or
+              $published.repository.url -cne $manifest.repository.url) {
+            throw "Published MCP Registry metadata does not match the release."
+          }
+          $expectedPackages = @($manifest.packages | ForEach-Object {
+            "$($_.registryType)|$($_.identifier)|$($_.version)|$($_.transport.type)"
+          })
+          $publishedPackages = @($published.packages | ForEach-Object {
+            "$($_.registryType)|$($_.identifier)|$($_.version)|$($_.transport.type)"
+          })
+          if (@(Compare-Object -ReferenceObject $expectedPackages -DifferenceObject $publishedPackages -CaseSensitive).Count -ne 0) {
+            throw "Published MCP Registry packages do not match the release."
+          }
+          Write-Output "MCP Registry version $env:VERSION is already published with matching metadata."
+          exit 0
+        }
+        if ($response.StatusCode -ne 404) {
+          throw "Unexpected MCP Registry response: $($response.StatusCode)."
+        }
         ./mcp-publisher.exe login github-oidc
         Set-Location src/PowerPointMcp.McpServer/.mcp
         ../../../mcp-publisher.exe publish --verbose
@@ -1029,6 +1055,8 @@ jobs:
         fi
 
         git commit -m "chore: update CHANGELOG.md for v${VERSION} release [skip ci]"
+        git fetch origin main
+        git rebase origin/main
         git push origin "$BRANCH"
 
         gh pr create \
